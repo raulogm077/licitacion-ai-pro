@@ -129,3 +129,4 @@ playwright/.cache/
 # OS
 .DS_Store
 Thumbs.db
+.vercel

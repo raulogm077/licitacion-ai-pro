@@ -54,6 +54,7 @@ export class AIService {
         (El sistema espera exactamente la interfaz LicitacionData definida en tu contexto).
       `;
 
+            console.log("🤖 Enviando solicitud a Gemini API (" + MODEL_NAME + ")...");
             const result = await this.model.generateContent([
                 prompt,
                 {
@@ -63,6 +64,7 @@ export class AIService {
                     },
                 },
             ]);
+            console.log("✅ Respuesta recibida de Gemini API");
 
             const response = await result.response;
             const text = response.text();
@@ -71,9 +73,14 @@ export class AIService {
 
             return this.cleanAndParseJson(text);
         } catch (error) {
-            console.error("Error in AI analysis:", error);
+            console.error("❌ CRITICAL AI ERROR:", error);
+            // Log full error details if available
+            if (error && typeof error === 'object' && 'response' in error) {
+                console.error("Full Response Error:", (error as any).response);
+            }
+
             if (error instanceof LicitacionAIError) throw error;
-            throw new LicitacionAIError("Falló el análisis del documento", error);
+            throw new LicitacionAIError("Falló el análisis del documento: " + (error instanceof Error ? error.message : String(error)), error);
         }
     }
 

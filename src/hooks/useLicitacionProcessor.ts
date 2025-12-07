@@ -18,16 +18,20 @@ export function useLicitacionProcessor() {
     });
 
     const processFile = useCallback(async (file: File) => {
+        console.log("🚀 Iniciando proceso de archivo:", file.name, "Size:", file.size);
         setState(prev => ({ ...prev, status: 'READING_PDF', progress: 5, error: null, thinkingOutput: '' }));
 
         try {
             // 1. Security: Magic Bytes Validation
+            console.log("🔍 Validando Magic Bytes...");
             const isValidPdf = await validatePdfMagicBytes(file);
+            console.log("✅ Magic Bytes Validos:", isValidPdf);
             if (!isValidPdf) {
                 throw new Error("El archivo no es un PDF válido (Magic Bytes mismatch).");
             }
 
             // 2. Deduplication: Generate Hash
+            console.log("🔑 Generando Hash...");
             const hash = await generateFileHash(file);
 
             // Check Local DB
@@ -55,10 +59,13 @@ export function useLicitacionProcessor() {
             }));
 
             const base64 = await readFileAsBase64(file);
+            console.log("📄 PDF convertido a Base64. Longitud:", base64.length);
 
             if (!API_KEY) {
+                console.error("❌ API KEY NO ENCONTRADA en import.meta.env");
                 throw new Error("API Key no configurada. Por favor configura VITE_GEMINI_API_KEY.");
             }
+            console.log("✅ API KEY detectada (Longitud: " + API_KEY.length + ")");
 
             const aiService = new AIService(API_KEY);
 
