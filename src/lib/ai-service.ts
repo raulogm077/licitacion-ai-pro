@@ -9,7 +9,7 @@ export class LicitacionAIError extends Error {
     }
 }
 
-const MODEL_NAME = "gemini-1.5-flash"; // Falling back to stable model to fix production 404
+const MODEL_NAME = "gemini-1.5-pro"; // Upgraded to Pro model for advanced reasoning and higher precision
 
 export class AIService {
     private genAI: GoogleGenerativeAI;
