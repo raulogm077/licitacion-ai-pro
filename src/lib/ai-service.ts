@@ -9,7 +9,7 @@ export class LicitacionAIError extends Error {
     }
 }
 
-const MODEL_NAME = "gemini-2.0-flash-exp"; // Gemini 2.0 Flash - Most optimized available
+const MODEL_NAME = "gemini-1.5-flash"; // Falling back to stable model to fix production 404
 
 export class AIService {
     private genAI: GoogleGenerativeAI;
