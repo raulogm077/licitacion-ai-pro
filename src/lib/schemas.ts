@@ -19,73 +19,102 @@ const MetadataSchema = z.object({
 });
 
 export const LicitacionSchema = z.object({
-    datosGenerales: z.object({
-        titulo: z.string(),
-        presupuesto: z.number(),
-        moneda: z.string().default('EUR'),
-        plazoEjecucionMeses: z.number(),
-        cpv: z.array(z.string()),
-        organoContratacion: z.string(),
+    datosGenerales: z.preprocess(val => val ?? undefined, z.object({
+        titulo: z.string().default('Sin título'),
+        presupuesto: z.preprocess(
+            val => (val === null || val === undefined) ? 0 : Number(val),
+            z.number().default(0)
+        ),
+        moneda: z.string().default("EUR"),
+        plazoEjecucionMeses: z.preprocess(
+            val => (val === null || val === undefined) ? 0 : Number(val),
+            z.number().default(0)
+        ),
+        cpv: z.array(z.string()).default([]),
+        organoContratacion: z.string().default('Desconocido'),
         fechaLimitePresentacion: z.string().optional(),
-    }),
-    criteriosAdjudicacion: z.object({
+    }).default({})),
+    criteriosAdjudicacion: z.preprocess(val => val ?? undefined, z.object({
         subjetivos: z.array(z.object({
             descripcion: z.string(),
-            ponderacion: z.number().min(0).max(100),
+            ponderacion: z.number().default(0),
             detalles: z.string().optional(),
-        })),
+        })).default([]),
         objetivos: z.array(z.object({
             descripcion: z.string(),
-            ponderacion: z.number().min(0).max(100),
+            ponderacion: z.number().default(0),
             formula: z.string().optional(),
-        })),
-    }),
-    requisitosTecnicos: z.object({
-        funcionales: z.array(z.object({
-            requisito: z.string(),
-            obligatorio: z.boolean(),
-            referenciaPagina: z.number().optional(),
-        })),
-        normativa: z.array(z.object({
-            norma: z.string(),
-            descripcion: z.string().optional(),
-        })),
-    }),
-    requisitosSolvencia: z.object({
-        economica: z.object({
-            cifraNegocioAnualMinima: z.number(),
-            descripcion: z.string().optional(),
-        }),
+        })).default([]),
+    }).default({})),
+    requisitosTecnicos: z.preprocess(val => val ?? undefined, z.object({
+        funcionales: z.array(
+            z.union([
+                z.string().transform(str => ({ requisito: str, obligatorio: true })),
+                z.object({
+                    requisito: z.string(),
+                    obligatorio: z.boolean().default(true),
+                    referenciaPagina: z.number().optional()
+                })
+            ])
+        ).default([]),
+        normativa: z.array(
+            z.union([
+                z.string().transform(str => ({ norma: str, descripcion: "" })),
+                z.object({
+                    norma: z.string(),
+                    descripcion: z.string().optional()
+                })
+            ])
+        ).default([]),
+    }).default({})),
+    requisitosSolvencia: z.preprocess(val => val ?? undefined, z.object({
+        economica: z.preprocess(val => val ?? {}, z.object({
+            cifraNegocioAnualMinima: z.preprocess(
+                val => (val === null || val === undefined) ? 0 : Number(val),
+                z.number().default(0)
+            ),
+            descripcion: z.string().optional().nullable().transform(val => val ?? undefined)
+        }).catch({ cifraNegocioAnualMinima: 0 })).default({}),
         tecnica: z.array(z.object({
             descripcion: z.string(),
-            proyectosSimilaresRequeridos: z.number(),
-            importeMinimoProyecto: z.number().optional(),
-        })),
-    }),
-    restriccionesYRiesgos: z.object({
-        killCriteria: z.array(z.string()),
+            proyectosSimilaresRequeridos: z.number().default(0),
+            importeMinimoProyecto: z.number().optional()
+        })).default([])
+    }).default({})),
+    restriccionesYRiesgos: z.preprocess(val => val ?? undefined, z.object({
+        killCriteria: z.array(z.string()).default([]),
         riesgos: z.array(z.object({
             descripcion: z.string(),
             impacto: z.enum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO']),
             probabilidad: z.enum(['BAJA', 'MEDIA', 'ALTA']).optional(),
             mitigacionSugerida: z.string().optional(),
-        })),
+        })).default([]),
         penalizaciones: z.array(z.object({
             causa: z.string(),
             sancion: z.string(),
-        })),
-    }),
-    modeloServicio: z.object({
-        sla: z.array(z.object({
-            metrica: z.string(),
-            objetivo: z.string(),
-        })),
-        equipoMinimo: z.array(z.object({
-            rol: z.string(),
-            experienciaAnios: z.number(),
-            titulacion: z.string().optional(),
-        })),
-    }),
+        })).default([]),
+    }).default({})),
+    modeloServicio: z.preprocess(val => val ?? {}, z.object({
+        sla: z.array(
+            z.union([
+                z.string().transform(str => ({ metrica: str, objetivo: "N/A" })),
+                z.object({
+                    metrica: z.string(),
+                    objetivo: z.string()
+                })
+            ])
+        ).default([]),
+        equipoMinimo: z.array(
+            z.union([
+                z.string().transform(str => ({ rol: str, experienciaAnios: 0 })),
+                z.object({
+                    rol: z.string(),
+                    experienciaAnios: z.number().default(0),
+                    titulacion: z.string().optional()
+                })
+            ])
+        ).default([])
+    }).default({})),
     metadata: MetadataSchema.optional(),
     notas: z.array(NoteSchema).optional(),
 });

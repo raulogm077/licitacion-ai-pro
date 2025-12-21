@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LicitacionData } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
-import { AlertTriangle, CheckCircle, Euro, Calendar, ShieldAlert, Download, Edit2, Save, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Euro, Calendar, ShieldAlert, Download, Edit2, Save, X, Code } from 'lucide-react';
 import { RequirementsMatrix } from './RequirementsMatrix';
 import { exportToExcel, exportToJson } from '../../lib/export-utils';
 
@@ -41,7 +41,8 @@ export function Dashboard({ data, onUpdate }: DashboardProps) {
     };
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-ES', { style: 'currency', currency: data.datosGenerales.moneda }).format(amount);
+        if (!amount || amount === 0) return "N/A";
+        return new Intl.NumberFormat('es-ES', { style: 'currency', currency: data.datosGenerales.moneda || 'EUR' }).format(amount);
     };
 
     return (
@@ -137,7 +138,7 @@ export function Dashboard({ data, onUpdate }: DashboardProps) {
                             />
                         ) : (
                             <p className="text-lg font-semibold text-slate-900 line-clamp-2" title={data.datosGenerales.titulo}>
-                                {data.datosGenerales.titulo}
+                                {data.datosGenerales.titulo || "Título no detectado (Editar para añadir)"}
                             </p>
                         )}
                         <div className="flex gap-2 mt-3">
@@ -197,7 +198,11 @@ export function Dashboard({ data, onUpdate }: DashboardProps) {
                                     </div>
                                 ))}
                                 {data.restriccionesYRiesgos.riesgos.length === 0 && (
-                                    <p className="text-sm text-slate-500 italic">No se detectaron riesgos significativos.</p>
+                                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                                        <ShieldAlert className="text-slate-300 mb-2" size={32} />
+                                        <p className="text-sm text-slate-500 italic">No se detectaron riesgos explícitos.</p>
+                                        <p className="text-xs text-slate-400">La IA no encontró cláusulas críticas en el extracto.</p>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -252,6 +257,29 @@ export function Dashboard({ data, onUpdate }: DashboardProps) {
             <div className="h-[500px]">
                 <RequirementsMatrix requirements={data.requisitosTecnicos.funcionales} />
             </div>
+
+            {/* JSON Viewer Section */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Code size={20} className="text-slate-500" />
+                        Datos Estructurados (JSON)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto font-mono text-sm max-h-[400px] overflow-y-auto border border-slate-800 shadow-inner">
+                        <pre>{JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                    <div className="mt-2 text-right">
+                        <button
+                            onClick={() => navigator.clipboard.writeText(JSON.stringify(data, null, 2))}
+                            className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                        >
+                            Copiar JSON al portapapeles
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

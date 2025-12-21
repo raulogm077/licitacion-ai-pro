@@ -4,8 +4,8 @@ import { test, expect } from '@playwright/test';
 test.describe('Licitación AI Pro - E2E', () => {
     test('should load the home page and display correct title', async ({ page }) => {
         await page.goto('/');
-        await expect(page).toHaveTitle(/Licitación AI/);
-        await expect(page.getByText('Licitación AI Pro')).toBeVisible();
+        await expect(page).toHaveTitle(/Analista de Pliegos|Licitación/i);
+        await expect(page.getByText('Analista de Pliegos')).toBeVisible();
     });
 
     test('should navigate to History view', async ({ page }) => {

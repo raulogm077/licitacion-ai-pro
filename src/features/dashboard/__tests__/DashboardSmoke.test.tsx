@@ -15,6 +15,7 @@ vi.mock('lucide-react', () => ({
     Edit2: () => <span data-testid="icon-edit" />,
     Save: () => <span data-testid="icon-save" />,
     X: () => <span data-testid="icon-x" />,
+    Code: () => <span data-testid="icon-code" />,
 }));
 
 // Mock Child Components

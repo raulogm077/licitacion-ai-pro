@@ -1,34 +1,31 @@
 import React, { useMemo } from 'react';
 import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon } from 'lucide-react';
-import { View, ProcessingStatus, LicitacionData } from '../../types';
+import { ProcessingStatus, LicitacionData } from '../../types';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
-    view: View;
-    setView: (view: View) => void;
     status: ProcessingStatus;
     data: LicitacionData | null;
     reset: () => void;
     darkMode: boolean;
     setDarkMode: (dark: boolean) => void;
-    onPresentationMode: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-    view,
-    setView,
     status,
     data,
     reset,
     darkMode,
     setDarkMode,
-    onPresentationMode
 }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
 
-    const navButton = useMemo(() => (target: View, icon: React.ReactNode, label: string) => {
-        const isActive = view === target;
+    const navButton = useMemo(() => (path: string, icon: React.ReactNode, label: string) => {
+        const isActive = location.pathname === path;
         return (
             <button
-                onClick={() => setView(target)}
+                onClick={() => navigate(path)}
                 title={label}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isActive
                     ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20'
@@ -39,11 +36,11 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-sm font-medium hidden sm:inline">{label}</span>
             </button>
         );
-    }, [view, setView]);
+    }, [location.pathname, navigate]);
 
     const handleLogoClick = () => {
         reset();
-        setView('HOME');
+        navigate('/');
     };
 
     return (
@@ -54,14 +51,14 @@ export const Header: React.FC<HeaderProps> = ({
                         <FileText className="text-white" size={20} />
                     </div>
                     <h1 className="text-xl font-bold bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
-                        Licitación AI Pro
+                        Analista de Pliegos
                     </h1>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {view !== 'HOME' && (
+                    {location.pathname !== '/' && (
                         <button
-                            onClick={() => setView('HOME')}
+                            onClick={() => navigate('/')}
                             title="Volver al inicio"
                             className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
                         >
@@ -70,13 +67,13 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
                     )}
 
-                    {navButton('HISTORY', <History size={20} />, 'Historial')}
-                    {navButton('ANALYTICS', <BarChart3 size={20} />, 'Analytics')}
-                    {navButton('SEARCH', <Search size={20} />, 'Búsqueda')}
+                    {navButton('/history', <History size={20} />, 'Historial')}
+                    {navButton('/analytics', <BarChart3 size={20} />, 'Analytics')}
+                    {navButton('/search', <Search size={20} />, 'Búsqueda')}
 
                     {status === 'COMPLETED' && data && (
                         <button
-                            onClick={onPresentationMode}
+                            onClick={() => navigate('/presentation')}
                             title="Modo Presentación"
                             className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
                         >

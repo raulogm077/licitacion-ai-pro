@@ -9,7 +9,7 @@ export class LicitacionAIError extends Error {
     }
 }
 
-const MODEL_NAME = "gemini-1.5-pro"; // Upgraded to Pro model for advanced reasoning and higher precision
+const MODEL_NAME = "gemini-flash-latest"; // Using alias as 1.5 is 404 and 2.0 has 0 quota
 
 export class AIService {
     private genAI: GoogleGenerativeAI;
@@ -31,30 +31,46 @@ export class AIService {
             if (onThinking) onThinking("Iniciando análisis profundo del documento...");
 
             const prompt = `
-        Actúa como un experto analista de licitaciones públicas. Tu tarea es analizar el pliego adjunto y extraer información estructurada con ALTA PRECISIÓN.
-        
-        INSTRUCCIONES DE PENSAMIENTO (CHAIN OF THOUGHT):
-        1. **Escaneo General**: Identifica Objeto, Órgano de Contratación y CPV (Códigos Comunes de Contratos Públicos).
-        2. **Presupuesto**: Busca la cifra exacta del Presupuesto Base de Licitación (sin impuestos). Asegúrate de identificar la moneda (generalmente EUR).
-        3. **Plazos**: Encuentra el plazo de ejecución (en meses) y la fecha límite de presentación de ofertas (si aparece explícitamente).
-        4. **Criterios de Adjudicación**: Distingue rigurosamente entre:
-           - Criterios Objetivos (Evaluables mediante fórmulas/automáticos). Extrae la fórmula si es posible.
-           - Criterios Subjetivos (Juicio de valor). Resume qué se pide.
-           - Asigna la ponderación exacta a cada uno.
-        5. **Solvencia y Requisitos**:
-           - Solvencia Económica: Cifra de negocios anual mínima requerida.
-           - Solvencia Técnica: Experiencia previa requerida (número de proyectos, importes, años).
-           - Riesgos/Kill Criteria: Identifica cláusulas que podrían excluir al licitador o suponer un riesgo alto.
-        6. **Generación**: Construye el JSON final.
+        ERES UN EXPERTO ANALISTA DE LICITACIONES. TU OBJETIVO ES EXTRAER DATOS CLAVE DE ESTE PDF Y DEVOLVER UN JSON PERFECTO.
 
-        FORMATO DE SALIDA:
-        Debes devolver UNICAMENTE un objeto JSON válido. No incluyas bloques de código markdown (\`\`\`json) ni texto adicional fuera del JSON.
+        REGLAS CRÍTICAS:
+        1. Responde SOLO con el JSON. Nada más antes ni después.
+        2. Si un dato no aparece, usa null (o array vacío []). NO inventes datos.
+        3. Para importes monetarios, extrae SOLO el número (ej: 10000.50).
+
+        CAMPOS A EXTRAER (Estructura LicitacionData):
+        - datosGenerales:
+            - titulo: Título completo del expediente.
+            - presupuesto: Base de licitación sin impuestos (número). Si no lo encuentras, pon 0.
+            - moneda: "EUR" u otra.
+            - plazoEjecucionMeses: Duración en meses (número).
+            - cpv: Array de códigos CPV.
+            - organoContratacion: Quién licita.
+
+        - criteriosAdjudicacion:
+            - objetivos (Fórmulas): Lista con {descripcion, ponderacion (0-100), formula}.
+            - subjetivos (Juicio de Valor): Lista con {descripcion, ponderacion (0-100), detalles}.
+
+        - requisitosSolvencia:
+            - economica: { cifraNegocioAnualMinima (número), descripcion }.
+            - tecnica: Lista con { descripcion, proyectosSimilaresRequeridos (número), importeMinimoProyecto (número) }.
+
+        - requisitosTecnicos:
+            - funcionales: Lista de requisitos "MUST HAVE".
+            - normativa: Lista de normas (ISO, ENS, etc).
+
+        - restriccionesYRiesgos:
+            - killCriteria: Lista de requisitos excluyentes.
+            - riesgos: Lista de posibles riesgos {descripcion, impacto (ALTO/MEDIO/BAJO), mitigacionSugerida}.
         
-        ESQUEMA JSON OBJETIVO:
-        (El sistema espera exactamente la interfaz LicitacionData definida en tu contexto).
+        - modeloServicio:
+            - sla: Acuerdos de nivel de servicio.
+            - equipoMinimo: Perfiles requeridos.
+
+        FORMATO FINAL ESPERADO:
+        Debes devolver un JSON válido que cumpla estrictamente con esta estructura.
       `;
 
-            console.log("🤖 Enviando solicitud a Gemini API (" + MODEL_NAME + ")...");
             const result = await this.model.generateContent([
                 prompt,
                 {
@@ -64,14 +80,25 @@ export class AIService {
                     },
                 },
             ]);
-            console.log("✅ Respuesta recibida de Gemini API");
 
             const response = await result.response;
-            const text = response.text();
+
+            let text = "";
+            try {
+                text = response.text();
+            } catch (textError) {
+                console.error("Error extrayendo texto (Safety/Recitation):", textError);
+                throw new LicitacionAIError("El modelo bloqueó la respuesta por seguridad/recitación.", textError);
+            }
+
+            if (!text) {
+                throw new LicitacionAIError("La IA devolvió una respuesta vacía.");
+            }
 
             if (onThinking) onThinking("Generando respuesta estructurada...");
 
-            return this.cleanAndParseJson(text);
+            const parsed = this.cleanAndParseJson(text);
+            return parsed;
         } catch (error) {
             console.error("❌ CRITICAL AI ERROR:", error);
             // Log full error details if available
