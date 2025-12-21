@@ -142,6 +142,32 @@ class DBService {
     }
 
     async advancedSearch(filters: SearchFilters) {
+        const activeFilters = Object.entries(filters).filter(([, value]) => {
+            if (Array.isArray(value)) return value.length > 0;
+            return value !== undefined && value !== '';
+        });
+
+        if (activeFilters.length === 1) {
+            if (filters.tags && filters.tags.length > 0) {
+                return this.searchByTags(filters.tags);
+            }
+
+            if (filters.estado) {
+                const db = await this.dbPromise;
+                const index = db.transaction('licitaciones').store.index('estado');
+                return index.getAll(filters.estado);
+            }
+
+            if (filters.presupuestoMin !== undefined || filters.presupuestoMax !== undefined) {
+                const min = filters.presupuestoMin ?? 0;
+                const max = filters.presupuestoMax ?? Number.MAX_SAFE_INTEGER;
+                const db = await this.dbPromise;
+                const index = db.transaction('licitaciones').store.index('presupuesto');
+                const range = IDBKeyRange.bound(min, max);
+                return index.getAll(range);
+            }
+        }
+
         let results = await this.getAllLicitaciones();
 
         if (filters.tags && filters.tags.length > 0) {

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon } from 'lucide-react';
+import { User as UserIcon, FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogIn, LogOut, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { View, ProcessingStatus, LicitacionData } from '../../types';
+import { User } from 'firebase/auth';
 
 interface HeaderProps {
     view: View;
@@ -11,6 +12,16 @@ interface HeaderProps {
     darkMode: boolean;
     setDarkMode: (dark: boolean) => void;
     onPresentationMode: () => void;
+    user: User | null;
+    authLoading: boolean;
+    onSignIn: () => Promise<void>;
+    onSignOut: () => Promise<void>;
+    syncQueue: {
+        pending: number;
+        syncing: boolean;
+        lastError: string | null;
+        processQueue: () => Promise<void>;
+    };
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,7 +32,12 @@ export const Header: React.FC<HeaderProps> = ({
     reset,
     darkMode,
     setDarkMode,
-    onPresentationMode
+    onPresentationMode,
+    user,
+    authLoading,
+    onSignIn,
+    onSignOut,
+    syncQueue
 }) => {
 
     const navButton = useMemo(() => (target: View, icon: React.ReactNode, label: string) => {
@@ -92,6 +108,43 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                         {darkMode ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
+
+                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+
+                    <button
+                        onClick={syncQueue.processQueue}
+                        disabled={syncQueue.syncing}
+                        title={syncQueue.lastError ? `Error de sincronización: ${syncQueue.lastError}` : 'Sincronización'}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors disabled:opacity-50"
+                    >
+                        {syncQueue.syncing ? <RefreshCw size={18} className="animate-spin" /> : syncQueue.pending > 0 ? <CloudOff size={18} /> : <Cloud size={18} />}
+                        <span className="text-sm font-medium hidden sm:inline">
+                            {syncQueue.syncing ? 'Sincronizando' : syncQueue.pending > 0 ? `${syncQueue.pending} en cola` : 'Sync OK'}
+                        </span>
+                    </button>
+
+                    {user ? (
+                        <button
+                            onClick={onSignOut}
+                            title="Cerrar sesión"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
+                        >
+                            <LogOut size={18} />
+                            <span className="text-sm font-medium hidden sm:inline">
+                                {user.displayName || user.email || 'Cuenta'}
+                            </span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={onSignIn}
+                            disabled={authLoading}
+                            title="Iniciar sesión con Google"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors disabled:opacity-50"
+                        >
+                            {authLoading ? <UserIcon size={18} /> : <LogIn size={18} />}
+                            <span className="text-sm font-medium hidden sm:inline">Google</span>
+                        </button>
+                    )}
                 </div>
             </div>
         </header>

@@ -1,11 +1,14 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { Upload, AlertCircle, Loader2 } from 'lucide-react';
 import { useLicitacionProcessor } from './hooks/useLicitacionProcessor';
+import { useAuth } from './hooks/useAuth';
+import { useSyncQueue } from './hooks/useSyncQueue';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { Card } from './components/common/Card';
 import { LicitacionData, SearchFilters, View } from './types';
 import { dbService } from './lib/db-service';
 import { Header } from './components/layout/Header';
+import { logger } from './lib/logger';
 
 // Lazy load heavy components
 const HistoryView = lazy(() => import('./features/history/HistoryView').then(m => ({ default: m.HistoryView })));
@@ -16,7 +19,9 @@ const TagManager = lazy(() => import('./features/common/TagManager').then(m => (
 const NotesPanel = lazy(() => import('./features/common/NotesPanel').then(m => ({ default: m.NotesPanel })));
 
 function App() {
-  const { state, processFile, reset, loadLicitacion } = useLicitacionProcessor();
+  const { user, loading: authLoading, signInWithGoogle, signOutUser } = useAuth();
+  const { state, processFile, cancelAnalysis, reset, loadLicitacion } = useLicitacionProcessor(user?.uid);
+  const syncQueue = useSyncQueue();
   const [isDragging, setIsDragging] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -24,6 +29,8 @@ function App() {
   });
   const [view, setView] = useState<View>('HOME');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchPage, setSearchPage] = useState(1);
+  const pageSize = 6;
 
   // Persist dark mode
   React.useEffect(() => {
@@ -70,9 +77,9 @@ function App() {
     if (state.hash) {
       try {
         await dbService.updateLicitacion(state.hash, newData);
-        console.log('Data updated successfully');
+        logger.info('Data updated successfully');
       } catch (error) {
-        console.error('Failed to update data:', error);
+        logger.error('Failed to update data:', error);
       }
     }
   };
@@ -81,14 +88,17 @@ function App() {
     try {
       const results = await dbService.advancedSearch(filters);
       setSearchResults(results);
+      setSearchPage(1);
     } catch (error) {
-      console.error('Search failed:', error);
+      logger.error('Search failed:', error);
       setSearchResults([]);
+      setSearchPage(1);
     }
   };
 
   const handleSearchReset = () => {
     setSearchResults([]);
+    setSearchPage(1);
   };
 
   const handlePresentationMode = () => {
@@ -117,6 +127,11 @@ function App() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         onPresentationMode={handlePresentationMode}
+        user={user}
+        authLoading={authLoading}
+        onSignIn={signInWithGoogle}
+        onSignOut={signOutUser}
+        syncQueue={syncQueue}
       />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
@@ -145,7 +160,7 @@ function App() {
                     Resultados ({searchResults.length})
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {searchResults.map((result) => (
+                    {searchResults.slice((searchPage - 1) * pageSize, searchPage * pageSize).map((result) => (
                       <Card
                         key={result.hash}
                         className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -169,6 +184,27 @@ function App() {
                       </Card>
                     ))}
                   </div>
+                  {searchResults.length > pageSize && (
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        className="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-sm disabled:opacity-50"
+                        onClick={() => setSearchPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={searchPage === 1}
+                      >
+                        Anterior
+                      </button>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        Página {searchPage} de {Math.ceil(searchResults.length / pageSize)}
+                      </span>
+                      <button
+                        className="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-sm disabled:opacity-50"
+                        onClick={() => setSearchPage((prev) => Math.min(prev + 1, Math.ceil(searchResults.length / pageSize)))}
+                        disabled={searchPage >= Math.ceil(searchResults.length / pageSize)}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -211,6 +247,12 @@ function App() {
                   <p className="text-slate-500 dark:text-slate-400 mb-8">
                     Nuestra IA está extrayendo los puntos clave. Esto puede tomar unos segundos.
                   </p>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-6 overflow-hidden">
+                    <div
+                      className="bg-brand-600 h-2 transition-all"
+                      style={{ width: `${Math.min(state.progress, 100)}%` }}
+                    />
+                  </div>
 
                   <div className="bg-slate-900 rounded-lg p-4 text-left font-mono text-xs text-green-400 h-48 overflow-y-auto shadow-inner">
                     <p className="opacity-50 mb-2">// System Log</p>
@@ -219,6 +261,30 @@ function App() {
                     ))}
                     <span className="animate-pulse">_</span>
                   </div>
+
+                  <button
+                    onClick={cancelAnalysis}
+                    className="mt-6 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Cancelar análisis
+                  </button>
+                </div>
+              )}
+
+              {state.status === 'CANCELLED' && (
+                <div className="max-w-xl mx-auto mt-20 text-center">
+                  <Card className="border-slate-200 dark:border-slate-700">
+                    <div className="p-6">
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Análisis cancelado</h3>
+                      <p className="text-slate-500 dark:text-slate-400 mb-4">El análisis fue cancelado por el usuario.</p>
+                      <button
+                        onClick={reset}
+                        className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                      >
+                        Volver al inicio
+                      </button>
+                    </div>
+                  </Card>
                 </div>
               )}
 

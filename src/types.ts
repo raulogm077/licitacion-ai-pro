@@ -88,7 +88,7 @@ export interface LicitacionData {
     notas?: Note[];
 }
 
-export type ProcessingStatus = 'IDLE' | 'READING_PDF' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
+export type ProcessingStatus = 'IDLE' | 'READING_PDF' | 'ANALYZING' | 'COMPLETED' | 'ERROR' | 'CANCELLED';
 
 export interface AnalysisState {
     status: ProcessingStatus;
