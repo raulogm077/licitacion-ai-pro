@@ -219,7 +219,8 @@ export class AIService {
             return result;
 
         } catch (e) {
-            console.error("Failed to parse or validate JSON:", text, e);
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            console.error("Failed to parse or validate JSON:", text.substring(0, 200), errorMsg);
             logger.error("Fallo de validación/parseo JSON", {
                 error: e instanceof Error ? e.message : String(e),
                 rawTextPreview: text.substring(0, 100)
