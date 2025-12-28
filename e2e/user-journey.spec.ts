@@ -19,6 +19,7 @@ test('Full User Journey: Render Dashboard and Check Elements', async ({ page }) 
     } else {
         // If we are on login page or loading
         console.log('Navigation not visible, checking for Login or Main content');
+        await expect(main).toBeVisible();
     }
 
     // 4. Ideally we would mock login, but for now we verify the app shell loads without crashing
