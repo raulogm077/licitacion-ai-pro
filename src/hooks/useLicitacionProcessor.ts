@@ -31,18 +31,30 @@ export function useLicitacionProcessor() {
             const hash = await generateFileHash(file);
 
             // Check Local DB
+            // Check Local DB
             const cachedResult = await dbService.getLicitacion(hash);
-            if (cachedResult) {
+
+            // Validate cache: Only use if it looks like a real analysis (has title or budget)
+            const isCacheValid = cachedResult &&
+                cachedResult.data &&
+                cachedResult.data.datosGenerales &&
+                (cachedResult.data.datosGenerales.titulo !== "Sin título" || cachedResult.data.datosGenerales.presupuesto > 0);
+
+            if (isCacheValid) {
+                console.log("CACHE HIT: Using cached result for hash", hash);
                 setState(prev => ({
                     ...prev,
                     status: 'COMPLETED',
                     progress: 100,
-                    data: cachedResult.data,
+                    data: cachedResult!.data,
                     fileName: file.name,
                     hash: hash,
                     thinkingOutput: "Documento encontrado en caché local. Cargando resultados instantáneamente..."
                 }));
                 return;
+            } else if (cachedResult) {
+                console.log("CACHE SKIP: Cached data found but appears invalid/empty. Re-analyzing.");
+                // Optional: Delete bad cache? dbService.deleteLicitacion(hash);
             }
 
             // 3. Prepare for AI Analysis
