@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
-import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogOut } from 'lucide-react';
+import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogIn } from 'lucide-react';
 import { ProcessingStatus, LicitacionData } from '../../types';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/auth.store';
+import { UserMenu } from '../ui/UserMenu';
 
 interface HeaderProps {
     status: ProcessingStatus;
@@ -94,13 +96,19 @@ export const Header: React.FC<HeaderProps> = ({
                         {darkMode ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
 
-                    <button
-                        onClick={onLogout}
-                        title="Cerrar sesión"
-                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors ml-1"
-                    >
-                        <LogOut size={20} />
-                    </button>
+                    {/* Show UserMenu if authenticated, else show login button */}
+                    {useAuthStore(state => state.isAuthenticated) ? (
+                        <UserMenu />
+                    ) : (
+                        <button
+                            onClick={onLogout}
+                            title="Iniciar sesión"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-medium transition-all shadow-lg shadow-brand-500/30"
+                        >
+                            <LogIn size={18} />
+                            <span className="text-sm hidden sm:inline">Iniciar sesión</span>
+                        </button>
+                    )}
                 </div>
             </div>
         </header>

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useLoggerStore, LogLevel } from '../../services/logger';
-import { ChevronUp, ChevronDown, Trash2, X, Terminal } from 'lucide-react';
+import { ChevronDown, Trash2, Terminal } from 'lucide-react';
 
 export const LogViewer: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +65,7 @@ export const LogViewer: React.FC = () => {
                         </div>
                         {log.data && (
                             <pre className="mt-1 ml-14 bg-slate-900 p-2 rounded overflow-x-auto text-[10px] text-slate-400 border border-slate-800">
-                                {JSON.stringify(log.data, null, 2)}
+                                {JSON.stringify(log.data, null, 2) as string}
                             </pre>
                         )}
                     </div>
