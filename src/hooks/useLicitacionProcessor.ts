@@ -6,7 +6,7 @@ import { AIService } from '../services/ai.service';
 import { dbService } from '../services/db.service';
 
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+
 
 function toBase64(bytes: Uint8Array) {
     let binary = '';
@@ -31,7 +31,8 @@ export function useLicitacionProcessor() {
 
         try {
             // 0. Early Configuration Check
-            if (!API_KEY) {
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+            if (!apiKey) {
                 throw new Error("API Key no configurada. Por favor configura VITE_GEMINI_API_KEY.");
             }
 
@@ -73,7 +74,7 @@ export function useLicitacionProcessor() {
                 thinkingOutput: "Hash generado. Iniciando análisis con IA..."
             }));
 
-            const aiService = new AIService(API_KEY);
+            const aiService = new AIService(apiKey);
 
             // 6. AI Analysis
             const result = await aiService.analyzePdfContent(base64, (thought) => {

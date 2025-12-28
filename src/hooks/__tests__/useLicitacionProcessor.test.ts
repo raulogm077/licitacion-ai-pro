@@ -19,9 +19,9 @@ describe('useLicitacionProcessor', () => {
         vi.mocked(fileUtils.validatePdfMagicBytes).mockResolvedValue(true);
         vi.mocked(fileUtils.generateFileHash).mockResolvedValue('hash123');
         vi.mocked(fileUtils.readFileAsBase64).mockResolvedValue('base64content');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(AIService.prototype.analyzePdfContent).mockResolvedValue({ some: 'data' } as any);
         vi.mocked(dbService.saveLicitacion).mockResolvedValue(undefined);
+        vi.stubEnv('VITE_GEMINI_API_KEY', 'test-key');
     });
 
     it('should initialize with IDLE state', () => {
@@ -106,16 +106,8 @@ describe('useLicitacionProcessor', () => {
     });
 
     it('should fail if API Key is missing', async () => {
-        // We need to re-import the hook to pick up the new env var
-        vi.resetModules();
         vi.stubEnv('VITE_GEMINI_API_KEY', '');
-
-        // Dynamic import to get a fresh version of the hook
-        const { useLicitacionProcessor: useHookFresh } = await import('../useLicitacionProcessor');
-
-        // Re-mock dependencies for the new module instance if needed (Vitest mocks persist usually)
-
-        const { result } = renderHook(() => useHookFresh());
+        const { result } = renderHook(() => useLicitacionProcessor());
 
         await act(async () => {
             await result.current.processFile(mockFile);
@@ -123,10 +115,5 @@ describe('useLicitacionProcessor', () => {
 
         expect(result.current.state.status).toBe('ERROR');
         expect(result.current.state.error).toContain('API Key no configurada');
-
-        // Restore env (manually or rely on teardown if resetModules helps, but env is global)
-        // vi.unstubEnv might not be available in this version?
-        // Let's just set it back to a dummy value if needed or ignore if it's the last test
-        // Better: vi.stubEnv('VITE_GEMINI_API_KEY', 'test-key');
     });
 });
