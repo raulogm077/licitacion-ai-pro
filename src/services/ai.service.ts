@@ -201,7 +201,15 @@ export class AIService {
             // 3. Zod Validation
             // Now that we removed defaults, this will THROW if data is still missing, 
             // which is better than silently returning empty data.
-            return LicitacionSchema.parse(parsed);
+            // 3. Zod Validation
+            const result = LicitacionSchema.parse(parsed);
+
+            // 4. Quality Gate: Reject if "meaningless" (only defaults)
+            if (result.datosGenerales.titulo === "Sin título" && result.datosGenerales.presupuesto === 0) {
+                throw new LicitacionAIError("Análisis incompleto: La IA no pudo extraer el título ni el presupuesto del documento.");
+            }
+
+            return result;
 
         } catch (e) {
             console.error("Failed to parse or validate JSON:", text, e);

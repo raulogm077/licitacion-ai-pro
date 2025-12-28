@@ -18,20 +18,24 @@ const MetadataSchema = z.object({
     ultimaModificacion: z.number().optional(),
 });
 
+// Helper: Handles null/undefined -> default value
+const RobustString = (defaultValue: string = "") =>
+    z.preprocess(val => (val === null || val === undefined) ? undefined : String(val), z.string().default(defaultValue));
+
 export const LicitacionSchema = z.object({
     datosGenerales: z.preprocess(val => val ?? {}, z.object({
-        titulo: z.string().default('Sin título'),
+        titulo: RobustString('Sin título'),
         presupuesto: z.preprocess(
             val => (val === null || val === undefined) ? 0 : Number(val),
             z.number().default(0)
         ),
-        moneda: z.string().default("EUR"),
+        moneda: RobustString("EUR"),
         plazoEjecucionMeses: z.preprocess(
             val => (val === null || val === undefined) ? 0 : Number(val),
             z.number().default(0)
         ),
         cpv: z.array(z.string()).default([]),
-        organoContratacion: z.string().default('Desconocido'),
+        organoContratacion: RobustString('Desconocido'),
         fechaLimitePresentacion: z.string().optional(),
     }).default({})),
     criteriosAdjudicacion: z.preprocess(val => val ?? {}, z.object({

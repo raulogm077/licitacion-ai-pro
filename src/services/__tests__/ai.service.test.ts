@@ -149,4 +149,17 @@ describe('AIService', () => {
         const result = await service.analyzePdfContent("base64data");
         expect(result.datosGenerales.titulo).toBe("Test Licitación");
     });
+
+    it('should throw error if result is empty/meaningless (Quality Gate)', async () => {
+        const emptyResult = {
+            datosGenerales: {} // Will default to "Sin título", 0 budget
+        };
+        const jsonString = JSON.stringify(emptyResult);
+        mockGenerateContent.mockResolvedValue({
+            response: { text: () => jsonString }
+        });
+
+        await expect(service.analyzePdfContent("base64data"))
+            .rejects.toThrow("Análisis incompleto");
+    });
 });
