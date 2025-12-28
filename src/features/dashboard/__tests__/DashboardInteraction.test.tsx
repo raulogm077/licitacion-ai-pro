@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Dashboard } from '../Dashboard';
 import { MemoryRouter } from 'react-router-dom';
+import { LicitacionData } from '../../../types';
 
 // Mock child components to focus on Dashboard logic/layout
 vi.mock('../RequirementsMatrix', () => ({
@@ -15,10 +16,9 @@ vi.mock('../ServiceModel', () => ({
 }));
 
 describe('Dashboard', () => {
-    const mockData: any = {
+    const mockData: LicitacionData = {
         metadata: {
-            tags: ['test'],
-            fileHash: '123'
+            tags: ['test']
         },
         datosGenerales: {
             titulo: 'Test Licitacion',
@@ -30,8 +30,8 @@ describe('Dashboard', () => {
         },
         criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
         requisitosTecnicos: { funcionales: [], normativa: [] },
-        requisitosSolvencia: { economica: {}, tecnica: [] },
-        restriccionesYRiesgos: { riesgos: [], killCriteria: [] },
+        requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 1000 }, tecnica: [] },
+        restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },
         modeloServicio: { sla: [], equipoMinimo: [] }
     };
 

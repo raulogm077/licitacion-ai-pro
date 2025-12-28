@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { PresentationPage } from '../PresentationPage';
 import { MemoryRouter } from 'react-router-dom';
+import { LicitacionData } from '../../types';
 
 // Mock PresentationMode (lazy loaded)
 vi.mock('../../features/presentation/PresentationMode', () => ({
@@ -24,7 +25,7 @@ describe('PresentationPage', () => {
     });
 
     it('renders PresentationMode when data available', async () => {
-        const mockData: any = { datosGenerales: { titulo: 'Test' } };
+        const mockData = { datosGenerales: { titulo: 'Test' } } as unknown as LicitacionData;
         render(
             <MemoryRouter>
                 <PresentationPage data={mockData} />

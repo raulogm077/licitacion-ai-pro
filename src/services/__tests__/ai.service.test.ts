@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { AIService } from '../ai.service';
 
 // Mock dependencies
@@ -26,12 +26,12 @@ import * as GoogleGenAI from '@google/generative-ai';
 
 describe('AIService', () => {
     let service: AIService;
-    let mockGenerateContent: any;
+    let mockGenerateContent: Mock;
 
     beforeEach(() => {
         vi.clearAllMocks();
         // Access the mocked function from the module namespace
-        mockGenerateContent = (GoogleGenAI as any)._mockGenerateContent;
+        mockGenerateContent = (GoogleGenAI as unknown as { _mockGenerateContent: Mock })._mockGenerateContent;
 
         service = new AIService('fake-key');
     });

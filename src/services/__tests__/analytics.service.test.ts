@@ -1,24 +1,35 @@
 import { describe, it, expect } from 'vitest';
 import { AnalyticsService } from '../analytics.service';
+import { LicitacionData } from '../../types';
+
+type LicitacionDBItem = { hash: string; fileName: string; timestamp: number; data: LicitacionData };
 
 describe('AnalyticsService', () => {
     describe('calculateAnalytics', () => {
-        const mockItem = (base: number) => ({
+        const mockItem = (base: number): LicitacionDBItem => ({
             hash: 'h' + base,
             fileName: 'f' + base,
             timestamp: 1000 * base,
             data: {
                 datosGenerales: { presupuesto: 1000 * base },
                 restriccionesYRiesgos: {
-                    riesgos: base % 2 === 0 ? [{ descripcion: 'r', impacto: 'ALTO' as const }] : []
+                    riesgos: base % 2 === 0 ? [{ descripcion: 'r', impacto: 'ALTO' as const, probabilidad: 'ALTA' as const }] : [],
+                    killCriteria: [],
+                    penalizaciones: []
                 },
                 metadata: {
                     cliente: 'Client ' + (base % 2),
                     tags: ['tag' + (base % 3)],
-                    importeAdjudicado: 500 * base
-                }
-            }
-        } as any);
+                    importeAdjudicado: 500 * base,
+                    estado: 'PENDIENTE'
+                },
+                // Add minimum required fields for LicitacionData if strict, or cast to unknown first
+                requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] },
+                criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                requisitosTecnicos: { funcionales: [], normativa: [] },
+                modeloServicio: { sla: [], equipoMinimo: [] }
+            } as unknown as LicitacionData
+        });
 
         it('returns zeros for empty input', () => {
             const result = AnalyticsService.calculateAnalytics([]);

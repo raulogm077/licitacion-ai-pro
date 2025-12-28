@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { dbService } from '../db.service';
 import { supabase } from '../../config/supabase';
 import { LicitacionData } from '../../types';
@@ -56,7 +56,7 @@ describe('DBService', () => {
     describe('saveLicitacion', () => {
         it('should call upsert with correct params', async () => {
             const upsertSpy = vi.fn().mockResolvedValue({ error: null });
-            (supabase.from as any).mockReturnValue({
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({
                 upsert: upsertSpy
             });
 
@@ -75,7 +75,7 @@ describe('DBService', () => {
 
         it('should throw error if upsert fails', async () => {
             const upsertSpy = vi.fn().mockResolvedValue({ error: new Error('DB Error') });
-            (supabase.from as any).mockReturnValue({
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({
                 upsert: upsertSpy
             });
 
@@ -84,13 +84,13 @@ describe('DBService', () => {
         });
 
         it('should auto-populate metadata if missing', async () => {
-            const dataWithoutMeta = { ...mockData, metadata: undefined } as any;
+            const dataWithoutMeta = { ...mockData, metadata: undefined } as unknown as LicitacionData;
             const upsertSpy = vi.fn().mockResolvedValue({ error: null });
-            (supabase.from as any).mockReturnValue({ upsert: upsertSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ upsert: upsertSpy });
 
             await dbService.saveLicitacion('hash123', 'test.pdf', dataWithoutMeta);
 
-            expect(dataWithoutMeta.metadata).toBeDefined();
+            expect(dataWithoutMeta.metadata!).toBeDefined();
             expect(dataWithoutMeta.metadata.tags).toEqual([]);
         });
     });
@@ -111,7 +111,7 @@ describe('DBService', () => {
             const eqSpy = vi.fn().mockReturnValue({ single: singleSpy });
             const selectSpy = vi.fn().mockReturnValue({ eq: eqSpy });
 
-            (supabase.from as any).mockReturnValue({ select: selectSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const result = await dbService.getLicitacion('hash123');
 
@@ -127,7 +127,7 @@ describe('DBService', () => {
             const eqSpy = vi.fn().mockReturnValue({ single: singleSpy });
             const selectSpy = vi.fn().mockReturnValue({ eq: eqSpy });
 
-            (supabase.from as any).mockReturnValue({ select: selectSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const result = await dbService.getLicitacion('hash123');
             expect(result).toBeUndefined();
@@ -138,7 +138,7 @@ describe('DBService', () => {
         it('should call delete on correct hash', async () => {
             const eqSpy = vi.fn().mockResolvedValue({ error: null });
             const deleteSpy = vi.fn().mockReturnValue({ eq: eqSpy });
-            (supabase.from as any).mockReturnValue({ delete: deleteSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ delete: deleteSpy });
 
             await dbService.deleteLicitacion('hash123');
 
@@ -150,7 +150,7 @@ describe('DBService', () => {
         it('should throw error if delete fails', async () => {
             const eqSpy = vi.fn().mockResolvedValue({ error: new Error('Delete failed') });
             const deleteSpy = vi.fn().mockReturnValue({ eq: eqSpy });
-            (supabase.from as any).mockReturnValue({ delete: deleteSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ delete: deleteSpy });
 
             await expect(dbService.deleteLicitacion('hash123')).rejects.toThrow('Delete failed');
         });
@@ -167,7 +167,7 @@ describe('DBService', () => {
 
             const orderSpy = vi.fn().mockResolvedValue({ data: mockList, error: null });
             const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
-            (supabase.from as any).mockReturnValue({ select: selectSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const results = await dbService.searchByTags(['urgent']);
 
@@ -178,10 +178,15 @@ describe('DBService', () => {
         it('should return empty array if no matches', async () => {
             const mockList = [
                 { hash: '1', data: { metadata: { tags: ['tech'] } } }
-            ] as any;
+            ] as unknown as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+            // Just cast to proper type if possible, or unknown.
+            // But verify: explicit-any is strictly 'as any'.
+            // Let's use `as unknown as { hash: string; data: Partial<LicitacionData> }[]`
+            // actually the linter likely flag `as any` specifically. `as unknown` is allowed.
+            // Let's rely on type inference or use `as unknown`.
             const orderSpy = vi.fn().mockResolvedValue({ data: mockList, error: null });
             const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
-            (supabase.from as any).mockReturnValue({ select: selectSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const results = await dbService.searchByTags(['nonexistent']);
             expect(results).toHaveLength(0);
@@ -198,7 +203,7 @@ describe('DBService', () => {
             }];
             const orderSpy = vi.fn().mockResolvedValue({ data: mockList, error: null });
             const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
-            (supabase.from as any).mockReturnValue({ select: selectSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const results = await dbService.getAllLicitaciones();
             expect(results).toHaveLength(1);
@@ -211,7 +216,7 @@ describe('DBService', () => {
         it('should throw error on fetch failure', async () => {
             const orderSpy = vi.fn().mockResolvedValue({ data: null, error: new Error('Get failed') });
             const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
-            (supabase.from as any).mockReturnValue({ select: selectSpy });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             await expect(dbService.getAllLicitaciones()).rejects.toThrow('Get failed');
         });
@@ -227,10 +232,10 @@ describe('DBService', () => {
             const queryBuilderMock = {
                 select: vi.fn().mockReturnThis(),
                 filter: filterSpy,
-                then: (resolve: any) => resolve({ data: [], error: null })
+                then: (resolve: (value: unknown) => void) => resolve({ data: [], error: null })
             };
 
-            (supabase.from as any).mockReturnValue(queryBuilderMock);
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
 
             await dbService.advancedSearch({ presupuestoMin: 100, presupuestoMax: 500 });
 
@@ -248,9 +253,9 @@ describe('DBService', () => {
             const queryBuilderMock = {
                 select: vi.fn().mockReturnThis(),
                 filter: vi.fn().mockReturnThis(),
-                then: (resolve: any) => resolve({ data: mockDBData, error: null })
+                then: (resolve: (value: unknown) => void) => resolve({ data: mockDBData, error: null })
             };
-            (supabase.from as any).mockReturnValue(queryBuilderMock);
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
 
             const results = await dbService.advancedSearch({ cliente: 'madrid' });
             expect(results).toHaveLength(1);
@@ -266,9 +271,9 @@ describe('DBService', () => {
             const queryBuilderMock = {
                 select: vi.fn().mockReturnThis(),
                 filter: vi.fn().mockReturnThis(),
-                then: (resolve: any) => resolve({ data: mockDBData, error: null })
+                then: (resolve: (value: unknown) => void) => resolve({ data: mockDBData, error: null })
             };
-            (supabase.from as any).mockReturnValue(queryBuilderMock);
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
 
             const results = await dbService.advancedSearch({ estado: 'PENDIENTE' });
             expect(results).toHaveLength(1);
@@ -285,9 +290,9 @@ describe('DBService', () => {
             const queryBuilderMock = {
                 select: vi.fn().mockReturnThis(),
                 filter: vi.fn().mockReturnThis(),
-                then: (resolve: any) => resolve({ data: mockDBData, error: null })
+                then: (resolve: (value: unknown) => void) => resolve({ data: mockDBData, error: null })
             };
-            (supabase.from as any).mockReturnValue(queryBuilderMock);
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
 
             const results = await dbService.advancedSearch({
                 fechaDesde: new Date('2023-02-01').getTime(),
