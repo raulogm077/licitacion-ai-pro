@@ -17,7 +17,7 @@ describe('useLicitacionProcessor', () => {
         vi.clearAllMocks();
         // Setup default mock behaviors
         vi.mocked(fileUtils.validatePdfMagicBytes).mockResolvedValue(true);
-        vi.mocked(fileUtils.generateFileHash).mockResolvedValue('hash123');
+        vi.mocked(fileUtils.generateBufferHash).mockResolvedValue('hash123');
         vi.mocked(fileUtils.readFileAsBase64).mockResolvedValue('base64content');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(AIService.prototype.analyzePdfContent).mockResolvedValue({ some: 'data' } as any);

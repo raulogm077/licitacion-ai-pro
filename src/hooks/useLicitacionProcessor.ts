@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { AnalysisState, LicitacionData } from '../types';
 import { AIService } from '../services/ai.service';
-// import { validatePdfMagicBytes, generateFileHash, readFileAsBase64 } from '../lib/file-utils';
+import { generateBufferHash } from '../lib/file-utils';
 import { dbService } from '../services/db.service';
 
 
@@ -58,9 +58,8 @@ export function useLicitacionProcessor() {
             // We need a helper to hash buffer directly. refactor generateFileHash?
             // Existing generateFileHash takes File. Let's do a quick hash here or refactor.
             // Implementing browser-native hash for buffer here for speed.
-            const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            // 59: Use helper to allow mocking in tests
+            const hash = await generateBufferHash(arrayBuffer);
 
             // 4. Base64 Conversion (optimized)
             const base64 = toBase64(new Uint8Array(arrayBuffer));
