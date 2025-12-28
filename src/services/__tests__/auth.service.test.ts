@@ -75,6 +75,27 @@ describe('AuthService', () => {
         });
     });
 
+    describe('signUp', () => {
+        it('should call signUp correctly', async () => {
+            const mockResponse = {
+                data: { user: { id: 'new' }, session: null },
+                error: null
+            };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.mocked(supabase.auth.signUp).mockResolvedValue(mockResponse as any);
+
+            const result = await authService.signUp('new@example.com', 'password');
+
+            expect(supabase.auth.signUp).toHaveBeenCalledWith({
+                email: 'new@example.com',
+                password: 'password',
+                options: { emailRedirectTo: window.location.origin }
+            });
+            expect(result.user).toEqual({ id: 'new' });
+        });
+    });
+
+
     describe('signOut', () => {
         it('should call signOut', async () => {
             vi.mocked(supabase.auth.signOut).mockResolvedValue({ error: null });

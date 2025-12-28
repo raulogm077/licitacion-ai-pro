@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Loader2, Check } from 'lucide-react';
+import { X, Mail, Lock, Loader2, Check, UserPlus, LogIn } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 
 interface AuthModalProps {
@@ -7,13 +7,17 @@ interface AuthModalProps {
     onClose: () => void;
 }
 
+type AuthMode = 'login' | 'signup';
+
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+    const [mode, setMode] = useState<AuthMode>('login');
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
-    const { signInWithMagicLink } = useAuthStore();
+    const { signInWithPassword, signUp } = useAuthStore();
 
     if (!isOpen) return null;
 
@@ -23,21 +27,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         setSuccess(false);
         setLoading(true);
 
-        const result = await signInWithMagicLink(email);
+        let result;
+
+        if (mode === 'signup') {
+            result = await signUp(email, password);
+        } else {
+            result = await signInWithPassword(email, password);
+        }
 
         setLoading(false);
 
         if (result.success) {
             setSuccess(true);
             setEmail('');
-            // Keep modal open to show success message
-            setTimeout(() => {
-                onClose();
-                setSuccess(false);
-            }, 3000);
+            setPassword('');
+
+            if (mode === 'login') {
+                // Initial success feedback, then close
+                setTimeout(() => {
+                    onClose();
+                    setSuccess(false);
+                }, 1500);
+            } else {
+                // Signup might need email confirmation depending on Supabase settings
+                // But user requested "create user if not exists", implying direct access or simple signup
+            }
         } else {
-            setError(result.error || 'Error al enviar el enlace mágico');
+            setError(result.error || 'Error de autenticación');
         }
+    };
+
+    const toggleMode = () => {
+        setMode(mode === 'login' ? 'signup' : 'login');
+        setError('');
+        setSuccess(false);
     };
 
     return (
@@ -55,12 +78,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                            <Mail size={24} />
+                            {mode === 'login' ? <LogIn size={24} /> : <UserPlus size={24} />}
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold">Iniciar Sesión</h2>
+                            <h2 className="text-2xl font-bold">
+                                {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                            </h2>
                             <p className="text-brand-100 text-sm mt-1">
-                                Te enviaremos un enlace mágico por email
+                                {mode === 'login'
+                                    ? 'Accede a tu cuenta de analista'
+                                    : 'Regístrate para comenzar a analizar pliegos'}
                             </p>
                         </div>
                     </div>
@@ -68,24 +95,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
                 {/* Content */}
                 <div className="p-6">
-                    {success ? (
+                    {success && mode === 'signup' ? (
                         <div className="text-center py-8">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full mb-4">
                                 <Check className="text-green-600 dark:text-green-400" size={32} />
                             </div>
                             <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                                ¡Correo enviado!
+                                ¡Cuenta Creada!
                             </h3>
                             <p className="text-slate-600 dark:text-slate-400">
-                                Revisa tu bandeja de entrada y haz clic en el enlace para iniciar sesión
+                                Revisa tu email para confirmar tu cuenta, o inicia sesión si ya está activa.
                             </p>
+                            <button
+                                onClick={toggleMode}
+                                className="mt-4 text-brand-600 hover:text-brand-700 font-medium"
+                            >
+                                Volver al inicio de sesión
+                            </button>
                         </div>
                     ) : (
                         <>
-                            <p className="text-slate-600 dark:text-slate-400 mb-6">
-                                Ingresa tu email para recibir un enlace de acceso seguro. No necesitas contraseña.
-                            </p>
-
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div>
                                     <label
@@ -94,16 +123,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                     >
                                         Correo electrónico
                                     </label>
-                                    <input
-                                        id="email"
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="tu@email.com"
-                                        required
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-400 transition-all"
-                                        disabled={loading}
-                                    />
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            id="email"
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="tu@email.com"
+                                            required
+                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-400 transition-all"
+                                            disabled={loading}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="password"
+                                        className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                                    >
+                                        Contraseña
+                                    </label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            id="password"
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="••••••••"
+                                            required
+                                            minLength={6}
+                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-400 transition-all"
+                                            disabled={loading}
+                                        />
+                                    </div>
                                 </div>
 
                                 {error && (
@@ -112,29 +167,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                     </div>
                                 )}
 
+                                {success && mode === 'login' && (
+                                    <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                        <p className="text-sm text-green-600 dark:text-green-400">¡Inicio de sesión exitoso!</p>
+                                    </div>
+                                )}
+
                                 <button
                                     type="submit"
-                                    disabled={loading || !email}
+                                    disabled={loading || !email || !password}
                                     className="w-full py-3 px-4 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-brand-500/30"
                                 >
                                     {loading ? (
                                         <>
                                             <Loader2 size={20} className="animate-spin" />
-                                            <span>Enviando enlace...</span>
+                                            <span>Procesando...</span>
                                         </>
                                     ) : (
                                         <>
-                                            <Mail size={20} />
-                                            <span>Enviar enlace mágico</span>
+                                            {mode === 'login' ? <LogIn size={20} /> : <UserPlus size={20} />}
+                                            <span>{mode === 'login' ? 'Iniciar Sesión' : 'Registrarse'}</span>
                                         </>
                                     )}
                                 </button>
                             </form>
 
-                            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-                                    Al continuar, aceptas nuestros términos de servicio y política de privacidad
+                            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                    {mode === 'login' ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?"}
                                 </p>
+                                <button
+                                    onClick={toggleMode}
+                                    disabled={loading}
+                                    className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium transition-colors"
+                                >
+                                    {mode === 'login' ? "Regístrate ahora" : "Inicia sesión aquí"}
+                                </button>
                             </div>
                         </>
                     )}

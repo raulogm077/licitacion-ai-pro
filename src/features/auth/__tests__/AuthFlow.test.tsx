@@ -22,7 +22,8 @@ vi.mock('../../../components/domain/NotesPanel', () => ({ NotesPanel: () => <div
 vi.mock('../../dashboard/Dashboard', () => ({ Dashboard: () => <div>Dashboard</div> }));
 
 describe('Auth Validation Flow', () => {
-    const mockSignIn = vi.fn();
+    const mockSignInWithPassword = vi.fn();
+    const mockSignUp = vi.fn();
     const mockSignOut = vi.fn();
 
     beforeEach(() => {
@@ -33,7 +34,8 @@ describe('Auth Validation Flow', () => {
         vi.mocked(AuthStore.useAuthStore).mockReturnValue({
             isAuthenticated: false,
             user: null,
-            signInWithMagicLink: mockSignIn,
+            signInWithPassword: mockSignInWithPassword,
+            signUp: mockSignUp,
             signOut: mockSignOut
         });
     });
@@ -50,22 +52,10 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        // Verify "Autenticación requerida" banner
         expect(screen.getByText('Autenticación requerida')).toBeInTheDocument();
-
-        // Verify "Iniciar Sesión" button in drop zone
-        const loginButtons = screen.getAllByText(/iniciar sesión/i);
-        expect(loginButtons.length).toBeGreaterThan(0);
-
-        // Verify Drag Zone is disabled/shows lock (visual verify via accessibility or text)
-        // The text "Inicia sesión para comenzar..." should be present
-        expect(screen.getByText(/Inicia sesión para comenzar/i)).toBeInTheDocument();
     });
 
-    it('should open AuthModal when login button is clicked', async () => {
-        // We need to render the context where AuthModal is controlled.
-        // HomePage has local state for AuthModal.
-
+    it('should open AuthModal with Password form', async () => {
         render(
             <BrowserRouter>
                 <HomePage
@@ -77,74 +67,74 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        const loginButton = screen.getAllByText(/iniciar sesión/i)[0]; // Just grab one
+        const loginButton = screen.getAllByText(/iniciar sesión/i)[0];
         fireEvent.click(loginButton);
 
-        // Modal content should appear
-        expect(screen.getByText('Te enviaremos un enlace mágico por email')).toBeInTheDocument();
+        expect(screen.getByText('Accede a tu cuenta de analista')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/••••••••/)).toBeInTheDocument(); // Password field check
     });
 
-    it('should call signInWithMagicLink on form submission', async () => {
-        mockSignIn.mockResolvedValue({ success: true });
+    it('should call signInWithPassword on form submission', async () => {
+        mockSignInWithPassword.mockResolvedValue({ success: true });
 
         render(<AuthModal isOpen={true} onClose={vi.fn()} />);
 
         const emailInput = screen.getByPlaceholderText(/tu@email.com/i);
-        const submitButton = screen.getByRole('button', { name: /enviar enlace/i });
+        const passwordInput = screen.getByPlaceholderText(/••••••••/i);
+        const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
 
         fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+        fireEvent.change(passwordInput, { target: { value: 'password123' } });
         fireEvent.click(submitButton);
 
         await waitFor(() => {
-            expect(mockSignIn).toHaveBeenCalledWith('test@example.com');
+            expect(mockSignInWithPassword).toHaveBeenCalledWith('test@example.com', 'password123');
         });
 
-        // Should show success
-        expect(await screen.findByText('¡Correo enviado!')).toBeInTheDocument();
+        expect(await screen.findByText('¡Inicio de sesión exitoso!')).toBeInTheDocument();
     });
 
     it('should handle login error', async () => {
-        mockSignIn.mockResolvedValue({ success: false, error: 'Invalid domain' });
+        mockSignInWithPassword.mockResolvedValue({ success: false, error: 'Invalid credentials' });
 
         render(<AuthModal isOpen={true} onClose={vi.fn()} />);
 
         const emailInput = screen.getByPlaceholderText(/tu@email.com/i);
-        const submitButton = screen.getByRole('button', { name: /enviar enlace/i });
+        const passwordInput = screen.getByPlaceholderText(/••••••••/i);
+        const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
 
         fireEvent.change(emailInput, { target: { value: 'bad@example.com' } });
+        fireEvent.change(passwordInput, { target: { value: 'wrongpass' } });
         fireEvent.click(submitButton);
 
         await waitFor(() => {
-            expect(screen.getByText('Invalid domain')).toBeInTheDocument();
+            expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
         });
     });
 
-    it('should show upload UI when authenticated', () => {
-        // Mock authenticated state
-        // @ts-ignore
-        vi.mocked(AuthStore.useAuthStore).mockReturnValue({
-            isAuthenticated: true,
-            user: { email: 'user@test.com' },
-            signInWithMagicLink: mockSignIn,
-            signOut: mockSignOut
+    it('should switch to signup and call signUp', async () => {
+        mockSignUp.mockResolvedValue({ success: true });
+
+        render(<AuthModal isOpen={true} onClose={vi.fn()} />);
+
+        // Switch to signup
+        const signupLink = screen.getByText('Regístrate ahora');
+        fireEvent.click(signupLink);
+
+        expect(screen.getByText('Crear Cuenta')).toBeInTheDocument();
+
+        const emailInput = screen.getByPlaceholderText(/tu@email.com/i);
+        const passwordInput = screen.getByPlaceholderText(/••••••••/i);
+        const submitButton = screen.getByRole('button', { name: /registrarse/i });
+
+        fireEvent.change(emailInput, { target: { value: 'new@example.com' } });
+        fireEvent.change(passwordInput, { target: { value: 'newpass123' } });
+        fireEvent.click(submitButton);
+
+        await waitFor(() => {
+            expect(mockSignUp).toHaveBeenCalledWith('new@example.com', 'newpass123');
         });
 
-        render(
-            <BrowserRouter>
-                <HomePage
-                    state={{ status: 'IDLE', progress: 0, thinkingOutput: '', data: null, error: null }}
-                    processFile={vi.fn()}
-                    reset={vi.fn()}
-                    handleDataUpdate={vi.fn()}
-                />
-            </BrowserRouter>
-        );
-
-        // Required banner gone
-        expect(screen.queryByText('Autenticación requerida')).not.toBeInTheDocument();
-
-        // Check for Upload UI
-        expect(screen.getByText(/Arrastra tu pliego/i)).toBeInTheDocument();
-        expect(screen.getByText(/Seleccionar PDF/i)).toBeInTheDocument();
+        expect(await screen.findByText('¡Cuenta Creada!')).toBeInTheDocument();
     });
 });
