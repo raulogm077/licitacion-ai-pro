@@ -58,7 +58,8 @@ describe('LicitacionSchema', () => {
                 riesgos: [{ descripcion: 'Risk 1', impacto: 'INVALIDO' }]
             }
         };
-        expect(() => LicitacionSchema.parse(data)).toThrow();
+        const result = LicitacionSchema.parse(data);
+        expect(result.restriccionesYRiesgos.riesgos[0].impacto).toBe('MEDIO'); // Fallback default
     });
 
     it('handles modeloServicio string transformations', () => {

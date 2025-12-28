@@ -22,6 +22,28 @@ const MetadataSchema = z.object({
 const RobustString = (defaultValue: string = "") =>
     z.preprocess(val => (val === null || val === undefined) ? undefined : String(val), z.string().default(defaultValue));
 
+// Helper: Handles null/undefined/NaN -> default number
+const RobustNumber = (defaultValue: number = 0) =>
+    z.preprocess(val => {
+        if (val === null || val === undefined) return defaultValue;
+        const num = Number(val);
+        return isNaN(num) ? defaultValue : num;
+    }, z.number().default(defaultValue));
+
+// Helper: Handles null/undefined -> default boolean
+const RobustBoolean = (defaultValue: boolean = false) =>
+    z.preprocess(val => (val === null || val === undefined) ? defaultValue : Boolean(val), z.boolean().default(defaultValue));
+
+// Helper: Handles null/undefined/invalid -> default enum value
+const RobustEnum = <T extends [string, ...string[]]>(values: T, defaultValue: T[number]) =>
+    z.preprocess(val => {
+        if (val === null || val === undefined) return defaultValue;
+        const strVal = String(val);
+        // Case-insensitive match check? Or just strict check?
+        // Let's try strict first, but fallback to default if not found
+        return values.includes(strVal) ? strVal : defaultValue;
+    }, z.enum(values).default(defaultValue));
+
 // Helper: Handles null/undefined -> empty array
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const RobustArray = <T extends z.ZodTypeAny>(schema: T) =>
@@ -30,15 +52,9 @@ const RobustArray = <T extends z.ZodTypeAny>(schema: T) =>
 export const LicitacionSchema = z.object({
     datosGenerales: z.preprocess(val => val ?? {}, z.object({
         titulo: RobustString('Sin título'),
-        presupuesto: z.preprocess(
-            val => (val === null || val === undefined) ? 0 : Number(val),
-            z.number().default(0)
-        ),
+        presupuesto: RobustNumber(0),
         moneda: RobustString("EUR"),
-        plazoEjecucionMeses: z.preprocess(
-            val => (val === null || val === undefined) ? 0 : Number(val),
-            z.number().default(0)
-        ),
+        plazoEjecucionMeses: RobustNumber(0),
         cpv: RobustArray(z.string()),
         organoContratacion: RobustString('Desconocido'),
         fechaLimitePresentacion: z.string().optional(),
@@ -46,12 +62,12 @@ export const LicitacionSchema = z.object({
     criteriosAdjudicacion: z.preprocess(val => val ?? {}, z.object({
         subjetivos: RobustArray(z.object({
             descripcion: z.string(),
-            ponderacion: z.number().default(0),
+            ponderacion: RobustNumber(0),
             detalles: z.string().optional(),
         })),
         objetivos: RobustArray(z.object({
             descripcion: z.string(),
-            ponderacion: z.number().default(0),
+            ponderacion: RobustNumber(0),
             formula: z.string().optional(),
         })),
     }).default({})),
@@ -61,7 +77,7 @@ export const LicitacionSchema = z.object({
                 z.string().transform(str => ({ requisito: str, obligatorio: true })),
                 z.object({
                     requisito: z.string(),
-                    obligatorio: z.boolean().default(true),
+                    obligatorio: RobustBoolean(true),
                     referenciaPagina: z.number().optional()
                 })
             ])
@@ -78,15 +94,12 @@ export const LicitacionSchema = z.object({
     }).default({})),
     requisitosSolvencia: z.preprocess(val => val ?? {}, z.object({
         economica: z.preprocess(val => val ?? {}, z.object({
-            cifraNegocioAnualMinima: z.preprocess(
-                val => (val === null || val === undefined) ? 0 : Number(val),
-                z.number().default(0)
-            ),
+            cifraNegocioAnualMinima: RobustNumber(0),
             descripcion: z.string().optional().nullable().transform(val => val ?? undefined)
-        }).catch({ cifraNegocioAnualMinima: 0 })).default({}),
+        }).catch({ cifraNegocioAnualMinima: 0, descripcion: undefined })).default({}),
         tecnica: RobustArray(z.object({
             descripcion: z.string(),
-            proyectosSimilaresRequeridos: z.number().default(0),
+            proyectosSimilaresRequeridos: RobustNumber(0),
             importeMinimoProyecto: z.number().optional()
         }))
     }).default({})),
@@ -94,8 +107,8 @@ export const LicitacionSchema = z.object({
         killCriteria: RobustArray(z.string()),
         riesgos: RobustArray(z.object({
             descripcion: z.string(),
-            impacto: z.enum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO']),
-            probabilidad: z.enum(['BAJA', 'MEDIA', 'ALTA']).optional(),
+            impacto: RobustEnum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO'], 'MEDIO'),
+            probabilidad: RobustEnum(['BAJA', 'MEDIA', 'ALTA'], 'MEDIA').optional(),
             mitigacionSugerida: z.string().optional(),
         })),
         penalizaciones: RobustArray(z.object({
@@ -118,7 +131,7 @@ export const LicitacionSchema = z.object({
                 z.string().transform(str => ({ rol: str, experienciaAnios: 0 })),
                 z.object({
                     rol: z.string(),
-                    experienciaAnios: z.number().default(0),
+                    experienciaAnios: RobustNumber(0),
                     titulacion: z.string().optional()
                 })
             ])
