@@ -35,6 +35,9 @@ vi.mock('lucide-react', () => ({
     Tag: () => <span data-testid="icon-tag" />,
     PieChart: () => <span data-testid="icon-pie-chart" />,
     BarChart3: () => <span data-testid="icon-bar-chart" />,
+    Target: () => <span data-testid="icon-target" />,
+    Shield: () => <span data-testid="icon-shield-base" />,
+    Zap: () => <span data-testid="icon-zap" />,
 }));
 
 describe('Dashboard', () => {

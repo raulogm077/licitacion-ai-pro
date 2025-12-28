@@ -51,10 +51,25 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                                     <FileText size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-slate-900 dark:text-white text-lg mb-1 line-clamp-1">
-                                        {item.data.datosGenerales.titulo}
-                                    </h3>
-                                    <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="font-semibold text-slate-900 dark:text-white text-lg line-clamp-1">
+                                            {item.data.datosGenerales.titulo}
+                                        </h3>
+                                        {/* Version Badge */}
+                                        {item.data.workflow && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                                v{item.data.workflow.current_version}
+                                            </span>
+                                        )}
+                                        {/* Status Badge */}
+                                        {item.data.workflow?.status === 'failed' && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                                                Fallido
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400 mt-2">
                                         <span className="flex items-center gap-1">
                                             <Calendar size={14} />
                                             {formatDate(item.timestamp)}
@@ -63,9 +78,24 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                                             <Euro size={14} />
                                             {formatCurrency(item.data.datosGenerales.presupuesto, item.data.datosGenerales.moneda)}
                                         </span>
-                                        <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs">
-                                            {item.fileName}
-                                        </span>
+
+                                        {/* Quality & Warnings */}
+                                        {item.data.workflow?.quality && (
+                                            <>
+                                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${item.data.workflow.quality.overall === 'COMPLETO' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                        item.data.workflow.quality.overall === 'PARCIAL' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                                                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    }`}>
+                                                    {item.data.workflow.quality.overall}
+                                                </span>
+                                                {(item.data.workflow.quality.warnings?.length || 0) > 0 && (
+                                                    <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400 text-xs">
+                                                        <Clock size={14} /> {/* Fallback icon, could be AlertTriangle */}
+                                                        {item.data.workflow.quality.warnings?.length} warnings
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

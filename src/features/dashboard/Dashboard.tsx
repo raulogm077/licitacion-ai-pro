@@ -11,6 +11,8 @@ import { SolvencyCard } from './components/SolvencyCard';
 import { DashboardActions } from './components/DashboardActions';
 import { JsonViewer } from './components/JsonViewer';
 import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
+import { SectionNav } from './components/SectionNav';
+import { InsightsPanel } from './components/InsightsPanel';
 
 interface DashboardProps {
     data: LicitacionData;
@@ -20,6 +22,7 @@ interface DashboardProps {
 
 export function Dashboard({ data, onUpdate, isLoading }: DashboardProps) {
     const [isEditing, setIsEditing] = useState(false);
+    const [activeSection, setActiveSection] = useState('general');
 
     const {
         register,
@@ -38,6 +41,14 @@ export function Dashboard({ data, onUpdate, isLoading }: DashboardProps) {
             reset(data);
         }
     }, [data, isEditing, reset]);
+
+    const scrollToSection = (sectionId: string) => {
+        setActiveSection(sectionId);
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
 
     if (isLoading) {
         return <DashboardSkeleton />;
@@ -59,40 +70,69 @@ export function Dashboard({ data, onUpdate, isLoading }: DashboardProps) {
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
-            {/* Header Actions */}
-            <DashboardActions
-                isEditing={isEditing}
-                isDirty={isDirty}
-                onEdit={() => setIsEditing(true)}
-                onCancel={handleCancel}
-                data={data}
-            />
+        <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-[1600px] mx-auto pb-20 animate-in fade-in duration-500 px-4 sm:px-6">
 
-            {/* General Info & Metrics */}
-            <GeneralInfoCard
-                data={data}
-                isEditing={isEditing}
-                register={register}
-                errors={errors}
-                formatCurrency={getFormattedCurrency}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Risks Section */}
-                <RisksCard data={data} />
-
-                {/* Solvency Section */}
-                <SolvencyCard data={data} formatCurrency={getFormattedCurrency} />
+            {/* Header Actions - Full Width */}
+            <div className="mb-6">
+                <DashboardActions
+                    isEditing={isEditing}
+                    isDirty={isDirty}
+                    onEdit={() => setIsEditing(true)}
+                    onCancel={handleCancel}
+                    data={data}
+                />
             </div>
 
-            {/* Requirements Matrix */}
-            <div className="h-[500px]">
-                <RequirementsMatrix requirements={data.requisitosTecnicos.funcionales} />
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-            {/* JSON Viewer Section */}
-            <JsonViewer data={data} />
+                {/* Left Column: Navigation (Sticky) - 2 cols */}
+                <aside className="hidden lg:block lg:col-span-2">
+                    <SectionNav
+                        data={data}
+                        activeSection={activeSection}
+                        onSectionChange={scrollToSection}
+                    />
+                </aside>
+
+                {/* Center Column: Main Content - 7 cols */}
+                <main className="lg:col-span-7 space-y-8">
+
+                    <section id="general" className="scroll-mt-24">
+                        <GeneralInfoCard
+                            data={data}
+                            isEditing={isEditing}
+                            register={register}
+                            errors={errors}
+                            formatCurrency={getFormattedCurrency}
+                        />
+                    </section>
+
+                    <section id="riesgos" className="scroll-mt-24">
+                        <RisksCard data={data} />
+                    </section>
+
+                    <section id="solvencia" className="scroll-mt-24">
+                        <SolvencyCard data={data} formatCurrency={getFormattedCurrency} />
+                    </section>
+
+                    <section id="tecnicos" className="scroll-mt-24">
+                        <RequirementsMatrix requirements={data.requisitosTecnicos.funcionales} />
+                    </section>
+
+                    {/* Placeholder for other sections if needed or merging them */}
+                    <section id="json" className="pt-8 border-t border-slate-200 dark:border-slate-800">
+                        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">Datos Técnicos (JSON)</h3>
+                        <JsonViewer data={data} />
+                    </section>
+
+                </main>
+
+                {/* Right Column: Insights (Sticky) - 3 cols */}
+                <aside className="hidden lg:block lg:col-span-3">
+                    <InsightsPanel data={data} />
+                </aside>
+
+            </div>
         </form>
     );
 }
