@@ -107,8 +107,8 @@ export const LicitacionSchema = z.object({
         killCriteria: RobustArray(z.string()),
         riesgos: RobustArray(z.object({
             descripcion: RobustString(""),
-            impacto: RobustEnum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO'], 'MEDIO'),
-            probabilidad: RobustEnum(['BAJA', 'MEDIA', 'ALTA'], 'MEDIA').optional(),
+            impacto: RobustEnum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO'] as const, 'MEDIO'),
+            probabilidad: RobustEnum(['BAJA', 'MEDIA', 'ALTA'] as const, 'MEDIA').optional(),
             mitigacionSugerida: z.string().optional(),
         })),
         penalizaciones: RobustArray(z.object({

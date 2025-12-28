@@ -63,7 +63,7 @@ export const LogViewer: React.FC = () => {
                                 {log.message}
                             </span>
                         </div>
-                        {log.data && (
+                        {!!log.data && (
                             <pre className="mt-1 ml-14 bg-slate-900 p-2 rounded overflow-x-auto text-[10px] text-slate-400 border border-slate-800">
                                 {JSON.stringify(log.data, null, 2) as string}
                             </pre>

@@ -91,7 +91,7 @@ describe('DBService', () => {
             await dbService.saveLicitacion('hash123', 'test.pdf', dataWithoutMeta);
 
             expect(dataWithoutMeta.metadata!).toBeDefined();
-            expect(dataWithoutMeta.metadata.tags).toEqual([]);
+            expect(dataWithoutMeta.metadata?.tags).toEqual([]);
         });
     });
 
