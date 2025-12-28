@@ -15,9 +15,9 @@ export const SupabaseStatus: React.FC = () => {
                 // Accessing any property on the proxy throws an error
                 try {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const _test = (supabase as any).auth;
-                } catch (configError: any) {
-                    if (configError.message && configError.message.includes('Variables de Entorno')) {
+                    void (supabase as any).auth;
+                } catch (configError: unknown) {
+                    if (configError instanceof Error && configError.message.includes('Variables de Entorno')) {
                         setStatus('error-config');
                         return;
                     }

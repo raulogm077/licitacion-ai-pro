@@ -32,8 +32,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         if (mode === 'signup') {
             try {
                 result = await signUp(email, password);
-            } catch (err: any) {
-                if (err.message && err.message.includes('Supabase Client Error')) {
+            } catch (err: unknown) {
+                if (err instanceof Error && err.message.includes('Supabase Client Error')) {
                     result = { success: false, error: "ERROR CRÍTICO: Faltan variables de entorno en Vercel." };
                 } else {
                     result = { success: false, error: "Error inesperado" };
@@ -42,8 +42,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         } else {
             try {
                 result = await signInWithPassword(email, password);
-            } catch (err: any) {
-                if (err.message && err.message.includes('Supabase Client Error')) {
+            } catch (err: unknown) {
+                if (err instanceof Error && err.message.includes('Supabase Client Error')) {
                     result = { success: false, error: "ERROR CRÍTICO: Faltan variables de entorno en Vercel." };
                 } else {
                     result = { success: false, error: "Error de conexión" };
