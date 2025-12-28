@@ -40,7 +40,7 @@ describe('Supabase Configuration', () => {
         const { supabase } = await import('../supabase');
 
         // Accessing 'then' should return undefined, not throw
-        // @ts-expect-error
+        // @ts-expect-error testing promise interop
         expect(supabase.then).toBeUndefined();
     });
 });

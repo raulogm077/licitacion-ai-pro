@@ -9,7 +9,7 @@ import { resolve } from 'path';
 
 if (typeof window === 'undefined') {
 
-    // @ts-expect-error
+    // @ts-expect-error mocking window global
     global.window = {
         location: { origin: 'http://localhost:3000' } as unknown as Location
     };
