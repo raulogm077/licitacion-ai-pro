@@ -19,7 +19,7 @@ export class AuthService {
     async signInWithMagicLink(email: string, redirectUrl?: string): Promise<AuthResponse> {
         // Use provided URL, or fall back to window.location.origin (pure client-side)
         // We explicitly ignore VITE_SITE_URL here to prevent the localhost issue
-        let finalRedirect = redirectUrl || window.location.origin;
+        const finalRedirect = redirectUrl || window.location.origin;
 
         if (finalRedirect.includes('localhost') && !finalRedirect.includes('3000')) {
             // Edge case: localhost without port? Unlikely.
