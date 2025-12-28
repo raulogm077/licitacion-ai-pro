@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useAuthStore } from './stores/auth.store';
 import { useLicitacionStore } from './stores/licitacion.store';
 import { useAnalysisStore } from './stores/analysis.store';
@@ -74,6 +75,7 @@ function App() {
   return (
     <Router>
       <SupabaseStatus />
+      <SpeedInsights />
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <Routes>
         <Route element={
