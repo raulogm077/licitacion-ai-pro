@@ -17,7 +17,9 @@ describe('useLicitacionProcessor', () => {
         vi.clearAllMocks();
         // Setup default mock behaviors
         vi.mocked(fileUtils.validatePdfMagicBytes).mockResolvedValue(true);
+        vi.mocked(fileUtils.validateBufferMagicBytes).mockReturnValue(true);
         vi.mocked(fileUtils.generateBufferHash).mockResolvedValue('hash123');
+        vi.mocked(fileUtils.bufferToBase64).mockResolvedValue('base64content');
         vi.mocked(fileUtils.readFileAsBase64).mockResolvedValue('base64content');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(AIService.prototype.analyzePdfContent).mockResolvedValue({ some: 'data' } as any);
@@ -46,6 +48,7 @@ describe('useLicitacionProcessor', () => {
 
     it('should handle invalid PDF', async () => {
         const invalidFile = new File(['invalid content'], 'invalid.pdf', { type: 'application/pdf' });
+        vi.mocked(fileUtils.validateBufferMagicBytes).mockReturnValue(false);
         const { result } = renderHook(() => useLicitacionProcessor());
 
         await act(async () => {
@@ -70,6 +73,7 @@ describe('useLicitacionProcessor', () => {
 
     it('should reject empty file (0 bytes)', async () => {
         const emptyFile = new File([], 'empty.pdf', { type: 'application/pdf' });
+        vi.mocked(fileUtils.validateBufferMagicBytes).mockReturnValue(false);
         const { result } = renderHook(() => useLicitacionProcessor());
 
         await act(async () => {
@@ -82,6 +86,7 @@ describe('useLicitacionProcessor', () => {
 
     it('should reject small file (< 5 bytes)', async () => {
         const smallFile = new File(['%PDF'], 'small.pdf', { type: 'application/pdf' }); // 4 bytes
+        vi.mocked(fileUtils.validateBufferMagicBytes).mockReturnValue(false);
         const { result } = renderHook(() => useLicitacionProcessor());
 
         await act(async () => {

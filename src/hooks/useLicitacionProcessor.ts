@@ -2,20 +2,13 @@
 import { useState, useCallback } from 'react';
 import { AnalysisState, LicitacionData } from '../types';
 import { AIService } from '../services/ai.service';
-import { generateBufferHash } from '../lib/file-utils';
+import { generateBufferHash, validateBufferMagicBytes, bufferToBase64 } from '../lib/file-utils';
 import { dbService } from '../services/db.service';
 
 
 
 
-function toBase64(bytes: Uint8Array) {
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-}
+// function toBase64 removed - using file-utils
 
 export function useLicitacionProcessor() {
     const [state, setState] = useState<AnalysisState>({
@@ -40,29 +33,16 @@ export function useLicitacionProcessor() {
             const arrayBuffer = await file.arrayBuffer();
 
             // 2. Security: Magic Bytes Validation using the buffer
-            // We need to adapt validatePdfMagicBytes to accept buffer or create a new util, 
-            // but for now let's assume valid PDF if we can read it, or use the existing util if it accepts buffer.
-            // Since validatePdfMagicBytes currently takes File, we optimize by manually checking slice here 
-            // OR we accept that we might read it differently if we don't refactor the util.
-            // For best verify: The file-utils likely reads slice.
-            // Let's rely on the util for now to verify magic bytes, but use our buffer for everything else to avoid full re-read.
-            // better: pass the buffer to a new logic or simple check here.
-
-            const header = new Uint8Array(arrayBuffer.slice(0, 5));
-            const headerStr = String.fromCharCode(...header);
-            if (headerStr !== '%PDF-') {
+            if (!validateBufferMagicBytes(arrayBuffer)) {
                 throw new Error("El archivo no es un PDF válido (Magic Bytes mismatch).");
             }
 
             // 3. Deduplication: Generate Hash from buffer
-            // We need a helper to hash buffer directly. refactor generateFileHash?
-            // Existing generateFileHash takes File. Let's do a quick hash here or refactor.
-            // Implementing browser-native hash for buffer here for speed.
             // 59: Use helper to allow mocking in tests
             const hash = await generateBufferHash(arrayBuffer);
 
             // 4. Base64 Conversion (optimized)
-            const base64 = toBase64(new Uint8Array(arrayBuffer));
+            const base64 = await bufferToBase64(arrayBuffer);
 
             // 5. Prepare for AI Analysis
             setState(prev => ({
