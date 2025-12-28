@@ -5,6 +5,7 @@ import { LicitacionData } from './types';
 import { dbService } from './services/db.service';
 import { useAuthStore } from './stores/auth.store';
 import { AuthModal } from './components/ui/AuthModal';
+import { SupabaseStatus } from './components/SupabaseStatus';
 import { Layout } from './components/layout/Layout';
 import { HomePage } from './pages/HomePage';
 import { HistoryPage } from './pages/HistoryPage';
@@ -64,6 +65,7 @@ function App() {
 
   return (
     <Router>
+      <SupabaseStatus />
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <Routes>
         <Route element={

@@ -16,21 +16,32 @@ export class DBService {
 
         console.log("📤 Supabase: Intentando guardar licitación...", { hash, fileName });
 
-        const { error } = await supabase
-            .from('licitaciones')
-            .upsert({
-                hash,
-                file_name: fileName,
-                data: data,
-                updated_at: now
-            }, { onConflict: 'user_id, hash' });
+        try {
+            const { error } = await supabase
+                .from('licitaciones')
+                .upsert({
+                    hash,
+                    file_name: fileName,
+                    data: data,
+                    updated_at: now
+                }, { onConflict: 'user_id, hash' });
 
-        if (error) {
-            console.error("❌ Supabase Error:", error);
-            throw error;
+            if (error) {
+                console.error("❌ Supabase Error:", error);
+
+                if (error.code === '42501') {
+                    throw new Error("Persistencia Bloqueada: Falta iniciar sesión o configurar permisos (RLS).");
+                }
+
+                throw error;
+            }
+
+            console.log("✅ Supabase: Licitación guardada exitosamente");
+        } catch (err: any) {
+            console.error("❌ Error guardando licitación:", err.message);
+            // Re-throw so UI can display toast
+            throw err;
         }
-
-        console.log("✅ Supabase: Licitación guardada exitosamente");
     }
 
     async updateLicitacion(hash: string, data: LicitacionData) {
