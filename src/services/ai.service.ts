@@ -10,7 +10,7 @@ export class LicitacionAIError extends Error {
     }
 }
 
-const MODEL_NAME = import.meta.env.VITE_GEMINI_MODEL || "gemini-flash-latest";
+const MODEL_NAME = import.meta.env.VITE_GEMINI_MODEL || "gemini-1.5-flash";
 
 export class AIService {
     private genAI: GoogleGenerativeAI;
@@ -49,6 +49,9 @@ export class AIService {
         try {
             if (onThinking) onThinking("Iniciando análisis iterativo del documento...");
 
+            let globalRetries = 0;
+            const MAX_GLOBAL_RETRIES = 5;
+
             for (let i = 0; i < sections.length; i++) {
                 const section = sections[i];
                 if (onThinking) onThinking(`Analizando sección ${i + 1}/${sections.length}: ${section.label}...`);
@@ -60,12 +63,33 @@ export class AIService {
                     // Merge new data. Note: simple spread works because keys are distinct top-level objects
                     partialResult = { ...partialResult, ...sectionData };
 
-                    // Increased delay to 4000ms to avoid Google Gemini Rate Limits (15 RPM)
-                    await new Promise(resolve => setTimeout(resolve, 4000));
+                    // Standard delay (10s) to be very safe with Free Tier
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+
                 } catch (sectionError) {
+                    const errorStr = String(sectionError);
+                    const isRateLimit = errorStr.includes("429") || errorStr.includes("Quota exceeded");
+
+                    if (isRateLimit && globalRetries < MAX_GLOBAL_RETRIES) {
+                        globalRetries++;
+                        const waitTime = 60000 + (globalRetries * 10000); // 60s, 70s, 80s...
+
+                        console.warn(`⏳ Rate Limit detectado en ${section.key}. Pausando ${waitTime / 1000}s antes de reintentar...`);
+                        logger.warn(`Rate Limit Hit. Cooling down for ${waitTime}ms`, { section: section.key });
+
+                        if (onThinking) onThinking(`⚠️ Límite de cuota detectado. Esperando ${Math.round(waitTime / 1000)}s para recuperar...`);
+
+                        // Wait
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+
+                        // Retry this section
+                        i--;
+                        continue;
+                    }
+
                     console.error(`Error analizando sección ${section.key}:`, sectionError);
-                    logger.error(`Error en sección ${section.key}`, { error: String(sectionError) });
-                    // We continue to the next section even if one fails
+                    logger.error(`Error en sección ${section.key}`, { error: errorStr });
+                    // If not rate limit or max retries hit, we skip this section
                 }
             }
 
