@@ -27,35 +27,11 @@ export function useLicitacionProcessor() {
                 throw new Error("El archivo no es un PDF válido (Magic Bytes mismatch).");
             }
 
-            // 2. Deduplication: Generate Hash
+            // 2. Deduplication: Generate Hash (Still used for ID/Persistence, but not for skipping analysis)
             const hash = await generateFileHash(file);
 
-            // Check Local DB
-            // Check Local DB
-            const cachedResult = await dbService.getLicitacion(hash);
-
-            // Validate cache: Only use if it looks like a real analysis (has title or budget)
-            const isCacheValid = cachedResult &&
-                cachedResult.data &&
-                cachedResult.data.datosGenerales &&
-                (cachedResult.data.datosGenerales.titulo !== "Sin título" || cachedResult.data.datosGenerales.presupuesto > 0);
-
-            if (isCacheValid) {
-                console.log("CACHE HIT: Using cached result for hash", hash);
-                setState(prev => ({
-                    ...prev,
-                    status: 'COMPLETED',
-                    progress: 100,
-                    data: cachedResult!.data,
-                    fileName: file.name,
-                    hash: hash,
-                    thinkingOutput: "Documento encontrado en caché local. Cargando resultados instantáneamente..."
-                }));
-                return;
-            } else if (cachedResult) {
-                console.log("CACHE SKIP: Cached data found but appears invalid/empty. Re-analyzing.");
-                // Optional: Delete bad cache? dbService.deleteLicitacion(hash);
-            }
+            // CACHE DISABLED: User requested to always re-analyze.
+            // keeping hash for saveLicitacion later.
 
             // 3. Prepare for AI Analysis
             setState(prev => ({
