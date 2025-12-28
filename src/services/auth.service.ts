@@ -20,7 +20,7 @@ export class AuthService {
         const { data, error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                emailRedirectTo: window.location.origin,
+                emailRedirectTo: import.meta.env.VITE_SITE_URL || window.location.origin,
             }
         });
 

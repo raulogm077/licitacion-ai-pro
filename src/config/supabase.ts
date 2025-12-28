@@ -11,8 +11,8 @@ const getEnv = (key: string) => {
     return '';
 };
 
-const supabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://qsohtrvnlimymwdxiokm.supabase.co';
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_OTSZkt3PhOBwZfQHLUpBcg_bOk4IdKz';
+const supabaseUrl = getEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
 let client: SupabaseClient;
 

@@ -20,16 +20,18 @@ describe('Supabase Configuration', () => {
         expect(supabase.auth).toBeDefined();
     });
 
-    it('should use fallback credentials if env vars are missing', async () => {
+    it('should return a Proxy that throws on access if env vars are missing', async () => {
         vi.resetModules();
         process.env.VITE_SUPABASE_URL = '';
         process.env.VITE_SUPABASE_ANON_KEY = '';
 
         const { supabase } = await import('../supabase');
 
-        // It should NOT throw, and be a valid client
-        expect(supabase).toBeDefined();
-        expect(supabase.auth).toBeDefined();
+        // We expect any access to trigger the error
+        expect(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            void (supabase as any).auth;
+        }).toThrow(/Supabase Client Error/);
     });
 
     it('should safely handle "then" access (Promise interop)', async () => {
