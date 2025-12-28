@@ -166,14 +166,17 @@ export class AIService {
             // 2.1 Smart Correction: Check for common AI mistakes
 
             // Define Normalization Helper
-            const normalizeKeys = (obj: any): any => {
-                if (Array.isArray(obj)) return obj.map(normalizeKeys);
+            const normalizeKeys = (obj: unknown): unknown => {
+                if (Array.isArray(obj)) {
+                    return obj.map(normalizeKeys);
+                }
                 if (obj !== null && typeof obj === 'object') {
                     return Object.keys(obj).reduce((acc, key) => {
                         const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
-                        acc[lowerKey] = normalizeKeys(obj[key]);
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        acc[lowerKey] = normalizeKeys((obj as any)[key]);
                         return acc;
-                    }, {} as any);
+                    }, {} as Record<string, unknown>);
                 }
                 return obj;
             };

@@ -113,14 +113,16 @@ describe('AIService', () => {
 
     it('should normalize invalid casing (Smart Parse)', async () => {
         // Deep copy and capitalize keys to simulate bad AI response
-        const capitalize = (obj: any): any => {
+        // Deep copy and capitalize keys to simulate bad AI response
+        const capitalize = (obj: unknown): unknown => {
             if (Array.isArray(obj)) return obj.map(capitalize);
             if (typeof obj === 'object' && obj !== null) {
                 return Object.keys(obj).reduce((acc, key) => {
                     const upper = key.charAt(0).toUpperCase() + key.slice(1);
-                    acc[upper] = capitalize(obj[key]);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    acc[upper] = capitalize((obj as any)[key]);
                     return acc;
-                }, {} as any);
+                }, {} as Record<string, unknown>);
             }
             return obj;
         };
