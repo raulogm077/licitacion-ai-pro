@@ -5,12 +5,24 @@ import { Circle, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store';
 
 export const SupabaseStatus: React.FC = () => {
-    const [status, setStatus] = useState<'loading' | 'connected' | 'error' | 'auth-required'>('loading');
+    const [status, setStatus] = useState<'loading' | 'connected' | 'error' | 'auth-required' | 'error-config'>('loading');
     const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
         const checkConnection = async () => {
             try {
+                // Check if client is the proxy wrapper (missing env vars)
+                // Accessing any property on the proxy throws an error
+                try {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const _test = (supabase as any).auth;
+                } catch (configError: any) {
+                    if (configError.message && configError.message.includes('Variables de Entorno')) {
+                        setStatus('error-config');
+                        return;
+                    }
+                }
+
                 // Simple read check regarding if user is logged in
                 const { error } = await supabase.from('licitaciones').select('count', { count: 'exact', head: true });
 
@@ -37,15 +49,18 @@ export const SupabaseStatus: React.FC = () => {
     return (
         <div className={`fixed bottom-4 right-4 p-3 rounded-lg shadow-lg flex items-center gap-2 text-sm font-medium z-50
             ${status === 'error' ? 'bg-red-100 text-red-800 border border-red-200' : ''}
+            ${status === 'error-config' ? 'bg-purple-100 text-purple-800 border border-purple-200' : ''}
             ${status === 'auth-required' ? 'bg-amber-100 text-amber-800 border border-amber-200' : ''}
         `}>
             {status === 'loading' && <Circle className="w-4 h-4 animate-pulse text-gray-500" />}
             {status === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {status === 'error-config' && <AlertTriangle className="w-4 h-4" />}
             {status === 'auth-required' && <AlertTriangle className="w-4 h-4" />}
 
             <span>
                 {status === 'loading' && "Verificando conexión..."}
                 {status === 'error' && "Error de conexión con Supabase"}
+                {status === 'error-config' && "Faltan Variables de Entorno en Vercel"}
                 {status === 'auth-required' && "Modo Solo Lectura (Inicia sesión para guardar)"}
             </span>
         </div>
