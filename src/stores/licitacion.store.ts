@@ -26,25 +26,46 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
     activeChannel: null,
 
     updateData: async (newData: LicitacionData) => {
-        const { hash } = get();
+        const { hash, data: previousData } = get();
+
+        // 1. Optimistic Update: Update UI immediately
+        set({ data: newData, isSaving: true, saveError: null });
+
         if (!hash) {
-            // If no hash, we can't persist but we can update memory
-            set({ data: newData });
+            // Local-only mode
+            set({ isSaving: false });
             return true;
         }
 
-        set({ isSaving: true, saveError: null });
+        // 2. Perform Async DB Update
+        try {
+            const updateResult = await services.db.updateLicitacion(hash, newData);
 
-        const updateResult = await services.db.updateLicitacion(hash, newData);
+            if (isErr(updateResult)) {
+                console.error('Failed to update data:', updateResult.error);
+                // 3. Rollback on Error
+                set({
+                    data: previousData,
+                    isSaving: false,
+                    saveError: `Error guardando cambios: ${updateResult.error.message}`
+                });
+                return false;
+            }
 
-        if (isErr(updateResult)) {
-            console.error('Failed to update data:', updateResult.error);
-            set({ isSaving: false, saveError: updateResult.error.message });
+            // Success: Just clear saving flag
+            set({ isSaving: false });
+            return true;
+
+        } catch (error) {
+            console.error('Unexpected error updating data:', error);
+            // 3. Rollback on Exception
+            set({
+                data: previousData,
+                isSaving: false,
+                saveError: 'Error inesperado al guardar.'
+            });
             return false;
         }
-
-        set({ data: newData, isSaving: false });
-        return true;
     },
 
     loadLicitacion: (data: LicitacionData, hash?: string) => {

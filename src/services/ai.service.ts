@@ -43,8 +43,9 @@ export class AIService {
         try {
             if (onProgress) onProgress(0, total, `Iniciando análisis paralelo seguro...`);
 
-            // Process sections in chunks of 2 to balance speed and rate limits
-            const chunkSize = 2;
+            // Process sections in chunks to balance speed and rate limits.
+            // Increased to 3 for better performance.
+            const chunkSize = 3;
             for (let i = 0; i < sections.length; i += chunkSize) {
                 const chunk = sections.slice(i, i + chunkSize);
 
