@@ -83,6 +83,7 @@ async function testSupabase() {
             passed: true,
             details: `Connected successfully. Records: ${data || 0}`
         });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         console.error('   ❌ Database connection failed');
         console.error(`   Error: ${error.message}\n`);
@@ -145,6 +146,11 @@ async function testSupabase() {
     };
 
     try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (!(global as any).window) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (global as any).window = undefined;
+        }
         const { data: insertedData, error: insertError } = await supabase
             .from('licitaciones')
             .insert([testData])
@@ -174,9 +180,9 @@ async function testSupabase() {
         if (deleteError) {
             console.log(`   ⚠️  Could not delete test record: ${deleteError.message}`);
         } else {
-            console.log('   ✅ Test record cleaned up\n');
+            console.log('   ✅ Successfully deleted test record\n');
         }
-
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         console.error('   ❌ Write operation failed');
         console.error(`   Error: ${error.message}`);

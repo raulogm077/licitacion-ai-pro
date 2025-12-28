@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../config/supabase';
-import { Circle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Circle, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store';
 
 export const SupabaseStatus: React.FC = () => {

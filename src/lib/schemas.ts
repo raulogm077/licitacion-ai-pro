@@ -45,7 +45,6 @@ const RobustEnum = <T extends [string, ...string[]]>(values: T, defaultValue: T[
     }, z.enum(values).default(defaultValue));
 
 // Helper: Handles null/undefined -> empty array
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const RobustArray = <T extends z.ZodTypeAny>(schema: T) =>
     z.preprocess(val => (val === null || val === undefined) ? [] : val, z.array(schema).default([]));
 

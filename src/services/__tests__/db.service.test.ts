@@ -232,7 +232,8 @@ describe('DBService', () => {
             const queryBuilderMock = {
                 select: vi.fn().mockReturnThis(),
                 filter: filterSpy,
-                then: (resolve: (value: unknown) => void) => resolve({ data: [], error: null })
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                then: (onfulfilled: any) => Promise.resolve({ data: [], error: null }).then(onfulfilled)
             };
 
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);

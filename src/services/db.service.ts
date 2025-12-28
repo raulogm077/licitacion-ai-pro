@@ -37,6 +37,7 @@ export class DBService {
             }
 
             console.log("✅ Supabase: Licitación guardada exitosamente");
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error("❌ Error guardando licitación:", err.message);
             // Re-throw so UI can display toast
