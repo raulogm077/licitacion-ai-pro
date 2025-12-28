@@ -16,21 +16,21 @@ export class AuthService {
      * Sign in with magic link (passwordless)
      * User will receive an email with a login link
      */
-    async signInWithMagicLink(email: string): Promise<AuthResponse> {
-        let redirectTo = import.meta.env.VITE_SITE_URL || window.location.origin;
+    async signInWithMagicLink(email: string, redirectUrl?: string): Promise<AuthResponse> {
+        // Use provided URL, or fall back to window.location.origin (pure client-side)
+        // We explicitly ignore VITE_SITE_URL here to prevent the localhost issue
+        let finalRedirect = redirectUrl || window.location.origin;
 
-        // Safety check: specific fix for Vercel deployments where env var might be copied from local
-        if (import.meta.env.PROD && redirectTo.includes('localhost')) {
-            console.warn('VITE_SITE_URL points to localhost in production. Falling back to window.location.origin.');
-            redirectTo = window.location.origin;
+        if (finalRedirect.includes('localhost') && !finalRedirect.includes('3000')) {
+            // Edge case: localhost without port? Unlikely.
         }
 
-        console.log('Magic Link Redirect URL:', redirectTo);
+        console.log('🔗 Magic Link Request -> Redirect To:', finalRedirect);
 
         const { data, error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                emailRedirectTo: redirectTo,
+                emailRedirectTo: finalRedirect,
             }
         });
 

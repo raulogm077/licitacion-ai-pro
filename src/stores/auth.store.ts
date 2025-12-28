@@ -75,7 +75,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
 
     signInWithMagicLink: async (email: string) => {
-        const { error } = await authService.signInWithMagicLink(email);
+        // Always pass window.location.origin to ensure we redirect back to WHERE WE ARE
+        const { error } = await authService.signInWithMagicLink(email, window.location.origin);
 
         if (error) {
             return { success: false, error: error.message };
