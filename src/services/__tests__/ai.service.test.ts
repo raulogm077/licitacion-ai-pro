@@ -2,15 +2,14 @@ import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { AIService } from '../ai.service';
 
 // Mock dependencies
-vi.mock('@google/generative-ai', () => {
-    // Create the mock function outside return to reuse it if needed, or just define inline properly
-    const generateContentMock = vi.fn();
+const mockGetGenerativeModel = vi.fn();
+const mockGenerateContent = vi.fn();
 
-    // The constructor mock needs to be a function that returns an object
+vi.mock('@google/generative-ai', () => {
     class GoogleGenerativeAI {
-        getGenerativeModel() {
+        constructor() {
             return {
-                generateContent: generateContentMock
+                getGenerativeModel: mockGetGenerativeModel
             };
         }
     }
@@ -18,7 +17,6 @@ vi.mock('@google/generative-ai', () => {
     return {
         GoogleGenerativeAI,
         GenerativeModel: vi.fn(),
-        _mockGenerateContent: generateContentMock,
         HarmCategory: {
             HARM_CATEGORY_HARASSMENT: 'HARM_CATEGORY_HARASSMENT',
             HARM_CATEGORY_HATE_SPEECH: 'HARM_CATEGORY_HATE_SPEECH',
@@ -31,16 +29,16 @@ vi.mock('@google/generative-ai', () => {
     };
 });
 
-import * as GoogleGenAI from '@google/generative-ai';
-
 describe('AIService', () => {
     let service: AIService;
-    let mockGenerateContent: Mock;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        // Access the mocked function from the module namespace
-        mockGenerateContent = (GoogleGenAI as unknown as { _mockGenerateContent: Mock })._mockGenerateContent;
+
+        // Setup default mock behavior
+        mockGetGenerativeModel.mockReturnValue({
+            generateContent: mockGenerateContent
+        });
 
         // Skip delays
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,6 +82,38 @@ describe('AIService', () => {
         expect(result).toBeDefined();
         expect(result.datosGenerales.titulo).toBe("Test Licitación");
         expect(mockGenerateContent).toHaveBeenCalled();
+    });
+
+    it('should switch to fallback model on 429 error', async () => {
+        const jsonString = JSON.stringify(validData);
+
+        // Exhaust inner retry loop (3 attempts) with 429 errors
+        const error429 = new Error('[429] Quota exceeded');
+        mockGenerateContent
+            .mockRejectedValueOnce(error429)
+            .mockRejectedValueOnce(error429)
+            .mockRejectedValueOnce(error429)
+            // Fourth call (after switch) succeeds
+            .mockResolvedValueOnce({
+                response: {
+                    text: () => jsonString,
+                    candidates: [{ content: { parts: [{ text: jsonString }] } }]
+                }
+            });
+
+        const result = await service.analyzePdfContent("base64data");
+
+        expect(result).toBeDefined();
+        // Verify we tried two models
+        expect(mockGetGenerativeModel).toHaveBeenCalledTimes(2);
+        // First init (Constructor) -> Primary
+        expect(mockGetGenerativeModel).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            model: expect.stringMatching(/gemini-2\.0/)
+        }));
+        // Second init (Switch) -> Fallback
+        expect(mockGetGenerativeModel).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            model: 'gemini-1.5-flash'
+        }));
     });
 
     it('should clean Markdown code blocks', async () => {
