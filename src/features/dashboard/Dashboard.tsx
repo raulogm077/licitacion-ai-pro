@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LicitacionData } from '../../types';
@@ -23,6 +24,22 @@ interface DashboardProps {
 export function Dashboard({ data, onUpdate, isLoading }: DashboardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [activeSection, setActiveSection] = useState('general');
+    const [selectedVersionId, setSelectedVersionId] = useState<number | undefined>(undefined);
+
+    // Determines the data to display based on selected version
+    const displayedData = React.useMemo(() => {
+        if (!selectedVersionId) return data; // Default to current
+
+        // Find the version content by ID
+        const versionEnvelope = data.versions?.find(v => v.version === selectedVersionId);
+        // The version envelope contains 'result', which is the actual data content LicitacionData.
+        // Wait, versionEnvelope.result is supposed to be the content.
+        // Let's check schemas/types. V1 logic says data.result | data.
+        return versionEnvelope ? (versionEnvelope.result || data) : data;
+    }, [data, selectedVersionId]);
+
+    const isReadOnly = selectedVersionId !== undefined && selectedVersionId !== data.workflow?.current_version;
+    const currentVersionUI = selectedVersionId || data.workflow?.current_version || (data.versions?.length || 1);
 
     const {
         register,
@@ -32,21 +49,21 @@ export function Dashboard({ data, onUpdate, isLoading }: DashboardProps) {
     } = useForm<LicitacionData>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         resolver: zodResolver(LicitacionSchema) as any,
-        defaultValues: data
+        defaultValues: displayedData
     });
 
-    // Reset form when new data arrives (if not currently editing)
+    // Reset form when displayed data changes
     useEffect(() => {
         if (!isEditing) {
-            reset(data);
+            reset(displayedData);
         }
-    }, [data, isEditing, reset]);
+    }, [displayedData, isEditing, reset]);
 
     const scrollToSection = (sectionId: string) => {
         setActiveSection(sectionId);
         const element = document.getElementById(sectionId);
         if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            element.scrollIntoView({ behavior: 'smooth' }); // Removed block: 'start'
         }
     };
 
@@ -127,12 +144,29 @@ export function Dashboard({ data, onUpdate, isLoading }: DashboardProps) {
 
                 </main>
 
-                {/* Right Column: Insights (Sticky) - 3 cols */}
-                <aside className="hidden lg:block lg:col-span-3">
-                    <InsightsPanel data={data} />
-                </aside>
-
+                {/* Right Sidebar: Insights & Quality */}
+                <div className="lg:col-span-3 space-y-6">
+                    <InsightsPanel
+                        data={data}
+                        currentVersionId={currentVersionUI}
+                        onVersionSelect={(vId) => setSelectedVersionId(vId)}
+                    />
+                </div>
             </div>
+
+            {/* Read Only Banner */}
+            {isReadOnly && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-900/90 text-white rounded-full shadow-xl z-50 flex items-center gap-3 backdrop-blur-sm border border-slate-700">
+                    <Info size={20} className="text-blue-400" />
+                    <span>Estás viendo una <strong>versión histórica</strong> (Solo lectura).</span>
+                    <button
+                        onClick={() => setSelectedVersionId(undefined)}
+                        className="ml-4 text-xs bg-white text-slate-900 px-3 py-1.5 rounded-full font-bold hover:bg-slate-200 transition-colors"
+                    >
+                        Volver a Actual
+                    </button>
+                </div>
+            )}
         </form>
     );
 }

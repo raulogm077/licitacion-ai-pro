@@ -22,39 +22,6 @@ describe('AuthService', () => {
         vi.clearAllMocks();
     });
 
-    describe('signInWithMagicLink', () => {
-        it('should call signInWithOtp and return user/session', async () => {
-            const mockResponse = {
-                data: { user: { id: '123' }, session: { access_token: 'abc' } },
-                error: null
-            };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            vi.mocked(supabase.auth.signInWithOtp).mockResolvedValue(mockResponse as any);
-
-            const result = await authService.signInWithMagicLink('test@example.com');
-
-            expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
-                email: 'test@example.com',
-                options: { emailRedirectTo: window.location.origin }
-            });
-            expect(result.user).toEqual(mockResponse.data.user);
-            expect(result.session).toEqual(mockResponse.data.session);
-            expect(result.error).toBeNull();
-        });
-
-        it('should return error if sign in fails', async () => {
-            const mockResponse = {
-                data: { user: null, session: null },
-                error: { message: 'Auth error' }
-            };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            vi.mocked(supabase.auth.signInWithOtp).mockResolvedValue(mockResponse as any);
-
-            const result = await authService.signInWithMagicLink('test@example.com');
-
-            expect(result.error).toEqual(mockResponse.error);
-        });
-    });
 
     describe('signInWithPassword', () => {
         it('should call signInWithPassword correctly', async () => {

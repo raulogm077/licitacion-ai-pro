@@ -215,46 +215,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                     )}
                                 </button>
 
-                                {mode === 'login' && (
-                                    <div className="relative my-4">
-                                        <div className="absolute inset-0 flex items-center">
-                                            <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
-                                        </div>
-                                        <div className="relative flex justify-center text-sm">
-                                            <span className="px-2 bg-white dark:bg-slate-800 text-slate-500">O ingresa sin contraseña</span>
-                                        </div>
-                                    </div>
-                                )}
 
-                                {mode === 'login' && (
-                                    <button
-                                        type="button"
-                                        data-testid="magic-link-button"
-                                        onClick={async () => {
-                                            if (!email) {
-                                                setError('Ingresa tu email para recibir el enlace mágico');
-                                                return;
-                                            }
-                                            setError('');
-                                            setLoading(true);
-                                            // The fix: signInWithMagicLink is now robust against localhost issues
-                                            const { signInWithMagicLink } = useAuthStore.getState();
-                                            const result = await signInWithMagicLink(email);
-                                            setLoading(false);
-                                            if (result.success) {
-                                                setSuccessMessage('¡Enlace enviado! Revisa tu email.');
-                                                // Keep success message visible and don't close immediately so user sees instruction
-                                            } else {
-                                                setError(result.error || 'Error enviando enlace mágico');
-                                            }
-                                        }}
-                                        disabled={loading || !email}
-                                        className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-600"
-                                    >
-                                        <Mail size={20} />
-                                        <span>Enviar enlace mágico</span>
-                                    </button>
-                                )}
                             </form>
 
                             <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">

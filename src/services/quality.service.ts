@@ -38,6 +38,10 @@ export class QualityService {
         if (hasTecnicos) sectionStatus['requisitosTecnicos'] = hasNormativa ? 'COMPLETO' : 'PARCIAL';
         else sectionStatus['requisitosTecnicos'] = 'VACIO';
 
+        // 5. Semantic Consistency Check (RF-AI-08)
+        const consistencyWarnings = this.evaluateConsistency(content);
+        warnings.push(...consistencyWarnings);
+
         // Overall logic
         // If critical fields missing -> VACIO or PARCIAL?
         // Let's say if datosGenerales is VACIO, overall is VACIO.
@@ -59,10 +63,54 @@ export class QualityService {
 
         return {
             overall,
-            bySection: sectionStatus as Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>, // Cast to match stricter enum keys if needed
+            bySection: sectionStatus as Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>,
             missingCriticalFields: missingCritical,
-            warnings
+            warnings: warnings, // Standard warnings (e.g. empty lists)
+            consistencyWarnings // New semantic warnings
         };
+    }
+
+    private evaluateConsistency(content: LicitacionContent): string[] {
+        const warnings: string[] = [];
+        const { datosGenerales, requisitosSolvencia } = content;
+
+        // 1. Budget Logic
+        if (datosGenerales.presupuesto !== undefined) {
+            if (datosGenerales.presupuesto <= 0) {
+                warnings.push("El presupuesto es 0 o negativo, lo cual es inusual.");
+            }
+            // Formatting check (simple heuristic)
+            if (datosGenerales.moneda && !['EUR', 'USD'].includes(datosGenerales.moneda)) {
+                warnings.push(`Moneda '${datosGenerales.moneda}' no es estándar (EUR/USD).`);
+            }
+        }
+
+        // 2. Timeline Logic
+        if (datosGenerales.plazoEjecucionMeses <= 0) {
+            warnings.push("Plazo de ejecución es 0 meses.");
+        }
+
+        // 3. Solvency vs Budget (Typical rule: Solvency < 1.5 * Budget, or Solvency > 0)
+        const solvencyAmount = requisitosSolvencia.economica.cifraNegocioAnualMinima;
+        const budget = datosGenerales.presupuesto;
+
+        if (solvencyAmount > 0 && budget > 0) {
+            if (solvencyAmount > budget * 2) {
+                warnings.push(`La solvencia exigida (${solvencyAmount}) es > 2x el presupuesto (${budget}). Verificar.`);
+            }
+        }
+
+        // 4. Duplicate Detection in Lists (Simple exact match)
+        const checkDuplicates = (list: string[], context: string) => {
+            const unique = new Set(list.map(s => s.toLowerCase().trim()));
+            if (unique.size !== list.length) {
+                warnings.push(`Detectados elementos duplicados en ${context}.`);
+            }
+        };
+
+        checkDuplicates(content.restriccionesYRiesgos.killCriteria, "Kill Criteria");
+
+        return warnings;
     }
 
     private evaluateGenerales(data: LicitacionContent['datosGenerales'], missingLog: string[]): 'COMPLETO' | 'PARCIAL' | 'VACIO' {

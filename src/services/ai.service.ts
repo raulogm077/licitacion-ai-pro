@@ -18,7 +18,8 @@ export class AIService {
 
     async analyzePdfContent(
         base64Content: string,
-        onProgress?: (processed: number, total: number, message: string) => void
+        onProgress?: (processed: number, total: number, message: string) => void,
+        onPartialSave?: (partialData: Partial<LicitacionContent>) => Promise<void>
     ): Promise<LicitacionContent> {
         const sections: { key: keyof LicitacionContent; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
@@ -71,6 +72,15 @@ export class AIService {
                         onProgress(processed, total, `Sección completada: ${res.key}`);
                     }
                 });
+
+                // RF-AI-09: Incremental Persistence
+                if (onPartialSave && Object.keys(partialResult).length > 0) {
+                    try {
+                        await onPartialSave(partialResult);
+                    } catch (e) {
+                        console.warn("Error saving partial progress", e);
+                    }
+                }
 
                 // Short throttle between chunks
                 if (i + chunkSize < sections.length) {

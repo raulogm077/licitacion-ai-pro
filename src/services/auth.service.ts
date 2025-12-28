@@ -12,34 +12,7 @@ export interface AuthResponse {
  * Provides methods for user authentication with magic links
  */
 export class AuthService {
-    /**
-     * Sign in with magic link (passwordless)
-     * User will receive an email with a login link
-     */
-    async signInWithMagicLink(email: string, redirectUrl?: string): Promise<AuthResponse> {
-        // Use provided URL, or fall back to window.location.origin (pure client-side)
-        // We explicitly ignore VITE_SITE_URL here to prevent the localhost issue
-        const finalRedirect = redirectUrl || window.location.origin;
 
-        if (finalRedirect.includes('localhost') && !finalRedirect.includes('3000')) {
-            // Edge case: localhost without port? Unlikely.
-        }
-
-        console.log('🔗 Magic Link Request -> Redirect To:', finalRedirect);
-
-        const { data, error } = await supabase.auth.signInWithOtp({
-            email,
-            options: {
-                emailRedirectTo: finalRedirect,
-            }
-        });
-
-        return {
-            user: data.user,
-            session: data.session,
-            error
-        };
-    }
 
     /**
      * Sign up with email/password (optional, for traditional auth)

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProcessingStatus } from '../types';
+import { ProcessingStatus, LicitacionData } from '../types';
 import { useLicitacionStore } from './licitacion.store';
 import { generateBufferHash, validateBufferMagicBytes, bufferToBase64 } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
@@ -49,6 +49,32 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
 
             set({ status: 'ANALYZING', progress: 10, thinkingOutput: `Archivo verificado. Hash: ${hash}\nIniciando motor de IA...` });
 
+            // Define onPartialSave integration
+            const licitacionStore = useLicitacionStore.getState();
+            // Note: We need dynamic access to hash in case it updates, but usually it's stable per file.
+            // But if saveLicitacion creates it, we need to know.
+            // Actually, we generated buffer hash above (line 47). 
+            // DBService 'saveLicitacion(hash,...)' uses this hash as ID.
+            // So 'hash' variable is constant here.
+
+            const onPartialSave = async (partialData: Partial<LicitacionData>) => { // Use LicitacionData or Content? Service uses Content.
+                // Service returns Partial<LicitacionContent>.
+                // We need to cast or just pass it.
+                // Let's import LicitacionContent to be safe if possible, or use any.
+                // We will trust the service provides correct shape.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const contentToSave = partialData as any; // Avoid deep import issues for now
+
+                const result = await services.db.saveLicitacion(hash, file.name, contentToSave);
+                if (result.ok) {
+                    // Update store so user sees progress in UI if needed
+                    // Just ensure hash is registered.
+                    if (!licitacionStore.hash) {
+                        licitacionStore.loadLicitacion(contentToSave, hash);
+                    }
+                }
+            };
+
             const result = await services.ai.analyzePdfContent(base64, (processed, total, message) => {
                 const progressWeight = 90 / total;
                 const currentProgress = 10 + Math.round(processed * progressWeight);
@@ -57,7 +83,7 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
                     thinkingOutput: state.thinkingOutput + "\n" + message,
                     progress: Math.min(currentProgress, 90)
                 }));
-            });
+            }, onPartialSave);
 
             // Update data store
             loadLicitacion(result, hash);

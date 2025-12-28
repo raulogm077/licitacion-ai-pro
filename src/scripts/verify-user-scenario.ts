@@ -31,14 +31,18 @@ async function runScenario() {
         console.log(`✅ Sesión activa detectada para: ${session.user.email}`);
     } else {
         console.log(`⚠️ No hay sesión activa.`);
-        console.log(`ℹ️ Intentando login (Simulado - Magic Link requiere interacción manual)...`);
-        const { error } = await authService.signInWithMagicLink(userEmail);
-        if (error) {
-            console.error(`❌ Error solicitando magic link:`, error.message);
-        } else {
-            console.log(`✅ Magic Link enviado a ${userEmail}.`);
-            console.log(`⚠️ NOTA: El script no puede continuar con el guardado en BD hasta que el usuario haga click en el email.`);
-            console.log(`   Sin embargo, podemos probar el análisis de IA y mostrar los resultados.`);
+        // 4. Verify Auth (Email/Password)
+        console.log('🔐 Testing Auth Service (Email/Password)...');
+        try {
+            // Use signInWithPassword instead of Magic Link
+            const { error } = await authService.signInWithPassword('test@example.com', 'password123');
+            if (error) {
+                console.log('ℹ️ Auth returned error (expected without real creds):', error.message);
+            } else {
+                console.log('✅ Auth (Password) request initiated');
+            }
+        } catch (error) {
+            console.error('❌ Auth Service Failed:', error);
         }
     }
 

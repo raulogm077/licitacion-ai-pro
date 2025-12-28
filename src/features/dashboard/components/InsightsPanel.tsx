@@ -2,17 +2,48 @@ import { LicitacionData } from '../../../types';
 import { AlertTriangle, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 
+import { VersionSelector } from './VersionSelector';
+
 interface InsightsPanelProps {
     data: LicitacionData;
+    onVersionSelect?: (version: number) => void;
+    currentVersionId?: number;
 }
 
-export function InsightsPanel({ data }: InsightsPanelProps) {
+export function InsightsPanel({ data, onVersionSelect, currentVersionId }: InsightsPanelProps) {
     const quality = data.workflow?.quality;
     const missingFields = quality?.missingCriticalFields || [];
     const warnings = quality?.warnings || [];
 
+    // Fallback to latest version number if not provided
+    const activeVersion = currentVersionId || data.workflow?.current_version || (data.versions?.length || 1);
+
     return (
         <div className="space-y-6 sticky top-24">
+            {/* Version Info & Selector */}
+            <Card>
+                <CardContent className="pt-6">
+                    {data.versions && data.versions.length > 0 ? (
+                        <VersionSelector
+                            versions={data.versions}
+                            currentVersionId={activeVersion}
+                            onSelectVersion={(v) => onVersionSelect && onVersionSelect(v)}
+                        />
+                    ) : (
+                        <div className="space-y-4 text-sm">
+                            <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Versión Actual</span>
+                                <span className="font-medium">v1 (Inicial)</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Modelo</span>
+                                <span className="font-medium ml-auto">Gemini Pro</span>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Quality Score Card */}
             <Card>
                 <CardHeader className="pb-2">
@@ -66,27 +97,7 @@ export function InsightsPanel({ data }: InsightsPanelProps) {
                 </Card>
             )}
 
-            {/* Version Info */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="space-y-4 text-sm">
-                        <div className="flex justified-between items-center">
-                            <span className="text-slate-500">Versión Actual</span>
-                            <span className="font-medium">v{data.versions?.length || 1}</span>
-                        </div>
-                        <div className="flex justified-between items-center">
-                            <span className="text-slate-500">Modelo</span>
-                            <span className="font-medium ml-auto">Gemini Pro</span>
-                        </div>
-                        <div className="flex justified-between items-center">
-                            <span className="text-slate-500">Última act.</span>
-                            <span className="font-medium ml-auto">
-                                {new Date(data.workflow?.updated_at || new Date().toISOString()).toLocaleDateString()}
-                            </span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+
         </div>
     );
 }

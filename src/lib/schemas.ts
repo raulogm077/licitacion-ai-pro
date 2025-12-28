@@ -175,7 +175,8 @@ export const WorkflowStateSchema = z.object({
         overall: z.enum(['COMPLETO', 'PARCIAL', 'VACIO']),
         bySection: z.record(z.enum(['COMPLETO', 'PARCIAL', 'VACIO'])),
         missingCriticalFields: z.array(z.string()),
-        warnings: z.array(z.string())
+        warnings: z.array(z.string()),
+        consistencyWarnings: z.array(z.string()).optional()
     }).optional(),
     updated_at: z.string()
 });

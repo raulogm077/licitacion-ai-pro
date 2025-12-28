@@ -10,7 +10,7 @@ interface AuthState {
 
     // Actions
     initialize: () => Promise<void>;
-    signInWithMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>;
+
     signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     signOut: () => Promise<void>;
@@ -74,16 +74,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
     },
 
-    signInWithMagicLink: async (email: string) => {
-        // Always pass window.location.origin to ensure we redirect back to WHERE WE ARE
-        const { error } = await authService.signInWithMagicLink(email, window.location.origin);
 
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        return { success: true };
-    },
 
     signInWithPassword: async (email: string, password: string) => {
         const { user, session, error } = await authService.signInWithPassword(email, password);
