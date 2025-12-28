@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { LicitacionData } from '../types';
+import { LicitacionData, AnalyticsData } from '../types';
 
 export function exportToJson(data: LicitacionData, filename: string) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -54,6 +54,40 @@ export function exportToExcel(data: LicitacionData, filename: string) {
     ];
     const wsRisk = XLSX.utils.aoa_to_sheet(riskData);
     XLSX.utils.book_append_sheet(wb, wsRisk, "Riesgos");
+
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+}
+
+export function exportAnalyticsToExcel(data: AnalyticsData, filename: string) {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Key Metrics
+    const metricsData = [
+        ['Métrica', 'Valor'],
+        ['Total Licitaciones', data.totalLicitaciones],
+        ['Presupuesto Total', data.presupuestoTotal],
+        ['Presupuesto Promedio', data.presupuestoPromedio],
+        ['Importe Adjudicado Total', data.importeAdjudicadoTotal],
+        ['Tiempo Análisis Promedio (ms)', data.tiempoAnalisisPromedio]
+    ];
+    const wsMetrics = XLSX.utils.aoa_to_sheet(metricsData);
+    XLSX.utils.book_append_sheet(wb, wsMetrics, "Métricas Clave");
+
+    // Sheet 2: Distribución Estados
+    const estadosData = [
+        ['Estado', 'Cantidad'],
+        ...Object.entries(data.distribucionEstados)
+    ];
+    const wsEstados = XLSX.utils.aoa_to_sheet(estadosData);
+    XLSX.utils.book_append_sheet(wb, wsEstados, "Estados");
+
+    // Sheet 3: Top Clientes
+    const clientesData = [
+        ['Cliente', 'Cantidad', 'Total Presupuesto'],
+        ...data.topClientes.map(c => [c.cliente, c.count, c.total])
+    ];
+    const wsClientes = XLSX.utils.aoa_to_sheet(clientesData);
+    XLSX.utils.book_append_sheet(wb, wsClientes, "Top Clientes");
 
     XLSX.writeFile(wb, `${filename}.xlsx`);
 }

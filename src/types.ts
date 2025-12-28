@@ -1,92 +1,8 @@
-export interface Note {
-    id: string;
-    requirementIndex?: number; // If attached to a specific requirement
-    text: string;
-    author: string;
-    timestamp: number;
-    type: 'NOTE' | 'QUESTION' | 'WARNING';
-}
+import { Note as ZodNote, LicitacionMetadata as ZodMetadata, LicitacionData as ZodData } from './lib/schemas';
 
-export interface LicitacionMetadata {
-    tags: string[];
-    cliente?: string;
-    importeAdjudicado?: number;
-    estado?: 'PENDIENTE' | 'ADJUDICADA' | 'DESCARTADA' | 'EN_REVISION';
-    fechaCreacion?: number;
-    ultimaModificacion?: number;
-}
-
-export interface LicitacionData {
-    datosGenerales: {
-        titulo: string;
-        presupuesto: number;
-        moneda: string;
-        plazoEjecucionMeses: number;
-        cpv: string[];
-        organoContratacion: string;
-        fechaLimitePresentacion?: string;
-    };
-    criteriosAdjudicacion: {
-        subjetivos: Array<{
-            descripcion: string;
-            ponderacion: number; // Porcentaje 0-100
-            detalles?: string;
-        }>;
-        objetivos: Array<{
-            descripcion: string;
-            ponderacion: number; // Porcentaje 0-100
-            formula?: string;
-        }>;
-    };
-    requisitosTecnicos: {
-        funcionales: Array<{
-            requisito: string;
-            obligatorio: boolean;
-            referenciaPagina?: number;
-        }>;
-        normativa: Array<{
-            norma: string; // ej: ISO 27001, ENS Media
-            descripcion?: string;
-        }>;
-    };
-    requisitosSolvencia: {
-        economica: {
-            cifraNegocioAnualMinima: number;
-            descripcion?: string;
-        };
-        tecnica: Array<{
-            descripcion: string;
-            proyectosSimilaresRequeridos: number;
-            importeMinimoProyecto?: number;
-        }>;
-    };
-    restriccionesYRiesgos: {
-        killCriteria: string[]; // Motivos de exclusión directa
-        riesgos: Array<{
-            descripcion: string;
-            impacto: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRITICO';
-            probabilidad?: 'BAJA' | 'MEDIA' | 'ALTA';
-            mitigacionSugerida?: string;
-        }>;
-        penalizaciones: Array<{
-            causa: string;
-            sancion: string;
-        }>;
-    };
-    modeloServicio: {
-        sla: Array<{
-            metrica: string;
-            objetivo: string;
-        }>;
-        equipoMinimo: Array<{
-            rol: string;
-            experienciaAnios: number;
-            titulacion?: string;
-        }>;
-    };
-    metadata?: LicitacionMetadata;
-    notas?: Note[];
-}
+export type Note = ZodNote;
+export type LicitacionMetadata = ZodMetadata;
+export type LicitacionData = ZodData;
 
 export type ProcessingStatus = 'IDLE' | 'READING_PDF' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
 
@@ -98,6 +14,16 @@ export interface AnalysisState {
     error: string | null;
     fileName?: string;
     hash?: string; // For edit persistence
+}
+
+export interface DbLicitacion {
+    hash: string;
+    fileName: string;
+    timestamp: number;
+    data: LicitacionData;
+    metadata: LicitacionMetadata & {
+        sectionStatus?: Record<string, 'success' | 'failed' | 'processing'>;
+    };
 }
 
 export interface SearchFilters {
@@ -120,6 +46,7 @@ export interface AnalyticsData {
     distribucionRiesgos: Record<string, number>;
     topClientes: Array<{ cliente: string; count: number; total: number }>;
     topTags: Array<{ tag: string; count: number }>;
+    promedioCriterios: { subjetivos: number; objetivos: number };
 }
 
 export type View = 'HOME' | 'HISTORY' | 'ANALYTICS' | 'SEARCH' | 'PRESENTATION';

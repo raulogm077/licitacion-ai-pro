@@ -1,35 +1,37 @@
 import { useEffect, useState } from 'react';
 import { AnalyticsData } from '../../types';
 import { AnalyticsService } from '../../services/analytics.service';
-import { dbService } from '../../services/db.service';
+import { services } from '../../config/service-registry';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import {
     TrendingUp, Euro, Clock, FileText, Users, Tag as TagIcon,
-    AlertTriangle, CheckCircle, PieChart, BarChart3
+    AlertTriangle, CheckCircle, PieChart, BarChart3, Download
 } from 'lucide-react';
+import { exportAnalyticsToExcel } from '../../lib/export-utils';
 
-export function AnalyticsDashboard() {
+export const AnalyticsDashboard: React.FC = () => {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        loadAnalytics();
+        const fetchAnalytics = async () => {
+            try {
+                const result = await services.db.getAllLicitaciones();
+                if (result.ok) {
+                    const data = AnalyticsService.calculateAnalytics(result.value);
+                    setAnalytics(data);
+                }
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchAnalytics();
     }, []);
 
-    const loadAnalytics = async () => {
-        try {
-            const items = await dbService.getAllLicitaciones();
-            const data = AnalyticsService.calculateAnalytics(items);
-            setAnalytics(data);
-        } catch (error) {
-            console.error('Failed to load analytics:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading) {
+    if (isLoading) {
         return <div className="text-center py-12 text-slate-500">Cargando analytics...</div>;
     }
 
@@ -47,10 +49,18 @@ export function AnalyticsDashboard() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <TrendingUp className="text-brand-600" />
-                Analytics Dashboard
-            </h2>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <TrendingUp className="text-brand-600" />
+                    Analytics Dashboard
+                </h2>
+                <button
+                    onClick={() => analytics && exportAnalyticsToExcel(analytics, `analytics-${new Date().toISOString().split('T')[0]}`)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm text-sm font-medium"
+                >
+                    <Download size={16} /> Exportar Datos (.xlsx)
+                </button>
+            </div>
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -251,6 +261,34 @@ export function AnalyticsDashboard() {
                     </Card>
                 )}
             </div>
+
+            {/* Criteria Stats */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingUp size={18} className="text-brand-600" />
+                        Promedio de Criterios por Licitación
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="flex flex-col items-center justify-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <span className="text-4xl font-bold text-blue-700 dark:text-blue-300">
+                                {analytics.promedioCriterios.subjetivos.toFixed(1)}
+                            </span>
+                            <span className="text-sm font-medium text-blue-600 dark:text-blue-400 mt-2">Criterios Subjetivos</span>
+                            <p className="text-xs text-blue-500 mt-1 text-center">Basados en juicio de valor</p>
+                        </div>
+                        <div className="flex flex-col items-center justify-center p-6 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                            <span className="text-4xl font-bold text-emerald-700 dark:text-emerald-300">
+                                {analytics.promedioCriterios.objetivos.toFixed(1)}
+                            </span>
+                            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mt-2">Criterios Objetivos</span>
+                            <p className="text-xs text-emerald-500 mt-1 text-center">Basados en fórmulas automáticas</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

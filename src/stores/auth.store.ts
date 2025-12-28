@@ -15,6 +15,7 @@ interface AuthState {
     signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     signOut: () => Promise<void>;
     setUser: (user: User | null, session: Session | null) => void;
+    reset: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -130,5 +131,6 @@ export const useAuthStore = create<AuthState>((set) => ({
             session,
             isAuthenticated: !!user
         });
-    }
+    },
+    reset: () => set({ user: null, session: null, isAuthenticated: false, loading: false })
 }));

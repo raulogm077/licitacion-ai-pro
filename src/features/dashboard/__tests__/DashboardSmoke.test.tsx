@@ -16,6 +16,16 @@ vi.mock('lucide-react', () => ({
     Save: () => <span data-testid="icon-save" />,
     X: () => <span data-testid="icon-x" />,
     Code: () => <span data-testid="icon-code" />,
+    Copy: () => <span data-testid="icon-copy" />,
+    Check: () => <span data-testid="icon-check" />,
+    AlertCircle: () => <span data-testid="icon-alert-circle" />,
+    TrendingUp: () => <span data-testid="icon-trending-up" />,
+    Clock: () => <span data-testid="icon-clock" />,
+    FileText: () => <span data-testid="icon-file-text" />,
+    Users: () => <span data-testid="icon-users" />,
+    Tag: () => <span data-testid="icon-tag" />,
+    PieChart: () => <span data-testid="icon-pie-chart" />,
+    BarChart3: () => <span data-testid="icon-bar-chart" />,
 }));
 
 // Mock Child Components

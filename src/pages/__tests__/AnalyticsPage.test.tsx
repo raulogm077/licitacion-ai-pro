@@ -3,23 +3,30 @@ import { describe, it, expect, vi } from 'vitest';
 import { AnalyticsPage } from '../AnalyticsPage';
 
 // Mock DB service
-vi.mock('../../services/db.service', () => ({
-    dbService: {
-        getAllLicitaciones: vi.fn().mockResolvedValue([
-            {
-                hash: '123',
-                data: {
-                    datosGenerales: { presupuesto: 1000, moneda: 'EUR' },
-                    metadata: { estado: 'PENDIENTE', tags: [] },
-                    restriccionesYRiesgos: { riesgos: [] },
-                    criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
-                    requisitosTecnicos: { funcionales: [] },
-                    requisitosSolvencia: { economica: {}, tecnica: {} },
-                    modeloServicio: { sla: [] }
-                },
-                timestamp: Date.now()
-            }
-        ])
+vi.mock('../../config/service-registry', () => ({
+    services: {
+        db: {
+            getAllLicitaciones: vi.fn().mockResolvedValue({
+                ok: true,
+                value: [
+                    {
+                        hash: '123',
+                        fileName: 'test.pdf',
+                        timestamp: Date.now(),
+                        data: {
+                            datosGenerales: { presupuesto: 1000, moneda: 'EUR', cpv: [], organoContratacion: '', titulo: 'Test', plazoEjecucionMeses: 12 },
+                            metadata: { estado: 'PENDIENTE', tags: [] },
+                            restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },
+                            criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                            requisitosTecnicos: { funcionales: [], normativa: [] },
+                            requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] },
+                            modeloServicio: { sla: [], equipoMinimo: [] }
+                        },
+                        metadata: { estado: 'PENDIENTE', tags: [] }
+                    }
+                ]
+            })
+        }
     }
 }));
 

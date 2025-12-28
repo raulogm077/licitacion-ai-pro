@@ -8,9 +8,11 @@ const { mockGetAll } = vi.hoisted(() => ({
     mockGetAll: vi.fn()
 }));
 
-vi.mock('../../services/db.service', () => ({
-    dbService: {
-        getAllLicitaciones: mockGetAll
+vi.mock('../../config/service-registry', () => ({
+    services: {
+        db: {
+            getAllLicitaciones: mockGetAll
+        }
     }
 }));
 
@@ -22,14 +24,17 @@ describe('HistoryPage', () => {
     });
 
     it('renders history list', async () => {
-        mockGetAll.mockResolvedValue([
-            {
-                hash: '1',
-                fileName: 'test.pdf',
-                timestamp: Date.now(),
-                data: { datosGenerales: { titulo: 'Test History', presupuesto: 100 } }
-            }
-        ]);
+        mockGetAll.mockResolvedValue({
+            ok: true,
+            value: [
+                {
+                    hash: '1',
+                    fileName: 'test.pdf',
+                    timestamp: Date.now(),
+                    data: { datosGenerales: { titulo: 'Test History', presupuesto: 100 } }
+                }
+            ]
+        });
 
         render(
             <MemoryRouter>
@@ -42,7 +47,10 @@ describe('HistoryPage', () => {
     });
 
     it('shows empty state if no data', async () => {
-        mockGetAll.mockResolvedValue([]);
+        mockGetAll.mockResolvedValue({
+            ok: true,
+            value: []
+        });
 
         render(
             <MemoryRouter>

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
-import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, AlertCircle } from 'lucide-react';
 import { LicitacionData } from '../../../types';
 
 interface RisksCardProps {
@@ -11,17 +11,24 @@ export function RisksCard({ data }: RisksCardProps) {
     return (
         <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <ShieldAlert size={20} className="text-danger-500" />
-                    Riesgos Detectados
+                <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <ShieldAlert size={20} className="text-danger-500" />
+                        Riesgos Detectados
+                    </div>
+                    {data.metadata?.sectionStatus?.restriccionesYRiesgos === 'failed' && (
+                        <Badge variant="warning" className="flex items-center gap-1">
+                            <AlertCircle size={12} /> Análisis Fallido
+                        </Badge>
+                    )}
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
                     {data.restriccionesYRiesgos.killCriteria.length > 0 && (
-                        <div className="bg-danger-50 p-4 rounded-lg">
-                            <h4 className="text-sm font-bold text-danger-800 mb-2 uppercase tracking-wide">Kill Criteria (Exclusiones)</h4>
-                            <ul className="list-disc list-inside text-sm text-danger-700 space-y-1">
+                        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800">
+                            <h4 className="text-sm font-bold text-red-800 dark:text-red-300 mb-2 uppercase tracking-wide">Kill Criteria (Exclusiones)</h4>
+                            <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-400 space-y-1">
                                 {data.restriccionesYRiesgos.killCriteria.map((criteria, idx) => (
                                     <li key={idx}>{criteria}</li>
                                 ))}
@@ -31,14 +38,13 @@ export function RisksCard({ data }: RisksCardProps) {
 
                     <div className="space-y-3">
                         {data.restriccionesYRiesgos.riesgos.map((riesgo, idx) => (
-                            <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                <AlertTriangle
-                                    size={18}
-                                    className={`mt-2 p-3 rounded-lg text-sm ${riesgo.impacto === 'CRITICO' ? 'bg-red-50 text-red-700' : 'bg-orange-50 text-orange-700'}`}
-                                />
+                            <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                                <div className={`p-2 rounded-lg ${riesgo.impacto === 'CRITICO' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400'}`}>
+                                    <AlertTriangle size={18} />
+                                </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="text-sm font-medium text-slate-900">{riesgo.descripcion}</h4>
+                                        <h4 className="text-sm font-medium text-slate-900 dark:text-white">{riesgo.descripcion}</h4>
                                         <Badge variant={
                                             riesgo.impacto === 'CRITICO' ? 'danger' :
                                                 riesgo.impacto === 'ALTO' ? 'warning' : 'default'
@@ -47,7 +53,7 @@ export function RisksCard({ data }: RisksCardProps) {
                                         </Badge>
                                     </div>
                                     {riesgo.mitigacionSugerida && (
-                                        <p className="text-xs text-slate-500 mt-1">
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                             <span className="font-medium">Sugerencia:</span> {riesgo.mitigacionSugerida}
                                         </p>
                                     )}

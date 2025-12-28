@@ -1,7 +1,9 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCcw } from 'lucide-react';
 
 interface Props {
     children: ReactNode;
+    fallback?: ReactNode;
 }
 
 interface State {
@@ -20,24 +22,33 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error("Uncaught error:", error, errorInfo);
+        console.error('Uncaught error:', error, errorInfo);
     }
+
+    private handleReset = () => {
+        this.setState({ hasError: false, error: null });
+        window.location.href = '/';
+    };
 
     public render() {
         if (this.state.hasError) {
-            return (
-                <div className="min-h-screen flex items-center justify-center p-4 bg-red-50 text-red-900">
-                    <div className="max-w-md w-full bg-white p-6 rounded-lg shadow-xl border border-red-200">
-                        <h1 className="text-2xl font-bold mb-4">Algo salió mal</h1>
-                        <p className="mb-4 text-sm opacity-80">Se ha producido un error inesperado en la aplicación.</p>
-                        <pre className="bg-red-100 p-3 rounded text-xs overflow-auto mb-4">
-                            {this.state.error?.message}
-                        </pre>
+            return this.props.fallback || (
+                <div className="min-h-[400px] flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                    <div className="text-center max-w-md">
+                        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <AlertTriangle size={32} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Algo salió mal</h2>
+                        <p className="text-slate-500 dark:text-slate-400 mb-8">
+                            Ha ocurrido un error inesperado al renderizar esta sección.
+                            {this.state.error && <span className="block mt-2 text-xs font-mono opacity-60">{this.state.error.message}</span>}
+                        </p>
                         <button
-                            onClick={() => window.location.href = '/'}
-                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors w-full"
+                            onClick={this.handleReset}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                         >
-                            Volver al inicio (Recargar)
+                            <RefreshCcw size={20} />
+                            Reintentar
                         </button>
                     </div>
                 </div>

@@ -14,6 +14,28 @@ vi.mock('../RisksPanel', () => ({
 vi.mock('../ServiceModel', () => ({
     ServiceModel: () => <div data-testid="service-model">Service</div>
 }));
+vi.mock('lucide-react', () => ({
+    AlertTriangle: () => <span data-testid="icon-alert" />,
+    CheckCircle: () => <span data-testid="icon-check" />,
+    Euro: () => <span data-testid="icon-euro" />,
+    Calendar: () => <span data-testid="icon-calendar" />,
+    ShieldAlert: () => <span data-testid="icon-shield" />,
+    Download: () => <span data-testid="icon-download" />,
+    Edit2: () => <span data-testid="icon-edit" />,
+    Save: () => <span data-testid="icon-save" />,
+    X: () => <span data-testid="icon-x" />,
+    Code: () => <span data-testid="icon-code" />,
+    Copy: () => <span data-testid="icon-copy" />,
+    Check: () => <span data-testid="icon-check" />,
+    AlertCircle: () => <span data-testid="icon-alert-circle" />,
+    TrendUp: () => <span data-testid="icon-trend-up" />,
+    Clock: () => <span data-testid="icon-clock" />,
+    FileText: () => <span data-testid="icon-file-text" />,
+    Users: () => <span data-testid="icon-users" />,
+    Tag: () => <span data-testid="icon-tag" />,
+    PieChart: () => <span data-testid="icon-pie-chart" />,
+    BarChart3: () => <span data-testid="icon-bar-chart" />,
+}));
 
 describe('Dashboard', () => {
     const mockData: LicitacionData = {

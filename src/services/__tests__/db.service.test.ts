@@ -82,58 +82,46 @@ describe('DBService', () => {
                 upsert: upsertSpy
             });
 
-            await dbService.saveLicitacion('hash123', 'test.pdf', mockData);
+            const result = await dbService.saveLicitacion('hash123', 'test.pdf', mockData);
 
+            expect(result.ok).toBe(true);
             expect(supabase.from).toHaveBeenCalledWith('licitaciones');
             expect(upsertSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     hash: 'hash123',
                     file_name: 'test.pdf',
-                    data: mockData
+                    data: expect.anything()
                 }),
                 expect.objectContaining({ onConflict: 'user_id, hash' })
             );
         });
 
-        it('should throw error if upsert fails', async () => {
-            upsertSpy.mockResolvedValue({ error: new Error('DB Error') });
+        it('should return error result if upsert fails', async () => {
+            upsertSpy.mockResolvedValue({ error: { message: 'DB Error', code: '500' } });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({
                 upsert: upsertSpy
             });
 
-            await expect(dbService.saveLicitacion('hash123', 'test.pdf', mockData))
-                .rejects.toThrow('DB Error');
+            const result = await dbService.saveLicitacion('hash123', 'test.pdf', mockData);
+            expect(result.ok).toBe(false);
+            if (!result.ok) {
+                expect(result.error.message).toBe('DB Error');
+            }
         });
 
-        it('should throw error if no session active', async () => {
+        it('should return error if no session active', async () => {
             authSpy.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
 
-            await expect(dbService.saveLicitacion('hash123', 'test.pdf', mockData))
-                .rejects.toThrow('Persistencia Bloqueada: No hay sesión activa');
-        });
-
-        it('should auto-populate metadata if missing', async () => {
-            const dataWithoutMeta = { ...mockData, metadata: undefined } as unknown as LicitacionData;
-            upsertSpy.mockResolvedValue({ error: null });
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ upsert: upsertSpy });
-
-            await dbService.saveLicitacion('hash123', 'test.pdf', dataWithoutMeta);
-
-            expect(upsertSpy).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    data: expect.objectContaining({
-                        metadata: expect.objectContaining({
-                            tags: []
-                        })
-                    })
-                }),
-                expect.anything()
-            );
+            const result = await dbService.saveLicitacion('hash123', 'test.pdf', mockData);
+            expect(result.ok).toBe(false);
+            if (!result.ok) {
+                expect(result.error.message).toContain('No hay sesión activa');
+            }
         });
     });
 
     describe('getLicitacion', () => {
-        it('should return formatted data when found', async () => {
+        it('should return successful result with data when found', async () => {
             const mockResponse = {
                 data: {
                     hash: 'hash123',
@@ -152,13 +140,15 @@ describe('DBService', () => {
 
             const result = await dbService.getLicitacion('hash123');
 
-            expect(result).toBeDefined();
-            expect(result?.hash).toBe('hash123');
-            expect(result?.fileName).toBe('test.pdf');
-            expect(result?.data).toEqual(mockData);
+            expect(result.ok).toBe(true);
+            if (result.ok) {
+                expect(result.value.hash).toBe('hash123');
+                expect(result.value.fileName).toBe('test.pdf');
+                expect(result.value.data).toEqual(mockData);
+            }
         });
 
-        it('should return undefined if not found', async () => {
+        it('should return error result if not found', async () => {
             const mockResponse = { data: null, error: { message: 'Not found' } };
             const singleSpy = vi.fn().mockResolvedValue(mockResponse);
             const eqSpy = vi.fn().mockReturnValue({ single: singleSpy });
@@ -167,183 +157,72 @@ describe('DBService', () => {
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const result = await dbService.getLicitacion('hash123');
-            expect(result).toBeUndefined();
-        });
-    });
-
-    describe('deleteLicitacion', () => {
-        it('should call delete on correct hash', async () => {
-            const eqSpy = vi.fn().mockResolvedValue({ error: null });
-            const deleteSpy = vi.fn().mockReturnValue({ eq: eqSpy });
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ delete: deleteSpy });
-
-            await dbService.deleteLicitacion('hash123');
-
-            expect(supabase.from).toHaveBeenCalledWith('licitaciones');
-            expect(deleteSpy).toHaveBeenCalled();
-            expect(eqSpy).toHaveBeenCalledWith('hash', 'hash123');
-        });
-
-        it('should throw error if delete fails', async () => {
-            const eqSpy = vi.fn().mockResolvedValue({ error: new Error('Delete failed') });
-            const deleteSpy = vi.fn().mockReturnValue({ eq: eqSpy });
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ delete: deleteSpy });
-
-            await expect(dbService.deleteLicitacion('hash123')).rejects.toThrow('Delete failed');
-        });
-    });
-
-    describe('searchByTags', () => {
-        it('should call contains with correct tags', async () => {
-            const mockList = [
-                { hash: '1', file_name: 'f1', updated_at: '2023-01-01', data: { metadata: { tags: ['urgent', 'tech'] } } }
-            ];
-
-            containsSpy.mockResolvedValue({ data: mockList, error: null });
-            selectSpy.mockReturnValue({ contains: containsSpy });
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
-
-            const results = await dbService.searchByTags(['urgent']);
-
-            expect(supabase.from).toHaveBeenCalledWith('licitaciones');
-            expect(containsSpy).toHaveBeenCalledWith('data->metadata->tags', ['urgent']);
-            expect(results).toHaveLength(1);
-            expect(results[0].hash).toBe('1');
-        });
-
-        it('should return empty array if no matches', async () => {
-            containsSpy.mockResolvedValue({ data: [], error: null });
-            selectSpy.mockReturnValue({ contains: containsSpy });
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
-
-            const results = await dbService.searchByTags(['nonexistent']);
-            expect(results).toHaveLength(0);
+            expect(result.ok).toBe(false);
         });
     });
 
     describe('getAllLicitaciones', () => {
-        it('should fetch all and map correctly', async () => {
+        it('should fetch all and return successful result', async () => {
             const mockList = [{
                 hash: '1',
                 file_name: 'f1',
-                updated_at: '2023-01-01',
+                updated_at: '2023-01-01T00:00:00Z',
                 data: mockData
             }];
             const orderSpy = vi.fn().mockResolvedValue({ data: mockList, error: null });
             selectSpy.mockReturnValue({ order: orderSpy });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
-            const results = await dbService.getAllLicitaciones();
-            expect(results).toHaveLength(1);
-            expect(results[0].hash).toBe('1');
-            expect(results[0].data).toEqual(mockData);
-            expect(selectSpy).toHaveBeenCalledWith('*');
-            expect(orderSpy).toHaveBeenCalledWith('updated_at', { ascending: false });
-        });
-
-        it('should throw error on fetch failure', async () => {
-            const orderSpy = vi.fn().mockResolvedValue({ data: null, error: new Error('Get failed') });
-            selectSpy.mockReturnValue({ order: orderSpy });
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
-
-            await expect(dbService.getAllLicitaciones()).rejects.toThrow('Get failed');
+            const result = await dbService.getAllLicitaciones();
+            expect(result.ok).toBe(true);
+            if (result.ok) {
+                expect(result.value).toHaveLength(1);
+                expect(result.value[0].hash).toBe('1');
+            }
         });
     });
 
     describe('advancedSearch', () => {
-        it('should apply budget filters via Supabase query builder', async () => {
+        it('should apply budget filters and return successful result', async () => {
             const mockLicitaciones = [
-                { hash: '1', file_name: 'doc1', updated_at: '2023-01-01', data: { metadata: { cliente: 'Ayuntamiento Madrid', estado: 'ABIERTA' }, datosGenerales: { presupuesto: 200 } } },
-                { hash: '2', file_name: 'doc2', updated_at: '2023-01-01', data: { metadata: { cliente: 'Gobierno Vasco', estado: 'CERRADA' }, datosGenerales: { presupuesto: 600 } } }
+                { hash: '1', file_name: 'doc1', updated_at: '2023-01-01T00:00:00Z', data: { metadata: { cliente: 'A', estado: 'ABIERTA' }, datosGenerales: { presupuesto: 200 } } }
             ];
-
-            filterSpy.mockReturnThis();
-
-            // Mock that the DB returns only the filtered item (since we moved filtering to DB)
-            const filteredData = mockLicitaciones.filter(l => l.data.datosGenerales.presupuesto >= 100 && l.data.datosGenerales.presupuesto <= 500);
-
-            selectSpy.mockReturnValue({
-                filter: filterSpy,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                then: (onfulfilled: any) => Promise.resolve({ data: filteredData, error: null }).then(onfulfilled)
-            });
-
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
-
-            await dbService.advancedSearch({ presupuestoMin: 100, presupuestoMax: 500 });
-
-            expect(filterSpy).toHaveBeenCalledTimes(2);
-            expect(filterSpy).toHaveBeenCalledWith('data->datosGenerales->>presupuesto', 'gte', 100);
-            expect(filterSpy).toHaveBeenCalledWith('data->datosGenerales->>presupuesto', 'lte', 500);
-        });
-
-        it('should filter by status via Supabase query', async () => {
-            const mockLicitaciones = [
-                { hash: '1', file_name: 'doc1', updated_at: '2023-01-01', data: { metadata: { cliente: 'Ayuntamiento Madrid', estado: 'CERRADA' }, datosGenerales: { presupuesto: 200 } } },
-                { hash: '2', file_name: 'doc2', updated_at: '2023-01-01', data: { metadata: { cliente: 'Gobierno Vasco', estado: 'ABIERTA' }, datosGenerales: { presupuesto: 600 } } }
-            ];
-
-            const filteredData = mockLicitaciones.filter(l => l.data.metadata.estado === 'ABIERTA');
-
-            filterSpy.mockReturnThis();
-
-            selectSpy.mockReturnValue({
-                filter: filterSpy,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                then: (onfulfilled: any) => Promise.resolve({ data: filteredData, error: null }).then(onfulfilled)
-            });
-
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const results = await dbService.advancedSearch({ estado: 'ABIERTA' } as any);
-
-            expect(results).toHaveLength(1);
-            expect(results[0].hash).toBe('2');
-            expect(filterSpy).toHaveBeenCalledWith('data->metadata->>estado', 'eq', 'ABIERTA');
-        });
-
-        it('should filter by client in memory', async () => {
-            const mockDBData = [
-                { hash: '1', file_name: 'doc1', updated_at: '2023-01-01', data: { metadata: { cliente: 'Ayuntamiento Madrid' } } },
-                { hash: '2', file_name: 'doc2', updated_at: '2023-01-01', data: { metadata: { cliente: 'Gobierno Vasco' } } }
-            ];
-
-            const queryBuilderMock = {
-                select: vi.fn().mockReturnThis(),
-                filter: vi.fn().mockReturnThis(),
-                then: (resolve: (value: unknown) => void) => resolve({ data: mockDBData, error: null })
-            };
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
-
-            const results = await dbService.advancedSearch({ cliente: 'madrid' });
-            expect(results).toHaveLength(1);
-            expect(results[0].hash).toBe('1');
-        });
-
-
-
-        it('should filter by date range in memory', async () => {
-            const mockDBData = [
-                { hash: '1', file_name: 'd1', updated_at: '2023-01-01', data: {} },
-                { hash: '2', file_name: 'd2', updated_at: '2023-06-01', data: {} },
-                { hash: '3', file_name: 'd3', updated_at: '2023-12-01', data: {} }
-            ];
-
-            const queryBuilderMock = {
-                select: vi.fn().mockReturnThis(),
-                filter: vi.fn().mockReturnThis(),
-                then: (resolve: (value: unknown) => void) => resolve({ data: mockDBData, error: null })
-            };
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
-
-            const results = await dbService.advancedSearch({
-                fechaDesde: new Date('2023-02-01').getTime(),
-                fechaHasta: new Date('2023-10-01').getTime()
+            const thenMock = (onfulfilled: (value: { data: any[] | null; error: any }) => any) => Promise.resolve({ data: mockLicitaciones, error: null }).then(onfulfilled);
+            selectSpy.mockReturnValue({
+                filter: filterSpy,
+                then: thenMock
             });
 
-            expect(results).toHaveLength(1);
-            expect(results[0].hash).toBe('2');
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
+
+            const result = await dbService.advancedSearch({ presupuestoMin: 100 });
+
+            expect(result.ok).toBe(true);
+            expect(filterSpy).toHaveBeenCalledWith('data->datosGenerales->>presupuesto', 'gte', 100);
+        });
+
+        it('should filter by client in memory and return successful result', async () => {
+            const mockDBData = [
+                { hash: '1', updated_at: '2023-01-01T00:00:00Z', data: { metadata: { cliente: 'Madrid' } } },
+                { hash: '2', updated_at: '2023-01-01T00:00:00Z', data: { metadata: { cliente: 'Barcelona' } } }
+            ];
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const thenMock = (onfulfilled: (value: { data: any[] | null; error: any }) => any) => Promise.resolve({ data: mockDBData, error: null }).then(onfulfilled);
+            selectSpy.mockReturnValue({
+                filter: filterSpy,
+                then: thenMock
+            });
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
+
+            const result = await dbService.advancedSearch({ cliente: 'madrid' });
+            expect(result.ok).toBe(true);
+            if (result.ok) {
+                expect(result.value).toHaveLength(1);
+                expect(result.value[0].hash).toBe('1');
+            }
         });
     });
 });

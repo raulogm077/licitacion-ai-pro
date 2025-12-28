@@ -20,6 +20,7 @@ export class AnalyticsService {
                 distribucionRiesgos: {},
                 topClientes: [],
                 topTags: [],
+                promedioCriterios: { subjetivos: 0, objetivos: 0 },
             };
         }
 
@@ -88,6 +89,14 @@ export class AnalyticsService {
             .sort((a, b) => b.count - a.count)
             .slice(0, 15); // Top 15
 
+        // Promedio Criterios
+        const totalSubjetivos = items.reduce((sum, item) => sum + item.data.criteriosAdjudicacion.subjetivos.length, 0);
+        const totalObjetivos = items.reduce((sum, item) => sum + item.data.criteriosAdjudicacion.objetivos.length, 0);
+        const promedioCriterios = {
+            subjetivos: totalSubjetivos / totalLicitaciones,
+            objetivos: totalObjetivos / totalLicitaciones
+        };
+
         return {
             totalLicitaciones,
             presupuestoTotal,
@@ -98,6 +107,7 @@ export class AnalyticsService {
             distribucionRiesgos,
             topClientes,
             topTags,
+            promedioCriterios,
         };
     }
 

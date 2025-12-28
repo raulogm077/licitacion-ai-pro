@@ -4,12 +4,16 @@ import { Card } from '../components/ui/Card';
 import { TagManager } from '../components/domain/TagManager';
 import { NotesPanel } from '../components/domain/NotesPanel';
 import { Dashboard } from '../features/dashboard/Dashboard';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { PluginSelector } from '../components/domain/PluginSelector';
 import { useAuthStore } from '../stores/auth.store';
 import { useLicitacionStore } from '../stores/licitacion.store';
+import { useAnalysisStore } from '../stores/analysis.store';
 import { AuthModal } from '../components/ui/AuthModal';
 
 export const HomePage: React.FC = () => {
-    const { state, processFile, reset, updateData } = useLicitacionStore();
+    const { data, updateData } = useLicitacionStore();
+    const { status, thinkingOutput, error, analyzeFile, resetAnalysis } = useAnalysisStore();
     const [isDragging, setIsDragging] = React.useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const { isAuthenticated } = useAuthStore();
@@ -34,7 +38,7 @@ export const HomePage: React.FC = () => {
 
         const file = e.dataTransfer.files[0];
         if (file && file.type === 'application/pdf') {
-            await processFile(file);
+            await analyzeFile(file);
         }
     };
 
@@ -46,7 +50,7 @@ export const HomePage: React.FC = () => {
 
         const file = e.target.files?.[0];
         if (file) {
-            await processFile(file);
+            await analyzeFile(file);
         }
     };
 
@@ -58,7 +62,7 @@ export const HomePage: React.FC = () => {
                     <Loader2 className="animate-spin text-brand-600" size={48} />
                 </div>
             }>
-                {state.status === 'IDLE' && (
+                {status === 'IDLE' && (
                     <div className="max-w-2xl mx-auto mt-20">
                         {!isAuthenticated && (
                             <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
@@ -96,11 +100,16 @@ export const HomePage: React.FC = () => {
                             </p>
 
                             {isAuthenticated ? (
-                                <label className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition-all cursor-pointer shadow-lg shadow-brand-200 dark:shadow-none hover:shadow-xl hover:-translate-y-0.5">
-                                    <Upload size={20} />
-                                    Seleccionar PDF
-                                    <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
-                                </label>
+                                <div className="space-y-6">
+                                    <label className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition-all cursor-pointer shadow-lg shadow-brand-200 dark:shadow-none hover:shadow-xl hover:-translate-y-0.5">
+                                        <Upload size={20} />
+                                        Seleccionar PDF
+                                        <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
+                                    </label>
+                                    <div className="max-w-xs mx-auto">
+                                        <PluginSelector />
+                                    </div>
+                                </div>
                             ) : (
                                 <button
                                     onClick={() => setShowAuthModal(true)}
@@ -114,7 +123,7 @@ export const HomePage: React.FC = () => {
                     </div>
                 )}
 
-                {state.status === 'ANALYZING' && (
+                {status === 'ANALYZING' && (
                     <div className="max-w-xl mx-auto mt-20 text-center">
                         <Loader2 size={48} className="text-brand-600 animate-spin mx-auto mb-6" />
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Analizando Documento...</h2>
@@ -124,7 +133,7 @@ export const HomePage: React.FC = () => {
 
                         <div className="bg-slate-900 rounded-lg p-4 text-left font-mono text-xs text-green-400 h-48 overflow-y-auto shadow-inner">
                             <p className="opacity-50 mb-2">// System Log</p>
-                            {state.thinkingOutput.split('\n').map((line, i) => (
+                            {thinkingOutput.split('\n').map((line, i) => (
                                 <p key={i} className="mb-1">{`> ${line}`}</p>
                             ))}
                             <span className="animate-pulse">_</span>
@@ -132,7 +141,7 @@ export const HomePage: React.FC = () => {
                     </div>
                 )}
 
-                {state.status === 'ERROR' && (
+                {status === 'ERROR' && (
                     <div className="max-w-xl mx-auto mt-20">
                         <Card className="border-danger-200 bg-danger-50 dark:bg-danger-900/20">
                             <div className="p-6 text-center">
@@ -140,9 +149,9 @@ export const HomePage: React.FC = () => {
                                     <AlertCircle size={24} />
                                 </div>
                                 <h3 className="text-lg font-bold text-danger-900 dark:text-danger-100 mb-2">Error en el Análisis</h3>
-                                <p className="text-danger-700 dark:text-danger-300 mb-6">{state.error}</p>
+                                <p className="text-danger-700 dark:text-danger-300 mb-6">{error}</p>
                                 <button
-                                    onClick={reset}
+                                    onClick={resetAnalysis}
                                     className="px-4 py-2 bg-white dark:bg-slate-800 border border-danger-200 dark:border-danger-800 text-danger-700 dark:text-danger-300 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-900/40 transition-colors"
                                 >
                                     Intentar de nuevo
@@ -152,32 +161,34 @@ export const HomePage: React.FC = () => {
                     </div>
                 )}
 
-                {state.status === 'COMPLETED' && state.data && (
+                {status === 'COMPLETED' && data && (
                     <div className="space-y-6">
                         {/* Tags and Notes Section */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <TagManager
-                                tags={state.data.metadata?.tags || []}
+                                tags={data.metadata?.tags || []}
                                 onChange={(tags) => {
                                     const updatedData = {
-                                        ...state.data!,
-                                        metadata: { ...state.data!.metadata, tags }
+                                        ...data!,
+                                        metadata: { ...data!.metadata, tags }
                                     };
                                     updateData(updatedData);
                                 }}
                             />
 
                             <NotesPanel
-                                notes={state.data.notas || []}
+                                notes={data.notas || []}
                                 onChange={(notas) => {
-                                    const updatedData = { ...state.data!, notas };
+                                    const updatedData = { ...data!, notas };
                                     updateData(updatedData);
                                 }}
                             />
                         </div>
 
                         {/* Main Dashboard */}
-                        <Dashboard data={state.data} onUpdate={updateData} />
+                        <ErrorBoundary>
+                            <Dashboard data={data} onUpdate={updateData} />
+                        </ErrorBoundary>
                     </div>
                 )}
             </Suspense>

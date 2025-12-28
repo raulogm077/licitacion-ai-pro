@@ -1,7 +1,10 @@
-
 import { test, expect } from '@playwright/test';
+import { setupAuthMock } from './test-utils';
 
 test.describe('Licitación AI Pro - E2E', () => {
+    test.beforeEach(async ({ page }) => {
+        await setupAuthMock(page);
+    });
     test('should load the home page and display correct title', async ({ page }) => {
         await page.goto('/');
         await expect(page).toHaveTitle(/Analista de Pliegos|Licitación/i);

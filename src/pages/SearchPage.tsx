@@ -1,17 +1,17 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { Card } from '../components/ui/Card';
-import { LicitacionData, SearchFilters } from '../types';
-import { dbService } from '../services/db.service';
+import { LicitacionData, SearchFilters, DbLicitacion } from '../types';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLicitacionStore } from '../stores/licitacion.store';
+import { services } from '../config/service-registry';
 
 const SearchPanel = lazy(() => import('../features/search/SearchPanel').then(m => ({ default: m.SearchPanel })));
 
 export const SearchPage: React.FC = () => {
     const navigate = useNavigate();
     const { loadLicitacion } = useLicitacionStore();
-    const [searchResults, setSearchResults] = useState<{ data: LicitacionData; hash: string }[]>([]);
+    const [searchResults, setSearchResults] = useState<DbLicitacion[]>([]);
 
     const handleSelect = (data: LicitacionData, hash?: string) => {
         loadLicitacion(data, hash);
@@ -19,12 +19,13 @@ export const SearchPage: React.FC = () => {
     };
 
     const handleSearch = async (filters: SearchFilters) => {
-        try {
-            const results = await dbService.advancedSearch(filters);
-            setSearchResults(results);
-        } catch (error) {
-            console.error('Search failed:', error);
+        const result = await services.db.advancedSearch(filters);
+        if (result.ok) {
+            setSearchResults(result.value);
+        } else {
+            console.error('Search failed:', result.error);
             setSearchResults([]);
+            // Could add a toast here in the future
         }
     };
 

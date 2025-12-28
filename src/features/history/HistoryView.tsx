@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { dbService } from '../../services/db.service';
+import { formatCurrency, formatDate } from '../../lib/formatters';
+import { useHistory } from '../../hooks/useHistory';
 import { LicitacionData } from '../../types';
 import { Card, CardContent } from '../../components/ui/Card';
 import { FileText, Calendar, Euro, ChevronRight, Clock } from 'lucide-react';
@@ -8,47 +8,16 @@ interface HistoryViewProps {
     onSelect: (data: LicitacionData, hash?: string) => void;
 }
 
-interface HistoryItem {
-    hash: string;
-    fileName: string;
-    timestamp: number;
-    data: LicitacionData;
-}
+
+
+// Removed interface HistoryItem (now imported or inferred if needed, but easier to just let hook handle it)
 
 export function HistoryView({ onSelect }: HistoryViewProps) {
-    const [items, setItems] = useState<HistoryItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { items, loading } = useHistory();
 
-    useEffect(() => {
-        loadHistory();
-    }, []);
+    // Removed local loadHistory, useEffect, items/loading state
 
-    const loadHistory = async () => {
-        try {
-            const history = await dbService.getAllLicitaciones();
-            // Sort by timestamp desc
-            const sorted = history.sort((a: HistoryItem, b: HistoryItem) => b.timestamp - a.timestamp);
-            setItems(sorted);
-        } catch (error) {
-            console.error("Failed to load history:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const formatDate = (ts: number) => {
-        return new Intl.DateTimeFormat('es-ES', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }).format(new Date(ts));
-    };
-
-    const formatCurrency = (amount: number, currency: string) => {
-        return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency || 'EUR' }).format(amount);
-    };
+    // Removed local formatDate and formatCurrency functions in favor of imported ones.
 
     if (loading) {
         return <div className="text-center py-12 text-slate-500">Cargando historial...</div>;

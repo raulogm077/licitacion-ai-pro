@@ -47,13 +47,15 @@ describe('AIService', () => {
             error: null
         });
 
-        const result = await service.analyzePdfContent("base64data");
+        const onProgress = vi.fn();
+        const result = await service.analyzePdfContent("base64data", onProgress);
 
         expect(result).toBeDefined();
         expect(result.datosGenerales.titulo).toBe("Test Licitación");
-        expect(mockInvoke).toHaveBeenCalled();
-        // Should be called 6 times (once per section)
         expect(mockInvoke).toHaveBeenCalledTimes(6);
+        expect(onProgress).toHaveBeenCalled();
+        // Should be called multiple times: 1 start, 3 chunk starts (if chunk size 2), 6 section completions
+        expect(onProgress.mock.calls.length).toBeGreaterThan(6);
     });
 
     it('should handle Edge Function errors gracefully', async () => {
@@ -82,28 +84,43 @@ describe('AIService', () => {
     });
 
     it('should fill default values if Zod validation finds missing fields', async () => {
-        // Return valid JSON but with missing fields (Scheme is robust so it fills them)
+        // Return valid JSON but with missing fields
         mockInvoke.mockResolvedValue({
-            data: { text: JSON.stringify({ datosGenerales: { titulo: "Solo Titulo" } }) },
+            data: { text: JSON.stringify({ titulo: "Solo Titulo" }) },
             error: null
         });
 
         const result = await service.analyzePdfContent("base64data");
-        // Should preserve the found title and fill defaults for others
         expect(result.datosGenerales.titulo).toBe("Solo Titulo");
         expect(result.datosGenerales.presupuesto).toBe(0);
     });
 
-    it('should retry on empty response (if logic allows) or fail gracefully', async () => {
-        // AIService implementation currently doesn't retry on the client side for backend errors, just logs and continues.
-        // So we expect it to return defaults.
+    it('should return defaults on empty backend response', async () => {
         mockInvoke.mockResolvedValue({
             data: null,
-            error: null // Simulating empty body without explicit error
+            error: null
         });
 
         const result = await service.analyzePdfContent("base64data");
-        // console.log("Empty Response Result:", JSON.stringify(result, null, 2));
         expect(result.datosGenerales.titulo).toBe("No detectado");
+    });
+
+    it('should call onProgress with correct incrementing values', async () => {
+        const jsonString = JSON.stringify(validData);
+        mockInvoke.mockResolvedValue({
+            data: { text: jsonString },
+            error: null
+        });
+
+        const onProgress = vi.fn();
+        await service.analyzePdfContent("base64data", onProgress);
+
+        // First call should be start
+        expect(onProgress).toHaveBeenNthCalledWith(1, 0, 6, expect.stringContaining("Iniciando"));
+
+        // Final processed count should reach 6
+        const lastCall = onProgress.mock.calls[onProgress.mock.calls.length - 1];
+        expect(lastCall[0]).toBe(6);
+        expect(lastCall[1]).toBe(6);
     });
 });

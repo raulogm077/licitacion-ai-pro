@@ -45,8 +45,8 @@ export function RequirementsMatrix({ requirements }: RequirementsMatrixProps) {
                         Matriz de Requisitos
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-600">{progress}% Cumplimiento</span>
-                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{progress}% Cumplimiento</span>
+                        <div className="w-24 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-brand-500 transition-all duration-500 ease-out"
                                 style={{ width: `${progress}%` }}
@@ -59,21 +59,21 @@ export function RequirementsMatrix({ requirements }: RequirementsMatrixProps) {
                 <div className="flex gap-2 mt-4">
                     <button
                         onClick={() => setFilter('ALL')}
-                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === 'ALL' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === 'ALL' ? 'bg-slate-800 dark:bg-slate-100 dark:text-slate-900 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                     >
                         Todos
                     </button>
                     <button
                         onClick={() => setFilter('MANDATORY')}
-                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === 'MANDATORY' ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === 'MANDATORY' ? 'bg-brand-600 text-white' : 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/50'
                             }`}
                     >
                         Obligatorios
                     </button>
                     <button
                         onClick={() => setFilter('OPTIONAL')}
-                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === 'OPTIONAL' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === 'OPTIONAL' ? 'bg-slate-600 dark:bg-slate-400 dark:text-slate-950 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                     >
                         Opcionales
@@ -93,7 +93,7 @@ export function RequirementsMatrix({ requirements }: RequirementsMatrixProps) {
                         return (
                             <div
                                 key={originalIndex}
-                                className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 group ${isChecked ? 'bg-brand-50/30' : ''}`}
+                                className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 transition-colors cursor-pointer flex gap-3 group ${isChecked ? 'bg-brand-50/30' : ''}`}
                                 onClick={() => toggleItem(originalIndex)}
                             >
                                 <div className={`mt-0.5 text-slate-400 group-hover:text-brand-500 transition-colors ${isChecked ? 'text-brand-600' : ''}`}>
@@ -101,7 +101,7 @@ export function RequirementsMatrix({ requirements }: RequirementsMatrixProps) {
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-start justify-between gap-2 mb-1">
-                                        <p className={`text-sm font-medium transition-colors ${isChecked ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                                        <p className={`text-sm font-medium transition-colors ${isChecked ? 'text-slate-500 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-200'}`}>
                                             {req.requisito}
                                         </p>
                                         <Badge variant={req.obligatorio ? 'default' : 'outline'} className="shrink-0 text-[10px]">
@@ -109,7 +109,7 @@ export function RequirementsMatrix({ requirements }: RequirementsMatrixProps) {
                                         </Badge>
                                     </div>
                                     {req.referenciaPagina && (
-                                        <p className="text-xs text-slate-400">Pág. {req.referenciaPagina}</p>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500">Pág. {req.referenciaPagina}</p>
                                     )}
                                 </div>
                             </div>

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { AIService } from '../services/ai.service';
+import { services } from '../config/service-registry';
 import { LicitacionData } from '../types';
 
 interface AIState {
@@ -30,13 +30,11 @@ export function useAIAnalysis() {
 
         try {
             // apiKey no longer needed on client side (Backend Proxy)
-            const aiService = new AIService();
-
-            const result = await aiService.analyzePdfContent(base64, (thought) => {
+            const result = await services.ai.analyzePdfContent(base64, (processed, total, message) => {
                 setAiState(prev => ({
                     ...prev,
-                    thinkingOutput: prev.thinkingOutput + "\n" + thought,
-                    progress: Math.min(prev.progress + 15, 90) // Hacky progress simulation
+                    thinkingOutput: prev.thinkingOutput + "\n" + message,
+                    progress: Math.min(10 + Math.round((processed / total) * 90), 99)
                 }));
             });
 

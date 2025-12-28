@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from './stores/auth.store';
 import { useLicitacionStore } from './stores/licitacion.store';
+import { useAnalysisStore } from './stores/analysis.store';
 import { AuthModal } from './components/ui/AuthModal';
 import { SupabaseStatus } from './components/SupabaseStatus';
 import { Layout } from './components/layout/Layout';
@@ -15,7 +16,8 @@ const SearchPage = lazy(() => import('./pages/SearchPage').then(module => ({ def
 const PresentationPage = lazy(() => import('./pages/PresentationPage').then(module => ({ default: module.PresentationPage })));
 
 function App() {
-  const { state, reset } = useLicitacionStore();
+  const { data, reset } = useLicitacionStore();
+  const { status } = useAnalysisStore();
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -76,8 +78,8 @@ function App() {
       <Routes>
         <Route element={
           <Layout
-            status={state.status}
-            data={state.data}
+            status={status}
+            data={data}
             reset={reset}
             darkMode={darkMode}
             setDarkMode={setDarkMode}
@@ -108,7 +110,7 @@ function App() {
 
         <Route path="/presentation" element={
           <Suspense fallback={<PageLoader />}>
-            <PresentationPage data={state.data} />
+            <PresentationPage data={data} />
           </Suspense>
         } />
 

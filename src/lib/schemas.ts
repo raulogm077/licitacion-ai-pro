@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const NoteSchema = z.object({
+export const NoteSchema = z.object({
     id: z.string(),
     requirementIndex: z.number().optional(),
     text: z.string(),
@@ -9,14 +9,19 @@ const NoteSchema = z.object({
     type: z.enum(['NOTE', 'QUESTION', 'WARNING']),
 });
 
-const MetadataSchema = z.object({
+export type Note = z.infer<typeof NoteSchema>;
+
+export const MetadataSchema = z.object({
     tags: z.array(z.string()).default([]),
     cliente: z.string().optional(),
     importeAdjudicado: z.number().optional(),
     estado: z.enum(['PENDIENTE', 'ADJUDICADA', 'DESCARTADA', 'EN_REVISION']).optional(),
     fechaCreacion: z.number().optional(),
     ultimaModificacion: z.number().optional(),
+    sectionStatus: z.record(z.enum(['success', 'failed', 'processing'])).optional(),
 });
+
+export type LicitacionMetadata = z.infer<typeof MetadataSchema>;
 
 // Helper: Handles null/undefined -> default value
 const RobustString = (defaultValue: string = "") =>
@@ -73,7 +78,7 @@ export const LicitacionSchema = z.object({
     requisitosTecnicos: z.preprocess(val => val ?? {}, z.object({
         funcionales: RobustArray(
             z.union([
-                z.string().transform(str => ({ requisito: str, obligatorio: true })),
+                z.string().transform(str => ({ requisito: str, obligatorio: true, referenciaPagina: undefined })),
                 z.object({
                     requisito: RobustString(""),
                     obligatorio: RobustBoolean(true),
@@ -83,7 +88,7 @@ export const LicitacionSchema = z.object({
         ),
         normativa: RobustArray(
             z.union([
-                z.string().transform(str => ({ norma: str, descripcion: "" })),
+                z.string().transform(str => ({ norma: str, descripcion: undefined })),
                 z.object({
                     norma: RobustString(""),
                     descripcion: z.string().optional()
@@ -127,7 +132,7 @@ export const LicitacionSchema = z.object({
         ),
         equipoMinimo: RobustArray(
             z.union([
-                z.string().transform(str => ({ rol: str, experienciaAnios: 0 })),
+                z.string().transform(str => ({ rol: str, experienciaAnios: 0, titulacion: undefined })),
                 z.object({
                     rol: RobustString(""),
                     experienciaAnios: RobustNumber(0),

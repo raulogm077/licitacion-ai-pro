@@ -3,6 +3,7 @@ import { supabase } from "../config/supabase";
 import { LicitacionData } from "../types";
 import { LicitacionSchema } from "../lib/schemas";
 import { logger } from "./logger";
+import { promptRegistry } from "../config/prompt-registry";
 
 export class LicitacionAIError extends Error {
     constructor(message: string, public readonly originalError?: unknown) {
@@ -15,8 +16,11 @@ export class AIService {
     constructor() {
     }
 
-    async analyzePdfContent(base64Content: string, onThinking?: (text: string) => void): Promise<LicitacionData> {
-        const sections = [
+    async analyzePdfContent(
+        base64Content: string,
+        onProgress?: (processed: number, total: number, message: string) => void
+    ): Promise<LicitacionData> {
+        const sections: { key: keyof LicitacionData; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
             { key: 'criteriosAdjudicacion', label: 'Criterios de Adjudicación' },
             { key: 'requisitosSolvencia', label: 'Requisitos de Solvencia' },
@@ -25,28 +29,60 @@ export class AIService {
             { key: 'modeloServicio', label: 'Modelo de Servicio' }
         ];
 
-        let partialResult: Partial<LicitacionData> = {};
+        // Initialize with basic metadata structure
+        let partialResult: Partial<LicitacionData> = {
+            metadata: {
+                estado: 'PENDIENTE',
+                tags: [],
+                sectionStatus: {}
+            }
+        };
+        const total = sections.length;
+        let processed = 0;
 
         try {
-            if (onThinking) onThinking(`Iniciando análisis seguro(Backend)...`);
+            if (onProgress) onProgress(0, total, `Iniciando análisis paralelo seguro...`);
 
-            for (let i = 0; i < sections.length; i++) {
-                const section = sections[i];
-                if (onThinking) onThinking(`Analizando sección ${i + 1}/${sections.length} (${section.label})...`);
+            // Process sections in chunks of 2 to balance speed and rate limits
+            const chunkSize = 2;
+            for (let i = 0; i < sections.length; i += chunkSize) {
+                const chunk = sections.slice(i, i + chunkSize);
 
-                logger.info(`Iniciando análisis de sección: ${section.key}`);
+                if (onProgress) {
+                    const labels = chunk.map(s => s.label).join(', ');
+                    onProgress(processed, total, `Analizando: ${labels}...`);
+                }
 
-                try {
-                    const sectionData = await this.analyzeSection(base64Content, section.key);
-                    partialResult = { ...partialResult, ...sectionData };
+                const chunkPromises = chunk.map(async (section) => {
+                    try {
+                        const sectionData = await this.analyzeSection(base64Content, section.key);
+                        return { key: section.key, data: sectionData, success: true };
+                    } catch (error) {
+                        logger.error(`Error en sección ${section.key}`, { error: String(error) });
+                        const key = section.key as keyof LicitacionData;
+                        return { key, data: { [key]: this.getDefaultSection(key) }, success: false };
+                    }
+                });
 
-                    // Small delay to be nice to the network, backend handles rate limits
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                const chunkResults = await Promise.all(chunkPromises);
 
-                } catch (sectionError) {
-                    console.error(`Error analizando sección ${section.key}:`, sectionError);
-                    logger.error(`Error en sección ${section.key}`, { error: String(sectionError) });
-                    // Continue with other sections even if one fails
+                chunkResults.forEach(res => {
+                    partialResult = { ...partialResult, ...res.data };
+                    if (partialResult.metadata) {
+                        partialResult.metadata.sectionStatus = {
+                            ...(partialResult.metadata.sectionStatus || {}),
+                            [res.key]: res.success ? 'success' : 'failed'
+                        };
+                    }
+                    processed++;
+                    if (onProgress) {
+                        onProgress(processed, total, `Sección completada: ${res.key}`);
+                    }
+                });
+
+                // Short throttle between chunks
+                if (i + chunkSize < sections.length) {
+                    await new Promise(resolve => setTimeout(resolve, 800));
                 }
             }
 
@@ -55,8 +91,6 @@ export class AIService {
             if (!partialResult.criteriosAdjudicacion) partialResult.criteriosAdjudicacion = this.getDefaultSection('criteriosAdjudicacion');
 
             const finalResult = partialResult as LicitacionData;
-
-            // Final validation log
             logger.info("Análisis completado", { keys: Object.keys(finalResult) });
 
             return finalResult;
@@ -67,14 +101,19 @@ export class AIService {
         }
     }
 
-    private async analyzeSection(base64Content: string, sectionKey: string): Promise<Partial<LicitacionData>> {
-        const prompt = `Analiza el contenido del PDF para la sección "${sectionKey}". Extrae la información requerida y devuélvela en formato JSON. Asegúrate de que la respuesta sea un JSON válido y completo.`;
+    private async analyzeSection<K extends keyof LicitacionData>(base64Content: string, sectionKey: K): Promise<Partial<LicitacionData>> {
+        const plugin = promptRegistry.getActivePlugin();
+        const systemPrompt = plugin.getSystemPrompt();
+        const sectionPrompt = plugin.getSectionPrompt(sectionKey);
+
+        const fullPrompt = `${sectionPrompt}\n\nResponde únicamente con un objeto JSON válido que siga la estructura para la clave "${sectionKey}".`;
 
         try {
             const { data, error } = await supabase.functions.invoke('analyze-licitacion', {
                 body: {
                     base64Content,
-                    prompt,
+                    prompt: fullPrompt,
+                    systemPrompt,
                     sectionKey
                 }
             });
@@ -92,11 +131,12 @@ export class AIService {
 
         } catch (e) {
             console.warn(`Fallo invocando backend para ${sectionKey}:`, e);
+            // This throw is caught by the chunk processor, so it's fine
             throw new LicitacionAIError(`Fallo backend sección ${sectionKey}: ${String(e)}`, e);
         }
     }
 
-    private cleanAndParseJson(text: string, sectionKey: string): Partial<LicitacionData> {
+    private cleanAndParseJson<K extends keyof LicitacionData>(text: string, sectionKey: K): Partial<LicitacionData> {
         let cleanedText = text;
 
         // Remove Markdown code blocks (```json ... ```)
@@ -107,22 +147,21 @@ export class AIService {
         try {
             parsedJson = JSON.parse(cleanedText);
         } catch (e) {
-            console.warn(`Fallo de parseo JSON en sección ${sectionKey}:`, e);
-            logger.warn(`JSON parse error in section ${sectionKey}`, { error: String(e), rawText: cleanedText.substring(0, 100) + "..." });
-            // Attempt to recover by removing potential trailing characters or malformed parts
+            // ... (logging)
             const likelyJson = cleanedText.match(/\{.*\}/s);
             if (likelyJson && likelyJson[0]) {
                 try {
                     parsedJson = JSON.parse(likelyJson[0]);
                 } catch (e2) {
                     console.warn(`Fallo de parseo JSON (fallback regex) en sección ${sectionKey}:`, e2);
-                    return { [sectionKey]: this.getDefaultSection(sectionKey) };
+                    return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
                 }
             } else {
-                return { [sectionKey]: this.getDefaultSection(sectionKey) };
+                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
             }
         }
 
+        // ... (auto-unwrap logic needs minimal adjustment if strict)
         // AUTO-UNWRAP: If the AI returned { "datosGenerales": { ... } } instead of { ... }
         if (parsedJson && typeof parsedJson === 'object' && (parsedJson as Record<string, unknown>)[sectionKey]) {
             parsedJson = (parsedJson as Record<string, unknown>)[sectionKey];
@@ -133,36 +172,42 @@ export class AIService {
             const schema = LicitacionSchema.shape[sectionKey as keyof typeof LicitacionSchema.shape];
             if (!schema) {
                 console.error(`Schema not found for section: ${sectionKey}`);
-                return { [sectionKey]: this.getDefaultSection(sectionKey) };
+                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
             }
             // Use safeParse for validation
             const validationResult = schema.safeParse(parsedJson);
 
             if (validationResult.success) {
                 // Return WRAPPED result
-                return { [sectionKey]: validationResult.data };
+                return { [sectionKey]: validationResult.data } as Partial<LicitacionData>;
             } else {
                 console.warn(`Zod validation failed for section ${sectionKey}:`, validationResult.error.errors);
                 logger.warn(`Zod validation failed for section ${sectionKey}`, { errors: validationResult.error.errors, data: parsedJson });
-                return { [sectionKey]: this.getDefaultSection(sectionKey) };
+                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
             }
         } catch (error) {
             console.error(`Error during Zod validation or default section generation for ${sectionKey}:`, error);
-            return { [sectionKey]: this.getDefaultSection(sectionKey) };
+            return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private getDefaultSection(sectionKey: string): any {
-        // Return UNWRAPPED default values
+    private getDefaultSection<K extends keyof LicitacionData>(sectionKey: K): LicitacionData[K] {
+        // Return UNWRAPPED default values force casted to satisfy generic return type
         switch (sectionKey) {
-            case 'datosGenerales': return { titulo: "No detectado", presupuesto: 0, moneda: "EUR", plazoEjecucionMeses: 0, cpv: [], organoContratacion: "Desconocido" };
-            case 'criteriosAdjudicacion': return { subjetivos: [], objetivos: [] };
-            case 'requisitosTecnicos': return { funcionales: [], normativa: [] };
-            case 'requisitosSolvencia': return { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] };
-            case 'restriccionesYRiesgos': return { killCriteria: [], riesgos: [], penalizaciones: [] };
-            case 'modeloServicio': return { sla: [], equipoMinimo: [] };
-            default: return {};
+            case 'datosGenerales':
+                return { titulo: "No detectado", presupuesto: 0, moneda: "EUR", plazoEjecucionMeses: 0, cpv: [], organoContratacion: "Desconocido" } as unknown as LicitacionData[K];
+            case 'criteriosAdjudicacion':
+                return { subjetivos: [], objetivos: [] } as unknown as LicitacionData[K];
+            case 'requisitosTecnicos':
+                return { funcionales: [], normativa: [] } as unknown as LicitacionData[K];
+            case 'requisitosSolvencia':
+                return { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] } as unknown as LicitacionData[K];
+            case 'restriccionesYRiesgos':
+                return { killCriteria: [], riesgos: [], penalizaciones: [] } as unknown as LicitacionData[K];
+            case 'modeloServicio':
+                return { sla: [], equipoMinimo: [] } as unknown as LicitacionData[K];
+            default:
+                return {} as unknown as LicitacionData[K];
         }
     }
 }

@@ -2,8 +2,14 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TagManager } from '../TagManager';
 
-describe.skip('TagManager', () => {
+describe('TagManager', () => {
     const mockOnChange = vi.fn();
+
+    it('renders initial tags', () => {
+        render(<TagManager tags={['tag1', 'tag2']} onChange={mockOnChange} />);
+        expect(screen.getByText('tag1')).toBeInTheDocument();
+        expect(screen.getByText('tag2')).toBeInTheDocument();
+    });
 
     // Only mock icons
     vi.mock('lucide-react', () => ({
@@ -16,12 +22,6 @@ describe.skip('TagManager', () => {
         mockOnChange.mockClear();
     });
 
-    it('renders initial tags', () => {
-        render(<TagManager tags={['tag1', 'tag2']} onChange={mockOnChange} />);
-        expect(screen.getByText('tag1')).toBeInTheDocument();
-        expect(screen.getByText('tag2')).toBeInTheDocument();
-    });
-
     it('adds a new tag via input', () => {
         render(<TagManager tags={[]} onChange={mockOnChange} />);
         const input = screen.getByPlaceholderText(/añadir/i);
@@ -32,16 +32,14 @@ describe.skip('TagManager', () => {
 
     it('removes a tag when clicked', () => {
         render(<TagManager tags={['removable']} onChange={mockOnChange} />);
-        // Find the "X" icon or the button containing it
         const buttons = screen.getAllByRole('button');
-        // Assuming only one tag, so one button (the X)
         fireEvent.click(buttons[0]);
         expect(mockOnChange).toHaveBeenCalledWith([]);
     });
 
     it('filters suggestions based on input', () => {
         render(<TagManager tags={['existing']} onChange={mockOnChange} suggestions={['apple', 'banana']} />);
-        const input = screen.getByPlaceholderText('');
+        const input = screen.getByPlaceholderText(/añadir/i);
 
         fireEvent.focus(input);
         fireEvent.change(input, { target: { value: 'ap' } });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Tag as TagIcon, Plus } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
+const DEFAULT_SUGGESTIONS: string[] = [];
 
 interface TagManagerProps {
     tags: string[];
@@ -9,7 +10,7 @@ interface TagManagerProps {
     suggestions?: string[];
 }
 
-export function TagManager({ tags, onChange, suggestions = [] }: TagManagerProps) {
+export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }: TagManagerProps) {
     const [inputValue, setInputValue] = useState('');
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -77,7 +78,7 @@ export function TagManager({ tags, onChange, suggestions = [] }: TagManagerProps
                     onKeyDown={handleKeyDown}
                     onFocus={() => inputValue && setShowSuggestions(filteredSuggestions.length > 0)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    placeholder={tags.length === 0 ? "Añadir tags..." : ""}
+                    placeholder="Añadir..."
                     className="flex-1 min-w-[120px] outline-none bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400"
                 />
             </div>
