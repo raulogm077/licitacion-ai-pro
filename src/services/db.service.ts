@@ -24,7 +24,7 @@ export class DBService {
             };
         }
 
-        console.log("📤 Supabase: Intentando guardar licitación...", { hash, fileName });
+        // debug log removed
 
         try {
             const { error } = await supabase
@@ -46,7 +46,7 @@ export class DBService {
                 throw error;
             }
 
-            console.log("✅ Supabase: Licitación guardada exitosamente");
+            // debug log removed
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error("❌ Error guardando licitación:", err.message);

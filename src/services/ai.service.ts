@@ -102,7 +102,7 @@ export class AIService {
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 if (attempt > 1) {
-                    console.log(`Reintentando sección ${sectionKey} (Intento ${attempt}/3)...`);
+                    // retry log handled by logger internal
                     await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Backoff
                 }
 

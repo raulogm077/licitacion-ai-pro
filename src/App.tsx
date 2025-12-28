@@ -45,7 +45,7 @@ function App() {
     if (state.hash) {
       try {
         await dbService.updateLicitacion(state.hash, newData);
-        console.log('Data updated successfully');
+        // updated success
       } catch (error) {
         console.error('Failed to update data:', error);
       }

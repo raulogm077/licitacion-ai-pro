@@ -1,114 +1,61 @@
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { AnalysisState, LicitacionData } from '../types';
-import { AIService } from '../services/ai.service';
-import { generateBufferHash, validateBufferMagicBytes, bufferToBase64 } from '../lib/file-utils';
 import { dbService } from '../services/db.service';
-
-
-
-
-// function toBase64 removed - using file-utils
+import { useFileHandler } from './useFileHandler';
+import { useAIAnalysis } from './useAIAnalysis';
 
 export function useLicitacionProcessor() {
-    const [state, setState] = useState<AnalysisState>({
-        status: 'IDLE',
-        progress: 0,
-        thinkingOutput: '',
-        data: null,
-        error: null
+    const { fileState, processFile: processFileBase, resetFile } = useFileHandler();
+    const { aiState, analyze, resetAI } = useAIAnalysis();
+
+    // We maintain a "Legacy" state shape for backwards compatibility with the UI
+    // In a future refactor, the UI should consume fileState/aiState directly.
+    const [legacyState, setLegacyState] = useState<Partial<AnalysisState>>({
+        hash: undefined
     });
 
+    const [persistenceError, setPersistenceError] = useState<string | null>(null);
+
     const processFile = useCallback(async (file: File) => {
-        setState(prev => ({ ...prev, status: 'READING_PDF', progress: 5, error: null, thinkingOutput: '' }));
-
+        setPersistenceError(null);
         try {
-            // 0. Early Configuration Check
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-            if (!apiKey) {
-                throw new Error("API Key no configurada. Por favor configura VITE_GEMINI_API_KEY.");
-            }
+            // 1. Process File
+            const { hash, base64 } = await processFileBase(file);
+            setLegacyState({ hash });
 
-            // 1. Efficient I/O: Read file ONCE into ArrayBuffer
-            const arrayBuffer = await file.arrayBuffer();
+            // 2. Run AI
+            const result = await analyze(base64, file.name);
 
-            // 2. Security: Magic Bytes Validation using the buffer
-            if (!validateBufferMagicBytes(arrayBuffer)) {
-                throw new Error("El archivo no es un PDF válido (Magic Bytes mismatch).");
-            }
-
-            // 3. Deduplication: Generate Hash from buffer
-            // 59: Use helper to allow mocking in tests
-            const hash = await generateBufferHash(arrayBuffer);
-
-            // 4. Base64 Conversion (optimized)
-            const base64 = await bufferToBase64(arrayBuffer);
-
-            // 5. Prepare for AI Analysis
-            setState(prev => ({
-                ...prev,
-                status: 'ANALYZING',
-                progress: 20,
-                fileName: file.name,
-                thinkingOutput: "Hash generado. Iniciando análisis con IA..."
-            }));
-
-            const aiService = new AIService(apiKey);
-
-            // 6. AI Analysis
-            const result = await aiService.analyzePdfContent(base64, (thought) => {
-                setState(prev => ({ ...prev, thinkingOutput: prev.thinkingOutput + "\n" + thought }));
-            });
-
-            console.log("✅ Análisis de AI completado. Resultados obtenidos:", !!result);
-
-            // 5. Persistence to Supabase
+            // 3. Persist
             try {
-                console.log("💾 Guardando en Supabase...");
                 await dbService.saveLicitacion(hash, file.name, result);
-                console.log("✅ Datos guardados exitosamente en Supabase");
             } catch (saveError) {
                 console.error("❌ Error guardando en Supabase:", saveError);
-                // Don't fail the entire flow, but log the error
-                setState(prev => ({
-                    ...prev,
-                    thinkingOutput: prev.thinkingOutput + "\n⚠️ Advertencia: No se pudo guardar en Supabase. Datos disponibles solo en esta sesión."
-                }));
+                setPersistenceError("\n⚠️ Advertencia: No se pudo guardar en Supabase. Datos disponibles solo en esta sesión.");
             }
 
-            setState(prev => ({
-                ...prev,
-                status: 'COMPLETED',
-                progress: 100,
-                data: result,
-                hash: hash,
-                thinkingOutput: prev.thinkingOutput + "\n✅ Análisis completado."
-            }));
-
-        } catch (err) {
-            console.error(err);
-            setState(prev => ({
-                ...prev,
-                status: 'ERROR',
-                progress: 0,
-                error: err instanceof Error ? err.message : "Error desconocido al procesar el archivo"
-            }));
+        } catch (error) {
+            console.error("Error en proceso:", error);
+            // Error state is handled by the sub-hooks, but we log here too
         }
-    }, []);
+    }, [processFileBase, analyze]);
 
-    const reset = () => {
-        setState({
-            status: 'IDLE',
-            progress: 0,
-            thinkingOutput: '',
-            data: null,
-            error: null,
-            hash: undefined,
-        });
-    };
+    const reset = useCallback(() => {
+        resetFile();
+        resetAI();
+        setPersistenceError(null);
+        setLegacyState({ hash: undefined });
+    }, [resetFile, resetAI]);
 
-    const loadLicitacion = (data: LicitacionData, hash?: string) => {
-        setState({
+    const loadLicitacion = useCallback((data: LicitacionData, hash?: string) => {
+        // Manually force AI state to completed to show the dashboard
+        // This is a bit of a hack, ideal refactor moves "view state" out of "ai state"
+        resetFile();
+        // We set the AI state effectively by bypassing the hook's internal setter? 
+        // No, we can't easily set internal state of useAIAnalysis from outside.
+        // We need `useAIAnalysis` to export a `setResult` or similar, OR we compute the derived state.
+        // For now, let's keep the `legacyState` as the source of truth if `loadLicitacion` is called.
+        setLegacyState({
             status: 'COMPLETED',
             progress: 100,
             data: data,
@@ -116,7 +63,38 @@ export function useLicitacionProcessor() {
             thinkingOutput: 'Cargado desde historial',
             error: null
         });
-    };
+    }, [resetFile]);
+
+    // Derived State: combine the two hooks + legacy overrides
+    const state: AnalysisState = useMemo(() => {
+        // If we loaded from history (legacyState has data), prioritize that
+        if (legacyState.data) {
+            return {
+                status: 'COMPLETED',
+                progress: 100,
+                thinkingOutput: legacyState.thinkingOutput || '',
+                data: legacyState.data,
+                error: null,
+                hash: legacyState.hash
+            } as AnalysisState;
+        }
+
+        // Map sub-hook states to the main AnalysisState
+        let status: AnalysisState['status'] = 'IDLE';
+        if (fileState.status === 'READING') status = 'READING_PDF';
+        else if (aiState.status === 'ANALYZING') status = 'ANALYZING';
+        else if (aiState.status === 'COMPLETED') status = 'COMPLETED';
+        else if (fileState.status === 'ERROR' || aiState.status === 'ERROR') status = 'ERROR';
+
+        return {
+            status,
+            progress: Math.max(fileState.status === 'READING' ? 10 : 0, aiState.progress),
+            thinkingOutput: (aiState.thinkingOutput || fileState.error || '') + (persistenceError || ''),
+            data: aiState.result,
+            error: fileState.error || aiState.error || null,
+            hash: legacyState.hash || fileState.hash || undefined
+        };
+    }, [fileState, aiState, legacyState, persistenceError]);
 
     return {
         state,

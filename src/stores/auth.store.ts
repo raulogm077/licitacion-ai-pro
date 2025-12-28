@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             // We manually parse it as a fallback.
             const hash = window.location.hash;
             if (hash && hash.includes('access_token')) {
-                console.log('🔗 Detectado token en URL, procesando manualmente...');
+                // processing hash logic
 
                 // Parse hash params
                 const params = new URLSearchParams(hash.substring(1)); // remove #
@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 
                 if (accessToken && refreshToken) {
-                    console.log('manual: setting session from hash');
+                    // manual set session
                     const { user, session, error: setSessionError } = await authService.setSession(accessToken, refreshToken);
 
                     if (setSessionError || !session) {
@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                         // Optionally clear hash if invalid to avoid infinite loops?
                         // window.history.replaceState(null, '', window.location.pathname);
                     } else {
-                        console.log('✅ Manual session set successfully');
+                        // session set success
                         // Clean URL
                         window.history.replaceState(null, '', window.location.pathname);
                         set({
@@ -71,7 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 console.error('Error initializing auth:', error);
                 set({ user: null, session: null, isAuthenticated: false });
             } else {
-                console.log('Auth initialized:', session ? 'Logged In' : 'Anon');
+                // auth init done
                 set({
                     user: session?.user ?? null,
                     session,
@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
             // Listen for auth changes
             authService.onAuthStateChange((user, session) => {
-                console.log('🔄 Auth State Changed:', user ? 'User Active' : 'No User');
+                // auth state changed
                 set({
                     user,
                     session,
