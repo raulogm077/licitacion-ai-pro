@@ -10,18 +10,29 @@ export class LicitacionAIError extends Error {
     }
 }
 
-const MODEL_NAME = import.meta.env.VITE_GEMINI_MODEL || "gemini-1.5-flash";
+const PRIMARY_MODEL = "gemini-2.0-flash-exp"; // High Quality / Low Quota
+const FALLBACK_MODEL = "gemini-1.5-flash";   // Good Quality / High Quota
 
 export class AIService {
     private genAI: GoogleGenerativeAI;
+    private apiKey: string;
+    private currentModelName: string;
     private model: GenerativeModel;
 
     constructor(apiKey: string) {
+        this.apiKey = apiKey;
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({
-            model: MODEL_NAME,
+
+        // Start with Primary (Best Quality)
+        this.currentModelName = PRIMARY_MODEL;
+        this.model = this.initModel(this.currentModelName);
+    }
+
+    private initModel(modelName: string): GenerativeModel {
+        return this.genAI.getGenerativeModel({
+            model: modelName,
             generationConfig: {
-                temperature: 0.1, // Very low for maximum determinism
+                temperature: 0.1,
                 maxOutputTokens: 8192,
             },
             safetySettings: [
@@ -31,6 +42,16 @@ export class AIService {
                 { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             ]
         });
+    }
+
+    private switchToFallback() {
+        if (this.currentModelName === PRIMARY_MODEL) {
+            console.warn(`⚠️ Switching to Fallback Model: ${FALLBACK_MODEL}`);
+            this.currentModelName = FALLBACK_MODEL;
+            this.model = this.initModel(FALLBACK_MODEL);
+            return true;
+        }
+        return false;
     }
 
     async analyzePdfContent(base64Content: string, onThinking?: (text: string) => void): Promise<LicitacionData> {
@@ -43,53 +64,60 @@ export class AIService {
             { key: 'modeloServicio', label: 'Modelo de Servicio' }
         ];
 
-        // Initialize with default/empty structure to allow partial filling
         let partialResult: Partial<LicitacionData> = {};
 
         try {
-            if (onThinking) onThinking("Iniciando análisis iterativo del documento...");
+            if (onThinking) onThinking(`Iniciando análisis con ${this.currentModelName}...`);
 
             let globalRetries = 0;
             const MAX_GLOBAL_RETRIES = 5;
 
             for (let i = 0; i < sections.length; i++) {
                 const section = sections[i];
-                if (onThinking) onThinking(`Analizando sección ${i + 1}/${sections.length}: ${section.label}...`);
+                if (onThinking) onThinking(`Analizando sección ${i + 1}/${sections.length} (${section.label})...`);
 
-                logger.info(`Iniciando análisis de sección: ${section.key}`);
+                logger.info(`Iniciando análisis de sección: ${section.key} [${this.currentModelName}]`);
 
                 try {
                     const sectionData = await this.analyzeSection(base64Content, section.key);
-                    // Merge new data. Note: simple spread works because keys are distinct top-level objects
                     partialResult = { ...partialResult, ...sectionData };
 
-                    // Standard delay (10s) to be very safe with Free Tier
-                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    // Standard delay (4s) - reduced from 10s because we have fallback strategy now
+                    await new Promise(resolve => setTimeout(resolve, 4000));
 
                 } catch (sectionError) {
                     const errorStr = String(sectionError);
                     const isRateLimit = errorStr.includes("429") || errorStr.includes("Quota exceeded");
 
-                    if (isRateLimit && globalRetries < MAX_GLOBAL_RETRIES) {
-                        globalRetries++;
-                        const waitTime = 60000 + (globalRetries * 10000); // 60s, 70s, 80s...
+                    if (isRateLimit) {
+                        // Strategy 1: Switch Model if on Primary
+                        if (this.currentModelName === PRIMARY_MODEL) {
+                            logger.warn("429 Rate Limit on Primary. Switching to Fallback.");
+                            if (onThinking) onThinking("⚠️ Límite de cuota en modelo primario. Cambiando a modelo de respaldo (High Quota)...");
 
-                        console.warn(`⏳ Rate Limit detectado en ${section.key}. Pausando ${waitTime / 1000}s antes de reintentar...`);
-                        logger.warn(`Rate Limit Hit. Cooling down for ${waitTime}ms`, { section: section.key });
+                            this.switchToFallback();
 
-                        if (onThinking) onThinking(`⚠️ Límite de cuota detectado. Esperando ${Math.round(waitTime / 1000)}s para recuperar...`);
+                            // Retry immediately (decrement i)
+                            i--;
+                            continue;
+                        }
 
-                        // Wait
-                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                        // Strategy 2: Smart Backoff if already on Fallback
+                        if (globalRetries < MAX_GLOBAL_RETRIES) {
+                            globalRetries++;
+                            const waitTime = 60000 + (globalRetries * 10000);
 
-                        // Retry this section
-                        i--;
-                        continue;
+                            logger.warn(`Rate Limit Hit on Fallback. Cooling down for ${waitTime}ms`, { section: section.key });
+                            if (onThinking) onThinking(`⚠️ Límite de cuota en respaldo. Esperando ${Math.round(waitTime / 1000)}s...`);
+
+                            await new Promise(resolve => setTimeout(resolve, waitTime));
+                            i--;
+                            continue;
+                        }
                     }
 
                     console.error(`Error analizando sección ${section.key}:`, sectionError);
                     logger.error(`Error en sección ${section.key}`, { error: errorStr });
-                    // If not rate limit or max retries hit, we skip this section
                 }
             }
 
