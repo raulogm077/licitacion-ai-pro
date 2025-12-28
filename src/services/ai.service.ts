@@ -12,9 +12,7 @@ export class LicitacionAIError extends Error {
 }
 
 export class AIService {
-
-    constructor(_apiKey?: string) {
-        // ApiKey no longer needed on client side, kept for signature compatibility
+    constructor() {
     }
 
     async analyzePdfContent(base64Content: string, onThinking?: (text: string) => void): Promise<LicitacionData> {
@@ -105,7 +103,7 @@ export class AIService {
         cleanedText = cleanedText.replace(/```json\n([\s\S]*?)\n```/s, '$1');
         cleanedText = cleanedText.replace(/```([\s\S]*?)```/s, '$1'); // General markdown code block
 
-        let parsedJson: any;
+        let parsedJson: unknown;
         try {
             parsedJson = JSON.parse(cleanedText);
         } catch (e) {
@@ -126,8 +124,8 @@ export class AIService {
         }
 
         // AUTO-UNWRAP: If the AI returned { "datosGenerales": { ... } } instead of { ... }
-        if (parsedJson && parsedJson[sectionKey]) {
-            parsedJson = parsedJson[sectionKey];
+        if (parsedJson && typeof parsedJson === 'object' && (parsedJson as Record<string, unknown>)[sectionKey]) {
+            parsedJson = (parsedJson as Record<string, unknown>)[sectionKey];
         }
 
         // Validate against Zod schema

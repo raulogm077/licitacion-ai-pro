@@ -4,18 +4,12 @@ import { Card } from '../components/ui/Card';
 import { TagManager } from '../components/domain/TagManager';
 import { NotesPanel } from '../components/domain/NotesPanel';
 import { Dashboard } from '../features/dashboard/Dashboard';
-import { AnalysisState, LicitacionData } from '../types';
 import { useAuthStore } from '../stores/auth.store';
+import { useLicitacionStore } from '../stores/licitacion.store';
 import { AuthModal } from '../components/ui/AuthModal';
 
-interface HomePageProps {
-    state: AnalysisState;
-    processFile: (file: File) => Promise<void>;
-    reset: () => void;
-    handleDataUpdate: (newData: LicitacionData) => void;
-}
-
-export const HomePage: React.FC<HomePageProps> = ({ state, processFile, reset, handleDataUpdate }) => {
+export const HomePage: React.FC = () => {
+    const { state, processFile, reset, updateData } = useLicitacionStore();
     const [isDragging, setIsDragging] = React.useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const { isAuthenticated } = useAuthStore();
@@ -82,10 +76,10 @@ export const HomePage: React.FC<HomePageProps> = ({ state, processFile, reset, h
 
                         <div
                             className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${!isAuthenticated
-                                    ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 opacity-60 cursor-not-allowed'
-                                    : isDragging
-                                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 scale-105'
-                                        : 'border-slate-300 dark:border-slate-700 hover:border-brand-400 hover:bg-white dark:hover:bg-slate-800'
+                                ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 opacity-60 cursor-not-allowed'
+                                : isDragging
+                                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 scale-105'
+                                    : 'border-slate-300 dark:border-slate-700 hover:border-brand-400 hover:bg-white dark:hover:bg-slate-800'
                                 }`}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
@@ -169,7 +163,7 @@ export const HomePage: React.FC<HomePageProps> = ({ state, processFile, reset, h
                                         ...state.data!,
                                         metadata: { ...state.data!.metadata, tags }
                                     };
-                                    handleDataUpdate(updatedData);
+                                    updateData(updatedData);
                                 }}
                             />
 
@@ -177,13 +171,13 @@ export const HomePage: React.FC<HomePageProps> = ({ state, processFile, reset, h
                                 notes={state.data.notas || []}
                                 onChange={(notas) => {
                                     const updatedData = { ...state.data!, notas };
-                                    handleDataUpdate(updatedData);
+                                    updateData(updatedData);
                                 }}
                             />
                         </div>
 
                         {/* Main Dashboard */}
-                        <Dashboard data={state.data} onUpdate={handleDataUpdate} />
+                        <Dashboard data={state.data} onUpdate={updateData} />
                     </div>
                 )}
             </Suspense>

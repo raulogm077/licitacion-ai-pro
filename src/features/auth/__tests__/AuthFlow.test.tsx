@@ -43,12 +43,7 @@ describe('Auth Validation Flow', () => {
     it('should show login restrictions when unauthenticated', () => {
         render(
             <BrowserRouter>
-                <HomePage
-                    state={{ status: 'IDLE', progress: 0, thinkingOutput: '', data: null, error: null }}
-                    processFile={vi.fn()}
-                    reset={vi.fn()}
-                    handleDataUpdate={vi.fn()}
-                />
+                <HomePage />
             </BrowserRouter>
         );
 
@@ -58,12 +53,7 @@ describe('Auth Validation Flow', () => {
     it('should open AuthModal with Password form', async () => {
         render(
             <BrowserRouter>
-                <HomePage
-                    state={{ status: 'IDLE', progress: 0, thinkingOutput: '', data: null, error: null }}
-                    processFile={vi.fn()}
-                    reset={vi.fn()}
-                    handleDataUpdate={vi.fn()}
-                />
+                <HomePage />
             </BrowserRouter>
         );
 

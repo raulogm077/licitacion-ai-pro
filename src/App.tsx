@@ -1,10 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { useLicitacionProcessor } from './hooks/useLicitacionProcessor';
-import { LicitacionData } from './types';
-import { dbService } from './services/db.service';
 import { useAuthStore } from './stores/auth.store';
+import { useLicitacionStore } from './stores/licitacion.store';
 import { AuthModal } from './components/ui/AuthModal';
 import { SupabaseStatus } from './components/SupabaseStatus';
 import { Layout } from './components/layout/Layout';
@@ -17,7 +15,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage').then(module => ({ def
 const PresentationPage = lazy(() => import('./pages/PresentationPage').then(module => ({ default: module.PresentationPage })));
 
 function App() {
-  const { state, processFile, reset, loadLicitacion } = useLicitacionProcessor();
+  const { state, reset } = useLicitacionStore();
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -41,27 +39,10 @@ function App() {
     }
   }, [darkMode]);
 
-  const handleDataUpdate = async (newData: LicitacionData) => {
-    if (state.hash) {
-      try {
-        await dbService.updateLicitacion(state.hash, newData);
-        // updated success
-      } catch (error) {
-        console.error('Failed to update data:', error);
-      }
-    }
-  };
-
-  const handleHistorySelect = (data: LicitacionData, hash?: string) => {
-    loadLicitacion(data, hash);
-  };
-
   const handleAuthAction = () => {
     if (isAuthenticated) {
-      // If authenticated, this acts as logout
       useAuthStore.getState().signOut();
     } else {
-      // If not authenticated, show login modal
       setShowAuthModal(true);
     }
   };
@@ -105,17 +86,12 @@ function App() {
         }>
           <Route path="/" element={
             <Suspense fallback={<PageLoader />}>
-              <HomePage
-                state={state}
-                processFile={processFile}
-                reset={reset}
-                handleDataUpdate={handleDataUpdate}
-              />
+              <HomePage />
             </Suspense>
           } />
           <Route path="/history" element={
             <Suspense fallback={<PageLoader />}>
-              <HistoryPage onSelect={handleHistorySelect} />
+              <HistoryPage />
             </Suspense>
           } />
           <Route path="/analytics" element={
@@ -125,7 +101,7 @@ function App() {
           } />
           <Route path="/search" element={
             <Suspense fallback={<PageLoader />}>
-              <SearchPage handleHistorySelect={handleHistorySelect} />
+              <SearchPage />
             </Suspense>
           } />
         </Route>
@@ -136,7 +112,6 @@ function App() {
           </Suspense>
         } />
 
-        {/* Redirect unknown routes to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

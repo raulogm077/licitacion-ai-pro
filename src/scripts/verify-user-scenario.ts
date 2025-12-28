@@ -69,7 +69,7 @@ async function runScenario() {
         return;
     }
 
-    const aiService = new AIService(apiKey);
+    const aiService = new AIService();
     const base64 = fileBuffer.toString('base64');
 
     try {

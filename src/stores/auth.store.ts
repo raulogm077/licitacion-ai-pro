@@ -27,71 +27,46 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ loading: true });
 
         try {
-            // Check for hash in URL
-            // Supabase sometimes fails to auto-detect hash in implicit flow if strict mode or race conditions occur.
-            // We manually parse it as a fallback.
+            // 1. Initial Session Check (Standard)
+            const { session: currentSession, error: checkError } = await authService.getSession();
+
+            if (!checkError && currentSession) {
+                set({
+                    user: currentSession.user,
+                    session: currentSession,
+                    isAuthenticated: true,
+                    loading: false
+                });
+            }
+
+            // 2. Manual Hash Handling Fallback (Only if session check failed or for first-time login)
             const hash = window.location.hash;
             if (hash && hash.includes('access_token')) {
-                // processing hash logic
-
-                // Parse hash params
-                const params = new URLSearchParams(hash.substring(1)); // remove #
+                const params = new URLSearchParams(hash.substring(1));
                 const accessToken = params.get('access_token');
                 const refreshToken = params.get('refresh_token');
 
-
                 if (accessToken && refreshToken) {
-                    // manual set session
-                    const { user, session, error: setSessionError } = await authService.setSession(accessToken, refreshToken);
-
-                    if (setSessionError || !session) {
-                        console.error('❌ Error setting session manually (or expired):', setSessionError);
-                        // Do NOT return here, fall through to try getSession as last resort or cleanup
-                        // Optionally clear hash if invalid to avoid infinite loops?
-                        // window.history.replaceState(null, '', window.location.pathname);
-                    } else {
-                        // session set success
-                        // Clean URL
+                    const { user, session, error } = await authService.setSession(accessToken, refreshToken);
+                    if (!error && session) {
                         window.history.replaceState(null, '', window.location.pathname);
-                        set({
-                            user: user,
-                            session: session,
-                            isAuthenticated: true,
-                            loading: false
-                        });
-                        return; // Exit early as we have session
+                        set({ user, session, isAuthenticated: true });
                     }
                 }
             }
 
-            // Standard Get current session check
-            const { session, error } = await authService.getSession();
-
-            if (error) {
-                console.error('Error initializing auth:', error);
-                set({ user: null, session: null, isAuthenticated: false });
-            } else {
-                // auth init done
-                set({
-                    user: session?.user ?? null,
-                    session,
-                    isAuthenticated: !!session?.user
-                });
-            }
-
-            // Listen for auth changes
+            // 3. Subscription
             authService.onAuthStateChange((user, session) => {
-                // auth state changed
                 set({
                     user,
                     session,
                     isAuthenticated: !!user,
-                    loading: false // Ensure loading is false on change
+                    loading: false
                 });
             });
 
         } catch (err) {
-            console.error('💥 Critical Auth Initialization Error:', err);
+            console.error('💥 Auth Initialization Error:', err);
             set({ user: null, session: null, isAuthenticated: false });
         } finally {
             set({ loading: false });

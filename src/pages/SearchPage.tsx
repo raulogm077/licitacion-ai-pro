@@ -4,22 +4,19 @@ import { LicitacionData, SearchFilters } from '../types';
 import { dbService } from '../services/db.service';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useLicitacionStore } from '../stores/licitacion.store';
 
 const SearchPanel = lazy(() => import('../features/search/SearchPanel').then(m => ({ default: m.SearchPanel })));
 
-interface SearchPageProps {
-    handleHistorySelect: (data: LicitacionData, hash?: string) => void;
-}
-
-
-
-export const SearchPage: React.FC<SearchPageProps> = ({ handleHistorySelect }) => {
+export const SearchPage: React.FC = () => {
     const navigate = useNavigate();
+    const { loadLicitacion } = useLicitacionStore();
+    const [searchResults, setSearchResults] = useState<{ data: LicitacionData; hash: string }[]>([]);
+
     const handleSelect = (data: LicitacionData, hash?: string) => {
-        handleHistorySelect(data, hash);
+        loadLicitacion(data, hash);
         navigate('/');
     };
-    const [searchResults, setSearchResults] = useState<{ data: LicitacionData; hash: string }[]>([]);
 
     const handleSearch = async (filters: SearchFilters) => {
         try {

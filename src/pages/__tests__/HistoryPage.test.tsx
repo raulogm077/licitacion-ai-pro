@@ -33,7 +33,7 @@ describe('HistoryPage', () => {
 
         render(
             <MemoryRouter>
-                <HistoryPage onSelect={vi.fn()} />
+                <HistoryPage />
             </MemoryRouter>
         );
 
@@ -46,7 +46,7 @@ describe('HistoryPage', () => {
 
         render(
             <MemoryRouter>
-                <HistoryPage onSelect={vi.fn()} />
+                <HistoryPage />
             </MemoryRouter>
         );
 
