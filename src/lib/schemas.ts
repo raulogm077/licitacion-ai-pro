@@ -53,7 +53,7 @@ const RobustEnum = <T extends [string, ...string[]]>(values: T, defaultValue: T[
 const RobustArray = <T extends z.ZodTypeAny>(schema: T) =>
     z.preprocess(val => (val === null || val === undefined) ? [] : val, z.array(schema).default([]));
 
-export const LicitacionSchema = z.object({
+export const LicitacionContentSchema = z.object({
     datosGenerales: z.preprocess(val => val ?? {}, z.object({
         titulo: RobustString('Sin título'),
         presupuesto: RobustNumber(0),
@@ -140,8 +140,59 @@ export const LicitacionSchema = z.object({
                 })
             ])
         )
-    }).default({})),
+    }).default({}))
+});
+
+export type LicitacionContent = z.infer<typeof LicitacionContentSchema>;
+
+export const AnalysisVersionSchema = z.object({
+    version: z.number(),
+    status: z.enum(['queued', 'running', 'succeeded', 'failed']),
+    created_at: z.string(),
+    model: z.string(),
+    schema_version: z.string(),
+    prompt_version: z.string(),
+    guide_version: z.string().optional(),
+    result: LicitacionContentSchema,
+    workflow: z.object({
+        steps: z.array(z.object({
+            name: z.string(),
+            status: z.string(),
+            error: z.string().nullable()
+        }))
+    }).optional()
+});
+
+export const WorkflowStateSchema = z.object({
+    current_version: z.number(),
+    status: z.enum(['uploaded', 'requires_ocr', 'ready', 'queued', 'running', 'succeeded', 'failed']),
+    steps: z.array(z.object({
+        name: z.string(),
+        status: z.string(),
+        error: z.string().nullable()
+    })),
+    quality: z.object({
+        overall: z.enum(['COMPLETO', 'PARCIAL', 'VACIO']),
+        bySection: z.record(z.enum(['COMPLETO', 'PARCIAL', 'VACIO'])),
+        missingCriticalFields: z.array(z.string()),
+        warnings: z.array(z.string())
+    }).optional(),
+    updated_at: z.string()
+});
+
+export type AnalysisVersion = z.infer<typeof AnalysisVersionSchema>;
+export type WorkflowState = z.infer<typeof WorkflowStateSchema>;
+
+export const LicitacionSchema = LicitacionContentSchema.extend({
+    result: LicitacionContentSchema.optional(), // The canonical result (V2)
+    versions: z.array(AnalysisVersionSchema).optional(),
+    workflow: WorkflowStateSchema.optional(),
     metadata: MetadataSchema.optional(),
+    storage: z.object({
+        pdf_path: z.string().optional(),
+        chunks_path: z.string().optional(),
+        text_path: z.string().optional()
+    }).optional(),
     notas: z.array(NoteSchema).optional(),
 });
 

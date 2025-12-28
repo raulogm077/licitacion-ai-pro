@@ -40,10 +40,10 @@ describe('Auth Validation Flow', () => {
         };
 
         // Mock the hook implementation
-        vi.mocked(AuthStore.useAuthStore).mockReturnValue(mockStore as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vi.mocked(AuthStore.useAuthStore).mockReturnValue(mockStore as unknown as any);
 
         // Mock the static getState method which is now used in AuthModal
-        // @ts-ignore - Dynamic mock assignment
         AuthStore.useAuthStore.getState = vi.fn().mockReturnValue(mockStore);
     });
 

@@ -1,10 +1,11 @@
 import { supabase } from '../config/supabase';
-import { LicitacionData, SearchFilters, DbLicitacion } from '../types';
+import { LicitacionData, LicitacionContent, SearchFilters, DbLicitacion } from '../types';
+import { qualityService } from './quality.service';
 import { Result, ok, err } from '../lib/Result';
 
 export class DBService {
 
-    async saveLicitacion(hash: string, fileName: string, data: LicitacionData): Promise<Result<void>> {
+    async saveLicitacion(hash: string, fileName: string, content: LicitacionContent): Promise<Result<void>> {
         try {
             // 0. Explicit Auth Check
             const { data: { session } } = await supabase.auth.getSession();
@@ -14,13 +15,72 @@ export class DBService {
 
             const now = new Date().toISOString();
 
-            // 1. Defensive Copy
-            const dataCopy = JSON.parse(JSON.stringify(data));
+            // Calculate Quality
+            const qualityReport = qualityService.evaluateQuality(content);
 
-            // Auto-populate metadata on the copy
-            if (!dataCopy.metadata) {
-                dataCopy.metadata = {
-                    tags: [],
+            // 1. Fetch existing envelope to manage versioning
+            const existingResult = await this.getLicitacion(hash);
+            let envelope: LicitacionData;
+
+            if (existingResult.ok) {
+                envelope = existingResult.value.data;
+
+                // Append new version
+                const nextVersionNumber = (envelope.versions?.length || 0) + 1;
+                const newVersion = {
+                    version: nextVersionNumber,
+                    status: 'succeeded' as const,
+                    created_at: now,
+                    model: 'gemini-pro',
+                    schema_version: 'v1',
+                    prompt_version: 'v1',
+                    result: content,
+                    workflow: {
+                        steps: [],
+                        status: 'succeeded'
+                    }
+                };
+
+                envelope.versions = [...(envelope.versions || []), newVersion];
+                envelope.result = content;
+
+                // Update Workflow state
+                envelope.workflow = {
+                    ...(envelope.workflow || {}),
+                    current_version: nextVersionNumber,
+                    status: 'succeeded',
+                    steps: envelope.workflow?.steps || [],
+                    updated_at: now,
+                    quality: qualityReport
+                };
+
+                // Sync legacy root fields
+                envelope = { ...envelope, ...content };
+
+            } else {
+                // Create new envelope
+                envelope = {
+                    ...content, // Legacy sync
+                    result: content,
+                    versions: [{
+                        version: 1,
+                        status: 'succeeded',
+                        created_at: now,
+                        model: 'gemini-pro',
+                        schema_version: 'v1',
+                        prompt_version: 'v1',
+                        result: content
+                    }],
+                    workflow: {
+                        current_version: 1,
+                        status: 'succeeded',
+                        steps: [],
+                        updated_at: now,
+                        quality: qualityReport
+                    },
+                    metadata: {
+                        tags: [],
+                    }
                 };
             }
 
@@ -29,7 +89,7 @@ export class DBService {
                 .upsert({
                     hash,
                     file_name: fileName,
-                    data: dataCopy,
+                    data: envelope,
                     updated_at: now
                 }, { onConflict: 'user_id, hash' });
 

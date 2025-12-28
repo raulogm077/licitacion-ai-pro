@@ -1,8 +1,18 @@
-import { Note as ZodNote, LicitacionMetadata as ZodMetadata, LicitacionData as ZodData } from './lib/schemas';
+import {
+    Note as ZodNote,
+    LicitacionMetadata as ZodMetadata,
+    LicitacionData as ZodData,
+    LicitacionContent as ZodContent, // Import new type
+    WorkflowState as ZodWorkflow,
+    AnalysisVersion as ZodVersion
+} from './lib/schemas';
 
 export type Note = ZodNote;
 export type LicitacionMetadata = ZodMetadata;
 export type LicitacionData = ZodData;
+export type LicitacionContent = ZodContent; // Export new type
+export type WorkflowState = ZodWorkflow;
+export type AnalysisVersion = ZodVersion;
 
 export type ProcessingStatus = 'IDLE' | 'READING_PDF' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
 

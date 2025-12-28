@@ -68,9 +68,38 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
         }
     },
 
-    loadLicitacion: (data: LicitacionData, hash?: string) => {
+    loadLicitacion: (inputData: LicitacionData, hash?: string) => {
         const { activeChannel } = get();
         if (activeChannel) activeChannel.unsubscribe();
+
+        // Normalize to Envelope if input is just Content (missing result envelope or metadata)
+        // We check for 'result' property which distinguishes Envelope from Content in our new schema
+        let data: LicitacionData = inputData;
+
+        // If it doesn't have 'result' but has 'datosGenerales', it's likely just Content
+        if (!inputData.result && 'datosGenerales' in inputData) {
+            const now = new Date().toISOString();
+            data = {
+                ...inputData, // Includes sections for legacy compat
+                result: inputData, // Canonical result
+                versions: [{
+                    version: 1,
+                    status: 'succeeded',
+                    created_at: now,
+                    model: 'gemini-pro',
+                    schema_version: 'v1',
+                    prompt_version: 'v1',
+                    result: inputData
+                }],
+                workflow: {
+                    current_version: 1,
+                    status: 'succeeded',
+                    steps: [],
+                    updated_at: now
+                },
+                metadata: inputData.metadata || { tags: [] }
+            };
+        }
 
         let newChannel: RealtimeChannel | null = null;
         if (hash) {

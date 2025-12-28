@@ -1,7 +1,7 @@
 
 import { supabase } from "../config/supabase";
-import { LicitacionData } from "../types";
-import { LicitacionSchema } from "../lib/schemas";
+import { LicitacionContent } from "../types";
+import { LicitacionContentSchema } from "../lib/schemas";
 import { logger } from "./logger";
 import { promptRegistry } from "../config/prompt-registry";
 
@@ -19,8 +19,8 @@ export class AIService {
     async analyzePdfContent(
         base64Content: string,
         onProgress?: (processed: number, total: number, message: string) => void
-    ): Promise<LicitacionData> {
-        const sections: { key: keyof LicitacionData; label: string }[] = [
+    ): Promise<LicitacionContent> {
+        const sections: { key: keyof LicitacionContent; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
             { key: 'criteriosAdjudicacion', label: 'Criterios de Adjudicación' },
             { key: 'requisitosSolvencia', label: 'Requisitos de Solvencia' },
@@ -30,12 +30,8 @@ export class AIService {
         ];
 
         // Initialize with basic metadata structure
-        let partialResult: Partial<LicitacionData> = {
-            metadata: {
-                estado: 'PENDIENTE',
-                tags: [],
-                sectionStatus: {}
-            }
+        // Note: LicitacionContent does NOT have metadata. We build the content here.
+        let partialResult: Partial<LicitacionContent> = {
         };
         const total = sections.length;
         let processed = 0;
@@ -60,7 +56,7 @@ export class AIService {
                         return { key: section.key, data: sectionData, success: true };
                     } catch (error) {
                         logger.error(`Error en sección ${section.key}`, { error: String(error) });
-                        const key = section.key as keyof LicitacionData;
+                        const key = section.key as keyof LicitacionContent;
                         return { key, data: { [key]: this.getDefaultSection(key) }, success: false };
                     }
                 });
@@ -69,12 +65,7 @@ export class AIService {
 
                 chunkResults.forEach(res => {
                     partialResult = { ...partialResult, ...res.data };
-                    if (partialResult.metadata) {
-                        partialResult.metadata.sectionStatus = {
-                            ...(partialResult.metadata.sectionStatus || {}),
-                            [res.key]: res.success ? 'success' : 'failed'
-                        };
-                    }
+                    // Prior metadata update logic removed as Content doesn't have metadata
                     processed++;
                     if (onProgress) {
                         onProgress(processed, total, `Sección completada: ${res.key}`);
@@ -91,7 +82,7 @@ export class AIService {
             if (!partialResult.datosGenerales) partialResult.datosGenerales = this.getDefaultSection('datosGenerales');
             if (!partialResult.criteriosAdjudicacion) partialResult.criteriosAdjudicacion = this.getDefaultSection('criteriosAdjudicacion');
 
-            const finalResult = partialResult as LicitacionData;
+            const finalResult = partialResult as LicitacionContent;
             logger.info("Análisis completado", { keys: Object.keys(finalResult) });
 
             return finalResult;
@@ -102,42 +93,57 @@ export class AIService {
         }
     }
 
-    private async analyzeSection<K extends keyof LicitacionData>(base64Content: string, sectionKey: K): Promise<Partial<LicitacionData>> {
+    private async analyzeSection<K extends keyof LicitacionContent>(base64Content: string, sectionKey: K): Promise<Partial<LicitacionContent>> {
         const plugin = promptRegistry.getActivePlugin();
         const systemPrompt = plugin.getSystemPrompt();
         const sectionPrompt = plugin.getSectionPrompt(sectionKey);
-
         const fullPrompt = `${sectionPrompt}\n\nResponde únicamente con un objeto JSON válido que siga la estructura para la clave "${sectionKey}".`;
 
-        try {
-            const { data, error } = await supabase.functions.invoke('analyze-licitacion', {
-                body: {
-                    base64Content,
-                    prompt: fullPrompt,
-                    systemPrompt,
-                    sectionKey
+        const MAX_RETRIES = 3;
+        let lastError: Error | unknown;
+
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const { data, error } = await supabase.functions.invoke('analyze-licitacion', {
+                    body: {
+                        base64Content,
+                        prompt: fullPrompt,
+                        systemPrompt,
+                        sectionKey
+                    }
+                });
+
+                if (error) {
+                    // Normalize Supabase function error
+                    throw new Error(`Edge Function Error: ${error.message || JSON.stringify(error)}`);
                 }
-            });
 
-            if (error) {
-                console.error("Function Error:", error);
-                throw new Error(`Error invocando Edge Function: ${error.message}`);
+                if (!data || !data.text) {
+                    throw new Error("Respuesta de Edge Function vacía.");
+                }
+
+                // If success, return immediately
+                return this.cleanAndParseJson(data.text, sectionKey);
+
+            } catch (e) {
+                lastError = e;
+                const isLastAttempt = attempt === MAX_RETRIES;
+
+                if (!isLastAttempt) {
+                    const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s? No: 2^1*1000=2000, 2^2*1000=4000
+                    console.warn(`Intento ${attempt}/${MAX_RETRIES} fallido para ${sectionKey}. Reintentando en ${delay}ms...`, e);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    console.error(`Todos los intentos fallaron para ${sectionKey}:`, e);
+                }
             }
-
-            if (!data || !data.text) {
-                throw new Error("Respuesta de Edge Function vacía.");
-            }
-
-            return this.cleanAndParseJson(data.text, sectionKey);
-
-        } catch (e) {
-            console.warn(`Fallo invocando backend para ${sectionKey}:`, e);
-            // This throw is caught by the chunk processor, so it's fine
-            throw new LicitacionAIError(`Fallo backend sección ${sectionKey}: ${String(e)}`, e);
         }
+
+        // If loop exhausts, throw the last error
+        throw new LicitacionAIError(`Fallo persistente backend sección ${sectionKey} tras ${MAX_RETRIES} intentos: ${String(lastError)}`, lastError);
     }
 
-    private cleanAndParseJson<K extends keyof LicitacionData>(text: string, sectionKey: K): Partial<LicitacionData> {
+    private cleanAndParseJson<K extends keyof LicitacionContent>(text: string, sectionKey: K): Partial<LicitacionContent> {
         let cleanedText = text;
 
         // Remove Markdown code blocks (```json ... ```)
@@ -155,10 +161,10 @@ export class AIService {
                     parsedJson = JSON.parse(likelyJson[0]);
                 } catch (e2) {
                     console.warn(`Fallo de parseo JSON (fallback regex) en sección ${sectionKey}:`, e2);
-                    return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
+                    return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionContent>;
                 }
             } else {
-                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
+                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionContent>;
             }
         }
 
@@ -170,45 +176,45 @@ export class AIService {
 
         // Validate against Zod schema
         try {
-            const schema = LicitacionSchema.shape[sectionKey as keyof typeof LicitacionSchema.shape];
+            const schema = LicitacionContentSchema.shape[sectionKey as keyof typeof LicitacionContentSchema.shape];
             if (!schema) {
                 console.error(`Schema not found for section: ${sectionKey}`);
-                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
+                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionContent>;
             }
             // Use safeParse for validation
             const validationResult = schema.safeParse(parsedJson);
 
             if (validationResult.success) {
                 // Return WRAPPED result
-                return { [sectionKey]: validationResult.data } as Partial<LicitacionData>;
+                return { [sectionKey]: validationResult.data } as Partial<LicitacionContent>;
             } else {
                 console.warn(`Zod validation failed for section ${sectionKey}:`, validationResult.error.errors);
                 logger.warn(`Zod validation failed for section ${sectionKey}`, { errors: validationResult.error.errors, data: parsedJson });
-                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
+                return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionContent>;
             }
         } catch (error) {
             console.error(`Error during Zod validation or default section generation for ${sectionKey}:`, error);
-            return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionData>;
+            return { [sectionKey]: this.getDefaultSection(sectionKey) } as Partial<LicitacionContent>;
         }
     }
 
-    private getDefaultSection<K extends keyof LicitacionData>(sectionKey: K): LicitacionData[K] {
+    private getDefaultSection<K extends keyof LicitacionContent>(sectionKey: K): LicitacionContent[K] {
         // Return UNWRAPPED default values force casted to satisfy generic return type
         switch (sectionKey) {
             case 'datosGenerales':
-                return { titulo: "No detectado", presupuesto: 0, moneda: "EUR", plazoEjecucionMeses: 0, cpv: [], organoContratacion: "Desconocido" } as unknown as LicitacionData[K];
+                return { titulo: "No detectado", presupuesto: 0, moneda: "EUR", plazoEjecucionMeses: 0, cpv: [], organoContratacion: "Desconocido" } as unknown as LicitacionContent[K];
             case 'criteriosAdjudicacion':
-                return { subjetivos: [], objetivos: [] } as unknown as LicitacionData[K];
+                return { subjetivos: [], objetivos: [] } as unknown as LicitacionContent[K];
             case 'requisitosTecnicos':
-                return { funcionales: [], normativa: [] } as unknown as LicitacionData[K];
+                return { funcionales: [], normativa: [] } as unknown as LicitacionContent[K];
             case 'requisitosSolvencia':
-                return { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] } as unknown as LicitacionData[K];
+                return { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] } as unknown as LicitacionContent[K];
             case 'restriccionesYRiesgos':
-                return { killCriteria: [], riesgos: [], penalizaciones: [] } as unknown as LicitacionData[K];
+                return { killCriteria: [], riesgos: [], penalizaciones: [] } as unknown as LicitacionContent[K];
             case 'modeloServicio':
-                return { sla: [], equipoMinimo: [] } as unknown as LicitacionData[K];
+                return { sla: [], equipoMinimo: [] } as unknown as LicitacionContent[K];
             default:
-                return {} as unknown as LicitacionData[K];
+                return {} as unknown as LicitacionContent[K];
         }
     }
 }
