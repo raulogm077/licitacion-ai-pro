@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerativeModel, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { LicitacionData } from "../types";
 import { LicitacionSchema } from "../lib/schemas";
 import { logger } from "./logger";
@@ -10,7 +10,7 @@ export class LicitacionAIError extends Error {
     }
 }
 
-const MODEL_NAME = "gemini-flash-latest"; // Using alias as 1.5 is 404 and 2.0 has 0 quota
+const MODEL_NAME = import.meta.env.VITE_GEMINI_MODEL || "gemini-flash-latest";
 
 export class AIService {
     private genAI: GoogleGenerativeAI;
@@ -21,146 +21,134 @@ export class AIService {
         this.model = this.genAI.getGenerativeModel({
             model: MODEL_NAME,
             generationConfig: {
-                temperature: 0.1, // Very low for maximum determinism and precision
+                temperature: 0.1, // Very low for maximum determinism
                 maxOutputTokens: 8192,
-            }
+            },
+            safetySettings: [
+                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            ]
         });
     }
 
     async analyzePdfContent(base64Content: string, onThinking?: (text: string) => void): Promise<LicitacionData> {
+        const sections = [
+            { key: 'datosGenerales', label: 'Datos Generales' },
+            { key: 'criteriosAdjudicacion', label: 'Criterios de Adjudicación' },
+            { key: 'requisitosSolvencia', label: 'Requisitos de Solvencia' },
+            { key: 'requisitosTecnicos', label: 'Requisitos Técnicos' },
+            { key: 'restriccionesYRiesgos', label: 'Restricciones y Riesgos' },
+            { key: 'modeloServicio', label: 'Modelo de Servicio' }
+        ];
+
+        // Initialize with default/empty structure to allow partial filling
+        let partialResult: Partial<LicitacionData> = {};
+
         try {
-            if (onThinking) onThinking("Iniciando análisis profundo del documento...");
+            if (onThinking) onThinking("Iniciando análisis iterativo del documento...");
 
-            const prompt = `
-        ERES UN EXPERTO ANALISTA DE LICITACIONES. TU OBJETIVO ES EXTRAER DATOS CLAVE DE ESTE PDF Y DEVOLVER UN JSON PERFECTO.
+            for (let i = 0; i < sections.length; i++) {
+                const section = sections[i];
+                if (onThinking) onThinking(`Analizando sección ${i + 1}/${sections.length}: ${section.label}...`);
 
-        REGLAS CRÍTICAS:
-        1. Responde SOLO con el JSON. Nada más antes ni después.
-        2. Si un dato no aparece, usa null (o array vacío []). NO inventes datos.
-        3. Para importes monetarios, extrae SOLO el número (ej: 10000.50).
+                logger.info(`Iniciando análisis de sección: ${section.key}`);
 
-        CAMPOS A EXTRAER (Estructura LicitacionData):
-        - datosGenerales:
-            - titulo: Título completo del expediente.
-            - presupuesto: Base de licitación sin impuestos (número). Si no lo encuentras, pon 0.
-            - moneda: "EUR" u otra.
-            - plazoEjecucionMeses: Duración en meses (número).
-            - cpv: Array de códigos CPV.
-            - organoContratacion: Quién licita.
+                try {
+                    const sectionData = await this.analyzeSection(base64Content, section.key);
+                    // Merge new data. Note: simple spread works because keys are distinct top-level objects
+                    partialResult = { ...partialResult, ...sectionData };
 
-        - criteriosAdjudicacion:
-            - objetivos (Fórmulas): Lista con {descripcion, ponderacion (0-100), formula}.
-            - subjetivos (Juicio de Valor): Lista con {descripcion, ponderacion (0-100), detalles}.
-
-        - requisitosSolvencia:
-            - economica: { cifraNegocioAnualMinima (número), descripcion }.
-            - tecnica: Lista con { descripcion, proyectosSimilaresRequeridos (número), importeMinimoProyecto (número) }.
-
-        - requisitosTecnicos:
-            - funcionales: Lista de requisitos "MUST HAVE".
-            - normativa: Lista de normas (ISO, ENS, etc).
-
-        - restriccionesYRiesgos:
-            - killCriteria: Lista de requisitos excluyentes.
-            - riesgos: Lista de posibles riesgos {descripcion, impacto (ALTO/MEDIO/BAJO), mitigacionSugerida}.
-        
-        - modeloServicio:
-            - sla: Acuerdos de nivel de servicio.
-            - equipoMinimo: Perfiles requeridos.
-
-        FORMATO FINAL ESPERADO (EJEMPLO):
-        {
-          "datosGenerales": {
-            "titulo": "Suministro de Licencias...",
-            "presupuesto": 50000,
-            "moneda": "EUR",
-            "plazoEjecucionMeses": 12,
-            "cpv": ["48000000"],
-            "organoContratacion": "Ayuntamiento de..."
-          },
-          "criteriosAdjudicacion": {
-            "objetivos": [],
-            "subjetivos": []
-          },
-          "requisitosTecnicos": {
-            "funcionales": [{ "requisito": "Debe ser cloud", "obligatorio": true }],
-            "normativa": []
-          },
-          "requisitosSolvencia": {
-            "economica": { "cifraNegocioAnualMinima": 0 },
-            "tecnica": []
-          },
-          "restriccionesYRiesgos": {
-            "killCriteria": [],
-            "riesgos": [],
-            "penalizaciones": []
-          },
-          "modeloServicio": {
-            "sla": [],
-            "equipoMinimo": []
-          }
-        }
-
-        IMPORTANTE:
-        - Respeta ESTRICTAMENTE las claves en minúsculas camelCase (ej: datosGenerales, no DatosGenerales).
-        - Devuelve UNICAMENTE el JSON válido.
-      `;
-
-            const result = await this.model.generateContent([
-                prompt,
-                {
-                    inlineData: {
-                        data: base64Content,
-                        mimeType: "application/pdf",
-                    },
-                },
-            ]);
-
-            const response = await result.response;
-
-            let text = "";
-            try {
-                text = response.text();
-            } catch (textError) {
-                console.error("Error extrayendo texto (Safety/Recitation):", textError);
-                throw new LicitacionAIError("El modelo bloqueó la respuesta por seguridad/recitación.", textError);
+                    // Small delay to be respectful to API rate limits if necessary
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                } catch (sectionError) {
+                    console.error(`Error analizando sección ${section.key}:`, sectionError);
+                    logger.error(`Error en sección ${section.key}`, { error: String(sectionError) });
+                    // We continue to the next section even if one fails
+                }
             }
 
-            if (!text) {
-                throw new LicitacionAIError("La IA devolvió una respuesta vacía.");
+            logger.info("Análisis iterativo completado. Ensamblando resultado final.");
+            if (onThinking) onThinking("Ensamblando y validando resultados finales...");
+
+            // Final Validation / cleanup / hydration checks
+            const finalResult = this.fillMissingDefaults(partialResult);
+
+            // Validate with Zod
+            const validated = LicitacionSchema.parse(finalResult);
+
+            if (validated.datosGenerales.titulo === "Sin título" && validated.datosGenerales.presupuesto === 0) {
+                // If the main section failed, the whole analysis is likely useless
+                throw new LicitacionAIError("Análisis incompleto: La IA no pudo extraer el título ni el presupuesto (Fallo en Datos Generales).");
             }
 
+            return validated;
 
-
-
-
-            console.log("🤖 [AI RAW RESPONSE PRE-PARSE]:", text.substring(0, 500)); // Debug log for empty response issues
-            logger.debug("Respuesta RAW de IA recibida", { preview: text.substring(0, 200) + "..." });
-
-            const parsed = this.cleanAndParseJson(text);
-            return parsed;
         } catch (error) {
             console.error("❌ CRITICAL AI ERROR:", error);
             logger.error("Error crítico en análisis AI", { error: String(error) });
-
-            // Log full error details if available
-            if (error && typeof error === 'object' && 'response' in error) {
-                const responseError = (error as { response: unknown }).response;
-                console.error("Full Response Error:", responseError);
-                logger.error("Detalles de respuesta de error AI", responseError);
-            }
 
             if (error instanceof LicitacionAIError) throw error;
             throw new LicitacionAIError("Falló el análisis del documento: " + (error instanceof Error ? error.message : String(error)), error);
         }
     }
 
-    private cleanAndParseJson(text: string): LicitacionData {
-        try {
-            // 1. Remove Markdown code blocks
-            let cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
+    private async analyzeSection(base64Content: string, sectionKey: string): Promise<Record<string, unknown>> {
+        const prompt = this.getPromptForSection(sectionKey);
 
-            // 2. Robustness: Find the first '{' and last '}' to isolate JSON from any "thinking" text
+        // Retry logic: try up to 3 times
+        let lastError: unknown;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                if (attempt > 1) {
+                    console.log(`Reintentando sección ${sectionKey} (Intento ${attempt}/3)...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Backoff
+                }
+
+                const result = await this.model.generateContent([
+                    prompt,
+                    {
+                        inlineData: {
+                            data: base64Content,
+                            mimeType: "application/pdf",
+                        },
+                    },
+                ]);
+
+                const response = await result.response;
+
+                // Check for blocking
+                if (!response.candidates || response.candidates.length === 0) {
+                    if (response.promptFeedback?.blockReason) {
+                        throw new Error(`Bloqueo de seguridad: ${response.promptFeedback.blockReason}`);
+                    }
+                    throw new Error("Respuesta de IA vacía (sin candidatos).");
+                }
+
+                const text = response.text();
+                if (!text) throw new Error("Texto de respuesta vacío.");
+
+                logger.debug(`Respuesta RAW sección ${sectionKey} (Intento ${attempt})`, { preview: text.substring(0, 100) + "..." });
+
+                return this.cleanAndParseJson(text, sectionKey);
+
+            } catch (e) {
+                lastError = e;
+                console.warn(`Fallo en intento ${attempt} para ${sectionKey}:`, e);
+                // If it's a parse error, maybe retrying helps. If it's a block, usage of BLOCK_NONE should prevent it but let's retry anyway.
+            }
+        }
+
+        throw new LicitacionAIError(`Falló sección ${sectionKey} tras 3 intentos. Último error: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+    }
+
+    private cleanAndParseJson(text: string, sectionKey: string): Record<string, unknown> {
+        try {
+            let cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
+            // Remove common JS style comments if any
+            cleanText = cleanText.replace(/^\s*\/\/.*$/gm, '');
+
             const firstBrace = cleanText.indexOf('{');
             const lastBrace = cleanText.lastIndexOf('}');
 
@@ -168,70 +156,139 @@ export class AIService {
                 cleanText = cleanText.substring(firstBrace, lastBrace + 1);
             }
 
-            let parsed = JSON.parse(cleanText);
+            const parsed = JSON.parse(cleanText);
 
-            // 2.1 Smart Correction: Check for common AI mistakes
+            // Expected format: { "datosGenerales": { ... } }
+            // Or just { ... } if prompt wasn't followed perfectly.
+            // But we can check if the top key matches sectionKey.
+            // If the AI returns just the inner object, wrap it.
 
-            // Define Normalization Helper
-            const normalizeKeys = (obj: unknown): unknown => {
-                if (Array.isArray(obj)) {
-                    return obj.map(normalizeKeys);
-                }
-                if (obj !== null && typeof obj === 'object') {
-                    return Object.keys(obj).reduce((acc, key) => {
-                        const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        acc[lowerKey] = normalizeKeys((obj as any)[key]);
-                        return acc;
-                    }, {} as Record<string, unknown>);
-                }
-                return obj;
-            };
-
-            // STRATEGY 1: Normalize keys immediately (fixes DatosGenerales -> datosGenerales)
-            parsed = normalizeKeys(parsed);
-
-            // STRATEGY 2: Check for wrapping (e.g. { response: { datosGenerales: ... } })
-            // Only unwrap if we generally don't see 'datosGenerales' but see it inside a child
-            if (!parsed.datosGenerales && !parsed.metadata) {
-                const keys = Object.keys(parsed);
-                if (keys.length === 1 && typeof parsed[keys[0]] === 'object') {
-                    const child = parsed[keys[0]];
-                    // Check if child has what we need
-                    if (child.datosGenerales || child.metadata) {
-                        console.log("⚠️ AI wrapped response detected, unwrapping...");
-                        parsed = child;
-                    }
-                }
+            if (parsed[sectionKey]) {
+                return parsed as Record<string, unknown>;
+            } else {
+                // Heuristic: if it looks like the inner content, wrap it
+                return { [sectionKey]: parsed };
             }
-
-            // 3. Zod Validation
-            // Now that we removed defaults, this will THROW if data is still missing, 
-            // which is better than silently returning empty data.
-            // 3. Zod Validation
-            const result = LicitacionSchema.parse(parsed);
-
-            // 4. Quality Gate: Reject if "meaningless" (only defaults)
-            if (result.datosGenerales.titulo === "Sin título" && result.datosGenerales.presupuesto === 0) {
-                throw new LicitacionAIError("Análisis incompleto: La IA no pudo extraer el título ni el presupuesto del documento.");
-            }
-
-            return result;
-
         } catch (e) {
-            const errorMsg = e instanceof Error ? e.message : String(e);
-            console.error("Failed to parse or validate JSON:", text.substring(0, 200), errorMsg);
-            logger.error("Fallo de validación/parseo JSON", {
-                error: e instanceof Error ? e.message : String(e),
-                rawTextPreview: text.substring(0, 100)
-            });
-
-            throw new LicitacionAIError(
-                "La respuesta de la IA no es válida. " +
-                (e instanceof Error ? e.message : "Error de validación") +
-                "\n\nRaw: " + text.substring(0, 100),
-                e
-            );
+            throw new LicitacionAIError(`Fallo de parseo JSON en sección ${sectionKey}: ` + (e instanceof Error ? e.message : String(e)) + `\nRaw: ${text.substring(0, 50)}...`, e);
         }
+    }
+
+    private getPromptForSection(sectionKey: string): string {
+        // Base instructions
+        const commonRules = `
+            ERES UN EXPERTO ANALISTA DE LICITACIONES.
+            OBJETIVO: Extraer SOLO información relacionada con la sección "${sectionKey}" del PDF.
+            
+            REGLAS DE FORMATO:
+            1. Devuelve SOLO un JSON válido.
+            2. SIN markdown. SIN comentarios.
+            3. Estructura esperada: { "${sectionKey}": { ... los campos pedidos ... } }
+
+            REGLAS DE CONTENIDO:
+            1. Resume textos largos (>200 chars).
+            2. Limita arrays a max 15 items (los más relevantes).
+            3. Si no hay datos, usa null o [].
+        `;
+
+        let specificFields = "";
+
+        // Define specific fields per section to keep prompt small and focused
+        switch (sectionKey) {
+            case 'datosGenerales':
+                specificFields = `
+                CAMPOS A EXTRAER (dentro del objeto "datosGenerales"):
+                - titulo: Título del expediente.
+                - presupuesto: Número (base sin impuestos).
+                - moneda: "EUR".
+                - plazoEjecucionMeses: Número.
+                - cpv: Array de strings [códigos].
+                - organoContratacion: String.
+                `;
+                break;
+            case 'criteriosAdjudicacion':
+                specificFields = `
+                CAMPOS A EXTRAER (dentro del objeto "criteriosAdjudicacion"):
+                - objetivos: Lista de {descripcion, ponderacion(num 0-100), formula}.
+                - subjetivos: Lista de {descripcion, ponderacion(num 0-100), detalles}.
+                `;
+                break;
+            case 'requisitosSolvencia':
+                specificFields = `
+                CAMPOS A EXTRAER (dentro del objeto "requisitosSolvencia"):
+                - economica: { cifraNegocioAnualMinima(num), descripcion }.
+                - tecnica: Lista de { descripcion, proyectosSimilaresRequeridos(num), importeMinimoProyecto(num) }.
+                `;
+                break;
+            case 'requisitosTecnicos':
+                specificFields = `
+                CAMPOS A EXTRAER (dentro del objeto "requisitosTecnicos"):
+                - funcionales: Lista de { requisito, obligatorio(bool) }. (Max 20 más importantes/críticos)
+                - normativa: Lista de strings (Normas ISO, ENS, etc).
+                `;
+                break;
+            case 'restriccionesYRiesgos':
+                specificFields = `
+                CAMPOS A EXTRAER (dentro del objeto "restriccionesYRiesgos"):
+                - killCriteria: Lista de strings (requisitos excluyentes que impiden participar).
+                - riesgos: Lista de {descripcion, impacto(ALTO/MEDIO/BAJO), mitigacionSugerida}.
+                - penalizaciones: Lista de { causa, sancion }.
+                `;
+                break;
+            case 'modeloServicio':
+                specificFields = `
+                CAMPOS A EXTRAER (dentro del objeto "modeloServicio"):
+                - sla: Lista de strings (Acuerdos de Nivel de Servicio).
+                - equipoMinimo: Lista de strings (Perfiles/Equipo).
+                `;
+                break;
+        }
+
+        return `${commonRules}\n${specificFields}`;
+    }
+
+    private fillMissingDefaults(partial: Partial<LicitacionData>): LicitacionData {
+        // Hydrate missing sections with empty structures to ensure frontend doesn't crash
+        return {
+            datosGenerales: {
+                titulo: "Sin título (Error Análisis)",
+                presupuesto: 0,
+                moneda: "EUR",
+                plazoEjecucionMeses: 0,
+                cpv: [],
+                organoContratacion: "Desconocido",
+                ...(partial.datosGenerales || {})
+            },
+            criteriosAdjudicacion: {
+                objetivos: [],
+                subjetivos: [],
+                ...(partial.criteriosAdjudicacion || {})
+            },
+            requisitosSolvencia: {
+                economica: { cifraNegocioAnualMinima: 0 },
+                tecnica: [],
+                ...(partial.requisitosSolvencia || {})
+            },
+            requisitosTecnicos: {
+                funcionales: [],
+                normativa: [],
+                ...(partial.requisitosTecnicos || {})
+            },
+            restriccionesYRiesgos: {
+                killCriteria: [],
+                riesgos: [],
+                penalizaciones: [],
+                ...(partial.restriccionesYRiesgos || {})
+            },
+            modeloServicio: {
+                sla: [],
+                equipoMinimo: [],
+                ...(partial.modeloServicio || {})
+            },
+            metadata: {
+                tags: [],
+                ...((partial as LicitacionData).metadata || {})
+            }
+        } as LicitacionData;
     }
 }

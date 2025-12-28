@@ -39,7 +39,7 @@ export class AuthService {
             email,
             password,
             options: {
-                emailRedirectTo: window.location.origin,
+                emailRedirectTo: import.meta.env.VITE_SITE_URL || window.location.origin,
             }
         });
 
@@ -72,6 +72,21 @@ export class AuthService {
     async signOut(): Promise<{ error: AuthError | null }> {
         const { error } = await supabase.auth.signOut();
         return { error };
+    }
+
+    /**
+     * Manually set session from tokens
+     */
+    async setSession(access_token: string, refresh_token: string): Promise<AuthResponse> {
+        const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token
+        });
+        return {
+            user: data.user,
+            session: data.session,
+            error
+        };
     }
 
     /**
