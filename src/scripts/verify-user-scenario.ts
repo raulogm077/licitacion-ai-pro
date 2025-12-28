@@ -6,10 +6,10 @@ import { readFile } from 'fs/promises';
 import { resolve } from 'path';
 
 // Mock Browser globals
-// @ts-ignore
+
 if (typeof window === 'undefined') {
-    // @ts-ignore
-    // @ts-ignore
+
+    // @ts-expect-error
     global.window = {
         location: { origin: 'http://localhost:3000' } as unknown as Location
     };
@@ -90,9 +90,10 @@ async function runScenario() {
         await dbService.saveLicitacion(hash, fileName, result);
         console.log("✅ Guardado exitoso en Supabase!");
 
-    } catch (err: any) {
-        if (err.message.includes('Persistencia Bloqueada')) {
-            console.log(`⚠️ ${err.message}`);
+    } catch (err: unknown) {
+        const error = err as Error;
+        if (error.message.includes('Persistencia Bloqueada')) {
+            console.log(`⚠️ ${error.message}`);
             console.log("👉 EL ANÁLISIS FUE CORRECTO, pero no se guardó por falta de login/permisos.");
         } else {
             console.error("❌ Error en el proceso:", err);

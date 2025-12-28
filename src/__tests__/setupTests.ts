@@ -5,7 +5,7 @@ import { beforeAll, afterAll } from 'vitest';
 const originalConsoleError = console.error;
 
 beforeAll(() => {
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
         // Filter out expected errors we are intentionally testing
         if (
             typeof args[0] === 'string' &&

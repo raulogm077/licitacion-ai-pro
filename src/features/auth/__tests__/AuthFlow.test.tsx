@@ -30,7 +30,7 @@ describe('Auth Validation Flow', () => {
         vi.clearAllMocks();
 
         // Default unauthenticated state
-        // @ts-ignore
+
         vi.mocked(AuthStore.useAuthStore).mockReturnValue({
             isAuthenticated: false,
             user: null,

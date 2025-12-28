@@ -13,7 +13,7 @@ vi.mock('xlsx', () => ({
 }));
 
 describe('Export Utils', () => {
-    const mockData: any = {
+    const mockData = {
         datosGenerales: {
             titulo: 'Test Title',
             presupuesto: 1000,
@@ -27,15 +27,15 @@ describe('Export Utils', () => {
             objetivos: [{ descripcion: 'Obj 1', ponderacion: 20, formula: 'Form 1' }]
         },
         requisitosTecnicos: {
-            funcionales: [{ requisito: 'Req 1', obligatorio: true, referenciaPagina: '1' }],
+            funcionales: [{ requisito: 'Req 1', obligatorio: true, referenciaPagina: 1 }],
             normativa: []
         },
         requisitosSolvencia: {
-            economica: {},
+            economica: { cifraNegocioAnualMinima: 0 },
             tecnica: []
         },
         restriccionesYRiesgos: {
-            riesgos: [{ descripcion: 'Risk 1', impacto: 'ALTO', probabilidad: 'MEDIA', mitigacionSugerida: 'Mit 1' }],
+            riesgos: [{ descripcion: 'Risk 1', impacto: 'ALTO' as const, probabilidad: 'MEDIA' as const, mitigacionSugerida: 'Mit 1' }],
             killCriteria: [],
             penalizaciones: []
         },
@@ -56,9 +56,9 @@ describe('Export Utils', () => {
             download: ''
         };
 
-        vi.spyOn(document, 'createElement').mockReturnValue(mockLink as any);
-        vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as any);
-        vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as any);
+        vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
+        vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as unknown as HTMLAnchorElement);
+        vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as unknown as HTMLAnchorElement);
     });
 
     afterEach(() => {
