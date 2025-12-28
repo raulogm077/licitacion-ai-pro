@@ -3,6 +3,7 @@ import { Note } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { MessageSquare, Plus, X, AlertCircle, HelpCircle, Info } from 'lucide-react';
+import { useAuthStore } from '../../stores/auth.store';
 
 interface NotesPanelProps {
     notes: Note[];
@@ -11,11 +12,12 @@ interface NotesPanelProps {
 }
 
 export function NotesPanel({ notes, onChange, requirementIndex }: NotesPanelProps) {
+    const { user } = useAuthStore();
     const [isAdding, setIsAdding] = useState(false);
     const [newNote, setNewNote] = useState({
         text: '',
         type: 'NOTE' as Note['type'],
-        author: 'Usuario' // TODO: Replace with actual user when auth is implemented
+        author: user?.email || 'Usuario'
     });
 
     const filteredNotes = requirementIndex !== undefined
@@ -35,7 +37,7 @@ export function NotesPanel({ notes, onChange, requirementIndex }: NotesPanelProp
         };
 
         onChange([...notes, note]);
-        setNewNote({ text: '', type: 'NOTE', author: 'Usuario' });
+        setNewNote({ text: '', type: 'NOTE', author: user?.email || 'Usuario' });
         setIsAdding(false);
     };
 
