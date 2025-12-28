@@ -19,7 +19,7 @@ const MetadataSchema = z.object({
 });
 
 export const LicitacionSchema = z.object({
-    datosGenerales: z.preprocess(val => val ?? undefined, z.object({
+    datosGenerales: z.preprocess(val => val ?? {}, z.object({
         titulo: z.string().default('Sin título'),
         presupuesto: z.preprocess(
             val => (val === null || val === undefined) ? 0 : Number(val),
@@ -33,8 +33,8 @@ export const LicitacionSchema = z.object({
         cpv: z.array(z.string()).default([]),
         organoContratacion: z.string().default('Desconocido'),
         fechaLimitePresentacion: z.string().optional(),
-    })),
-    criteriosAdjudicacion: z.preprocess(val => val ?? undefined, z.object({
+    }).default({})),
+    criteriosAdjudicacion: z.preprocess(val => val ?? {}, z.object({
         subjetivos: z.array(z.object({
             descripcion: z.string(),
             ponderacion: z.number().default(0),
@@ -46,7 +46,7 @@ export const LicitacionSchema = z.object({
             formula: z.string().optional(),
         })).default([]),
     }).default({})),
-    requisitosTecnicos: z.preprocess(val => val ?? undefined, z.object({
+    requisitosTecnicos: z.preprocess(val => val ?? {}, z.object({
         funcionales: z.array(
             z.union([
                 z.string().transform(str => ({ requisito: str, obligatorio: true })),
@@ -66,8 +66,8 @@ export const LicitacionSchema = z.object({
                 })
             ])
         ).default([]),
-    })),
-    requisitosSolvencia: z.preprocess(val => val ?? undefined, z.object({
+    }).default({})),
+    requisitosSolvencia: z.preprocess(val => val ?? {}, z.object({
         economica: z.preprocess(val => val ?? {}, z.object({
             cifraNegocioAnualMinima: z.preprocess(
                 val => (val === null || val === undefined) ? 0 : Number(val),
@@ -80,8 +80,8 @@ export const LicitacionSchema = z.object({
             proyectosSimilaresRequeridos: z.number().default(0),
             importeMinimoProyecto: z.number().optional()
         })).default([])
-    })),
-    restriccionesYRiesgos: z.preprocess(val => val ?? undefined, z.object({
+    }).default({})),
+    restriccionesYRiesgos: z.preprocess(val => val ?? {}, z.object({
         killCriteria: z.array(z.string()).default([]),
         riesgos: z.array(z.object({
             descripcion: z.string(),
@@ -93,7 +93,7 @@ export const LicitacionSchema = z.object({
             causa: z.string(),
             sancion: z.string(),
         })).default([]),
-    })),
+    }).default({})),
     modeloServicio: z.preprocess(val => val ?? {}, z.object({
         sla: z.array(
             z.union([
@@ -114,7 +114,7 @@ export const LicitacionSchema = z.object({
                 })
             ])
         ).default([])
-    })),
+    }).default({})),
     metadata: MetadataSchema.optional(),
     notas: z.array(NoteSchema).optional(),
 });
