@@ -110,4 +110,41 @@ describe('AIService', () => {
         await expect(service.analyzePdfContent("base64data"))
             .rejects.toThrow();
     });
+
+    it('should normalize invalid casing (Smart Parse)', async () => {
+        // Deep copy and capitalize keys to simulate bad AI response
+        const capitalize = (obj: any): any => {
+            if (Array.isArray(obj)) return obj.map(capitalize);
+            if (typeof obj === 'object' && obj !== null) {
+                return Object.keys(obj).reduce((acc, key) => {
+                    const upper = key.charAt(0).toUpperCase() + key.slice(1);
+                    acc[upper] = capitalize(obj[key]);
+                    return acc;
+                }, {} as any);
+            }
+            return obj;
+        };
+        const wrongCaseData = capitalize(validData);
+
+        const jsonString = JSON.stringify(wrongCaseData);
+        mockGenerateContent.mockResolvedValue({
+            response: { text: () => jsonString }
+        });
+
+        const result = await service.analyzePdfContent("base64data");
+        expect(result.datosGenerales.titulo).toBe("Test Licitación");
+    });
+
+    it('should unwrap root object (Smart Parse)', async () => {
+        const wrappedData = {
+            licitacion: validData
+        };
+        const jsonString = JSON.stringify(wrappedData);
+        mockGenerateContent.mockResolvedValue({
+            response: { text: () => jsonString }
+        });
+
+        const result = await service.analyzePdfContent("base64data");
+        expect(result.datosGenerales.titulo).toBe("Test Licitación");
+    });
 });

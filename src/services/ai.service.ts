@@ -161,13 +161,53 @@ export class AIService {
                 cleanText = cleanText.substring(firstBrace, lastBrace + 1);
             }
 
-            const parsed = JSON.parse(cleanText);
+            let parsed = JSON.parse(cleanText);
+
+            // 2.1 Smart Correction: Check for common AI mistakes
+
+            // Define Normalization Helper
+            const normalizeKeys = (obj: any): any => {
+                if (Array.isArray(obj)) return obj.map(normalizeKeys);
+                if (obj !== null && typeof obj === 'object') {
+                    return Object.keys(obj).reduce((acc, key) => {
+                        const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
+                        acc[lowerKey] = normalizeKeys(obj[key]);
+                        return acc;
+                    }, {} as any);
+                }
+                return obj;
+            };
+
+            // STRATEGY 1: Normalize keys immediately (fixes DatosGenerales -> datosGenerales)
+            parsed = normalizeKeys(parsed);
+
+            // STRATEGY 2: Check for wrapping (e.g. { response: { datosGenerales: ... } })
+            // Only unwrap if we generally don't see 'datosGenerales' but see it inside a child
+            if (!parsed.datosGenerales && !parsed.metadata) {
+                const keys = Object.keys(parsed);
+                if (keys.length === 1 && typeof parsed[keys[0]] === 'object') {
+                    const child = parsed[keys[0]];
+                    // Check if child has what we need
+                    if (child.datosGenerales || child.metadata) {
+                        console.log("⚠️ AI wrapped response detected, unwrapping...");
+                        parsed = child;
+                    }
+                }
+            }
 
             // 3. Zod Validation
+            // Now that we removed defaults, this will THROW if data is still missing, 
+            // which is better than silently returning empty data.
             return LicitacionSchema.parse(parsed);
+
         } catch (e) {
             console.error("Failed to parse or validate JSON:", text, e);
-            throw new LicitacionAIError("La respuesta de la IA no es válida según el esquema (Zod Error)", e);
+            throw new LicitacionAIError(
+                "La respuesta de la IA no es válida. " +
+                (e instanceof Error ? e.message : "Error de validación") +
+                "\n\nRaw: " + text.substring(0, 100),
+                e
+            );
         }
     }
 }
