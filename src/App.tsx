@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useAuthStore } from './stores/auth.store';
 import { useLicitacionStore } from './stores/licitacion.store';
 import { useAnalysisStore } from './stores/analysis.store';
@@ -72,51 +73,54 @@ function App() {
   }
 
   return (
-    <Router>
-      <SupabaseStatus />
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-      <Routes>
-        <Route element={
-          <Layout
-            status={status}
-            data={data}
-            reset={reset}
-            darkMode={darkMode}
-            setDarkMode={setDarkMode}
-            onLogout={handleAuthAction}
-          />
-        }>
-          <Route path="/" element={
-            <Suspense fallback={<PageLoader />}>
-              <HomePage />
-            </Suspense>
-          } />
-          <Route path="/history" element={
-            <Suspense fallback={<PageLoader />}>
-              <HistoryPage />
-            </Suspense>
-          } />
-          <Route path="/analytics" element={
-            <Suspense fallback={<PageLoader />}>
-              <AnalyticsPage />
-            </Suspense>
-          } />
-          <Route path="/search" element={
-            <Suspense fallback={<PageLoader />}>
-              <SearchPage />
-            </Suspense>
-          } />
-        </Route>
+    <>
+      <Router>
+        <SupabaseStatus />
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+        <Routes>
+          <Route element={
+            <Layout
+              status={status}
+              data={data}
+              reset={reset}
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+              onLogout={handleAuthAction}
+            />
+          }>
+            <Route path="/" element={
+              <Suspense fallback={<PageLoader />}>
+                <HomePage />
+              </Suspense>
+            } />
+            <Route path="/history" element={
+              <Suspense fallback={<PageLoader />}>
+                <HistoryPage />
+              </Suspense>
+            } />
+            <Route path="/analytics" element={
+              <Suspense fallback={<PageLoader />}>
+                <AnalyticsPage />
+              </Suspense>
+            } />
+            <Route path="/search" element={
+              <Suspense fallback={<PageLoader />}>
+                <SearchPage />
+              </Suspense>
+            } />
+          </Route>
 
-        <Route path="/presentation" element={
-          <Suspense fallback={<PageLoader />}>
-            <PresentationPage data={data} />
-          </Suspense>
-        } />
+          <Route path="/presentation" element={
+            <Suspense fallback={<PageLoader />}>
+              <PresentationPage data={data} />
+            </Suspense>
+          } />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+      <SpeedInsights />
+    </>
   );
 }
 
