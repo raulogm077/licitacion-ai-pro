@@ -30,14 +30,21 @@ describe('Auth Validation Flow', () => {
         vi.clearAllMocks();
 
         // Default unauthenticated state
-
-        vi.mocked(AuthStore.useAuthStore).mockReturnValue({
+        const mockStore = {
             isAuthenticated: false,
             user: null,
             signInWithPassword: mockSignInWithPassword,
             signUp: mockSignUp,
-            signOut: mockSignOut
-        });
+            signOut: mockSignOut,
+            signInWithMagicLink: vi.fn().mockResolvedValue({ success: true })
+        };
+
+        // Mock the hook implementation
+        vi.mocked(AuthStore.useAuthStore).mockReturnValue(mockStore as any);
+
+        // Mock the static getState method which is now used in AuthModal
+        // @ts-ignore - Dynamic mock assignment
+        AuthStore.useAuthStore.getState = vi.fn().mockReturnValue(mockStore);
     });
 
     it('should show login restrictions when unauthenticated', () => {
@@ -69,9 +76,9 @@ describe('Auth Validation Flow', () => {
 
         render(<AuthModal isOpen={true} onClose={vi.fn()} />);
 
-        const emailInput = screen.getByPlaceholderText(/tu@email.com/i);
-        const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-        const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
+        const emailInput = screen.getByTestId('email-input');
+        const passwordInput = screen.getByTestId('password-input');
+        const submitButton = screen.getByTestId('submit-button');
 
         fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
         fireEvent.change(passwordInput, { target: { value: 'password123' } });
@@ -81,7 +88,8 @@ describe('Auth Validation Flow', () => {
             expect(mockSignInWithPassword).toHaveBeenCalledWith('test@example.com', 'password123');
         });
 
-        expect(await screen.findByText('¡Inicio de sesión exitoso!')).toBeInTheDocument();
+        const successEl = await screen.findByTestId('auth-success');
+        expect(successEl.textContent).toMatch(/¡Inicio de sesión exitoso!/i);
     });
 
     it('should handle login error', async () => {
@@ -89,17 +97,16 @@ describe('Auth Validation Flow', () => {
 
         render(<AuthModal isOpen={true} onClose={vi.fn()} />);
 
-        const emailInput = screen.getByPlaceholderText(/tu@email.com/i);
-        const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-        const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
+        const emailInput = screen.getByTestId('email-input');
+        const passwordInput = screen.getByTestId('password-input');
+        const submitButton = screen.getByTestId('submit-button');
 
         fireEvent.change(emailInput, { target: { value: 'bad@example.com' } });
         fireEvent.change(passwordInput, { target: { value: 'wrongpass' } });
         fireEvent.click(submitButton);
 
-        await waitFor(() => {
-            expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
-        });
+        const errorEl = await screen.findByTestId('auth-error');
+        expect(errorEl.textContent).toMatch(/Invalid credentials/i);
     });
 
     it('should switch to signup and call signUp', async () => {
@@ -108,14 +115,14 @@ describe('Auth Validation Flow', () => {
         render(<AuthModal isOpen={true} onClose={vi.fn()} />);
 
         // Switch to signup
-        const signupLink = screen.getByText('Regístrate ahora');
+        const signupLink = screen.getByTestId('toggle-mode-button');
         fireEvent.click(signupLink);
 
-        expect(screen.getByText('Crear Cuenta')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /crear cuenta/i })).toBeInTheDocument();
 
-        const emailInput = screen.getByPlaceholderText(/tu@email.com/i);
-        const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-        const submitButton = screen.getByRole('button', { name: /registrarse/i });
+        const emailInput = screen.getByTestId('email-input');
+        const passwordInput = screen.getByTestId('password-input');
+        const submitButton = screen.getByTestId('submit-button');
 
         fireEvent.change(emailInput, { target: { value: 'new@example.com' } });
         fireEvent.change(passwordInput, { target: { value: 'newpass123' } });
@@ -125,6 +132,9 @@ describe('Auth Validation Flow', () => {
             expect(mockSignUp).toHaveBeenCalledWith('new@example.com', 'newpass123');
         });
 
-        expect(await screen.findByText('¡Cuenta Creada!')).toBeInTheDocument();
+        // Wait for success message to appear, which replaces the form
+        // Success message for signup uses a different structure
+        const successEl = await screen.findByTestId('signup-success');
+        expect(successEl.textContent).toMatch(/¡Cuenta Creada!/i);
     });
 });

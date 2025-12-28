@@ -15,7 +15,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
 
     const { signInWithPassword, signUp } = useAuthStore();
 
@@ -24,7 +24,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setSuccess(false);
+        setSuccessMessage('');
         setLoading(true);
 
         let result;
@@ -54,17 +54,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         setLoading(false);
 
         if (result.success) {
-            setSuccess(true);
+
             setEmail('');
             setPassword('');
 
             if (mode === 'login') {
+                setSuccessMessage('¡Inicio de sesión exitoso!');
                 // Initial success feedback, then close
                 setTimeout(() => {
                     onClose();
-                    setSuccess(false);
+                    setSuccessMessage('');
                 }, 1500);
             } else {
+                setSuccessMessage('¡Cuenta Creada!');
                 // Signup might need email confirmation depending on Supabase settings
                 // But user requested "create user if not exists", implying direct access or simple signup
             }
@@ -76,7 +78,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     const toggleMode = () => {
         setMode(mode === 'login' ? 'signup' : 'login');
         setError('');
-        setSuccess(false);
+        setSuccessMessage('');
     };
 
     return (
@@ -110,14 +112,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Content */}
+                {/* Content */}
                 <div className="p-6">
-                    {success && mode === 'signup' ? (
-                        <div className="text-center py-8">
+                    {successMessage && mode === 'signup' ? (
+                        <div className="text-center py-8" data-testid="signup-success">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full mb-4">
                                 <Check className="text-green-600 dark:text-green-400" size={32} />
                             </div>
                             <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                                ¡Cuenta Creada!
+                                {successMessage}
                             </h3>
                             <p className="text-slate-600 dark:text-slate-400">
                                 Revisa tu email para confirmar tu cuenta, o inicia sesión si ya está activa.
@@ -137,12 +140,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                         htmlFor="email"
                                         className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
                                     >
-                                        Correo electrónico
+                                        Email
                                     </label>
                                     <div className="relative">
                                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                         <input
                                             id="email"
+                                            data-testid="email-input"
                                             type="email"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
@@ -165,6 +169,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                         <input
                                             id="password"
+                                            data-testid="password-input"
                                             type="password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
@@ -178,21 +183,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 </div>
 
                                 {error && (
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" data-testid="auth-error">
                                         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                                     </div>
                                 )}
 
-                                {success && mode === 'login' && (
-                                    <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                {successMessage && mode === 'login' && (
+                                    <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg" data-testid="auth-success">
                                         <p className="text-sm text-green-600 dark:text-green-400">
-                                            {password ? '¡Inicio de sesión exitoso!' : '¡Enlace enviado! Revisa tu email.'}
+                                            {successMessage}
                                         </p>
                                     </div>
                                 )}
 
                                 <button
                                     type="submit"
+                                    data-testid="submit-button"
                                     disabled={loading || !email || !password}
                                     className="w-full py-3 px-4 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-brand-500/30"
                                 >
@@ -223,6 +229,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 {mode === 'login' && (
                                     <button
                                         type="button"
+                                        data-testid="magic-link-button"
                                         onClick={async () => {
                                             if (!email) {
                                                 setError('Ingresa tu email para recibir el enlace mágico');
@@ -235,7 +242,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                             const result = await signInWithMagicLink(email);
                                             setLoading(false);
                                             if (result.success) {
-                                                setSuccess(true);
+                                                setSuccessMessage('¡Enlace enviado! Revisa tu email.');
                                                 // Keep success message visible and don't close immediately so user sees instruction
                                             } else {
                                                 setError(result.error || 'Error enviando enlace mágico');
@@ -256,6 +263,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 </p>
                                 <button
                                     onClick={toggleMode}
+                                    data-testid="toggle-mode-button"
                                     disabled={loading}
                                     className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium transition-colors"
                                 >
