@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
 import { LicitacionData } from "../types";
 import { LicitacionSchema } from "../lib/schemas";
+import { logger } from "./logger";
 
 export class LicitacionAIError extends Error {
     constructor(message: string, public readonly originalError?: unknown) {
@@ -134,13 +135,19 @@ export class AIService {
             if (onThinking) onThinking("Generando respuesta estructurada...");
 
             console.log("🤖 [AI RAW RESPONSE PRE-PARSE]:", text.substring(0, 500)); // Debug log for empty response issues
+            logger.debug("Respuesta RAW de IA recibida", { preview: text.substring(0, 200) + "..." });
+
             const parsed = this.cleanAndParseJson(text);
             return parsed;
         } catch (error) {
             console.error("❌ CRITICAL AI ERROR:", error);
+            logger.error("Error crítico en análisis AI", { error: String(error) });
+
             // Log full error details if available
             if (error && typeof error === 'object' && 'response' in error) {
-                console.error("Full Response Error:", (error as { response: unknown }).response);
+                const responseError = (error as { response: unknown }).response;
+                console.error("Full Response Error:", responseError);
+                logger.error("Detalles de respuesta de error AI", responseError);
             }
 
             if (error instanceof LicitacionAIError) throw error;
@@ -213,6 +220,11 @@ export class AIService {
 
         } catch (e) {
             console.error("Failed to parse or validate JSON:", text, e);
+            logger.error("Fallo de validación/parseo JSON", {
+                error: e instanceof Error ? e.message : String(e),
+                rawTextPreview: text.substring(0, 100)
+            });
+
             throw new LicitacionAIError(
                 "La respuesta de la IA no es válida. " +
                 (e instanceof Error ? e.message : "Error de validación") +

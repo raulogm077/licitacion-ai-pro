@@ -22,6 +22,11 @@ const MetadataSchema = z.object({
 const RobustString = (defaultValue: string = "") =>
     z.preprocess(val => (val === null || val === undefined) ? undefined : String(val), z.string().default(defaultValue));
 
+// Helper: Handles null/undefined -> empty array
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RobustArray = <T extends z.ZodTypeAny>(schema: T) =>
+    z.preprocess(val => (val === null || val === undefined) ? [] : val, z.array(schema).default([]));
+
 export const LicitacionSchema = z.object({
     datosGenerales: z.preprocess(val => val ?? {}, z.object({
         titulo: RobustString('Sin título'),
@@ -34,24 +39,24 @@ export const LicitacionSchema = z.object({
             val => (val === null || val === undefined) ? 0 : Number(val),
             z.number().default(0)
         ),
-        cpv: z.array(z.string()).default([]),
+        cpv: RobustArray(z.string()),
         organoContratacion: RobustString('Desconocido'),
         fechaLimitePresentacion: z.string().optional(),
     }).default({})),
     criteriosAdjudicacion: z.preprocess(val => val ?? {}, z.object({
-        subjetivos: z.array(z.object({
+        subjetivos: RobustArray(z.object({
             descripcion: z.string(),
             ponderacion: z.number().default(0),
             detalles: z.string().optional(),
-        })).default([]),
-        objetivos: z.array(z.object({
+        })),
+        objetivos: RobustArray(z.object({
             descripcion: z.string(),
             ponderacion: z.number().default(0),
             formula: z.string().optional(),
-        })).default([]),
+        })),
     }).default({})),
     requisitosTecnicos: z.preprocess(val => val ?? {}, z.object({
-        funcionales: z.array(
+        funcionales: RobustArray(
             z.union([
                 z.string().transform(str => ({ requisito: str, obligatorio: true })),
                 z.object({
@@ -60,8 +65,8 @@ export const LicitacionSchema = z.object({
                     referenciaPagina: z.number().optional()
                 })
             ])
-        ).default([]),
-        normativa: z.array(
+        ),
+        normativa: RobustArray(
             z.union([
                 z.string().transform(str => ({ norma: str, descripcion: "" })),
                 z.object({
@@ -69,7 +74,7 @@ export const LicitacionSchema = z.object({
                     descripcion: z.string().optional()
                 })
             ])
-        ).default([]),
+        ),
     }).default({})),
     requisitosSolvencia: z.preprocess(val => val ?? {}, z.object({
         economica: z.preprocess(val => val ?? {}, z.object({
@@ -79,27 +84,27 @@ export const LicitacionSchema = z.object({
             ),
             descripcion: z.string().optional().nullable().transform(val => val ?? undefined)
         }).catch({ cifraNegocioAnualMinima: 0 })).default({}),
-        tecnica: z.array(z.object({
+        tecnica: RobustArray(z.object({
             descripcion: z.string(),
             proyectosSimilaresRequeridos: z.number().default(0),
             importeMinimoProyecto: z.number().optional()
-        })).default([])
+        }))
     }).default({})),
     restriccionesYRiesgos: z.preprocess(val => val ?? {}, z.object({
-        killCriteria: z.array(z.string()).default([]),
-        riesgos: z.array(z.object({
+        killCriteria: RobustArray(z.string()),
+        riesgos: RobustArray(z.object({
             descripcion: z.string(),
             impacto: z.enum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO']),
             probabilidad: z.enum(['BAJA', 'MEDIA', 'ALTA']).optional(),
             mitigacionSugerida: z.string().optional(),
-        })).default([]),
-        penalizaciones: z.array(z.object({
+        })),
+        penalizaciones: RobustArray(z.object({
             causa: z.string(),
             sancion: z.string(),
-        })).default([]),
+        })),
     }).default({})),
     modeloServicio: z.preprocess(val => val ?? {}, z.object({
-        sla: z.array(
+        sla: RobustArray(
             z.union([
                 z.string().transform(str => ({ metrica: str, objetivo: "N/A" })),
                 z.object({
@@ -107,8 +112,8 @@ export const LicitacionSchema = z.object({
                     objetivo: z.string()
                 })
             ])
-        ).default([]),
-        equipoMinimo: z.array(
+        ),
+        equipoMinimo: RobustArray(
             z.union([
                 z.string().transform(str => ({ rol: str, experienciaAnios: 0 })),
                 z.object({
@@ -117,7 +122,7 @@ export const LicitacionSchema = z.object({
                     titulacion: z.string().optional()
                 })
             ])
-        ).default([])
+        )
     }).default({})),
     metadata: MetadataSchema.optional(),
     notas: z.array(NoteSchema).optional(),
