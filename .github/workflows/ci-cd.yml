@@ -27,6 +27,9 @@ jobs:
       - name: Run Tests
         run: npm test -- --run
 
+      - name: Build Project
+        run: npm run build
+
   deploy-supabase:
     needs: test
     if: github.ref == 'refs/heads/main'
