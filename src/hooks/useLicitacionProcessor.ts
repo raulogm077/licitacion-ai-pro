@@ -1,10 +1,10 @@
 
 import { useState, useCallback } from 'react';
 import { AnalysisState, LicitacionData } from '../types';
-import { AIService } from '../lib/ai-service';
+import { AIService } from '../services/ai.service';
 import { validatePdfMagicBytes, generateFileHash, readFileAsBase64 } from '../lib/file-utils';
-import { dbService } from '../lib/db-service';
-import { syncService } from '../lib/sync-service';
+import { dbService } from '../services/db.service';
+
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
@@ -69,17 +69,13 @@ export function useLicitacionProcessor() {
 
             console.log("✅ Análisis de AI completado. Resultados obtenidos:", !!result);
 
-            // 5. Persistence (Local + Cloud) with Safety Timeout
-            // We await it to ensure it saves, but we race against a timeout so it never blocks UI forever
-            const savePromises = Promise.allSettled([
-                dbService.saveLicitacion(hash, file.name, result),
-                syncService.syncLicitacion(hash, file.name, result)
-            ]);
+            // 5. Persistence (Local) with Safety Timeout
+            const savePromise = dbService.saveLicitacion(hash, file.name, result);
 
             // Timeout after 3 seconds - UI takes precedence
             const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
 
-            await Promise.race([savePromises, timeoutPromise]);
+            await Promise.race([savePromise, timeoutPromise]);
             console.log("💾 Persistencia finalizada (o timeout).");
 
             setState(prev => ({

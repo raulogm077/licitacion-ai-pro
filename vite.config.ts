@@ -9,7 +9,6 @@ export default defineConfig({
             output: {
                 manualChunks: {
                     vendor: ['react', 'react-dom'],
-                    firebase: ['firebase/app', 'firebase/firestore', 'firebase/analytics'],
                     pdf: ['jspdf', 'jspdf-autotable'],
                     excel: ['xlsx'],
                     ui: ['lucide-react', 'clsx', 'tailwind-merge', 'react-tooltip']

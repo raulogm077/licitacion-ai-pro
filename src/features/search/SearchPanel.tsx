@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { SearchFilters } from '../../types';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Search, Filter, X, Calendar, Euro, Tag as TagIcon } from 'lucide-react';
-import { Badge } from '../../components/common/Badge';
-import { COMMON_TAGS } from '../common/TagManager';
+import { Badge } from '../../components/ui/Badge';
+import { COMMON_TAGS } from '../../constants/tags';
 
 interface SearchPanelProps {
     onSearch: (filters: SearchFilters) => void;
@@ -14,7 +14,7 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
     const [filters, setFilters] = useState<SearchFilters>({});
     const [showAdvanced, setShowAdvanced] = useState(false);
 
-    const handleFilterChange = (key: keyof SearchFilters, value: any) => {
+    const handleFilterChange = (key: keyof SearchFilters, value: string | number | string[] | undefined) => {
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 

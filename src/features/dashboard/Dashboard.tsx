@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LicitacionData } from '../../types';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { AlertTriangle, CheckCircle, Euro, Calendar, ShieldAlert, Download, Edit2, Save, X, Code } from 'lucide-react';
 import { RequirementsMatrix } from './RequirementsMatrix';
 import { exportToExcel, exportToJson } from '../../lib/export-utils';

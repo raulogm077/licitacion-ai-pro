@@ -1,7 +1,7 @@
 import React, { useState, lazy, Suspense } from 'react';
-import { Card } from '../components/common/Card';
+import { Card } from '../components/ui/Card';
 import { LicitacionData, SearchFilters } from '../types';
-import { dbService } from '../lib/db-service';
+import { dbService } from '../services/db.service';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,7 +19,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ handleHistorySelect }) =
         handleHistorySelect(data, hash);
         navigate('/');
     };
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<{ data: LicitacionData; hash: string }[]>([]);
 
     const handleSearch = async (filters: SearchFilters) => {
         try {

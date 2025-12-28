@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Tag as TagIcon, Plus } from 'lucide-react';
-import { Badge } from '../../components/common/Badge';
+import { Badge } from '../ui/Badge';
+
 
 interface TagManagerProps {
     tags: string[];
@@ -101,27 +102,5 @@ export function TagManager({ tags, onChange, suggestions = [] }: TagManagerProps
     );
 }
 
-// Common tag suggestions for licitaciones
-export const COMMON_TAGS = [
-    'Urgente',
-    'Tecnología',
-    'Servicios',
-    'Obra',
-    'Suministro',
-    'Consultoría',
-    'Mantenimiento',
-    'Cloud',
-    'Ciberseguridad',
-    'IA',
-    'Big Data',
-    'Desarrollo Software',
-    'Infraestructura',
-    'Formación',
-    'Soporte',
-    'Alta Prioridad',
-    'Multianual',
-    'Lote Único',
-    'Framework',
-    'Público',
-    'Privado',
-];
+// End of component
+

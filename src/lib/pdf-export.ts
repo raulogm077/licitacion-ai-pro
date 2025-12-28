@@ -44,7 +44,11 @@ export function exportToPDF(data: LicitacionData, filename: string) {
         headStyles: { fillColor: [59, 130, 246] },
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 10;
+    interface AutoTableDoc extends jsPDF {
+        lastAutoTable: { finalY: number };
+    }
+
+    yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
 
     // Metadata (if exists)
     if (data.metadata) {
@@ -77,7 +81,7 @@ export function exportToPDF(data: LicitacionData, filename: string) {
                 theme: 'grid',
                 headStyles: { fillColor: [59, 130, 246] },
             });
-            yPos = (doc as any).lastAutoTable.finalY + 10;
+            yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
         }
     }
 
@@ -116,7 +120,7 @@ export function exportToPDF(data: LicitacionData, filename: string) {
         }
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 10;
+    yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
 
     // Requirements
     if (data.requisitosTecnicos.funcionales.length > 0) {
@@ -139,7 +143,7 @@ export function exportToPDF(data: LicitacionData, filename: string) {
             headStyles: { fillColor: [59, 130, 246] },
         });
 
-        yPos = (doc as any).lastAutoTable.finalY + 10;
+        yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
     }
 
     // Risks

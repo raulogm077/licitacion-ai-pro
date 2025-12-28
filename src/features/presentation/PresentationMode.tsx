@@ -1,7 +1,7 @@
 
 import { LicitacionData } from '../../types';
 import { X, Maximize2 } from 'lucide-react';
-import { Badge } from '../../components/common/Badge';
+import { Badge } from '../../components/ui/Badge';
 
 interface PresentationModeProps {
     data: LicitacionData;

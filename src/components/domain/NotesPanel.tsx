@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Note } from '../../types';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
+import { Badge } from '../ui/Badge';
 import { MessageSquare, Plus, X, AlertCircle, HelpCircle, Info } from 'lucide-react';
 
 interface NotesPanelProps {

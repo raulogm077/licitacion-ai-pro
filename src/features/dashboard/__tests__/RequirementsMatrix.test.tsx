@@ -12,15 +12,15 @@ vi.mock('lucide-react', () => ({
 }));
 
 // Mock Child Components
-vi.mock('../../../components/common/Card', () => ({
-    Card: ({ children, className }: any) => <div className={className}>{children}</div>,
-    CardContent: ({ children, className }: any) => <div className={className}>{children}</div>,
-    CardHeader: ({ children, className }: any) => <div className={className}>{children}</div>,
-    CardTitle: ({ children, className }: any) => <div className={className}>{children}</div>,
+vi.mock('../../../components/ui/Card', () => ({
+    Card: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
+    CardContent: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
+    CardHeader: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
+    CardTitle: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
 }));
 
-vi.mock('../../../components/common/Badge', () => ({
-    Badge: ({ children }: any) => <span>{children}</span>,
+vi.mock('../../../components/ui/Badge', () => ({
+    Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
 const mockRequirements: LicitacionData['requisitosTecnicos']['funcionales'] = [

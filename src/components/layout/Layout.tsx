@@ -10,6 +10,8 @@ interface LayoutProps {
     reset: () => void;
     darkMode: boolean;
     setDarkMode: (dark: boolean) => void;
+    onLogout: () => void;
+    children?: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = (props) => {

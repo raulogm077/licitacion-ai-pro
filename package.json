@@ -12,9 +12,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.89.0",
     "clsx": "^2.1.0",
-    "firebase": "^10.8.0",
-    "idb": "^8.0.0",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.344.0",

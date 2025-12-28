@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AnalyticsData } from '../../types';
-import { AnalyticsService } from '../../lib/analytics-service';
-import { dbService } from '../../lib/db-service';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
+import { AnalyticsService } from '../../services/analytics.service';
+import { dbService } from '../../services/db.service';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import {
     TrendingUp, Euro, Clock, FileText, Users, Tag as TagIcon,
     AlertTriangle, CheckCircle, PieChart, BarChart3

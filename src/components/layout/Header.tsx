@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon } from 'lucide-react';
+import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogOut } from 'lucide-react';
 import { ProcessingStatus, LicitacionData } from '../../types';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ interface HeaderProps {
     reset: () => void;
     darkMode: boolean;
     setDarkMode: (dark: boolean) => void;
+    onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
     reset,
     darkMode,
     setDarkMode,
+    onLogout,
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -82,12 +84,22 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
                     )}
 
+                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+
                     <button
                         onClick={() => setDarkMode(!darkMode)}
                         title={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
                         className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
                     >
                         {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                    </button>
+
+                    <button
+                        onClick={onLogout}
+                        title="Cerrar sesión"
+                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors ml-1"
+                    >
+                        <LogOut size={20} />
                     </button>
                 </div>
             </div>

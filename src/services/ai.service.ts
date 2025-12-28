@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
 import { LicitacionData } from "../types";
-import { LicitacionSchema } from "./schemas";
+import { LicitacionSchema } from "../lib/schemas";
 
 export class LicitacionAIError extends Error {
     constructor(message: string, public readonly originalError?: unknown) {
@@ -103,7 +103,7 @@ export class AIService {
             console.error("❌ CRITICAL AI ERROR:", error);
             // Log full error details if available
             if (error && typeof error === 'object' && 'response' in error) {
-                console.error("Full Response Error:", (error as any).response);
+                console.error("Full Response Error:", (error as { response: unknown }).response);
             }
 
             if (error instanceof LicitacionAIError) throw error;

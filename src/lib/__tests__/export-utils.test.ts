@@ -1,6 +1,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { exportToJson } from '../export-utils';
+import { LicitacionData } from '../../types';
 
 describe('export-utils', () => {
     describe('exportToJson', () => {
@@ -20,8 +21,8 @@ describe('export-utils', () => {
             vi.spyOn(document.body, 'appendChild').mockImplementation(() => linkMock);
             vi.spyOn(document.body, 'removeChild').mockImplementation(() => linkMock);
 
-            const data: any = { test: 'data', number: 123 }; // Use any or a partial type that matches LicitacionData structure requirement strictly if needed, but for unit test generic mock is safer with 'as any' if function accepts generics
-            exportToJson(data as any, 'test-export');
+            const data = { test: 'data', number: 123 };
+            exportToJson(data as unknown as LicitacionData, 'test-export');
 
             expect(global.URL.createObjectURL).toHaveBeenCalled();
             expect(createElementSpy).toHaveBeenCalledWith('a');

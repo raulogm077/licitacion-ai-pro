@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { CheckSquare, Square, ListChecks } from 'lucide-react';
 import { LicitacionData } from '../../types';
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { dbService } from '../../lib/db-service';
+import { dbService } from '../../services/db.service';
 import { LicitacionData } from '../../types';
-import { Card, CardContent } from '../../components/common/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { FileText, Calendar, Euro, ChevronRight, Clock } from 'lucide-react';
 
 interface HistoryViewProps {
@@ -27,7 +27,7 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
         try {
             const history = await dbService.getAllLicitaciones();
             // Sort by timestamp desc
-            const sorted = history.sort((a, b) => b.timestamp - a.timestamp);
+            const sorted = history.sort((a: HistoryItem, b: HistoryItem) => b.timestamp - a.timestamp);
             setItems(sorted);
         } catch (error) {
             console.error("Failed to load history:", error);
@@ -47,7 +47,7 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
     };
 
     const formatCurrency = (amount: number, currency: string) => {
-        return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(amount);
+        return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency || 'EUR' }).format(amount);
     };
 
     if (loading) {

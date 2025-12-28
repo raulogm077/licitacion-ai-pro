@@ -1,8 +1,8 @@
 import React, { Suspense } from 'react';
 import { Upload, AlertCircle, Loader2 } from 'lucide-react';
-import { Card } from '../components/common/Card';
-import { TagManager } from '../features/common/TagManager';
-import { NotesPanel } from '../features/common/NotesPanel';
+import { Card } from '../components/ui/Card';
+import { TagManager } from '../components/domain/TagManager';
+import { NotesPanel } from '../components/domain/NotesPanel';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { AnalysisState, LicitacionData } from '../types';
 
