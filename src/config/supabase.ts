@@ -11,13 +11,13 @@ const getEnv = (key: string) => {
     return '';
 };
 
-const supabaseUrl = getEnv('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
+const supabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://qsohtrvnlimymwdxiokm.supabase.co';
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_OTSZkt3PhOBwZfQHLUpBcg_bOk4IdKz';
 
 let client: SupabaseClient;
 
-// Lazy initialization proxy to avoid crashing on import if env vars are missing
-// (e.g. during standalone tests or CI without full env)
+// Lazy initialization logic simplified since we have hardcoded fallbacks now
+// But keeping a check just in case strings are empty
 if (!supabaseUrl || !supabaseAnonKey) {
     // Return a Proxy that throws specific error only when utilized
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
