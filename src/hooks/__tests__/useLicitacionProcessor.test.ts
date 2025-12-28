@@ -19,6 +19,7 @@ describe('useLicitacionProcessor', () => {
         vi.mocked(fileUtils.validatePdfMagicBytes).mockResolvedValue(true);
         vi.mocked(fileUtils.generateFileHash).mockResolvedValue('hash123');
         vi.mocked(fileUtils.readFileAsBase64).mockResolvedValue('base64content');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(AIService.prototype.analyzePdfContent).mockResolvedValue({ some: 'data' } as any);
         vi.mocked(dbService.saveLicitacion).mockResolvedValue(undefined);
         vi.stubEnv('VITE_GEMINI_API_KEY', 'test-key');
