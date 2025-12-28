@@ -14,6 +14,8 @@ export class DBService {
             };
         }
 
+        console.log("📤 Supabase: Intentando guardar licitación...", { hash, fileName });
+
         const { error } = await supabase
             .from('licitaciones')
             .upsert({
@@ -23,7 +25,12 @@ export class DBService {
                 updated_at: now
             }, { onConflict: 'user_id, hash' });
 
-        if (error) throw error;
+        if (error) {
+            console.error("❌ Supabase Error:", error);
+            throw error;
+        }
+
+        console.log("✅ Supabase: Licitación guardada exitosamente");
     }
 
     async updateLicitacion(hash: string, data: LicitacionData) {

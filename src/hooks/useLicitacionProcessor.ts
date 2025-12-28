@@ -57,14 +57,19 @@ export function useLicitacionProcessor() {
 
             console.log("✅ Análisis de AI completado. Resultados obtenidos:", !!result);
 
-            // 5. Persistence (Local) with Safety Timeout
-            const savePromise = dbService.saveLicitacion(hash, file.name, result);
-
-            // Timeout after 3 seconds - UI takes precedence
-            const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
-
-            await Promise.race([savePromise, timeoutPromise]);
-            console.log("💾 Persistencia finalizada (o timeout).");
+            // 5. Persistence to Supabase
+            try {
+                console.log("💾 Guardando en Supabase...");
+                await dbService.saveLicitacion(hash, file.name, result);
+                console.log("✅ Datos guardados exitosamente en Supabase");
+            } catch (saveError) {
+                console.error("❌ Error guardando en Supabase:", saveError);
+                // Don't fail the entire flow, but log the error
+                setState(prev => ({
+                    ...prev,
+                    thinkingOutput: prev.thinkingOutput + "\n⚠️ Advertencia: No se pudo guardar en Supabase. Datos disponibles solo en esta sesión."
+                }));
+            }
 
             setState(prev => ({
                 ...prev,
@@ -72,7 +77,7 @@ export function useLicitacionProcessor() {
                 progress: 100,
                 data: result,
                 hash: hash,
-                thinkingOutput: prev.thinkingOutput + "\nAnálisis completado y guardado."
+                thinkingOutput: prev.thinkingOutput + "\n✅ Análisis completado."
             }));
 
         } catch (err) {
