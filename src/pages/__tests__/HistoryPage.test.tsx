@@ -1,31 +1,39 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HistoryPage } from '../HistoryPage';
 
 // Mock dependencies
+// Mock dependencies using hoisted variable to verify different states
+const { mockGetAll } = vi.hoisted(() => ({
+    mockGetAll: vi.fn()
+}));
+
 vi.mock('../../services/db.service', () => ({
     dbService: {
-        getAllLicitaciones: vi.fn().mockResolvedValue([
+        getAllLicitaciones: mockGetAll
+    }
+}));
+
+import { MemoryRouter } from 'react-router-dom';
+
+describe('HistoryPage', () => {
+    beforeEach(() => {
+        mockGetAll.mockReset();
+    });
+
+    it('renders history list', async () => {
+        mockGetAll.mockResolvedValue([
             {
                 hash: '1',
                 fileName: 'test.pdf',
                 timestamp: Date.now(),
                 data: { datosGenerales: { titulo: 'Test History', presupuesto: 100 } }
             }
-        ])
-    }
-}));
+        ]);
 
-import { MemoryRouter } from 'react-router-dom';
-
-// ... (existing mocks)
-
-describe('HistoryPage', () => {
-    it('renders history list', async () => {
-        const mockOnSelect = vi.fn();
         render(
             <MemoryRouter>
-                <HistoryPage onSelect={mockOnSelect} />
+                <HistoryPage onSelect={vi.fn()} />
             </MemoryRouter>
         );
 
@@ -34,8 +42,16 @@ describe('HistoryPage', () => {
     });
 
     it('shows empty state if no data', async () => {
-        // Override mock for this test safely? 
-        // Vitest hoisting makes this hard. We can use a spy if we imported the module.
-        // For now, simpler to rely on just basic render.
+        mockGetAll.mockResolvedValue([]);
+
+        render(
+            <MemoryRouter>
+                <HistoryPage onSelect={vi.fn()} />
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText(/No hay historial/i)).toBeInTheDocument();
+        expect(screen.getByText(/Los documentos analizados aparecerán aquí/i)).toBeInTheDocument();
     });
 });
+

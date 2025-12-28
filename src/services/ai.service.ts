@@ -130,9 +130,9 @@ export class AIService {
                 throw new LicitacionAIError("La IA devolvió una respuesta vacía.");
             }
 
-            if (onThinking) onThinking("Generando respuesta estructurada...");
 
-            if (onThinking) onThinking("Generando respuesta estructurada...");
+
+
 
             console.log("🤖 [AI RAW RESPONSE PRE-PARSE]:", text.substring(0, 500)); // Debug log for empty response issues
             logger.debug("Respuesta RAW de IA recibida", { preview: text.substring(0, 200) + "..." });

@@ -4,11 +4,21 @@ import { LicitacionData, SearchFilters } from '../types';
 export class DBService {
 
     async saveLicitacion(hash: string, fileName: string, data: LicitacionData) {
+        // 0. Explicit Auth Check
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            console.warn("⚠️ Intento de guardado sin sesión activa.");
+            throw new Error("Persistencia Bloqueada: No hay sesión activa.");
+        }
+
         const now = new Date().toISOString();
 
-        // Auto-populate metadata
-        if (!data.metadata) {
-            data.metadata = {
+        // 1. Defensive Copy
+        const dataCopy = JSON.parse(JSON.stringify(data));
+
+        // Auto-populate metadata on the copy
+        if (!dataCopy.metadata) {
+            dataCopy.metadata = {
                 tags: [],
                 // backend handles created_at/updated_at, but we keep structure consistent
             };
@@ -22,7 +32,7 @@ export class DBService {
                 .upsert({
                     hash,
                     file_name: fileName,
-                    data: data,
+                    data: dataCopy,
                     updated_at: now
                 }, { onConflict: 'user_id, hash' });
 
@@ -100,13 +110,25 @@ export class DBService {
     }
 
     async searchByTags(tags: string[]) {
-        // Supabase array contains logic for JSONB is complex, 
-        // simpler to fetch all and filter client side OR use Postgres operators if indexed.
-        // For now, client side filtering for robust implementation without custom functions
-        const all = await this.getAllLicitaciones();
-        return all.filter(item =>
-            item.data.metadata?.tags?.some(tag => tags.includes(tag))
-        );
+        // Use Postgres JSONB operators for efficient server-side filtering
+        // data->metadata->tags @> ["tag1", "tag2"]
+        // This finds rows where tags array contains ALL the search tags (AND logic).
+        // If we want OR logic, we'd need a different approach, but search is usually restrictive.
+
+        // Supabase 'contains' operator works for JSONB arrays
+        const { data, error } = await supabase
+            .from('licitaciones')
+            .select('*')
+            .contains('data->metadata->tags', tags);
+
+        if (error) throw error;
+
+        return data.map(item => ({
+            hash: item.hash,
+            fileName: item.file_name,
+            timestamp: new Date(item.updated_at).getTime(),
+            data: item.data as LicitacionData
+        }));
     }
 
     async searchByPresupuestoRange(min: number, max: number) {
@@ -129,7 +151,11 @@ export class DBService {
     async advancedSearch(filters: SearchFilters) {
         let query = supabase.from('licitaciones').select('*');
 
+        // Server-side filtering using JSONB arrows
         if (filters.presupuestoMin !== undefined) {
+            // Note: This relies on Supabase/Postgres casting. 
+            // If explicit casting is needed, might need a view or RPC, but let's try direct JSON arrow filter.
+            // Postgres 42501 or casting error might occur if 'presupuesto' is not consistent number, but schema validates it.
             query = query.filter('data->datosGenerales->>presupuesto', 'gte', filters.presupuestoMin);
         }
 
@@ -137,9 +163,9 @@ export class DBService {
             query = query.filter('data->datosGenerales->>presupuesto', 'lte', filters.presupuestoMax);
         }
 
-        // Client side filtering for complex JSONB matches (like nested tags/cliente/fechas) 
-        // to avoid complex SQL or function RPCs for this iteration.
-        // We get candidates from DB (maybe reduced by budget) then filter.
+        if (filters.estado) {
+            query = query.filter('data->metadata->>estado', 'eq', filters.estado);
+        }
 
         const { data, error } = await query;
         if (error) throw error;
@@ -150,6 +176,9 @@ export class DBService {
             timestamp: new Date(item.updated_at).getTime(),
             data: item.data as LicitacionData
         }));
+
+        // Client side filtering for remaining complex JSONB matchers (Arrays, LIKE)
+        // Ideally we'd use .contains for tags, but let's keep it safe client-side for now as agreed in Plan.
 
         if (filters.tags && filters.tags.length > 0) {
             results = results.filter(item =>
@@ -169,10 +198,6 @@ export class DBService {
 
         if (filters.fechaHasta) {
             results = results.filter(item => item.timestamp <= filters.fechaHasta!);
-        }
-
-        if (filters.estado) {
-            results = results.filter(item => item.data.metadata?.estado === filters.estado);
         }
 
         return results;

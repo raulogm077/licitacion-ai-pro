@@ -3,20 +3,33 @@ import { dbService } from '../db.service';
 import { supabase } from '../../config/supabase';
 import { LicitacionData } from '../../types';
 
-// Mock Supabase client
+// Mock Supabase
+// Mock Supabase
+const { selectSpy, filterSpy, upsertSpy, authSpy, containsSpy } = vi.hoisted(() => ({
+    selectSpy: vi.fn(),
+    filterSpy: vi.fn(),
+    upsertSpy: vi.fn(),
+    containsSpy: vi.fn(),
+    authSpy: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: 'test-user' } } }, error: null })
+    }
+}));
+
 vi.mock('../../config/supabase', () => ({
     supabase: {
         from: vi.fn(() => ({
-            select: vi.fn().mockReturnThis(),
+            select: selectSpy,
             insert: vi.fn().mockReturnThis(),
-            upsert: vi.fn().mockReturnThis(),
+            upsert: upsertSpy,
             update: vi.fn().mockReturnThis(),
             delete: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockReturnThis(),
             order: vi.fn().mockReturnThis(),
-            filter: vi.fn().mockReturnThis(),
+            filter: filterSpy,
+            contains: containsSpy
         })),
+        auth: authSpy
     },
 }));
 
@@ -51,11 +64,20 @@ describe('DBService', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        // Reset global spies for each test
+        selectSpy.mockClear();
+        filterSpy.mockClear();
+        upsertSpy.mockClear();
+        authSpy.getSession.mockClear();
+        // Ensure default mockReturnThis behavior for chained methods
+        selectSpy.mockReturnThis();
+        filterSpy.mockReturnThis();
+        upsertSpy.mockReturnThis();
     });
 
     describe('saveLicitacion', () => {
         it('should call upsert with correct params', async () => {
-            const upsertSpy = vi.fn().mockResolvedValue({ error: null });
+            upsertSpy.mockResolvedValue({ error: null });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({
                 upsert: upsertSpy
             });
@@ -74,7 +96,7 @@ describe('DBService', () => {
         });
 
         it('should throw error if upsert fails', async () => {
-            const upsertSpy = vi.fn().mockResolvedValue({ error: new Error('DB Error') });
+            upsertSpy.mockResolvedValue({ error: new Error('DB Error') });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({
                 upsert: upsertSpy
             });
@@ -83,15 +105,30 @@ describe('DBService', () => {
                 .rejects.toThrow('DB Error');
         });
 
+        it('should throw error if no session active', async () => {
+            authSpy.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+
+            await expect(dbService.saveLicitacion('hash123', 'test.pdf', mockData))
+                .rejects.toThrow('Persistencia Bloqueada: No hay sesión activa');
+        });
+
         it('should auto-populate metadata if missing', async () => {
             const dataWithoutMeta = { ...mockData, metadata: undefined } as unknown as LicitacionData;
-            const upsertSpy = vi.fn().mockResolvedValue({ error: null });
+            upsertSpy.mockResolvedValue({ error: null });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ upsert: upsertSpy });
 
             await dbService.saveLicitacion('hash123', 'test.pdf', dataWithoutMeta);
 
-            expect(dataWithoutMeta.metadata!).toBeDefined();
-            expect(dataWithoutMeta.metadata?.tags).toEqual([]);
+            expect(upsertSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            tags: []
+                        })
+                    })
+                }),
+                expect.anything()
+            );
         });
     });
 
@@ -109,7 +146,7 @@ describe('DBService', () => {
 
             const singleSpy = vi.fn().mockResolvedValue(mockResponse);
             const eqSpy = vi.fn().mockReturnValue({ single: singleSpy });
-            const selectSpy = vi.fn().mockReturnValue({ eq: eqSpy });
+            selectSpy.mockReturnValue({ eq: eqSpy });
 
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
@@ -125,7 +162,7 @@ describe('DBService', () => {
             const mockResponse = { data: null, error: { message: 'Not found' } };
             const singleSpy = vi.fn().mockResolvedValue(mockResponse);
             const eqSpy = vi.fn().mockReturnValue({ single: singleSpy });
-            const selectSpy = vi.fn().mockReturnValue({ eq: eqSpy });
+            selectSpy.mockReturnValue({ eq: eqSpy });
 
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
@@ -157,35 +194,26 @@ describe('DBService', () => {
     });
 
     describe('searchByTags', () => {
-        // Since searchByTags fetches all and filters client side, we verify that behavior
-        it('should filter results by tag client-side', async () => {
+        it('should call contains with correct tags', async () => {
             const mockList = [
-                { hash: '1', file_name: 'f1', updated_at: '2023-01-01', data: { metadata: { tags: ['urgent', 'tech'] } } },
-                { hash: '2', file_name: 'f2', updated_at: '2023-01-01', data: { metadata: { tags: ['tech'] } } },
-                { hash: '3', file_name: 'f3', updated_at: '2023-01-01', data: { metadata: { tags: ['other'] } } }
+                { hash: '1', file_name: 'f1', updated_at: '2023-01-01', data: { metadata: { tags: ['urgent', 'tech'] } } }
             ];
 
-            const orderSpy = vi.fn().mockResolvedValue({ data: mockList, error: null });
-            const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
+            containsSpy.mockResolvedValue({ data: mockList, error: null });
+            selectSpy.mockReturnValue({ contains: containsSpy });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const results = await dbService.searchByTags(['urgent']);
 
+            expect(supabase.from).toHaveBeenCalledWith('licitaciones');
+            expect(containsSpy).toHaveBeenCalledWith('data->metadata->tags', ['urgent']);
             expect(results).toHaveLength(1);
             expect(results[0].hash).toBe('1');
         });
 
         it('should return empty array if no matches', async () => {
-            const mockList = [
-                { hash: '1', data: { metadata: { tags: ['tech'] } } }
-            ] as unknown as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
-            // Just cast to proper type if possible, or unknown.
-            // But verify: explicit-any is strictly 'as any'.
-            // Let's use `as unknown as { hash: string; data: Partial<LicitacionData> }[]`
-            // actually the linter likely flag `as any` specifically. `as unknown` is allowed.
-            // Let's rely on type inference or use `as unknown`.
-            const orderSpy = vi.fn().mockResolvedValue({ data: mockList, error: null });
-            const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
+            containsSpy.mockResolvedValue({ data: [], error: null });
+            selectSpy.mockReturnValue({ contains: containsSpy });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const results = await dbService.searchByTags(['nonexistent']);
@@ -202,20 +230,20 @@ describe('DBService', () => {
                 data: mockData
             }];
             const orderSpy = vi.fn().mockResolvedValue({ data: mockList, error: null });
-            const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
+            selectSpy.mockReturnValue({ order: orderSpy });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const results = await dbService.getAllLicitaciones();
             expect(results).toHaveLength(1);
             expect(results[0].hash).toBe('1');
             expect(results[0].data).toEqual(mockData);
-            expect(expect(selectSpy).toHaveBeenCalledWith('*'));
+            expect(selectSpy).toHaveBeenCalledWith('*');
             expect(orderSpy).toHaveBeenCalledWith('updated_at', { ascending: false });
         });
 
         it('should throw error on fetch failure', async () => {
             const orderSpy = vi.fn().mockResolvedValue({ data: null, error: new Error('Get failed') });
-            const selectSpy = vi.fn().mockReturnValue({ order: orderSpy });
+            selectSpy.mockReturnValue({ order: orderSpy });
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             await expect(dbService.getAllLicitaciones()).rejects.toThrow('Get failed');
@@ -224,25 +252,55 @@ describe('DBService', () => {
 
     describe('advancedSearch', () => {
         it('should apply budget filters via Supabase query builder', async () => {
-            // Mock chaining
-            const filterSpy = vi.fn().mockReturnThis(); // for filter calls
+            const mockLicitaciones = [
+                { hash: '1', file_name: 'doc1', updated_at: '2023-01-01', data: { metadata: { cliente: 'Ayuntamiento Madrid', estado: 'ABIERTA' }, datosGenerales: { presupuesto: 200 } } },
+                { hash: '2', file_name: 'doc2', updated_at: '2023-01-01', data: { metadata: { cliente: 'Gobierno Vasco', estado: 'CERRADA' }, datosGenerales: { presupuesto: 600 } } }
+            ];
 
-            // Since advancedSearch uses query.filter().filter()... we need the mock to support chain
-            // Simulating the query builder promise:
-            const queryBuilderMock = {
-                select: vi.fn().mockReturnThis(),
+            filterSpy.mockReturnThis();
+
+            // Mock that the DB returns only the filtered item (since we moved filtering to DB)
+            const filteredData = mockLicitaciones.filter(l => l.data.datosGenerales.presupuesto >= 100 && l.data.datosGenerales.presupuesto <= 500);
+
+            selectSpy.mockReturnValue({
                 filter: filterSpy,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                then: (onfulfilled: any) => Promise.resolve({ data: [], error: null }).then(onfulfilled)
-            };
+                then: (onfulfilled: any) => Promise.resolve({ data: filteredData, error: null }).then(onfulfilled)
+            });
 
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             await dbService.advancedSearch({ presupuestoMin: 100, presupuestoMax: 500 });
 
             expect(filterSpy).toHaveBeenCalledTimes(2);
             expect(filterSpy).toHaveBeenCalledWith('data->datosGenerales->>presupuesto', 'gte', 100);
             expect(filterSpy).toHaveBeenCalledWith('data->datosGenerales->>presupuesto', 'lte', 500);
+        });
+
+        it('should filter by status via Supabase query', async () => {
+            const mockLicitaciones = [
+                { hash: '1', file_name: 'doc1', updated_at: '2023-01-01', data: { metadata: { cliente: 'Ayuntamiento Madrid', estado: 'CERRADA' }, datosGenerales: { presupuesto: 200 } } },
+                { hash: '2', file_name: 'doc2', updated_at: '2023-01-01', data: { metadata: { cliente: 'Gobierno Vasco', estado: 'ABIERTA' }, datosGenerales: { presupuesto: 600 } } }
+            ];
+
+            const filteredData = mockLicitaciones.filter(l => l.data.metadata.estado === 'ABIERTA');
+
+            filterSpy.mockReturnThis();
+
+            selectSpy.mockReturnValue({
+                filter: filterSpy,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                then: (onfulfilled: any) => Promise.resolve({ data: filteredData, error: null }).then(onfulfilled)
+            });
+
+            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const results = await dbService.advancedSearch({ estado: 'ABIERTA' } as any);
+
+            expect(results).toHaveLength(1);
+            expect(results[0].hash).toBe('2');
+            expect(filterSpy).toHaveBeenCalledWith('data->metadata->>estado', 'eq', 'ABIERTA');
         });
 
         it('should filter by client in memory', async () => {
@@ -263,23 +321,7 @@ describe('DBService', () => {
             expect(results[0].hash).toBe('1');
         });
 
-        it('should filter by status in memory', async () => {
-            const mockDBData = [
-                { hash: '1', file_name: 'doc1', updated_at: '2023-01-01', data: { metadata: { estado: 'DESCARTADA' } } },
-                { hash: '2', file_name: 'doc2', updated_at: '2023-01-01', data: { metadata: { estado: 'PENDIENTE' } } }
-            ];
 
-            const queryBuilderMock = {
-                select: vi.fn().mockReturnThis(),
-                filter: vi.fn().mockReturnThis(),
-                then: (resolve: (value: unknown) => void) => resolve({ data: mockDBData, error: null })
-            };
-            (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue(queryBuilderMock);
-
-            const results = await dbService.advancedSearch({ estado: 'PENDIENTE' });
-            expect(results).toHaveLength(1);
-            expect(results[0].hash).toBe('2');
-        });
 
         it('should filter by date range in memory', async () => {
             const mockDBData = [
