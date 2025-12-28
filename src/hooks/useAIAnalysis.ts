@@ -29,10 +29,8 @@ export function useAIAnalysis() {
         });
 
         try {
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-            if (!apiKey) throw new Error("API Key no configurada.");
-
-            const aiService = new AIService(apiKey);
+            // apiKey no longer needed on client side (Backend Proxy)
+            const aiService = new AIService();
 
             const result = await aiService.analyzePdfContent(base64, (thought) => {
                 setAiState(prev => ({
@@ -63,9 +61,20 @@ export function useAIAnalysis() {
         setAiState({ status: 'IDLE', progress: 0, thinkingOutput: '', result: null, error: null });
     }, []);
 
+    const loadResult = useCallback((result: LicitacionData) => {
+        setAiState({
+            status: 'COMPLETED',
+            progress: 100,
+            thinkingOutput: 'Cargado desde historial/memoria.',
+            result,
+            error: null
+        });
+    }, []);
+
     return {
         aiState,
         analyze,
-        resetAI
+        resetAI,
+        loadResult
     };
 }

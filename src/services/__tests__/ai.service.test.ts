@@ -1,50 +1,26 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AIService } from '../ai.service';
+import { supabase } from '../../config/supabase';
 
-// Mock dependencies
-const mockGetGenerativeModel = vi.fn();
-const mockGenerateContent = vi.fn();
-
-vi.mock('@google/generative-ai', () => {
-    class GoogleGenerativeAI {
-        constructor() {
-            return {
-                getGenerativeModel: mockGetGenerativeModel
-            };
+// Mock Supabase client
+vi.mock('../../config/supabase', () => ({
+    supabase: {
+        functions: {
+            invoke: vi.fn()
         }
     }
-
-    return {
-        GoogleGenerativeAI,
-        GenerativeModel: vi.fn(),
-        HarmCategory: {
-            HARM_CATEGORY_HARASSMENT: 'HARM_CATEGORY_HARASSMENT',
-            HARM_CATEGORY_HATE_SPEECH: 'HARM_CATEGORY_HATE_SPEECH',
-            HARM_CATEGORY_SEXUALLY_EXPLICIT: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            HARM_CATEGORY_DANGEROUS_CONTENT: 'HARM_CATEGORY_DANGEROUS_CONTENT'
-        },
-        HarmBlockThreshold: {
-            BLOCK_NONE: 'BLOCK_NONE'
-        }
-    };
-});
+}));
 
 describe('AIService', () => {
     let service: AIService;
+    const mockInvoke = supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
-
-        // Setup default mock behavior
-        mockGetGenerativeModel.mockReturnValue({
-            generateContent: mockGenerateContent
-        });
-
         // Skip delays
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         global.setTimeout = vi.fn((cb) => { cb(); return {} as any; }) as unknown as typeof setTimeout;
-
-        service = new AIService('fake-key');
+        service = new AIService();
     });
 
     const validData = {
@@ -54,168 +30,80 @@ describe('AIService', () => {
             moneda: "EUR",
             plazoEjecucionMeses: 12,
             cpv: ["12345678"],
-            organoContratacion: "Ayuntamiento",
-            fechaLimitePresentacion: "2023-12-31"
+            organoContratacion: "Ayuntamiento"
         },
         criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
         requisitosTecnicos: { funcionales: [], normativa: [] },
-        requisitosSolvencia: {
-            economica: { cifraNegocioAnualMinima: 1000 },
-            tecnica: []
-        },
+        requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 1000 }, tecnica: [] },
         restriccionesYRiesgos: { killCriteria: [], riesgos: [], penalizaciones: [] },
         modeloServicio: { sla: [], equipoMinimo: [] }
     };
 
-    it('should parse valid JSON response correctly', async () => {
+    it('should parse valid JSON response correctly from Edge Function', async () => {
         const jsonString = JSON.stringify(validData);
 
-        mockGenerateContent.mockResolvedValue({
-            response: {
-                text: () => jsonString,
-                candidates: [{ content: { parts: [{ text: jsonString }] } }]
-            }
+        mockInvoke.mockResolvedValue({
+            data: { text: jsonString },
+            error: null
         });
 
         const result = await service.analyzePdfContent("base64data");
 
         expect(result).toBeDefined();
         expect(result.datosGenerales.titulo).toBe("Test Licitación");
-        expect(mockGenerateContent).toHaveBeenCalled();
+        expect(mockInvoke).toHaveBeenCalled();
+        // Should be called 6 times (once per section)
+        expect(mockInvoke).toHaveBeenCalledTimes(6);
     });
 
-    it('should switch to fallback model on 429 error', async () => {
-        const jsonString = JSON.stringify(validData);
-
-        // Exhaust inner retry loop (3 attempts) with 429 errors
-        const error429 = new Error('[429] Quota exceeded');
-        mockGenerateContent
-            .mockRejectedValueOnce(error429)
-            .mockRejectedValueOnce(error429)
-            .mockRejectedValueOnce(error429)
-            // Fourth call (after switch) succeeds
-            .mockResolvedValueOnce({
-                response: {
-                    text: () => jsonString,
-                    candidates: [{ content: { parts: [{ text: jsonString }] } }]
-                }
-            });
+    it('should handle Edge Function errors gracefully', async () => {
+        // Simulate error from function
+        mockInvoke.mockResolvedValue({
+            data: null,
+            error: { message: "Internal Server Error" }
+        });
 
         const result = await service.analyzePdfContent("base64data");
-
-        expect(result).toBeDefined();
-        // Verify we tried two models
-        expect(mockGetGenerativeModel).toHaveBeenCalledTimes(2);
-        // First init (Constructor) -> Primary
-        expect(mockGetGenerativeModel).toHaveBeenNthCalledWith(1, expect.objectContaining({
-            model: expect.stringMatching(/gemini-2\.0/)
-        }));
-        // Second init (Switch) -> Fallback
-        expect(mockGetGenerativeModel).toHaveBeenNthCalledWith(2, expect.objectContaining({
-            model: 'gemini-1.5-flash'
-        }));
+        // Should return defaults/empty for failed sections
+        expect(result.datosGenerales.titulo).toBe("No detectado");
     });
 
-    it('should clean Markdown code blocks', async () => {
+    it('should clean Markdown code blocks from backend response', async () => {
         const jsonString = JSON.stringify(validData);
         const markdownResponse = "```json\n" + jsonString + "\n```";
 
-        mockGenerateContent.mockResolvedValue({
-            response: {
-                text: () => markdownResponse,
-                candidates: [{ content: { parts: [{ text: markdownResponse }] } }]
-            }
+        mockInvoke.mockResolvedValue({
+            data: { text: markdownResponse },
+            error: null
         });
 
         const result = await service.analyzePdfContent("base64data");
         expect(result.datosGenerales.titulo).toBe("Test Licitación");
     });
 
-    it('should handle API errors gracefully', async () => {
-        mockGenerateContent.mockResolvedValue({
-            response: {
-                candidates: [],
-                promptFeedback: { blockReason: "SAFETY" }
-            }
+    it('should fill default values if Zod validation finds missing fields', async () => {
+        // Return valid JSON but with missing fields (Scheme is robust so it fills them)
+        mockInvoke.mockResolvedValue({
+            data: { text: JSON.stringify({ datosGenerales: { titulo: "Solo Titulo" } }) },
+            error: null
         });
 
         const result = await service.analyzePdfContent("base64data");
-        expect(result.datosGenerales.titulo).toBe('Sin título (Error Análisis)');
+        // Should preserve the found title and fill defaults for others
+        expect(result.datosGenerales.titulo).toBe("Solo Titulo");
+        expect(result.datosGenerales.presupuesto).toBe(0);
     });
 
-    it('should throw on validation failure (Zod)', async () => {
-        // Return invalid structure (missing fields)
-
-
-        mockGenerateContent.mockResolvedValue({
-            response: {
-                text: () => "INVALID JSON { unclosed tag",
-                candidates: [{ content: { parts: [{ text: "INVALID JSON { unclosed tag" }] } }]
-            }
+    it('should retry on empty response (if logic allows) or fail gracefully', async () => {
+        // AIService implementation currently doesn't retry on the client side for backend errors, just logs and continues.
+        // So we expect it to return defaults.
+        mockInvoke.mockResolvedValue({
+            data: null,
+            error: null // Simulating empty body without explicit error
         });
 
         const result = await service.analyzePdfContent("base64data");
-        expect(result.datosGenerales.titulo).toBe('Sin título (Error Análisis)');
-    });
-
-    it.skip('should normalize invalid casing (Smart Parse)', async () => {
-        // Deep copy and capitalize keys to simulate bad AI response
-        // Deep copy and capitalize keys to simulate bad AI response
-        const capitalize = (obj: unknown): unknown => {
-            if (Array.isArray(obj)) return obj.map(capitalize);
-            if (typeof obj === 'object' && obj !== null) {
-                return Object.keys(obj).reduce((acc, key) => {
-                    const upper = key.charAt(0).toUpperCase() + key.slice(1);
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    acc[upper] = capitalize((obj as any)[key]);
-                    return acc;
-                }, {} as Record<string, unknown>);
-            }
-            return obj;
-        };
-        const wrongCaseData = capitalize(validData);
-
-        const jsonString = JSON.stringify(wrongCaseData);
-        mockGenerateContent.mockResolvedValue({
-            response: {
-                text: () => jsonString,
-                candidates: [{ content: { parts: [{ text: jsonString }] } }]
-            }
-        });
-
-        const result = await service.analyzePdfContent("base64data");
-        expect(result.datosGenerales.titulo).toBe("Test Licitación");
-    });
-
-    it.skip('should unwrap root object (Smart Parse)', async () => {
-        const wrappedData = {
-            licitacion: validData
-        };
-        const jsonString = JSON.stringify(wrappedData);
-        mockGenerateContent.mockResolvedValue({
-            response: {
-                text: () => jsonString,
-                candidates: [{ content: { parts: [{ text: jsonString }] } }]
-            }
-        });
-
-        const result = await service.analyzePdfContent("base64data");
-        expect(result.datosGenerales.titulo).toBe("Test Licitación");
-    });
-
-    it('should throw error if result is empty/meaningless (Quality Gate)', async () => {
-        const emptyResult = {
-            datosGenerales: {} // Will default to "Sin título", 0 budget
-        };
-        const jsonString = JSON.stringify(emptyResult);
-        mockGenerateContent.mockResolvedValue({
-            response: {
-                text: () => jsonString,
-                candidates: [{ content: { parts: [{ text: jsonString }] } }]
-            }
-        });
-
-        const result = await service.analyzePdfContent("base64data");
-        expect(result.datosGenerales.titulo).toBe("Sin título (Error Análisis)");
+        // console.log("Empty Response Result:", JSON.stringify(result, null, 2));
+        expect(result.datosGenerales.titulo).toBe("No detectado");
     });
 });
