@@ -60,8 +60,8 @@ export class AIService {
                     // Merge new data. Note: simple spread works because keys are distinct top-level objects
                     partialResult = { ...partialResult, ...sectionData };
 
-                    // Small delay to be respectful to API rate limits if necessary
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    // Increased delay to 4000ms to avoid Google Gemini Rate Limits (15 RPM)
+                    await new Promise(resolve => setTimeout(resolve, 4000));
                 } catch (sectionError) {
                     console.error(`Error analizando sección ${section.key}:`, sectionError);
                     logger.error(`Error en sección ${section.key}`, { error: String(sectionError) });
@@ -102,8 +102,10 @@ export class AIService {
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 if (attempt > 1) {
-                    // retry log handled by logger internal
-                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Backoff
+                    // Smart backoff for Rate Limits (429) - 2s, 8s, 18s
+                    const delay = 2000 * Math.pow(attempt, 2);
+                    logger.warn(`Reintentando sección ${sectionKey} (Intento ${attempt}/3) en ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
                 }
 
                 const result = await this.model.generateContent([
