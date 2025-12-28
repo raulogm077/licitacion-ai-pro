@@ -67,8 +67,42 @@ export class AIService {
             - sla: Acuerdos de nivel de servicio.
             - equipoMinimo: Perfiles requeridos.
 
-        FORMATO FINAL ESPERADO:
-        Debes devolver un JSON válido que cumpla estrictamente con esta estructura.
+        FORMATO FINAL ESPERADO (EJEMPLO):
+        {
+          "datosGenerales": {
+            "titulo": "Suministro de Licencias...",
+            "presupuesto": 50000,
+            "moneda": "EUR",
+            "plazoEjecucionMeses": 12,
+            "cpv": ["48000000"],
+            "organoContratacion": "Ayuntamiento de..."
+          },
+          "criteriosAdjudicacion": {
+            "objetivos": [],
+            "subjetivos": []
+          },
+          "requisitosTecnicos": {
+            "funcionales": [{ "requisito": "Debe ser cloud", "obligatorio": true }],
+            "normativa": []
+          },
+          "requisitosSolvencia": {
+            "economica": { "cifraNegocioAnualMinima": 0 },
+            "tecnica": []
+          },
+          "restriccionesYRiesgos": {
+            "killCriteria": [],
+            "riesgos": [],
+            "penalizaciones": []
+          },
+          "modeloServicio": {
+            "sla": [],
+            "equipoMinimo": []
+          }
+        }
+
+        IMPORTANTE:
+        - Respeta ESTRICTAMENTE las claves en minúsculas camelCase (ej: datosGenerales, no DatosGenerales).
+        - Devuelve UNICAMENTE el JSON válido.
       `;
 
             const result = await this.model.generateContent([
@@ -97,6 +131,9 @@ export class AIService {
 
             if (onThinking) onThinking("Generando respuesta estructurada...");
 
+            if (onThinking) onThinking("Generando respuesta estructurada...");
+
+            console.log("🤖 [AI RAW RESPONSE PRE-PARSE]:", text.substring(0, 500)); // Debug log for empty response issues
             const parsed = this.cleanAndParseJson(text);
             return parsed;
         } catch (error) {
