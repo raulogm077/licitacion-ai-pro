@@ -17,10 +17,20 @@ export class AuthService {
      * User will receive an email with a login link
      */
     async signInWithMagicLink(email: string): Promise<AuthResponse> {
+        let redirectTo = import.meta.env.VITE_SITE_URL || window.location.origin;
+
+        // Safety check: specific fix for Vercel deployments where env var might be copied from local
+        if (import.meta.env.PROD && redirectTo.includes('localhost')) {
+            console.warn('VITE_SITE_URL points to localhost in production. Falling back to window.location.origin.');
+            redirectTo = window.location.origin;
+        }
+
+        console.log('Magic Link Redirect URL:', redirectTo);
+
         const { data, error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                emailRedirectTo: import.meta.env.VITE_SITE_URL || window.location.origin,
+                emailRedirectTo: redirectTo,
             }
         });
 
