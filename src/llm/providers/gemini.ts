@@ -11,7 +11,6 @@ import { LicitacionContent } from '../../types';
 import { LicitacionContentSchema } from '../../lib/schemas';
 import {
     LLMProvider,
-    LLMProviderConfig,
     LLMAnalysisOptions,
     LLMSectionResult,
     LLMProviderMetadata
@@ -22,7 +21,7 @@ export class GeminiProvider implements LLMProvider {
     readonly name = 'gemini';
     private readonly MAX_RETRIES = 3;
 
-    constructor(private config?: LLMProviderConfig) { }
+    constructor() { }
 
     isAvailable(): boolean {
         // Gemini is available if we have Supabase configured (Edge Function handles it)
@@ -90,7 +89,7 @@ export class GeminiProvider implements LLMProvider {
                 const parsedData = this.parseAndValidateResponse(data.text, sectionKey);
 
                 return {
-                    sectionKey,
+                    sectionKey: sectionKey as K,
                     data: parsedData as LicitacionContent[K],
                     rawResponse: data.text
                 };

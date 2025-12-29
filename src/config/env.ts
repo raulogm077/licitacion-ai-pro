@@ -3,7 +3,8 @@ import { z } from 'zod';
 const envSchema = z.object({
     VITE_SUPABASE_URL: z.string().url("VITE_SUPABASE_URL must be a valid URL"),
     VITE_SUPABASE_ANON_KEY: z.string().min(1, "VITE_SUPABASE_ANON_KEY is required"),
-    // Include other keys if found, e.g. VITE_GEMINI_API_KEY? (Check usage)
+    VITE_SENTRY_DSN: z.string().optional(),
+    VITE_OPENAI_API_KEY: z.string().optional(),
 });
 
 const getEnvSource = () => {
@@ -28,7 +29,9 @@ export const envConfig = {
 // Fallback to empty string to prevent crashes, but isConfigValid will be false
 export const env = parsed.success ? parsed.data : {
     VITE_SUPABASE_URL: "",
-    VITE_SUPABASE_ANON_KEY: ""
+    VITE_SUPABASE_ANON_KEY: "",
+    VITE_SENTRY_DSN: undefined,
+    VITE_OPENAI_API_KEY: undefined,
 };
 
 if (!parsed.success) {

@@ -11,9 +11,11 @@ export enum LLMErrorCode {
     API_QUOTA_EXCEEDED = 'API_QUOTA_EXCEEDED',
     API_RATE_LIMIT = 'API_RATE_LIMIT',
     API_AUTHENTICATION = 'API_AUTHENTICATION',
+    API_AUTH_ERROR = 'API_AUTH_ERROR', // Alias for authentication
     API_NOT_FOUND = 'API_NOT_FOUND',
     API_SERVER_ERROR = 'API_SERVER_ERROR',
     API_TIMEOUT = 'API_TIMEOUT',
+    API_NETWORK_ERROR = 'API_NETWORK_ERROR', // Generic network errors
 
     // Processing errors
     PROCESSING_INVALID_RESPONSE = 'PROCESSING_INVALID_RESPONSE',
@@ -22,6 +24,7 @@ export enum LLMErrorCode {
 
     // User errors
     USER_CANCELLED = 'USER_CANCELLED',
+    CANCELLED = 'CANCELLED', // Alias for user cancellation
 
     // Unknown
     UNKNOWN = 'UNKNOWN'

@@ -1,14 +1,14 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { env, configStatus } from './env';
+import { env, envConfig } from './env';
 
 // Lazy initialization: Only create client if config is valid
 let _supabaseClient: SupabaseClient | null = null;
 
 const getSupabaseClient = (): SupabaseClient => {
-    if (!configStatus.isValid) {
+    if (!envConfig.isValid) {
+        const errors = envConfig.errors ? JSON.stringify(envConfig.errors) : 'Unknown';
         throw new Error(
-            '❌ Supabase client not available: Missing or invalid environment configuration. ' +
-            `Missing keys: ${configStatus.missingKeys.join(', ')}`
+            `❌ Supabase client not available: Missing or invalid environment configuration. Errors: ${errors}`
         );
     }
 
