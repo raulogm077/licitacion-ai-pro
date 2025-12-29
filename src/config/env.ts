@@ -19,16 +19,18 @@ const processEnv = getEnvSource();
 
 const parsed = envSchema.safeParse(processEnv);
 
+export const envConfig = {
+    isValid: parsed.success,
+    errors: parsed.success ? null : parsed.error.format(),
+    values: parsed.success ? parsed.data : {} as Partial<z.infer<typeof envSchema>>
+};
+
+// Fallback to empty string to prevent crashes, but isConfigValid will be false
+export const env = parsed.success ? parsed.data : {
+    VITE_SUPABASE_URL: "",
+    VITE_SUPABASE_ANON_KEY: ""
+};
+
 if (!parsed.success) {
-    const errors = parsed.error.format();
-    const missing = Object.entries(errors)
-        .filter(([, value]) => value && '_errors' in value)
-        .map(([key]) => key)
-        .join(', ');
-
-    throw new Error(
-        `❌ Invalid Environment Configuration: Missing or invalid keys: ${missing}. Please check your .env file.`
-    );
+    console.error("❌ Invalid Environment Configuration:", parsed.error.format());
 }
-
-export const env = parsed.data;

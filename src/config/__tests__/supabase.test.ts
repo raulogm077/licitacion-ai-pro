@@ -5,6 +5,11 @@ vi.mock('../env', () => ({
     env: {
         VITE_SUPABASE_URL: 'https://example.supabase.co',
         VITE_SUPABASE_ANON_KEY: 'valid-key'
+    },
+    configStatus: {
+        isValid: true,
+        errors: undefined,
+        missingKeys: []
     }
 }));
 

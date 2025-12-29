@@ -5,25 +5,31 @@ describe('Environment Configuration', () => {
         vi.resetModules();
     });
 
-    it('should throw error if required vars are missing', async () => {
+    it('should mark config as invalid if required vars are missing', async () => {
         vi.stubEnv('VITE_SUPABASE_URL', '');
         vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
 
-        await expect(import('../env')).rejects.toThrow(/Invalid Environment Configuration/);
+        const { configStatus } = await import('../env');
+        expect(configStatus.isValid).toBe(false);
+        expect(configStatus.missingKeys).toContain('VITE_SUPABASE_URL');
+        expect(configStatus.missingKeys).toContain('VITE_SUPABASE_ANON_KEY');
     });
 
-    it('should validate URL format', async () => {
+    it('should mark config as invalid if URL format is wrong', async () => {
         vi.stubEnv('VITE_SUPABASE_URL', 'not-a-url');
         vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'key');
 
-        await expect(import('../env')).rejects.toThrow(/Invalid Environment Configuration/);
+        const { configStatus } = await import('../env');
+        expect(configStatus.isValid).toBe(false);
+        expect(configStatus.missingKeys).toContain('VITE_SUPABASE_URL');
     });
 
     it('should export env object if vars are valid', async () => {
         vi.stubEnv('VITE_SUPABASE_URL', 'https://example.com');
         vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'key');
 
-        const { env } = await import('../env');
+        const { env, configStatus } = await import('../env');
+        expect(configStatus.isValid).toBe(true);
         expect(env.VITE_SUPABASE_URL).toBe('https://example.com');
     });
 });

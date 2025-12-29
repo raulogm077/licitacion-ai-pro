@@ -5,6 +5,7 @@ import { useLicitacionStore } from './licitacion.store';
 import { generateBufferHash, validateBufferMagicBytes, bufferToBase64 } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
+import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB } from '../config/constants';
 
 interface AnalysisStore {
     status: ProcessingStatus;
@@ -46,6 +47,14 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
         });
 
         try {
+            // Validate file size before processing (Fail-Fast)
+            if (file.size > MAX_PDF_SIZE_BYTES) {
+                throw new Error(
+                    `El archivo supera el tamaño máximo permitido de ${MAX_PDF_SIZE_MB}MB. ` +
+                    `Tamaño actual: ${(file.size / 1024 / 1024).toFixed(2)}MB`
+                );
+            }
+
             const arrayBuffer = await file.arrayBuffer();
 
             if (!validateBufferMagicBytes(arrayBuffer)) {

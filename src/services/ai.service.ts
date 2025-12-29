@@ -1,10 +1,9 @@
 
-import { supabase } from "../config/supabase";
-import { env } from "../config/env";
 import { LicitacionContent } from "../types";
-import { LicitacionContentSchema } from "../lib/schemas";
 import { logger } from "./logger";
 import { promptRegistry } from "../config/prompt-registry";
+import { llmFactory } from "../llm/llmFactory";
+import { LLMProviderError, LLMErrorCode } from "../llm/errors";
 
 export class LicitacionAIError extends Error {
     constructor(message: string, public readonly originalError?: unknown) {
@@ -61,7 +60,7 @@ export class AIService {
                 }
 
                 try {
-                    const sectionData = await this.analyzeSection(base64Content, section.key);
+                    const sectionData = await this.analyzeSection(base64Content, section.key, signal);
                     partialResult = { ...partialResult, ...sectionData };
                 } catch (error) {
                     logger.error(`Error persistente en sección ${section.key}`, { error: String(error) });
@@ -110,91 +109,50 @@ export class AIService {
         }
     }
 
-    private async analyzeSection<K extends keyof LicitacionContent>(base64Content: string, sectionKey: K): Promise<Partial<LicitacionContent>> {
+    private async analyzeSection<K extends keyof LicitacionContent>(
+        base64Content: string,
+        sectionKey: K,
+        signal?: AbortSignal
+    ): Promise<Partial<LicitacionContent>> {
         const plugin = promptRegistry.getActivePlugin();
         const systemPrompt = plugin.getSystemPrompt();
         const sectionPrompt = plugin.getSectionPrompt(sectionKey);
-        const fullPrompt = `${sectionPrompt}\n\nResponde únicamente con un objeto JSON válido que siga la estructura para la clave "${sectionKey}".`;
 
-        const MAX_RETRIES = 3;
-        let lastError: unknown;
+        // Get the default LLM provider (Gemini)
+        const provider = llmFactory.getDefaultProvider();
 
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                const { data, error } = await supabase.functions.invoke('analyze-licitacion', {
-                    body: {
-                        base64Content,
-                        prompt: fullPrompt,
-                        systemPrompt,
-                        sectionKey
-                    },
-                    headers: {
-                        // FORCE usage of Anon Key to bypass potential session token issues (401)
-                        Authorization: `Bearer ${env.VITE_SUPABASE_ANON_KEY}`
-                    }
-                });
+        try {
+            const result = await provider.analyzeSection({
+                base64Content,
+                systemPrompt,
+                sectionPrompt,
+                sectionKey,
+                signal,
+                maxRetries: 3
+            });
 
-                if (error) {
-                    // Log the full raw error for debugging
-                    console.error("Raw Edge Function Error:", error);
+            // Return wrapped result (provider returns just the data for that section)
+            return { [sectionKey]: result.data } as Partial<LicitacionContent>;
 
-                    // Try to parse error body if it's a stringified JSON
-                    let errorMessage = error.message || String(error);
-                    let isQuota = false;
-                    let hint = "";
-
-                    try {
-
-
-                        // If the backend sent a JSON error, error might BE that object directly
-                        const parsedError = typeof error === 'string' ? JSON.parse(error) : error;
-
-                        // If backend sent { error: "..." }, use it
-                        if (parsedError && typeof parsedError === 'object') {
-                            if ('error' in parsedError && typeof parsedError.error === 'string') {
-                                errorMessage = parsedError.error;
-                            }
-                            if ('isQuota' in parsedError) isQuota = !!parsedError.isQuota;
-                            if ('hint' in parsedError && typeof parsedError.hint === 'string') hint = parsedError.hint;
-                        }
-                    } catch (parseEx) {
-                        console.warn("Error parsing error response:", parseEx);
-                    }
-
-                    if (isQuota || errorMessage.includes("429") || errorMessage.includes("Quota")) {
-                        throw new Error(`CUOTA_IA_EXCEDIDA: ${hint || errorMessage}`);
-                    }
-
-                    throw new Error(`Edge Function Error: ${errorMessage}`);
+        } catch (error) {
+            if (error instanceof LLMProviderError) {
+                // Convert LLMProviderError to LicitacionAIError for backward compatibility
+                if (error.code === LLMErrorCode.USER_CANCELLED) {
+                    throw new LicitacionAIError('Análisis cancelado por el usuario', error);
                 }
 
-                if (!data || !data.text) {
-                    throw new Error("Respuesta de Edge Function vacía.");
+                if (error.code === LLMErrorCode.API_QUOTA_EXCEEDED) {
+                    throw new LicitacionAIError(`CUOTA_IA_EXCEDIDA: ${error.hint || error.message}`, error);
                 }
 
-                return this.cleanAndParseJson(data.text, sectionKey);
-
-            } catch (e: unknown) {
-                lastError = e;
-                const isLastAttempt = attempt === MAX_RETRIES;
-                const err = e instanceof Error ? e : new Error(String(e));
-                const isQuotaError = err.message?.includes("CUOTA_IA_EXCEDIDA");
-
-                if (!isLastAttempt) {
-                    // Double delay if it's a quota error
-                    const baseDelay = isQuotaError ? 20000 : 5000;
-                    const delay = Math.pow(2, attempt - 1) * baseDelay;
-
-                    console.warn(`Intento ${attempt}/${MAX_RETRIES} fallido para ${sectionKey}. Reintentando en ${delay}ms...`, err.message);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                } else {
-                    console.error(`Todos los intentos fallaron para ${sectionKey}:`, e);
-                }
+                throw new LicitacionAIError(
+                    `Fallo persistente backend sección ${sectionKey}: ${error.message}`,
+                    error
+                );
             }
-        }
 
-        const finalError = lastError instanceof Error ? lastError : new Error(String(lastError));
-        throw new LicitacionAIError(`Fallo persistente backend sección ${sectionKey} tras ${MAX_RETRIES} intentos: ${finalError.message}`, finalError);
+            throw error;
+        }
     }
 
     private cleanAndParseJson<K extends keyof LicitacionContent>(text: string, sectionKey: K): Partial<LicitacionContent> {

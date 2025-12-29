@@ -1,7 +1,29 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { env } from './env';
+import { env, configStatus } from './env';
 
-// env is already validated at startup by import.
-// If we reach here, VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are valid strings.
+// Lazy initialization: Only create client if config is valid
+let _supabaseClient: SupabaseClient | null = null;
 
-export const supabase: SupabaseClient = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY);
+const getSupabaseClient = (): SupabaseClient => {
+    if (!configStatus.isValid) {
+        throw new Error(
+            '❌ Supabase client not available: Missing or invalid environment configuration. ' +
+            `Missing keys: ${configStatus.missingKeys.join(', ')}`
+        );
+    }
+
+    if (!_supabaseClient) {
+        _supabaseClient = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY);
+    }
+
+    return _supabaseClient;
+};
+
+// Export a Proxy that throws helpful errors on usage if config invalid
+export const supabase = new Proxy({} as SupabaseClient, {
+    get(_target, prop) {
+        const client = getSupabaseClient();
+        const value = client[prop as keyof SupabaseClient];
+        return typeof value === 'function' ? value.bind(client) : value;
+    }
+});
