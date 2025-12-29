@@ -87,7 +87,7 @@ jobs:
       - name: Deploy Migrations & Edge Functions
         run: |
           supabase db push --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
-          supabase functions deploy --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+          supabase functions deploy --password "${{ secrets.SUPABASE_DB_PASSWORD }}" --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}

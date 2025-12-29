@@ -1,6 +1,6 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "npm:@google/generative-ai@0.1.3";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "npm:@google/generative-ai@^0.21.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
     }
 
     // 5. Dual Model Logic
-    const PRIMARY_MODEL = "gemini-2.0-flash-exp";
-    const FALLBACK_MODEL = "gemini-1.5-flash";
+    const PRIMARY_MODEL = "gemini-2.0-flash";
+    const FALLBACK_MODEL = "gemini-2.0-flash-lite";
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
