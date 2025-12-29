@@ -43,6 +43,9 @@ jobs:
     name: ⚡ Quality Checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
@@ -59,9 +62,6 @@ jobs:
 
       - name: Run Unit Tests
         run: npm test -- --run
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Build Project
         run: npm run build
