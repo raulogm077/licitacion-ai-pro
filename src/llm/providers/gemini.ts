@@ -169,8 +169,8 @@ export class GeminiProvider implements LLMProvider {
     ): LicitacionContent[K] {
         // Clean up markdown code blocks
         let cleanedText = text;
-        cleanedText = cleanedText.replace(/```json\\n([\\s\\S]*?)\\n```/s, '$1');
-        cleanedText = cleanedText.replace(/```([\\s\\S]*?)```/s, '$1');
+        cleanedText = cleanedText.replace(/```json\n([\s\S]*?)\n```/s, '$1');
+        cleanedText = cleanedText.replace(/```([\s\S]*?)```/s, '$1');
 
         let parsedJson: unknown;
 
