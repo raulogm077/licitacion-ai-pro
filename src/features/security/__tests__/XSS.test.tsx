@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Dashboard } from '../../dashboard/Dashboard';
 import { LicitacionData } from '../../../types';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock child components to isolate rendering
 vi.mock('../../dashboard/RequirementsMatrix', () => ({ RequirementsMatrix: () => <div>Matrix</div> }));
@@ -29,11 +30,17 @@ describe('Security (XSS Prevention)', () => {
             modeloServicio: { sla: [], equipoMinimo: [] }
         } as unknown as LicitacionData;
 
-        render(<Dashboard data={maliciousData} onUpdate={vi.fn()} />);
+
+
+        render(
+            <MemoryRouter>
+                <Dashboard data={maliciousData} onUpdate={vi.fn()} />
+            </MemoryRouter>
+        );
 
         // 1. Verify script tag is NOT executed (hard in JSDOM), but check it is present as TEXT
         // screen.getByText finds by *textContent*, meaning it was rendered visible to user
-        expect(screen.getByText('<script>alert("XSS")</script>')).toBeInTheDocument();
+        expect(screen.getAllByText(/<script>alert\("XSS"\)<\/script>/i).length).toBeGreaterThan(0);
 
 
 

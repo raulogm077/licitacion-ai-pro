@@ -16,12 +16,5 @@ export default defineConfig({
             }
         },
         chunkSizeWarningLimit: 1000
-    },
-    test: {
-        globals: true,
-        environment: 'jsdom',
-        setupFiles: './src/test/setup.ts',
-        include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-        exclude: ['node_modules', 'dist', 'e2e', '.idea', '.git', '.cache']
     }
-} as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+});

@@ -11,6 +11,16 @@ export class DBService {
         this.client = client;
     }
 
+    private mapToDbLicitacion(item: Record<string, unknown>): DbLicitacion {
+        return {
+            hash: item.hash as string,
+            fileName: item.file_name as string,
+            timestamp: new Date(item.updated_at as string).getTime(),
+            data: item.data as LicitacionData,
+            metadata: (item.data as LicitacionData).metadata || { tags: [] }
+        };
+    }
+
     async saveLicitacion(hash: string, fileName: string, content: LicitacionContent): Promise<Result<void>> {
         try {
             // 0. Explicit Auth Check
@@ -148,13 +158,7 @@ export class DBService {
 
             if (error) return err(new Error(error.message));
 
-            return ok({
-                hash: data.hash as string,
-                fileName: data.file_name as string,
-                timestamp: new Date(data.updated_at as string).getTime(),
-                data: data.data as LicitacionData,
-                metadata: (data.data as LicitacionData).metadata || { tags: [] }
-            });
+            return ok(this.mapToDbLicitacion(data));
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
         }
@@ -169,13 +173,7 @@ export class DBService {
 
             if (error) return err(new Error(error.message));
 
-            const results: DbLicitacion[] = (data || []).map(item => ({
-                hash: item.hash as string,
-                fileName: item.file_name as string,
-                timestamp: new Date(item.updated_at as string).getTime(),
-                data: item.data as LicitacionData,
-                metadata: (item.data as LicitacionData).metadata || { tags: [] }
-            }));
+            const results: DbLicitacion[] = (data || []).map(item => this.mapToDbLicitacion(item));
 
             return ok(results);
         } catch (error) {
@@ -239,13 +237,7 @@ export class DBService {
             const { data, error } = await query;
             if (error) return err(new Error(error.message));
 
-            let results: DbLicitacion[] = (data || []).map(item => ({
-                hash: item.hash as string,
-                fileName: item.file_name as string,
-                timestamp: new Date(item.updated_at as string).getTime(),
-                data: item.data as LicitacionData,
-                metadata: (item.data as LicitacionData).metadata || { tags: [] }
-            }));
+            let results: DbLicitacion[] = (data || []).map(item => this.mapToDbLicitacion(item));
 
             if (filters.tags && filters.tags.length > 0) {
                 results = results.filter(item =>

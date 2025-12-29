@@ -105,7 +105,7 @@ export class AIService {
         const fullPrompt = `${sectionPrompt}\n\nResponde únicamente con un objeto JSON válido que siga la estructura para la clave "${sectionKey}".`;
 
         const MAX_RETRIES = 3;
-        let lastError: unknown; // Fix: was any
+        let lastError: unknown;
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -146,7 +146,7 @@ export class AIService {
 
                 return this.cleanAndParseJson(data.text, sectionKey);
 
-            } catch (e: unknown) { // Fix: was any
+            } catch (e: unknown) {
                 lastError = e;
                 const isLastAttempt = attempt === MAX_RETRIES;
                 const err = e instanceof Error ? e : new Error(String(e));
@@ -223,7 +223,7 @@ export class AIService {
             // Best fix: If it's an array, try to find "tipo" and bucket them locally.
 
             if (sectionKey === 'restriccionesYRiesgos') {
-                const items = parsedJson as Record<string, unknown>[]; // Fix: was any[]
+                const items = parsedJson as Record<string, unknown>[];
                 const newObj: { killCriteria: unknown[], riesgos: unknown[], penalizaciones: unknown[] } = { killCriteria: [], riesgos: [], penalizaciones: [] }; // Fix: strict type
                 items.forEach(item => {
                     const t = (String(item.tipo || "")).toLowerCase();
@@ -234,7 +234,7 @@ export class AIService {
                 parsedJson = newObj;
             } else if (sectionKey === 'criteriosAdjudicacion') {
                 // Expects { subjetivos: [], objetivos: [] }
-                const items = parsedJson as Record<string, unknown>[]; // Fix: was any[]
+                const items = parsedJson as Record<string, unknown>[];
                 const newObj: { subjetivos: unknown[], objetivos: unknown[] } = { subjetivos: [], objetivos: [] };
                 items.forEach(item => {
                     const t = (String(item.tipo || "")).toLowerCase();
@@ -244,7 +244,7 @@ export class AIService {
                 parsedJson = newObj;
             } else if (sectionKey === 'requisitosSolvencia') {
                 // Expects { economica: {}, tecnica: [] }
-                const items = parsedJson as Record<string, unknown>[]; // Fix: was any[]
+                const items = parsedJson as Record<string, unknown>[];
                 const newObj: { economica: { cifraNegocioAnualMinima: number }, tecnica: unknown[] } = { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] };
                 items.forEach(item => {
                     const t = (String(item.tipo || "")).toLowerCase();

@@ -2,53 +2,31 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Dashboard } from '../Dashboard';
+import { MemoryRouter } from 'react-router-dom';
 import { LicitacionData } from '../../../types';
 
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
-    AlertTriangle: () => <span data-testid="icon-alert" />,
-    CheckCircle: () => <span data-testid="icon-check" />,
-    Euro: () => <span data-testid="icon-euro" />,
-    Calendar: () => <span data-testid="icon-calendar" />,
-    ShieldAlert: () => <span data-testid="icon-shield" />,
-    Download: () => <span data-testid="icon-download" />,
-    Edit2: () => <span data-testid="icon-edit" />,
-    Save: () => <span data-testid="icon-save" />,
-    X: () => <span data-testid="icon-x" />,
-    Code: () => <span data-testid="icon-code" />,
-    Copy: () => <span data-testid="icon-copy" />,
-    Check: () => <span data-testid="icon-check" />,
-    AlertCircle: () => <span data-testid="icon-alert-circle" />,
-    TrendingUp: () => <span data-testid="icon-trending-up" />,
-    Target: () => <span data-testid="icon-target" />,
-    Shield: () => <span data-testid="icon-shield-base" />,
-    Zap: () => <span data-testid="icon-zap" />,
+    ChevronLeft: () => <span data-testid="icon-chevron-left" />,
+    MoreHorizontal: () => <span data-testid="icon-more" />,
     FileText: () => <span data-testid="icon-file-text" />,
-    Users: () => <span data-testid="icon-users" />,
-    Tag: () => <span data-testid="icon-tag" />,
-    PieChart: () => <span data-testid="icon-pie-chart" />,
-    BarChart3: () => <span data-testid="icon-bar-chart" />,
-}));
-
-// Mock Child Components
-vi.mock('../../../components/ui/Card', () => ({
-    Card: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
-    CardContent: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
-    CardHeader: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
-    CardTitle: ({ children, className }: { children: React.ReactNode, className?: string }) => <div className={className}>{children}</div>,
-}));
-
-vi.mock('../../../components/ui/Badge', () => ({
-    Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-}));
-
-vi.mock('../RequirementsMatrix', () => ({
-    RequirementsMatrix: () => <div data-testid="requirements-matrix">Matrix</div>,
+    File: () => <span data-testid="icon-file" />,
+    Download: () => <span data-testid="icon-download" />,
+    AlertCircle: () => <span data-testid="icon-alert-circle" />,
+    AlertTriangle: () => <span data-testid="icon-alert-triangle" />,
+    Check: () => <span data-testid="icon-check" />,
+    XCircle: () => <span data-testid="icon-x-circle" />,
+    Copy: () => <span data-testid="icon-copy" />,
+    FileJson: () => <span data-testid="icon-file-json" />,
+    X: () => <span data-testid="icon-x" />,
+    Pin: () => <span data-testid="icon-pin" />,
+    PinOff: () => <span data-testid="icon-pin-off" />,
+    FileSearch: () => <span data-testid="icon-file-search" />
 }));
 
 const mockData: LicitacionData = {
     datosGenerales: {
-        titulo: 'Licitación de Prueba',
+        titulo: 'Licitación de Prueba Smoke',
         organoContratacion: 'Ministerio de Prueba',
         presupuesto: 100000,
         moneda: 'EUR',
@@ -80,15 +58,14 @@ const mockData: LicitacionData = {
 };
 
 describe('Dashboard Smoke Test', () => {
-    it('renders without crashing and displays title', () => {
+    it('renders without crashing', () => {
         render(
-            <Dashboard
-                data={mockData}
-                onUpdate={() => { }}
-            />
+            <MemoryRouter>
+                <Dashboard data={mockData} onUpdate={() => { }} />
+            </MemoryRouter>
         );
 
-        expect(screen.getByText('Licitación de Prueba')).toBeInTheDocument();
-        expect(screen.getByText(/100\.000.*€/)).toBeInTheDocument(); // Format currency check
+        expect(screen.getAllByText('Licitación de Prueba Smoke')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('Ministerio de Prueba')[0]).toBeInTheDocument();
     });
 });

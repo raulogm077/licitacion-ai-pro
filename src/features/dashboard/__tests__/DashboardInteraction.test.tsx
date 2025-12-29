@@ -1,55 +1,36 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Dashboard } from '../Dashboard';
 import { MemoryRouter } from 'react-router-dom';
 import { LicitacionData } from '../../../types';
 
-// Mock child components to focus on Dashboard logic/layout
-vi.mock('../RequirementsMatrix', () => ({
-    RequirementsMatrix: () => <div data-testid="req-matrix">Matrix</div>
-}));
-vi.mock('../RisksPanel', () => ({
-    RisksPanel: () => <div data-testid="risks-panel">Risks</div>
-}));
-vi.mock('../ServiceModel', () => ({
-    ServiceModel: () => <div data-testid="service-model">Service</div>
-}));
+// Mock Lucide icons
 vi.mock('lucide-react', () => ({
-    AlertTriangle: () => <span data-testid="icon-alert" />,
-    CheckCircle: () => <span data-testid="icon-check" />,
-    Euro: () => <span data-testid="icon-euro" />,
-    Calendar: () => <span data-testid="icon-calendar" />,
-    ShieldAlert: () => <span data-testid="icon-shield" />,
-    Download: () => <span data-testid="icon-download" />,
-    Edit2: () => <span data-testid="icon-edit" />,
-    Save: () => <span data-testid="icon-save" />,
-    X: () => <span data-testid="icon-x" />,
-    Code: () => <span data-testid="icon-code" />,
-    Copy: () => <span data-testid="icon-copy" />,
-    Check: () => <span data-testid="icon-check" />,
-    AlertCircle: () => <span data-testid="icon-alert-circle" />,
-    TrendUp: () => <span data-testid="icon-trend-up" />,
-    Clock: () => <span data-testid="icon-clock" />,
+    ChevronLeft: () => <span data-testid="icon-chevron-left" />,
+    MoreHorizontal: () => <span data-testid="icon-more" />,
     FileText: () => <span data-testid="icon-file-text" />,
-    Users: () => <span data-testid="icon-users" />,
-    Tag: () => <span data-testid="icon-tag" />,
-    PieChart: () => <span data-testid="icon-pie-chart" />,
-    BarChart3: () => <span data-testid="icon-bar-chart" />,
-    Target: () => <span data-testid="icon-target" />,
-    Shield: () => <span data-testid="icon-shield-base" />,
-    Zap: () => <span data-testid="icon-zap" />,
+    File: () => <span data-testid="icon-file" />,
+    Download: () => <span data-testid="icon-download" />,
+    AlertCircle: () => <span data-testid="icon-alert-circle" />,
+    AlertTriangle: () => <span data-testid="icon-alert-triangle" />,
+    Check: () => <span data-testid="icon-check" />,
+    XCircle: () => <span data-testid="icon-x-circle" />,
+    Copy: () => <span data-testid="icon-copy" />,
+    FileJson: () => <span data-testid="icon-file-json" />,
+    X: () => <span data-testid="icon-x" />,
+    Pin: () => <span data-testid="icon-pin" />,
+    PinOff: () => <span data-testid="icon-pin-off" />,
+    FileSearch: () => <span data-testid="icon-file-search" />
 }));
 
-describe('Dashboard', () => {
+describe('Dashboard Interaction', () => {
     const mockData: LicitacionData = {
-        metadata: {
-            tags: ['test']
-        },
+        metadata: { tags: ['test'] },
         datosGenerales: {
-            titulo: 'Test Licitacion',
-            presupuesto: 10000,
-            organoContratacion: 'Org',
-            plazoEjecucionMeses: 12,
+            titulo: 'Test Licitacion Interaction',
+            presupuesto: 50000,
+            organoContratacion: 'Test Org',
+            plazoEjecucionMeses: 6,
             cpv: ['12345678'],
             moneda: 'EUR'
         },
@@ -60,47 +41,39 @@ describe('Dashboard', () => {
         modeloServicio: { sla: [], equipoMinimo: [] }
     };
 
-    it('renders dashboard with data', () => {
+    it('renders header and subnav', () => {
         render(
             <MemoryRouter>
-                <Dashboard data={mockData} onUpdate={vi.fn()} />
+                <Dashboard data={mockData} />
             </MemoryRouter>
         );
 
-        expect(screen.getByText('Test Licitacion')).toBeInTheDocument();
-        expect(screen.getByText('10.000,00 €')).toBeInTheDocument(); // Formatted
-        expect(screen.getByTestId('req-matrix')).toBeInTheDocument();
+        expect(screen.getAllByText('Test Licitacion Interaction')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('Test Org')[0]).toBeInTheDocument();
+        // Subnav items
+        expect(screen.getByText('Resumen')).toBeInTheDocument();
+        expect(screen.getAllByText('Datos Generales')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('Criterios')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('Solvencia')[0]).toBeInTheDocument();
     });
 
-    it('navigates tabs correctly', () => {
+    // Note: Drawer interaction is hard to test if purely controlled by state without aria-expanded or similar, 
+    // but we can check if the button to toggle it exists or if we can find the drawer content when "pinned" or "open".
+    // Since we mocked Lucide icons, we can look for "icon-more" which opens the actions menu.
+
+    it('opens actions menu in header', async () => {
         render(
             <MemoryRouter>
-                <Dashboard data={mockData} onUpdate={vi.fn()} />
+                <Dashboard data={mockData} />
             </MemoryRouter>
         );
 
-        // Assume tabs exist (General, Requisitos, etc)
-        // If tabs are not rendered in simplified mock or logic, we might need to adjust.
-        // Dashboard code shows tabs? No, it shows Cards. 
-        // Wait, Dashboard.tsx does NOT have tabs. It renders "RequirementsMatrix" and "Risks" in cards or grid.
-        // My previous test assumed tabs. I need to fix this expectation. Use scroll or existence check.
+        const menuTrigger = screen.getByTestId('actions-menu-trigger'); // ensure we added this testid in previous edits
+        fireEvent.click(menuTrigger);
 
-        expect(screen.getByTestId('req-matrix')).toBeInTheDocument();
-        expect(screen.getByText('Riesgos Detectados')).toBeInTheDocument();
-    });
-
-    it('shows safe mode interaction', () => {
-        // Dashboard.tsx implementation shows Edit/Save buttons.
-        render(
-            <MemoryRouter>
-                <Dashboard data={mockData} onUpdate={vi.fn()} />
-            </MemoryRouter>
-        );
-
-        const editBtn = screen.getByText('Editar');
-        fireEvent.click(editBtn);
-
-        expect(screen.getByText('Guardar Cambios')).toBeInTheDocument();
-        expect(screen.getByText('Cancelar')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText('Exportar Excel')).toBeInTheDocument();
+            expect(screen.getByText('Exportar JSON')).toBeInTheDocument();
+        });
     });
 });

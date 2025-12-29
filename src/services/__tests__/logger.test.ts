@@ -17,15 +17,15 @@ describe('Logger Service', () => {
         expect(logs[1].message).toBe('Info message');
     });
 
-    it('should cap logs at 100', () => {
-        for (let i = 0; i < 110; i++) {
+    it('should cap logs at 200', () => {
+        for (let i = 0; i < 210; i++) {
             logger.info(`Log ${i}`);
         }
 
         const logs = useLoggerStore.getState().logs;
-        expect(logs).toHaveLength(100);
-        // Newest should be Log 109
-        expect(logs[0].message).toBe('Log 109');
+        expect(logs).toHaveLength(200);
+        // Newest should be Log 209
+        expect(logs[0].message).toBe('Log 209');
     });
 
     it('should clear logs', () => {

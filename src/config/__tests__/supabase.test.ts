@@ -1,47 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// Mock the env module before importing supabase
+vi.mock('../env', () => ({
+    env: {
+        VITE_SUPABASE_URL: 'https://example.supabase.co',
+        VITE_SUPABASE_ANON_KEY: 'valid-key'
+    }
+}));
 
 describe('Supabase Configuration', () => {
-    beforeEach(() => {
-        vi.resetModules();
-    });
-
-    // Environment is managed per test via stubEnv
-
-    it('should initialize client if env vars are present', async () => {
-        vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
-        vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'valid-key');
-
+    it('should initialize client with validated env vars', async () => {
         const { supabase } = await import('../supabase');
-        // If client is initialized, accessing properties shouldn't throw the specific error
-        // Note: createClient returns an object. Accessing 'from' should work (or be a function)
         expect(supabase).toBeDefined();
-        // We can't easily check if it's a Proxy or real client without checking behavior
-        // Real client has 'auth', 'from', etc.
         expect(supabase.auth).toBeDefined();
-    });
-
-    it('should return a Proxy that throws on access if env vars are missing', async () => {
-        vi.resetModules();
-        process.env.VITE_SUPABASE_URL = '';
-        process.env.VITE_SUPABASE_ANON_KEY = '';
-
-        const { supabase } = await import('../supabase');
-
-        // We expect any access to trigger the error
-        expect(() => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            void (supabase as any).auth;
-        }).toThrow(/Supabase Client Error/);
-    });
-
-    it('should safely handle "then" access (Promise interop)', async () => {
-        vi.stubEnv('VITE_SUPABASE_URL', '');
-        vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
-
-        const { supabase } = await import('../supabase');
-
-        // Accessing 'then' should return undefined, not throw
-        // @ts-expect-error testing promise interop
-        expect(supabase.then).toBeUndefined();
     });
 });

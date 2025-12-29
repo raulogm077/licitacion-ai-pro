@@ -1,172 +1,130 @@
-import { Info } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useState, useMemo } from 'react';
 import { LicitacionData } from '../../types';
-import { formatCurrency } from '../../lib/formatters';
-import { LicitacionSchema } from '../../lib/schemas';
-import { RequirementsMatrix } from './RequirementsMatrix';
-import { GeneralInfoCard } from './components/GeneralInfoCard';
-import { RisksCard } from './components/RisksCard';
-import { SolvencyCard } from './components/SolvencyCard';
-import { DashboardActions } from './components/DashboardActions';
-import { JsonViewer } from './components/JsonViewer';
+import { buildPliegoVM } from './model/pliego-vm';
+
+// Components
+import { StickyHeader } from './components/detail/StickyHeader';
+import { StickySubnav } from './components/detail/StickySubnav';
+import { RightDrawer } from './components/detail/RightDrawer';
+import {
+    ChapterSummary,
+    ChapterDatos,
+    ChapterCriterios,
+    ChapterSolvencia
+} from './components/detail/ChapterComponents';
+import {
+    ChapterTecnicos,
+    ChapterRiesgos,
+    ChapterServicio,
+    TechnicalJsonModal
+} from './components/detail/ChapterComponentsPart2';
 import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
-import { SectionNav } from './components/SectionNav';
-import { InsightsPanel } from './components/InsightsPanel';
 
 interface DashboardProps {
     data: LicitacionData;
-    onUpdate?: (newData: LicitacionData) => void;
+    onUpdate?: (newData: LicitacionData) => void; // Kept for compatibility but editing is not prioritized in this redesign view
     isLoading?: boolean;
 }
 
 export function Dashboard({ data, onUpdate, isLoading }: DashboardProps) {
-    const [isEditing, setIsEditing] = useState(false);
-    const [activeSection, setActiveSection] = useState('general');
-    const [selectedVersionId, setSelectedVersionId] = useState<number | undefined>(undefined);
+    const [isJsonOpen, setIsJsonOpen] = useState(false);
+    const [isDrawerPinned, setIsDrawerPinned] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    // Determines the data to display based on selected version
-    const displayedData = React.useMemo(() => {
-        if (!selectedVersionId) return data; // Default to current
+    // Build View Model
+    const vm = useMemo(() => buildPliegoVM(data), [data]);
 
-        // Find the version content by ID
-        const versionEnvelope = data.versions?.find(v => v.version === selectedVersionId);
-        // The version envelope contains 'result', which is the actual data content LicitacionData.
-        // Wait, versionEnvelope.result is supposed to be the content.
-        // Let's check schemas/types. V1 logic says data.result | data.
-        return versionEnvelope ? (versionEnvelope.result || data) : data;
-    }, [data, selectedVersionId]);
+    const handlePinToggle = () => {
+        setIsDrawerPinned(!isDrawerPinned);
+        if (!isDrawerPinned) setIsDrawerOpen(true);
+    };
 
-    const isReadOnly = selectedVersionId !== undefined && selectedVersionId !== data.workflow?.current_version;
-    const currentVersionUI = selectedVersionId || data.workflow?.current_version || (data.versions?.length || 1);
+    const handleReanalyze = () => {
+        // Simple redirect to home for re-upload for now
+        // Could be more sophisticated in V2 (reset state and keep file)
+        window.location.href = '/';
+    };
 
-    const {
-        register,
-        handleSubmit,
-        reset,
-        formState: { errors, isDirty }
-    } = useForm<LicitacionData>({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        resolver: zodResolver(LicitacionSchema) as any,
-        defaultValues: displayedData
-    });
+    const handleSaveNote = async (text: string) => {
+        if (!vm.hash) return;
 
-    // Reset form when displayed data changes
-    useEffect(() => {
-        if (!isEditing) {
-            reset(displayedData);
+        const newNote = {
+            id: crypto.randomUUID(),
+            text,
+            author: 'Usuario', // Could get from auth store
+            timestamp: Date.now(),
+            type: 'NOTE' as const
+        };
+
+        const updatedData: LicitacionData = {
+            ...data,
+            notas: [...(data.notas || []), newNote]
+        };
+
+        // Optimistic update? Better to refetch or update local state if possible. 
+        // For simplicity, we just save and let SWR/Store update handles it or we call onUpdate if provided.
+        // But onUpdate prop is deprecated/optional. 
+        // We call dbService directly.
+
+        try {
+            const { dbService } = await import('../../services/db.service');
+            await dbService.updateLicitacion(vm.hash, updatedData);
+
+            // If onUpdate provided (e.g. from a store wrapper), call it
+            if (onUpdate) onUpdate(updatedData);
+
+        } catch (error) {
+            console.error('Failed to save note', error);
         }
-    }, [displayedData, isEditing, reset]);
-
-    const scrollToSection = (sectionId: string) => {
-        setActiveSection(sectionId);
-        const element = document.getElementById(sectionId);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' }); // Removed block: 'start'
-        }
     };
 
-    if (isLoading) {
-        return <DashboardSkeleton />;
-    }
-
-    const onSubmit = (formData: LicitacionData) => {
-        if (onUpdate) onUpdate(formData);
-        setIsEditing(false);
+    // Callback to open drawer to specific tab
+    const handleOpenDrawer = () => {
+        if (!isDrawerOpen) setIsDrawerOpen(true);
+        // Note: RightDrawer doesn't currently expose refined tab control via props other than just 'isOpen'.
+        // We might need to add 'initialTab' or 'activeTab' prop to RightDrawer if we want deep linking.
+        // For now, just opening it is enough or we rely on default tab. 
+        // Let's assume default is 'avisos' for the banner button.
     };
 
-    const handleCancel = () => {
-        reset(data);
-        setIsEditing(false);
-    };
-
-    const getFormattedCurrency = (amount: number) => {
-        if (!amount && amount !== 0) return "N/A";
-        return formatCurrency(amount, data.datosGenerales.moneda);
-    };
+    if (isLoading) return <DashboardSkeleton />;
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-[1600px] mx-auto pb-20 animate-in fade-in duration-500 px-4 sm:px-6">
+        <div className="min-h-screen bg-slate-50/50 relative">
+            <StickyHeader vm={vm} onOpenJson={() => setIsJsonOpen(true)} />
+            <StickySubnav vm={vm} />
 
-            {/* Header Actions - Full Width */}
-            <div className="mb-6">
-                <DashboardActions
-                    isEditing={isEditing}
-                    isDirty={isDirty}
-                    onEdit={() => setIsEditing(true)}
-                    onCancel={handleCancel}
-                    data={data}
-                />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
-                {/* Left Column: Navigation (Sticky) - 2 cols */}
-                <aside className="hidden lg:block lg:col-span-2">
-                    <SectionNav
-                        data={data}
-                        activeSection={activeSection}
-                        onSectionChange={scrollToSection}
-                    />
-                </aside>
-
-                {/* Center Column: Main Content - 7 cols */}
-                <main className="lg:col-span-7 space-y-8">
-
-                    <section id="general" className="scroll-mt-24">
-                        <GeneralInfoCard
-                            data={data}
-                            isEditing={isEditing}
-                            register={register}
-                            errors={errors}
-                            formatCurrency={getFormattedCurrency}
-                        />
-                    </section>
-
-                    <section id="riesgos" className="scroll-mt-24">
-                        <RisksCard data={data} />
-                    </section>
-
-                    <section id="solvencia" className="scroll-mt-24">
-                        <SolvencyCard data={data} formatCurrency={getFormattedCurrency} />
-                    </section>
-
-                    <section id="tecnicos" className="scroll-mt-24">
-                        <RequirementsMatrix requirements={data.requisitosTecnicos.funcionales} />
-                    </section>
-
-                    {/* Placeholder for other sections if needed or merging them */}
-                    <section id="json" className="pt-8 border-t border-slate-200 dark:border-slate-800">
-                        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">Datos Técnicos (JSON)</h3>
-                        <JsonViewer data={data} />
-                    </section>
-
-                </main>
-
-                {/* Right Sidebar: Insights & Quality */}
-                <div className="lg:col-span-3 space-y-6">
-                    <InsightsPanel
-                        data={data}
-                        currentVersionId={currentVersionUI}
-                        onVersionSelect={(vId) => setSelectedVersionId(vId)}
-                    />
+            <main className={`transition-all duration-300 ${isDrawerPinned ? 'pr-80' : ''}`}>
+                <div className="max-w-[1100px] mx-auto px-6 py-12 space-y-16">
+                    <ChapterSummary vm={vm} onReanalyze={handleReanalyze} onOpenDrawer={() => handleOpenDrawer()} />
+                    <ChapterDatos vm={vm} />
+                    <ChapterCriterios vm={vm} />
+                    <ChapterSolvencia vm={vm} />
+                    <ChapterTecnicos vm={vm} />
+                    <ChapterRiesgos vm={vm} />
+                    <ChapterServicio vm={vm} />
                 </div>
-            </div>
+            </main>
 
-            {/* Read Only Banner */}
-            {isReadOnly && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-900/90 text-white rounded-full shadow-xl z-50 flex items-center gap-3 backdrop-blur-sm border border-slate-700">
-                    <Info size={20} className="text-blue-400" />
-                    <span>Estás viendo una <strong>versión histórica</strong> (Solo lectura).</span>
-                    <button
-                        onClick={() => setSelectedVersionId(undefined)}
-                        className="ml-4 text-xs bg-white text-slate-900 px-3 py-1.5 rounded-full font-bold hover:bg-slate-200 transition-colors"
-                    >
-                        Volver a Actual
-                    </button>
-                </div>
-            )}
-        </form>
+            <RightDrawer
+                vm={vm}
+                isOpen={isDrawerOpen}
+                isPinned={isDrawerPinned}
+                onClose={() => setIsDrawerOpen(false)}
+                onPinToggle={handlePinToggle}
+                onSaveNote={handleSaveNote}
+                onReanalyze={handleReanalyze}
+            />
+
+            <TechnicalJsonModal
+                vm={vm}
+                isOpen={isJsonOpen}
+                onClose={() => setIsJsonOpen(false)}
+            />
+
+            {/* 
+               Removed legacy comments.
+             */}
+        </div>
     );
 }

@@ -51,7 +51,7 @@ describe('QualityService - Semantic Consistency', () => {
             ...baseContent,
             restriccionesYRiesgos: {
                 ...baseContent.restriccionesYRiesgos,
-                killCriteria: ['Same', 'same'] // Case insensitive check
+                killCriteria: [{ criterio: 'Same', justificacion: '', cita: '' }, { criterio: 'same', justificacion: '', cita: '' }] // Case insensitive check
             }
         };
         const report = service.evaluateQuality(content);

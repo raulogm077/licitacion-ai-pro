@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ProcessingStatus, LicitacionData } from '../types';
+import { LicitacionContent } from '../lib/schemas';
 import { useLicitacionStore } from './licitacion.store';
 import { generateBufferHash, validateBufferMagicBytes, bufferToBase64 } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
@@ -62,8 +63,7 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
                 // We need to cast or just pass it.
                 // Let's import LicitacionContent to be safe if possible, or use any.
                 // We will trust the service provides correct shape.
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const contentToSave = partialData as any; // Avoid deep import issues for now
+                const contentToSave = partialData as LicitacionContent;
 
                 const result = await services.db.saveLicitacion(hash, file.name, contentToSave);
                 if (result.ok) {

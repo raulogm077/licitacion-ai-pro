@@ -32,7 +32,10 @@ test('Memo P2 Full Flow: Upload and Analyze', async ({ page }) => {
     await expect(page.getByText(/Subir/i).or(page.getByText(/Arrastra/i))).toBeVisible({ timeout: 20000 });
 
     // Ensure the input exists in the DOM
-    const fileInput = page.getByTestId('file-upload-input');
+    await expect(page.getByText('Seleccionar PDF')).toBeVisible();
+
+    // Fallback to generic input locator if testid is flaky or stripped
+    const fileInput = page.locator('input[type="file"]');
     await fileInput.waitFor({ state: 'attached', timeout: 20000 });
 
     await fileInput.setInputFiles(path.resolve('memo_p2.pdf'));

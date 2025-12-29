@@ -108,7 +108,8 @@ export class QualityService {
             }
         };
 
-        checkDuplicates(content.restriccionesYRiesgos.killCriteria, "Kill Criteria");
+        const killCriteriaStrings = content.restriccionesYRiesgos.killCriteria.map(k => typeof k === 'string' ? k : k.criterio);
+        checkDuplicates(killCriteriaStrings, "Kill Criteria");
 
         return warnings;
     }
