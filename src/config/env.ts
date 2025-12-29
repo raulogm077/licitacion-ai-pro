@@ -7,13 +7,12 @@ const envSchema = z.object({
 });
 
 const getEnvSource = () => {
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-        return import.meta.env;
-    }
-    if (typeof process !== 'undefined' && process.env) {
-        return process.env;
-    }
-    return {};
+    const metaEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
+    const procEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
+
+    // Merge sources to ensure we catch shell variables in CI (process.env) 
+    // even if running in a Vite context (which defines import.meta.env)
+    return { ...procEnv, ...metaEnv };
 };
 
 const processEnv = getEnvSource();
