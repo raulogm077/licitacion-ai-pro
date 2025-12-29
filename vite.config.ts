@@ -24,4 +24,4 @@ export default defineConfig({
         include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         exclude: ['node_modules', 'dist', 'e2e', '.idea', '.git', '.cache']
     }
-} as any)
+} as any) // eslint-disable-line @typescript-eslint/no-explicit-any
