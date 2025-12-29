@@ -19,10 +19,15 @@ describe('AIService', () => {
         vi.clearAllMocks();
         vi.useFakeTimers();
         service = new AIService();
+        // Squelch console output for cleaner test run
+        vi.spyOn(console, 'error').mockImplementation(() => { });
+        vi.spyOn(console, 'warn').mockImplementation(() => { });
+        vi.spyOn(console, 'log').mockImplementation(() => { });
     });
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
     const validData = {

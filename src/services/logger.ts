@@ -71,24 +71,27 @@ class PerformanceTracker {
 
 export const perfTracker = new PerformanceTracker();
 
+// Check if we are in a test environment
+const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+
 // Enhanced logger with structured logging
 export const logger = {
     info: (msg: string, data?: unknown, context?: LogContext) => {
         useLoggerStore.getState().addLog(LogLevel.INFO, msg, data, context);
-        if (import.meta.env.DEV) console.log(`[INFO] ${msg}`, data, context);
+        if (import.meta.env.DEV && !isTest) console.log(`[INFO] ${msg}`, data, context);
     },
 
     warn: (msg: string, data?: unknown, context?: LogContext) => {
         useLoggerStore.getState().addLog(LogLevel.WARN, msg, data, context);
-        console.warn(`[WARN] ${msg}`, data, context);
+        if (!isTest) console.warn(`[WARN] ${msg}`, data, context);
     },
 
     error: (msg: string, data?: unknown, context?: LogContext) => {
         useLoggerStore.getState().addLog(LogLevel.ERROR, msg, data, context);
-        console.error(`[ERROR] ${msg}`, data, context);
+        if (!isTest) console.error(`[ERROR] ${msg}`, data, context);
 
         // In production, send to Sentry
-        if (import.meta.env.PROD && typeof window !== 'undefined') {
+        if (import.meta.env.PROD && !isTest && typeof window !== 'undefined') {
             import('../config/sentry').then(({ Sentry }) => {
                 Sentry.captureException(data instanceof Error ? data : new Error(msg), {
                     contexts: { custom: context as Record<string, unknown> },
@@ -101,7 +104,7 @@ export const logger = {
     },
 
     debug: (msg: string, data?: unknown, context?: LogContext) => {
-        if (import.meta.env.DEV) {
+        if (import.meta.env.DEV && !isTest) {
             useLoggerStore.getState().addLog(LogLevel.DEBUG, msg, data, context);
             console.debug(`[DEBUG] ${msg}`, data, context);
         }
@@ -109,7 +112,7 @@ export const logger = {
 
     perf: (msg: string, data?: unknown, context?: LogContext) => {
         useLoggerStore.getState().addLog(LogLevel.PERF, msg, data, context);
-        if (import.meta.env.DEV) {
+        if (import.meta.env.DEV && !isTest) {
             console.log(`[PERF] ${msg}`, data, context);
         }
     }
