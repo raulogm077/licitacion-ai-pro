@@ -119,15 +119,25 @@ export class AIService {
                 });
 
                 if (error) {
-                    // Supabase functions error might be a string or object
-                    const errObj = error.message ? error : { message: String(error) };
+                    // Try to parse error body if it's a stringified JSON
+                    let errorMessage = error.message || String(error);
+                    let isQuota = false;
+                    let hint = "";
 
-                    // Specific handling for 429
-                    if (errObj.message.includes("429") || errObj.message.includes("Quota")) {
-                        throw new Error(`CUOTA_IA_EXCEDIDA: ${errObj.message}`);
+                    try {
+                        const parsedError = typeof error === 'string' ? JSON.parse(error) : error;
+                        if (parsedError.error) errorMessage = parsedError.error;
+                        if (parsedError.isQuota) isQuota = true;
+                        if (parsedError.hint) hint = parsedError.hint;
+                    } catch (e) {
+                        // Not a JSON error
                     }
 
-                    throw new Error(`Edge Function Error: ${errObj.message || JSON.stringify(error)}`);
+                    if (isQuota || errorMessage.includes("429") || errorMessage.includes("Quota")) {
+                        throw new Error(`CUOTA_IA_EXCEDIDA: ${hint || errorMessage}`);
+                    }
+
+                    throw new Error(`Edge Function Error: ${errorMessage}`);
                 }
 
                 if (!data || !data.text) {

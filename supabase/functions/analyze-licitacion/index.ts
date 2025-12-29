@@ -8,63 +8,51 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // 1. Handle CORS Preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // 2. Parse Body
     const { base64Content, prompt, sectionKey } = await req.json();
 
     if (!base64Content || !prompt) {
-      return new Response(JSON.stringify({ error: "Missing required fields (base64Content, prompt)" }), {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // 4. Secure API Key Access (Env Var)
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
-      throw new Error("Server Misconfiguration: GEMINI_API_KEY not set in Supabase Secrets");
+      throw new Error("Server Misconfiguration: GEMINI_API_KEY not set");
     }
 
-    // 5. Dual Model Logic - Pro as Primary, Flash as fallback, Lite as last resort
+    // Try these models in order. 
+    // Pro is most restricted, Flash has higher RPM.
     const MODELS = [
-      "gemini-pro-latest",
-      "gemini-flash-latest",
-      "gemini-2.0-flash-lite"
+      "gemini-1.5-pro",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b"
     ];
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    const safetySettings = [
-      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    ];
-
     const generate = async (modelName: string) => {
-      console.log(`[Edge] Analyzing section '${sectionKey}' using model: ${modelName}`);
+      console.log(`[Edge] Requesting '${sectionKey}' using ${modelName}`);
       const model = genAI.getGenerativeModel({
         model: modelName,
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 8192,
-        },
-        safetySettings
+        generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ]
       });
 
       const result = await model.generateContent([
         prompt,
-        {
-          inlineData: {
-            data: base64Content,
-            mimeType: "application/pdf",
-          },
-        },
+        { inlineData: { data: base64Content, mimeType: "application/pdf" } },
       ]);
 
       const response = await result.response;
@@ -72,45 +60,43 @@ Deno.serve(async (req) => {
     };
 
     let responseText = "";
-    let lastError: any = null;
+    let lastErr: any = null;
 
-    for (const modelName of MODELS) {
+    for (const m of MODELS) {
       try {
-        responseText = await generate(modelName);
-        lastError = null;
-        break; // Success!
+        responseText = await generate(m);
+        lastErr = null;
+        break;
       } catch (e: any) {
-        lastError = e;
-        console.error(`[Edge Fail] Model: ${modelName}, Section: ${sectionKey}, Error: ${e.message}`);
-
+        lastErr = e;
         const errStr = String(e);
+        console.error(`[Edge Fail] ${m}: ${e.message}`);
+
+        // Wait and try next if it's a server or rate error
         if (errStr.includes("429") || errStr.includes("Quota") || errStr.includes("500")) {
-          console.warn(`[Edge] Retrying with next model in 2s...`);
           await new Promise(r => setTimeout(r, 2000));
           continue;
         } else {
-          throw e; // Non-retryable error
+          throw e;
         }
       }
     }
 
-    if (lastError) {
-      throw lastError;
-    }
+    if (lastErr) throw lastErr;
 
-    // 6. Return Result
     return new Response(JSON.stringify({ text: responseText }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error: any) {
-    const isQuota = String(error).includes("429") || String(error).includes("Quota");
-    console.error(`[Edge Critical Error]`, error);
+    const errStr = String(error);
+    const isQuota = errStr.includes("429") || errStr.includes("Quota");
+    console.error(`[Edge Critical]`, error);
 
     return new Response(JSON.stringify({
-      error: error.message,
+      error: error.message || errStr,
       isQuota,
-      hint: isQuota ? "Google API Quota exceeded. Please wait or use a paid key." : "Check Supabase Secrets or Document Content."
+      hint: isQuota ? "Límite de Google AI Studio alcanzado. Verifica tu cuota diaria en AI Studio o usa una clave con facturación habilitada." : "Error inesperado en el servidor."
     }), {
       status: isQuota ? 429 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
