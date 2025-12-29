@@ -62,11 +62,9 @@ test.describe('Phase 9: Export Functionality', () => {
         // Wait for network idle to ensure all chunks (like exceljs) are loaded
         await page.waitForLoadState('networkidle');
 
-        const exportBtn = page.getByText('Exportar', { exact: true });
+        const exportBtn = page.getByTestId('export-excel-btn');
         await expect(exportBtn).toBeVisible({ timeout: 15000 });
-        await exportBtn.click(); // Click might be better than hover for mobile/responsiveness, but hover is in original test.
-        // Let's stick to hover but ensure visibility first
-        await exportBtn.hover();
+        await exportBtn.click();
 
         // Check for PDF option
         await expect(page.getByText('PDF (.pdf)')).toBeVisible();

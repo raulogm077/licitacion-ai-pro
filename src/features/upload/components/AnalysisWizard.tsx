@@ -118,7 +118,7 @@ export const AnalysisWizard: React.FC = () => {
                             <label className="group relative inline-flex items-center justify-center px-8 py-4 font-semibold text-white transition-all duration-200 bg-brand-600 rounded-xl hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-500/30 hover:-translate-y-0.5 cursor-pointer">
                                 <span className="mr-2">Seleccionar PDF</span>
                                 <FileText size={20} className="group-hover:scale-110 transition-transform" />
-                                <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
+                                <input data-testid="file-upload-input" type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
                             </label>
 
                             {/* Plugin Selector simplified */}
