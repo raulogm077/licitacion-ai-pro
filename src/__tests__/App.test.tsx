@@ -37,7 +37,7 @@ describe('App', () => {
         render(<App />);
 
         // Use findBy because of useEffect async session check
-        expect(await screen.findByText('Iniciar Sesión')).toBeInTheDocument();
+        expect(await screen.findByText('Iniciar Sesión para Continuar')).toBeInTheDocument();
     });
 
     // Note: Testing authenticated state requires mocking the module return value before render, 

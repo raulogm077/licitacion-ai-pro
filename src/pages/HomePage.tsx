@@ -1,166 +1,30 @@
-import React, { Suspense, useState } from 'react';
-import { Upload, AlertCircle, Loader2, Lock } from 'lucide-react';
-import { Card } from '../components/ui/Card';
+import React, { Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
 import { TagManager } from '../components/domain/TagManager';
 import { NotesPanel } from '../components/domain/NotesPanel';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { PluginSelector } from '../components/domain/PluginSelector';
-import { useAuthStore } from '../stores/auth.store';
 import { useLicitacionStore } from '../stores/licitacion.store';
 import { useAnalysisStore } from '../stores/analysis.store';
-import { AuthModal } from '../components/ui/AuthModal';
+import { AnalysisWizard } from '../features/upload/components/AnalysisWizard';
 
 export const HomePage: React.FC = () => {
     const { data, updateData } = useLicitacionStore();
-    const { status, thinkingOutput, error, analyzeFile, resetAnalysis } = useAnalysisStore();
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const { isAuthenticated } = useAuthStore();
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = () => {
-        setIsDragging(false);
-    };
-
-    const handleDrop = async (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
-
-        const file = e.dataTransfer.files[0];
-        if (file && file.type === 'application/pdf') {
-            await analyzeFile(file);
-        }
-    };
-
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
-
-        const file = e.target.files?.[0];
-        if (file) {
-            await analyzeFile(file);
-        }
-    };
+    const { status } = useAnalysisStore();
 
     return (
         <>
-            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
             <Suspense fallback={
                 <div className="flex items-center justify-center py-20">
                     <Loader2 className="animate-spin text-brand-600" size={48} />
                 </div>
             }>
-                {status === 'IDLE' && (
-                    <div className="max-w-2xl mx-auto mt-20">
-                        {!isAuthenticated && (
-                            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                                <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
-                                    <Lock size={20} />
-                                    <div>
-                                        <p className="font-medium">Autenticación requerida</p>
-                                        <p className="text-sm text-amber-700 dark:text-amber-300">
-                                            Debes <button onClick={() => setShowAuthModal(true)} className="underline font-medium">iniciar sesión</button> para subir y analizar documentos.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        <div
-                            className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${!isAuthenticated
-                                ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 opacity-60 cursor-not-allowed'
-                                : isDragging
-                                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 scale-105'
-                                    : 'border-slate-300 dark:border-slate-700 hover:border-brand-400 hover:bg-white dark:hover:bg-slate-800'
-                                }`}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
-                        >
-                            <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                                {isAuthenticated ? <Upload size={32} /> : <Lock size={32} />}
-                            </div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Analiza tu Licitación</h2>
-                            <p className="text-slate-500 dark:text-slate-400 mb-8">
-                                {isAuthenticated
-                                    ? 'Arrastra tu pliego (PDF) aquí o selecciona un archivo para comenzar el análisis inteligente.'
-                                    : 'Inicia sesión para comenzar a analizar documentos.'}
-                            </p>
-
-                            {isAuthenticated ? (
-                                <div className="space-y-6">
-                                    <label className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition-all cursor-pointer shadow-lg shadow-brand-200 dark:shadow-none hover:shadow-xl hover:-translate-y-0.5">
-                                        <Upload size={20} />
-                                        Seleccionar PDF
-                                        <input type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
-                                    </label>
-                                    <div className="max-w-xs mx-auto">
-                                        <PluginSelector />
-                                    </div>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => setShowAuthModal(true)}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-200 dark:shadow-none hover:shadow-xl hover:-translate-y-0.5"
-                                >
-                                    <Lock size={20} />
-                                    Iniciar Sesión
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                {/* Wizard handles Idle, Analyzing, and Error states */}
+                {(status === 'IDLE' || status === 'ANALYZING' || status === 'ERROR') && (
+                    <AnalysisWizard />
                 )}
 
-                {status === 'ANALYZING' && (
-                    <div className="max-w-xl mx-auto mt-20 text-center">
-                        <Loader2 size={48} className="text-brand-600 animate-spin mx-auto mb-6" />
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Analizando Documento...</h2>
-                        <p className="text-slate-500 dark:text-slate-400 mb-8">
-                            Nuestra IA está extrayendo los puntos clave. Esto puede tomar unos segundos.
-                        </p>
-
-                        <div className="bg-slate-900 rounded-lg p-4 text-left font-mono text-xs text-green-400 h-48 overflow-y-auto shadow-inner">
-                            <p className="opacity-50 mb-2">// System Log</p>
-                            {thinkingOutput.split('\n').map((line, i) => (
-                                <p key={i} className="mb-1">{`> ${line}`}</p>
-                            ))}
-                            <span className="animate-pulse">_</span>
-                        </div>
-                    </div>
-                )}
-
-                {status === 'ERROR' && (
-                    <div className="max-w-xl mx-auto mt-20">
-                        <Card className="border-danger-200 bg-danger-50 dark:bg-danger-900/20">
-                            <div className="p-6 text-center">
-                                <div className="w-12 h-12 bg-danger-100 dark:bg-danger-900/30 text-danger-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <AlertCircle size={24} />
-                                </div>
-                                <h3 className="text-lg font-bold text-danger-900 dark:text-danger-100 mb-2">Error en el Análisis</h3>
-                                <p className="text-danger-700 dark:text-danger-300 mb-6">{error}</p>
-                                <button
-                                    onClick={resetAnalysis}
-                                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-danger-200 dark:border-danger-800 text-danger-700 dark:text-danger-300 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-900/40 transition-colors"
-                                >
-                                    Intentar de nuevo
-                                </button>
-                            </div>
-                        </Card>
-                    </div>
-                )}
-
+                {/* Dashboard View for Completed State */}
                 {status === 'COMPLETED' && data && (
                     <div className="space-y-6">
                         {/* Tags and Notes Section */}

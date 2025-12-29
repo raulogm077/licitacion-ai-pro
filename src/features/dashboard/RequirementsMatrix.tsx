@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { CheckSquare, Square, ListChecks } from 'lucide-react';
+import { CheckSquare, Square, ListChecks, Quote } from 'lucide-react';
 import { LicitacionData } from '../../types';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../components/ui/Tooltip';
 
 interface RequirementsMatrixProps {
     requirements: LicitacionData['requisitosTecnicos']['funcionales'];
@@ -104,9 +105,25 @@ export function RequirementsMatrix({ requirements }: RequirementsMatrixProps) {
                                         <p className={`text-sm font-medium transition-colors ${isChecked ? 'text-slate-500 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-200'}`}>
                                             {req.requisito}
                                         </p>
-                                        <Badge variant={req.obligatorio ? 'default' : 'outline'} className="shrink-0 text-[10px]">
-                                            {req.obligatorio ? 'Obligatorio' : 'Opcional'}
-                                        </Badge>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <Badge variant={req.obligatorio ? 'default' : 'outline'} className="text-[10px]">
+                                                {req.obligatorio ? 'Obligatorio' : 'Opcional'}
+                                            </Badge>
+                                            {req.cita && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors" onClick={(e) => e.stopPropagation()}>
+                                                                <Quote size={12} className="text-slate-400 hover:text-brand-500" />
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-xs text-xs italic bg-slate-800 text-white border-slate-700">
+                                                            "{req.cita}"
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
                                     </div>
                                     {req.referenciaPagina && (
                                         <p className="text-xs text-slate-400 dark:text-slate-500">Pág. {req.referenciaPagina}</p>

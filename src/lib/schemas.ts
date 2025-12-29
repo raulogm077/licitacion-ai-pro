@@ -68,30 +68,34 @@ export const LicitacionContentSchema = z.object({
             descripcion: RobustString(""),
             ponderacion: RobustNumber(0),
             detalles: z.string().optional(),
+            cita: z.string().optional(),
         })),
         objetivos: RobustArray(z.object({
             descripcion: RobustString(""),
             ponderacion: RobustNumber(0),
             formula: z.string().optional(),
+            cita: z.string().optional(),
         })),
     }).default({})),
     requisitosTecnicos: z.preprocess(val => val ?? {}, z.object({
         funcionales: RobustArray(
             z.union([
-                z.string().transform(str => ({ requisito: str, obligatorio: true, referenciaPagina: undefined })),
+                z.string().transform(str => ({ requisito: str, obligatorio: true, referenciaPagina: undefined, cita: undefined })),
                 z.object({
                     requisito: RobustString(""),
                     obligatorio: RobustBoolean(true),
-                    referenciaPagina: z.number().optional()
+                    referenciaPagina: z.number().optional(),
+                    cita: z.string().optional()
                 })
             ])
         ),
         normativa: RobustArray(
             z.union([
-                z.string().transform(str => ({ norma: str, descripcion: undefined })),
+                z.string().transform(str => ({ norma: str, descripcion: undefined, cita: undefined })),
                 z.object({
                     norma: RobustString(""),
-                    descripcion: z.string().optional()
+                    descripcion: z.string().optional(),
+                    cita: z.string().optional()
                 })
             ])
         ),
@@ -104,7 +108,8 @@ export const LicitacionContentSchema = z.object({
         tecnica: RobustArray(z.object({
             descripcion: RobustString(""),
             proyectosSimilaresRequeridos: RobustNumber(0),
-            importeMinimoProyecto: z.number().optional()
+            importeMinimoProyecto: z.number().optional(),
+            cita: z.string().optional()
         }))
     }).default({})),
     restriccionesYRiesgos: z.preprocess(val => val ?? {}, z.object({
@@ -114,29 +119,33 @@ export const LicitacionContentSchema = z.object({
             impacto: RobustEnum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO'] as const, 'MEDIO'),
             probabilidad: RobustEnum(['BAJA', 'MEDIA', 'ALTA'] as const, 'MEDIA').optional(),
             mitigacionSugerida: z.string().optional(),
+            cita: z.string().optional(),
         })),
         penalizaciones: RobustArray(z.object({
             causa: RobustString(""),
             sancion: RobustString(""),
+            cita: z.string().optional(),
         })),
     }).default({})),
     modeloServicio: z.preprocess(val => val ?? {}, z.object({
         sla: RobustArray(
             z.union([
-                z.string().transform(str => ({ metrica: str, objetivo: "N/A" })),
+                z.string().transform(str => ({ metrica: str, objetivo: "N/A", cita: undefined })),
                 z.object({
                     metrica: RobustString(""),
-                    objetivo: RobustString("N/A")
+                    objetivo: RobustString("N/A"),
+                    cita: z.string().optional()
                 })
             ])
         ),
         equipoMinimo: RobustArray(
             z.union([
-                z.string().transform(str => ({ rol: str, experienciaAnios: 0, titulacion: undefined })),
+                z.string().transform(str => ({ rol: str, experienciaAnios: 0, titulacion: undefined, cita: undefined })),
                 z.object({
                     rol: RobustString(""),
                     experienciaAnios: RobustNumber(0),
-                    titulacion: z.string().optional()
+                    titulacion: z.string().optional(),
+                    cita: z.string().optional()
                 })
             ])
         )

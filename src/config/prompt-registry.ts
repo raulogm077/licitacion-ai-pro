@@ -24,11 +24,11 @@ export const DefaultAnalysisPlugin: PromptPlugin = {
     getSectionPrompt: (sectionKey: string) => {
         const prompts: Record<string, string> = {
             datosGenerales: "Extrae el título de la licitación, presupuesto base de licitación (sin IVA), moneda, plazo de ejecución en meses, códigos CPV y el órgano de contratación.",
-            criteriosAdjudicacion: "Identifica los criterios subjetivos (juicio de valor) y objetivos (fórmula). Para cada uno, incluye descripción, ponderación (porcentaje) y detalles o fórmula si está disponible.",
-            requisitosTecnicos: "Extrae los requisitos funcionales obligatorios y detecta menciones a normas ISO, ENS, o certificaciones específicas requeridas.",
-            requisitosSolvencia: "Extrae la cifra de negocio anual mínima requerida (solvencia económica) y los requisitos de solvencia técnica (número de proyectos similares, importes mínimos).",
-            restriccionesYRiesgos: "Detecta 'Kill Criteria' (motivos de exclusión directa), riesgos de ejecución (impacto/probabilidad) y el cuadro de penalizaciones previsto.",
-            modeloServicio: "Identifica niveles de servicio (SLA requeridos) y la composición mínima del equipo (roles, experiencia, titulación)."
+            criteriosAdjudicacion: "Identifica los criterios subjetivos (juicio de valor) y objetivos (fórmula). Para cada uno, incluye descripción, ponderación (porcentaje) y detalles o fórmula. IMPORTANTE: Incluye el campo 'cita' con el texto literal del pliego donde aparece cada criterio.",
+            requisitosTecnicos: "Extrae los requisitos funcionales obligatorios y normativa. IMPORTANTE: Para cada requisito, incluye el campo 'cita' con el fragmento exacto del texto que lo describe.",
+            requisitosSolvencia: "Extrae la solvencia económica y técnica. IMPORTANTE: Incluye el campo 'cita' con el texto literal para cada requisito de solvencia técnica.",
+            restriccionesYRiesgos: "Detecta 'Kill Criteria', riesgos y penalizaciones. IMPORTANTE: Justifica cada riesgo y penalización incluyendo el campo 'cita' con el texto literal del pliego.",
+            modeloServicio: "Identifica SLA y equipo mínimo. IMPORTANTE: Incluye el campo 'cita' con el fragmento de texto original para cada SLA y rol del equipo."
         };
         return prompts[sectionKey] || "Analiza esta sección del pliego y extrae la información relevante.";
     }

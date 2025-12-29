@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
-import { AlertTriangle, ShieldAlert, AlertCircle } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, AlertCircle, Quote } from 'lucide-react';
 import { LicitacionData } from '../../../types';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../components/ui/Tooltip';
 
 interface RisksCardProps {
     data: LicitacionData;
@@ -42,7 +43,7 @@ export function RisksCard({ data }: RisksCardProps) {
                                 <div className={`p-2 rounded-lg ${riesgo.impacto === 'CRITICO' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400'}`}>
                                     <AlertTriangle size={18} />
                                 </div>
-                                <div>
+                                <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">{riesgo.descripcion}</h4>
                                         <Badge variant={
@@ -51,6 +52,18 @@ export function RisksCard({ data }: RisksCardProps) {
                                         }>
                                             {riesgo.impacto}
                                         </Badge>
+                                        {riesgo.cita && (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Quote size={14} className="text-slate-400 hover:text-brand-500 cursor-pointer transition-colors ml-1" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-xs text-xs italic bg-slate-800 text-white border-slate-700">
+                                                        "{riesgo.cita}"
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        )}
                                     </div>
                                     {riesgo.mitigacionSugerida && (
                                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">

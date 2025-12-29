@@ -54,7 +54,7 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        expect(screen.getByText('Autenticación requerida')).toBeInTheDocument();
+        expect(screen.getByText('Acceso Requerido')).toBeInTheDocument();
     });
 
     it('should open AuthModal with Password form', async () => {
@@ -64,10 +64,10 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        const loginButton = screen.getAllByText(/iniciar sesión/i)[0];
+        const loginButton = screen.getByRole('button', { name: /iniciar sesión/i });
         fireEvent.click(loginButton);
 
-        expect(screen.getByText('Accede a tu cuenta de analista')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Iniciar Sesión' }, { timeout: 3000 })).toBeInTheDocument();
         expect(screen.getByPlaceholderText(/••••••••/)).toBeInTheDocument(); // Password field check
     });
 
