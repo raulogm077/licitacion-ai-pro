@@ -176,6 +176,7 @@ jobs:
 
       - name: Deploy Migrations & Edge Functions
         run: |
+          supabase link --project-ref $SUPABASE_PROJECT_ID --password "$SUPABASE_DB_PASSWORD"
           supabase db push --password "$SUPABASE_DB_PASSWORD"
           supabase functions deploy --password "$SUPABASE_DB_PASSWORD"
         env:
