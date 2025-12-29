@@ -131,3 +131,5 @@ playwright/.cache/
 Thumbs.db
 .vercel
 .env*.local
+Prompts/
+

@@ -27,17 +27,17 @@ Deno.serve(async (req) => {
       throw new Error("Server Misconfiguration: GEMINI_API_KEY not set");
     }
 
-    // Verified models for this API key
+    // Verified models for this API key 
+    // Using widely available models
     const MODELS = [
-      "gemini-pro-latest",
-      "gemini-2.0-flash",
-      "gemini-flash-lite-latest"
+      "gemini-1.5-flash",
+      "gemini-2.0-flash-exp"
     ];
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
     const generate = async (modelName: string) => {
-      console.log(`[Edge] Requesting '${sectionKey}' using ${modelName}`);
+      console.log(`[Edge-v6] Requesting '${sectionKey}' using ${modelName}`);
       const model = genAI.getGenerativeModel({
         model: modelName,
         generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
@@ -59,33 +59,40 @@ Deno.serve(async (req) => {
     };
 
     let responseText = "";
-    let lastErr: unknown = null; // Fix: was any
+    const errors: string[] = [];
 
     for (const m of MODELS) {
       try {
         responseText = await generate(m);
-        lastErr = null;
         break;
-      } catch (e: unknown) { // Fix: was any
-        lastErr = e;
+      } catch (e: unknown) {
         const errStr = String(e);
         const errObj = e instanceof Error ? e : new Error(errStr);
         console.error(`[Edge Fail] ${m}: ${errObj.message}`);
+        errors.push(`${m}: ${errObj.message}`);
+
+        // STOP if it's a client error (400) - Model works, input is bad (or valid rejection)
+        if (errStr.includes("400") || errStr.includes("Bad Request")) {
+          // If input is bad, no model will fix it. Throw immediately.
+          throw e;
+        }
 
         // Retry logic for quota or temporary server errors
         if (errStr.includes("429") || errStr.includes("Quota") || errStr.includes("500") || errStr.includes("503")) {
-          console.warn(`[Edge] Retrying with next model in 2s...`);
-          await new Promise(r => setTimeout(r, 2000));
+          console.warn(`[Edge] Retrying with next model in 1s...`);
+          await new Promise(r => setTimeout(r, 1000));
           continue;
         } else {
-          // If it's a 404 (model not found) or other, we still try the next one just in case
+          // If it's a 404 or other, try next
           console.warn(`[Edge] Model failed with non-quota error. Trying next.`);
           continue;
         }
       }
     }
 
-    if (lastErr && !responseText) throw lastErr;
+    if (!responseText) {
+      throw new Error(`All models failed. Details: ${JSON.stringify(errors)}`);
+    }
 
     return new Response(JSON.stringify({ text: responseText }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -100,7 +107,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       error: errObj.message || errStr,
       isQuota,
-      hint: isQuota ? "Límite de Google AI Studio alcanzado. Verifica tu cuota diaria en AI Studio o usa una clave con facturación habilitada." : "Error inesperado en el servidor de IA."
+      hint: isQuota ? "Límite de Google AI Studio alcanzado." : "Error en múltiples modelos de IA (ver detalles)."
     }), {
       status: isQuota ? 429 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

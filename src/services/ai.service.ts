@@ -1,5 +1,6 @@
 
 import { supabase } from "../config/supabase";
+import { env } from "../config/env";
 import { LicitacionContent } from "../types";
 import { LicitacionContentSchema } from "../lib/schemas";
 import { logger } from "./logger";
@@ -126,22 +127,47 @@ export class AIService {
                         prompt: fullPrompt,
                         systemPrompt,
                         sectionKey
+                    },
+                    headers: {
+                        // FORCE usage of Anon Key to bypass potential session token issues (401)
+                        Authorization: `Bearer ${env.VITE_SUPABASE_ANON_KEY}`
                     }
                 });
 
                 if (error) {
+                    // Log the full raw error for debugging
+                    console.error("Raw Edge Function Error:", error);
+
                     // Try to parse error body if it's a stringified JSON
                     let errorMessage = error.message || String(error);
                     let isQuota = false;
                     let hint = "";
 
                     try {
+                        // Check if it's a FunctionsHttpError with context/response
+                        if (typeof error === 'object' && error !== null && 'context' in error) {
+                            const context = (error as any).context; // Safely access context
+                            if (context && typeof context.json === 'function') {
+                                // It's a Response object? Or a Promise? 
+                                // Usually invoke() handles parsing. If it failed, maybe context is the response.
+                                // But commonly error is just the parsed JSON if headers were application/json.
+                                // If the status is 4xx, supabase-js might return the body as 'error'.
+                            }
+                        }
+
+                        // If the backend sent a JSON error, error might BE that object directly
                         const parsedError = typeof error === 'string' ? JSON.parse(error) : error;
-                        if (parsedError.error) errorMessage = parsedError.error;
-                        if (parsedError.isQuota) isQuota = true;
-                        if (parsedError.hint) hint = parsedError.hint;
-                    } catch {
-                        // Not a JSON error
+
+                        // If backend sent { error: "..." }, use it
+                        if (parsedError && typeof parsedError === 'object') {
+                            if ('error' in parsedError && typeof parsedError.error === 'string') {
+                                errorMessage = parsedError.error;
+                            }
+                            if ('isQuota' in parsedError) isQuota = !!parsedError.isQuota;
+                            if ('hint' in parsedError && typeof parsedError.hint === 'string') hint = parsedError.hint;
+                        }
+                    } catch (parseEx) {
+                        console.warn("Error parsing error response:", parseEx);
                     }
 
                     if (isQuota || errorMessage.includes("429") || errorMessage.includes("Quota")) {
