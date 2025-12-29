@@ -38,40 +38,33 @@ export class AIService {
         let processed = 0;
 
         try {
-            if (onProgress) onProgress(0, total, `Iniciando análisis paralelo seguro...`);
+            if (onProgress) onProgress(0, total, `Iniciando análisis secuencial robusto...`);
 
-            // Process sections in chunks to balance speed and rate limits.
-            // Increased to 3 for better performance.
-            const chunkSize = 3;
-            for (let i = 0; i < sections.length; i += chunkSize) {
-                const chunk = sections.slice(i, i + chunkSize);
+            // Sequential processing to respect strict rate limits (RPM)
+            for (let i = 0; i < sections.length; i++) {
+                const section = sections[i];
 
                 if (onProgress) {
-                    const labels = chunk.map(s => s.label).join(', ');
-                    onProgress(processed, total, `Analizando: ${labels}...`);
+                    onProgress(processed, total, `Analizando: ${section.label}...`);
                 }
 
-                const chunkPromises = chunk.map(async (section) => {
-                    try {
-                        const sectionData = await this.analyzeSection(base64Content, section.key);
-                        return { key: section.key, data: sectionData, success: true };
-                    } catch (error) {
-                        logger.error(`Error en sección ${section.key}`, { error: String(error) });
-                        const key = section.key as keyof LicitacionContent;
-                        return { key, data: { [key]: this.getDefaultSection(key) }, success: false };
-                    }
-                });
+                try {
+                    const sectionData = await this.analyzeSection(base64Content, section.key);
+                    partialResult = { ...partialResult, ...sectionData };
+                } catch (error) {
+                    logger.error(`Error persistente en sección ${section.key}`, { error: String(error) });
+                    const key = section.key as keyof LicitacionContent;
+                    partialResult = { ...partialResult, [key]: this.getDefaultSection(key) };
 
-                const chunkResults = await Promise.all(chunkPromises);
-
-                chunkResults.forEach(res => {
-                    partialResult = { ...partialResult, ...res.data };
-                    // Prior metadata update logic removed as Content doesn't have metadata
-                    processed++;
                     if (onProgress) {
-                        onProgress(processed, total, `Sección completada: ${res.key}`);
+                        onProgress(processed, total, `⚠️ Error en ${section.label}, usando valores por defecto.`);
                     }
-                });
+                }
+
+                processed++;
+                if (onProgress) {
+                    onProgress(processed, total, `Sección completada: ${section.label}`);
+                }
 
                 // RF-AI-09: Incremental Persistence
                 if (onPartialSave && Object.keys(partialResult).length > 0) {
@@ -82,9 +75,11 @@ export class AIService {
                     }
                 }
 
-                // Short throttle between chunks
-                if (i + chunkSize < sections.length) {
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                // Wait between requests to stay under RPM limits (Gemini Pro Free tier is 2 RPM)
+                if (i < sections.length - 1) {
+                    const waitTime = 10000; // 10 seconds between requests for Pro stability
+                    if (onProgress) onProgress(processed, total, `Esperando cuota de IA (${waitTime / 1000}s)...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
                 }
             }
 
@@ -110,7 +105,7 @@ export class AIService {
         const fullPrompt = `${sectionPrompt}\n\nResponde únicamente con un objeto JSON válido que siga la estructura para la clave "${sectionKey}".`;
 
         const MAX_RETRIES = 3;
-        let lastError: Error | unknown;
+        let lastError: any;
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -124,24 +119,34 @@ export class AIService {
                 });
 
                 if (error) {
-                    // Normalize Supabase function error
-                    throw new Error(`Edge Function Error: ${error.message || JSON.stringify(error)}`);
+                    // Supabase functions error might be a string or object
+                    const errObj = error.message ? error : { message: String(error) };
+
+                    // Specific handling for 429
+                    if (errObj.message.includes("429") || errObj.message.includes("Quota")) {
+                        throw new Error(`CUOTA_IA_EXCEDIDA: ${errObj.message}`);
+                    }
+
+                    throw new Error(`Edge Function Error: ${errObj.message || JSON.stringify(error)}`);
                 }
 
                 if (!data || !data.text) {
                     throw new Error("Respuesta de Edge Function vacía.");
                 }
 
-                // If success, return immediately
                 return this.cleanAndParseJson(data.text, sectionKey);
 
-            } catch (e) {
+            } catch (e: any) {
                 lastError = e;
                 const isLastAttempt = attempt === MAX_RETRIES;
+                const isQuotaError = e.message?.includes("CUOTA_IA_EXCEDIDA");
 
                 if (!isLastAttempt) {
-                    const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s? No: 2^1*1000=2000, 2^2*1000=4000
-                    console.warn(`Intento ${attempt}/${MAX_RETRIES} fallido para ${sectionKey}. Reintentando en ${delay}ms...`, e);
+                    // Double delay if it's a quota error
+                    const baseDelay = isQuotaError ? 20000 : 5000;
+                    const delay = Math.pow(2, attempt - 1) * baseDelay;
+
+                    console.warn(`Intento ${attempt}/${MAX_RETRIES} fallido para ${sectionKey}. Reintentando en ${delay}ms...`, e.message);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     console.error(`Todos los intentos fallaron para ${sectionKey}:`, e);
@@ -149,8 +154,7 @@ export class AIService {
             }
         }
 
-        // If loop exhausts, throw the last error
-        throw new LicitacionAIError(`Fallo persistente backend sección ${sectionKey} tras ${MAX_RETRIES} intentos: ${String(lastError)}`, lastError);
+        throw new LicitacionAIError(`Fallo persistente backend sección ${sectionKey} tras ${MAX_RETRIES} intentos: ${lastError?.message || String(lastError)}`, lastError);
     }
 
     private cleanAndParseJson<K extends keyof LicitacionContent>(text: string, sectionKey: K): Partial<LicitacionContent> {
