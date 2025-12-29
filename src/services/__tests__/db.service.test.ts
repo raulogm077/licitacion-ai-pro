@@ -5,11 +5,14 @@ import { LicitacionData } from '../../types';
 
 // Mock Supabase
 // Mock Supabase
-const { selectSpy, filterSpy, upsertSpy, authSpy, containsSpy } = vi.hoisted(() => ({
+const { selectSpy, filterSpy, upsertSpy, authSpy, containsSpy, ilikeSpy, gteSpy, lteSpy } = vi.hoisted(() => ({
     selectSpy: vi.fn(),
     filterSpy: vi.fn(),
     upsertSpy: vi.fn(),
     containsSpy: vi.fn(),
+    ilikeSpy: vi.fn(),
+    gteSpy: vi.fn(),
+    lteSpy: vi.fn(),
     authSpy: {
         getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: 'test-user' } } }, error: null })
     }
@@ -27,7 +30,10 @@ vi.mock('../../config/supabase', () => ({
             single: vi.fn().mockReturnThis(),
             order: vi.fn().mockReturnThis(),
             filter: filterSpy,
-            contains: containsSpy
+            contains: containsSpy,
+            ilike: ilikeSpy,
+            gte: gteSpy,
+            lte: lteSpy
         })),
         auth: authSpy
     },
@@ -68,11 +74,17 @@ describe('DBService', () => {
         selectSpy.mockClear();
         filterSpy.mockClear();
         upsertSpy.mockClear();
+        ilikeSpy.mockClear();
+        gteSpy.mockClear();
+        lteSpy.mockClear();
         authSpy.getSession.mockClear();
         // Ensure default mockReturnThis behavior for chained methods
         selectSpy.mockReturnThis();
         filterSpy.mockReturnThis();
         upsertSpy.mockReturnThis();
+        ilikeSpy.mockReturnThis();
+        gteSpy.mockReturnThis();
+        lteSpy.mockReturnThis();
     });
 
     describe('saveLicitacion', () => {
@@ -203,22 +215,34 @@ describe('DBService', () => {
             expect(filterSpy).toHaveBeenCalledWith('data->datosGenerales->>presupuesto', 'gte', 100);
         });
 
-        it('should filter by client in memory and return successful result', async () => {
+        it('should filter by client using SQL ilike', async () => {
             const mockDBData = [
-                { hash: '1', updated_at: '2023-01-01T00:00:00Z', data: { metadata: { cliente: 'Madrid' } } },
-                { hash: '2', updated_at: '2023-01-01T00:00:00Z', data: { metadata: { cliente: 'Barcelona' } } }
+                { hash: '1', updated_at: '2023-01-01T00:00:00Z', data: { metadata: { cliente: 'Madrid' } } }
             ];
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const thenMock = (onfulfilled: (value: { data: any[] | null; error: any }) => any) => Promise.resolve({ data: mockDBData, error: null }).then(onfulfilled);
-            selectSpy.mockReturnValue({
+
+            // Mock the chain: select -> ilike -> then
+            const mockChain = {
                 filter: filterSpy,
+                ilike: ilikeSpy,
+                gte: gteSpy,
+                lte: lteSpy,
                 then: thenMock
-            });
+            };
+
+            selectSpy.mockReturnValue(mockChain);
+            ilikeSpy.mockReturnValue(mockChain); // chainable
+
             (vi.mocked(supabase.from) as unknown as Mock).mockReturnValue({ select: selectSpy });
 
             const result = await dbService.advancedSearch({ cliente: 'madrid' });
             expect(result.ok).toBe(true);
+            expect(ilikeSpy).toHaveBeenCalledWith('data->metadata->>cliente', '%madrid%');
+
+            // Since we mocked the return to be just the 1 matching item (simulating DB work),
+            // and we rely on DB to filter, we verify the RESULT matches what DB returned.
             if (result.ok) {
                 expect(result.value).toHaveLength(1);
                 expect(result.value[0].hash).toBe('1');

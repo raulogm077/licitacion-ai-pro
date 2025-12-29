@@ -8,7 +8,9 @@ test.describe('Licitación AI Pro - E2E', () => {
     test('should load the home page and display correct title', async ({ page }) => {
         await page.goto('/');
         await expect(page).toHaveTitle(/Analista de Pliegos|Licitación/i);
-        await expect(page.getByText('Analista de Pliegos')).toBeVisible();
+        // Expect at least one heading with this name to be visible (e.g. Sidebar or Main)
+        // using .first() resolves the strict mode violation
+        await expect(page.getByText('Analista de Pliegos').first()).toBeVisible();
     });
 
     test('should navigate to History view', async ({ page }) => {
@@ -47,8 +49,8 @@ test.describe('Licitación AI Pro - E2E', () => {
 
     test('should show dropzone for ingestion', async ({ page }) => {
         await page.goto('/');
-        // Loosen text match to be safer
-        await expect(page.getByText(/Arrastra tu pliego/i)).toBeVisible();
+        // Loosen text match to be safer and match "Arrastra y suelta tu archivo"
+        await expect(page.getByText(/Arrastra y suelta|Arrastra tu/i)).toBeVisible();
         await expect(page.getByText(/PDF.*Máx 20MB/i).or(page.getByText(/Seleccionar PDF/i))).toBeVisible();
     });
 });

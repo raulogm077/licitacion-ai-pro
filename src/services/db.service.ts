@@ -1,14 +1,20 @@
-import { supabase } from '../config/supabase';
+import { supabase as defaultClient } from '../config/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { LicitacionData, LicitacionContent, SearchFilters, DbLicitacion } from '../types';
 import { qualityService } from './quality.service';
 import { Result, ok, err } from '../lib/Result';
 
 export class DBService {
+    private client: SupabaseClient;
+
+    constructor(client: SupabaseClient = defaultClient) {
+        this.client = client;
+    }
 
     async saveLicitacion(hash: string, fileName: string, content: LicitacionContent): Promise<Result<void>> {
         try {
             // 0. Explicit Auth Check
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await this.client.auth.getSession();
             if (!session) {
                 return err(new Error("Persistencia Bloqueada: No hay sesión activa."));
             }
@@ -74,8 +80,9 @@ export class DBService {
                     workflow: {
                         current_version: 1,
                         status: 'succeeded',
-                        steps: [],
+                        created_at: now,
                         updated_at: now,
+                        steps: [],
                         quality: qualityReport
                     },
                     metadata: {
@@ -84,7 +91,7 @@ export class DBService {
                 };
             }
 
-            const { error } = await supabase
+            const { error } = await this.client
                 .from('licitaciones')
                 .upsert({
                     hash,
@@ -108,9 +115,15 @@ export class DBService {
 
     async updateLicitacion(hash: string, data: LicitacionData): Promise<Result<void>> {
         try {
+            // Explicit Auth Check for security consistency
+            const { data: { session } } = await this.client.auth.getSession();
+            if (!session) {
+                return err(new Error("Actualización Bloqueada: No hay sesión activa."));
+            }
+
             const now = new Date().toISOString();
 
-            const { error } = await supabase
+            const { error } = await this.client
                 .from('licitaciones')
                 .update({
                     data: data,
@@ -127,7 +140,7 @@ export class DBService {
 
     async getLicitacion(hash: string): Promise<Result<DbLicitacion>> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await this.client
                 .from('licitaciones')
                 .select('*')
                 .eq('hash', hash)
@@ -149,7 +162,7 @@ export class DBService {
 
     async getAllLicitaciones(): Promise<Result<DbLicitacion[]>> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await this.client
                 .from('licitaciones')
                 .select('*')
                 .order('updated_at', { ascending: false });
@@ -172,7 +185,7 @@ export class DBService {
 
     async deleteLicitacion(hash: string): Promise<Result<void>> {
         try {
-            const { error } = await supabase
+            const { error } = await this.client
                 .from('licitaciones')
                 .delete()
                 .eq('hash', hash);
@@ -186,7 +199,7 @@ export class DBService {
 
     async advancedSearch(filters: SearchFilters): Promise<Result<DbLicitacion[]>> {
         try {
-            let query = supabase.from('licitaciones').select('*');
+            let query = this.client.from('licitaciones').select('*');
 
             if (filters.presupuestoMin !== undefined) {
                 query = query.filter('data->datosGenerales->>presupuesto', 'gte', filters.presupuestoMin);
@@ -199,6 +212,29 @@ export class DBService {
             if (filters.estado) {
                 query = query.filter('data->metadata->>estado', 'eq', filters.estado);
             }
+
+            if (filters.cliente) {
+                // Use JSONB text search or simple ilike if possible. 
+                // data->metadata->>cliente stores the string.
+                query = query.ilike('data->metadata->>cliente', `%${filters.cliente}%`);
+            }
+
+            if (filters.fechaDesde) {
+                const dateStr = new Date(filters.fechaDesde).toISOString();
+                query = query.gte('updated_at', dateStr);
+            }
+
+            if (filters.fechaHasta) {
+                const dateStr = new Date(filters.fechaHasta).toISOString();
+                query = query.lte('updated_at', dateStr);
+            }
+
+            // Tags: Logic "OR" (some) is hard in single Postgrest call without complex syntax.
+            // Using "contains" (cs) means AND (all tags must be present).
+            // Documentation usually implies filters.tags matches ANY? Code used "some".
+            // If user wants ANY, we can't easily do it efficiently in one generic filter chain without 'or'.
+            // For now, let's keep Tags in memory to ensure logic correctness (OR vs AND mismatch risk),
+            // BUT we successfully offloaded Client and Dates.
 
             const { data, error } = await query;
             if (error) return err(new Error(error.message));
@@ -217,20 +253,6 @@ export class DBService {
                 );
             }
 
-            if (filters.cliente) {
-                results = results.filter(item =>
-                    item.data.metadata?.cliente?.toLowerCase().includes(filters.cliente!.toLowerCase())
-                );
-            }
-
-            if (filters.fechaDesde) {
-                results = results.filter(item => item.timestamp >= filters.fechaDesde!);
-            }
-
-            if (filters.fechaHasta) {
-                results = results.filter(item => item.timestamp <= filters.fechaHasta!);
-            }
-
             return ok(results);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
@@ -238,7 +260,7 @@ export class DBService {
     }
 
     subscribeToLicitacion(hash: string, onUpdate: (data: LicitacionData) => void) {
-        return supabase
+        return this.client
             .channel(`licitacion:${hash}`)
             .on(
                 'postgres_changes',

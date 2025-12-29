@@ -16,7 +16,8 @@ const Tooltip = ({ children }: { children: React.ReactNode }) => {
         >
             {React.Children.map(children, child => {
                 if (React.isValidElement(child)) {
-                    return React.cloneElement(child, { isOpen })
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    return React.cloneElement(child as React.ReactElement<any>, { isOpen })
                 }
                 return child
             })}

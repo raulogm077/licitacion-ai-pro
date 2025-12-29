@@ -27,12 +27,11 @@ Deno.serve(async (req) => {
       throw new Error("Server Misconfiguration: GEMINI_API_KEY not set");
     }
 
-    // Try these models in order. 
-    // Pro is most restricted, Flash has higher RPM.
+    // Verified models for this API key
     const MODELS = [
-      "gemini-1.5-pro",
-      "gemini-1.5-flash",
-      "gemini-1.5-flash-8b"
+      "gemini-pro-latest",
+      "gemini-2.0-flash",
+      "gemini-flash-lite-latest"
     ];
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -60,43 +59,48 @@ Deno.serve(async (req) => {
     };
 
     let responseText = "";
-    let lastErr: any = null;
+    let lastErr: unknown = null; // Fix: was any
 
     for (const m of MODELS) {
       try {
         responseText = await generate(m);
         lastErr = null;
         break;
-      } catch (e: any) {
+      } catch (e: unknown) { // Fix: was any
         lastErr = e;
         const errStr = String(e);
-        console.error(`[Edge Fail] ${m}: ${e.message}`);
+        const errObj = e instanceof Error ? e : new Error(errStr);
+        console.error(`[Edge Fail] ${m}: ${errObj.message}`);
 
-        // Wait and try next if it's a server or rate error
-        if (errStr.includes("429") || errStr.includes("Quota") || errStr.includes("500")) {
+        // Retry logic for quota or temporary server errors
+        if (errStr.includes("429") || errStr.includes("Quota") || errStr.includes("500") || errStr.includes("503")) {
+          console.warn(`[Edge] Retrying with next model in 2s...`);
           await new Promise(r => setTimeout(r, 2000));
           continue;
         } else {
-          throw e;
+          // If it's a 404 (model not found) or other, we still try the next one just in case
+          console.warn(`[Edge] Model failed with non-quota error. Trying next.`);
+          continue;
         }
       }
     }
 
-    if (lastErr) throw lastErr;
+    if (lastErr && !responseText) throw lastErr;
 
     return new Response(JSON.stringify({ text: responseText }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) { // Fix: was any
     const errStr = String(error);
+    const errObj = error instanceof Error ? error : new Error(errStr);
     const isQuota = errStr.includes("429") || errStr.includes("Quota");
     console.error(`[Edge Critical]`, error);
 
     return new Response(JSON.stringify({
-      error: error.message || errStr,
+      error: errObj.message || errStr,
       isQuota,
-      hint: isQuota ? "Límite de Google AI Studio alcanzado. Verifica tu cuota diaria en AI Studio o usa una clave con facturación habilitada." : "Error inesperado en el servidor."
+      hint: isQuota ? "Límite de Google AI Studio alcanzado. Verifica tu cuota diaria en AI Studio o usa una clave con facturación habilitada." : "Error inesperado en el servidor de IA."
     }), {
       status: isQuota ? 429 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

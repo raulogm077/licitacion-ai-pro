@@ -187,7 +187,8 @@ export const WorkflowStateSchema = z.object({
         warnings: z.array(z.string()),
         consistencyWarnings: z.array(z.string()).optional()
     }).optional(),
-    updated_at: z.string()
+    updated_at: z.string(),
+    created_at: z.string().optional()
 });
 
 export type AnalysisVersion = z.infer<typeof AnalysisVersionSchema>;

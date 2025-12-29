@@ -1,16 +1,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { exportToJson, exportToExcel } from '../export-utils';
-import * as XLSX from 'xlsx';
 
-// Mock XLSX
-vi.mock('xlsx', () => ({
-    utils: {
-        book_new: vi.fn(),
-        aoa_to_sheet: vi.fn(),
-        book_append_sheet: vi.fn()
-    },
-    writeFile: vi.fn()
+// Mock ExcelJS
+const mockAddRows = vi.fn();
+const mockAddRow = vi.fn();
+const mockAddWorksheet = vi.fn(() => ({
+    columns: [],
+    addRows: mockAddRows,
+    addRow: mockAddRow
 }));
+const mockWriteBuffer = vi.fn(() => Promise.resolve(new ArrayBuffer(8)));
+
+// Correctly mock the default export for ExcelJS
+vi.mock('exceljs', () => {
+    return {
+        default: {
+            Workbook: vi.fn(function () {
+                return {
+                    creator: '',
+                    lastModifiedBy: '',
+                    created: new Date(),
+                    modified: new Date(),
+                    addWorksheet: mockAddWorksheet,
+                    xlsx: {
+                        writeBuffer: mockWriteBuffer
+                    }
+                };
+            })
+        }
+    };
+});
 
 describe('Export Utils', () => {
     const mockData = {
@@ -20,7 +39,8 @@ describe('Export Utils', () => {
             moneda: 'EUR',
             plazoEjecucionMeses: 12,
             cpv: ['123', '456'],
-            organoContratacion: 'Org Test'
+            organoContratacion: 'Org Test',
+            fechaLimitePresentacion: '2025-12-31'
         },
         criteriosAdjudicacion: {
             subjetivos: [{ descripcion: 'Subj 1', ponderacion: 10, detalles: 'Det 1' }],
@@ -39,7 +59,8 @@ describe('Export Utils', () => {
             killCriteria: [],
             penalizaciones: []
         },
-        modeloServicio: { sla: [], equipoMinimo: [] }
+        modeloServicio: { sla: [], equipoMinimo: [] },
+        metadata: { tags: [] }
     };
 
     beforeEach(() => {
@@ -71,17 +92,13 @@ describe('Export Utils', () => {
         expect(document.createElement).toHaveBeenCalledWith('a');
         expect(document.body.appendChild).toHaveBeenCalled();
         expect(global.URL.createObjectURL).toHaveBeenCalled();
-        // Check content implies Blob usage, harder to spy on Blob constructor directly without polyfill or deeper mock.
-        // Assuming Blob creation doesn't crash is good enough for unit test of the utility flow.
     });
 
-    it('should export Excel using XLSX library', () => {
-        exportToExcel(mockData, 'test-file');
+    it('should export Excel using ExcelJS library', async () => {
+        await exportToExcel(mockData, 'test-file');
 
-        expect(XLSX.utils.book_new).toHaveBeenCalled();
-        // Sheets: 1 General, 1 Criterios, 1 Requisitos, 1 Riesgos = 4 sheets
-        expect(XLSX.utils.aoa_to_sheet).toHaveBeenCalledTimes(4);
-        expect(XLSX.utils.book_append_sheet).toHaveBeenCalledTimes(4);
-        expect(XLSX.writeFile).toHaveBeenCalledWith(undefined, 'test-file.xlsx');
+        expect(mockAddWorksheet).toHaveBeenCalledTimes(4); // General, Criterios, Requisitos, Riesgos
+        expect(mockWriteBuffer).toHaveBeenCalled();
+        expect(global.URL.createObjectURL).toHaveBeenCalled(); // Should trigger download
     });
 });

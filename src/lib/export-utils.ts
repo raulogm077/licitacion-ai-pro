@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { LicitacionData, AnalyticsData } from '../types';
 
 export function exportToJson(data: LicitacionData, filename: string) {
@@ -13,12 +13,33 @@ export function exportToJson(data: LicitacionData, filename: string) {
     URL.revokeObjectURL(url);
 }
 
-export function exportToExcel(data: LicitacionData, filename: string) {
-    const wb = XLSX.utils.book_new();
+async function saveWorkbook(workbook: ExcelJS.Workbook, filename: string) {
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+export async function exportToExcel(data: LicitacionData, filename: string) {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Licitacion AI';
+    workbook.lastModifiedBy = 'Licitacion AI';
+    workbook.created = new Date();
+    workbook.modified = new Date();
 
     // Sheet 1: General Info
-    const generalData = [
-        ['Campo', 'Valor'],
+    const wsGeneral = workbook.addWorksheet('General');
+    wsGeneral.columns = [
+        { header: 'Campo', key: 'campo', width: 25 },
+        { header: 'Valor', key: 'valor', width: 50 },
+    ];
+    wsGeneral.addRows([
         ['Título', data.datosGenerales.titulo],
         ['Presupuesto', data.datosGenerales.presupuesto],
         ['Moneda', data.datosGenerales.moneda],
@@ -26,68 +47,52 @@ export function exportToExcel(data: LicitacionData, filename: string) {
         ['Órgano Contratación', data.datosGenerales.organoContratacion],
         ['CPV', data.datosGenerales.cpv.join(', ')],
         ['Fecha Límite', data.datosGenerales.fechaLimitePresentacion || 'N/A']
-    ];
-    const wsGeneral = XLSX.utils.aoa_to_sheet(generalData);
-    XLSX.utils.book_append_sheet(wb, wsGeneral, "General");
+    ]);
 
     // Sheet 2: Criterios
-    const criteriosData = [
-        ['Tipo', 'Descripción', 'Ponderación', 'Detalle/Fórmula'],
-        ...data.criteriosAdjudicacion.subjetivos.map(c => ['Subjetivo', c.descripcion, c.ponderacion, c.detalles || '']),
-        ...data.criteriosAdjudicacion.objetivos.map(c => ['Objetivo', c.descripcion, c.ponderacion, c.formula || ''])
-    ];
-    const wsCriterios = XLSX.utils.aoa_to_sheet(criteriosData);
-    XLSX.utils.book_append_sheet(wb, wsCriterios, "Criterios");
+    const wsCriterios = workbook.addWorksheet('Criterios');
+    wsCriterios.addRow(['Tipo', 'Descripción', 'Ponderación', 'Detalle/Fórmula']);
+    data.criteriosAdjudicacion.subjetivos.forEach(c => wsCriterios.addRow(['Subjetivo', c.descripcion, c.ponderacion, c.detalles || '']));
+    data.criteriosAdjudicacion.objetivos.forEach(c => wsCriterios.addRow(['Objetivo', c.descripcion, c.ponderacion, c.formula || '']));
 
     // Sheet 3: Requisitos
-    const reqData = [
-        ['Tipo', 'Requisito', 'Obligatorio', 'Página'],
-        ...data.requisitosTecnicos.funcionales.map(r => ['Funcional', r.requisito, r.obligatorio ? 'Sí' : 'No', r.referenciaPagina || ''])
-    ];
-    const wsReq = XLSX.utils.aoa_to_sheet(reqData);
-    XLSX.utils.book_append_sheet(wb, wsReq, "Requisitos");
+    const wsReq = workbook.addWorksheet('Requisitos');
+    wsReq.addRow(['Tipo', 'Requisito', 'Obligatorio', 'Página']);
+    data.requisitosTecnicos.funcionales.forEach(r => wsReq.addRow(['Funcional', r.requisito, r.obligatorio ? 'Sí' : 'No', r.referenciaPagina || '']));
 
     // Sheet 4: Riesgos
-    const riskData = [
-        ['Descripción', 'Impacto', 'Probabilidad', 'Mitigación'],
-        ...data.restriccionesYRiesgos.riesgos.map(r => [r.descripcion, r.impacto, r.probabilidad || '', r.mitigacionSugerida || ''])
-    ];
-    const wsRisk = XLSX.utils.aoa_to_sheet(riskData);
-    XLSX.utils.book_append_sheet(wb, wsRisk, "Riesgos");
+    const wsRisk = workbook.addWorksheet('Riesgos');
+    wsRisk.addRow(['Descripción', 'Impacto', 'Probabilidad', 'Mitigación']);
+    data.restriccionesYRiesgos.riesgos.forEach(r => wsRisk.addRow([r.descripcion, r.impacto, r.probabilidad || '', r.mitigacionSugerida || '']));
 
-    XLSX.writeFile(wb, `${filename}.xlsx`);
+    await saveWorkbook(workbook, filename);
 }
 
-export function exportAnalyticsToExcel(data: AnalyticsData, filename: string) {
-    const wb = XLSX.utils.book_new();
+export async function exportAnalyticsToExcel(data: AnalyticsData, filename: string) {
+    const workbook = new ExcelJS.Workbook();
 
     // Sheet 1: Key Metrics
-    const metricsData = [
+    const wsMetrics = workbook.addWorksheet('Métricas Clave');
+    wsMetrics.addRows([
         ['Métrica', 'Valor'],
         ['Total Licitaciones', data.totalLicitaciones],
         ['Presupuesto Total', data.presupuestoTotal],
         ['Presupuesto Promedio', data.presupuestoPromedio],
         ['Importe Adjudicado Total', data.importeAdjudicadoTotal],
         ['Tiempo Análisis Promedio (ms)', data.tiempoAnalisisPromedio]
-    ];
-    const wsMetrics = XLSX.utils.aoa_to_sheet(metricsData);
-    XLSX.utils.book_append_sheet(wb, wsMetrics, "Métricas Clave");
+    ]);
 
     // Sheet 2: Distribución Estados
-    const estadosData = [
-        ['Estado', 'Cantidad'],
-        ...Object.entries(data.distribucionEstados)
-    ];
-    const wsEstados = XLSX.utils.aoa_to_sheet(estadosData);
-    XLSX.utils.book_append_sheet(wb, wsEstados, "Estados");
+    const wsEstados = workbook.addWorksheet('Estados');
+    wsEstados.addRow(['Estado', 'Cantidad']);
+    Object.entries(data.distribucionEstados).forEach(([estado, cantidad]) => {
+        wsEstados.addRow([estado, cantidad]);
+    });
 
     // Sheet 3: Top Clientes
-    const clientesData = [
-        ['Cliente', 'Cantidad', 'Total Presupuesto'],
-        ...data.topClientes.map(c => [c.cliente, c.count, c.total])
-    ];
-    const wsClientes = XLSX.utils.aoa_to_sheet(clientesData);
-    XLSX.utils.book_append_sheet(wb, wsClientes, "Top Clientes");
+    const wsClientes = workbook.addWorksheet('Top Clientes');
+    wsClientes.addRow(['Cliente', 'Cantidad', 'Total Presupuesto']);
+    data.topClientes.forEach(c => wsClientes.addRow([c.cliente, c.count, c.total]));
 
-    XLSX.writeFile(wb, `${filename}.xlsx`);
+    await saveWorkbook(workbook, filename);
 }

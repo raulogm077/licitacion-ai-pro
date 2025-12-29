@@ -105,7 +105,7 @@ export class AIService {
         const fullPrompt = `${sectionPrompt}\n\nResponde únicamente con un objeto JSON válido que siga la estructura para la clave "${sectionKey}".`;
 
         const MAX_RETRIES = 3;
-        let lastError: any;
+        let lastError: unknown; // Fix: was any
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -129,7 +129,7 @@ export class AIService {
                         if (parsedError.error) errorMessage = parsedError.error;
                         if (parsedError.isQuota) isQuota = true;
                         if (parsedError.hint) hint = parsedError.hint;
-                    } catch (e) {
+                    } catch {
                         // Not a JSON error
                     }
 
@@ -146,17 +146,18 @@ export class AIService {
 
                 return this.cleanAndParseJson(data.text, sectionKey);
 
-            } catch (e: any) {
+            } catch (e: unknown) { // Fix: was any
                 lastError = e;
                 const isLastAttempt = attempt === MAX_RETRIES;
-                const isQuotaError = e.message?.includes("CUOTA_IA_EXCEDIDA");
+                const err = e instanceof Error ? e : new Error(String(e));
+                const isQuotaError = err.message?.includes("CUOTA_IA_EXCEDIDA");
 
                 if (!isLastAttempt) {
                     // Double delay if it's a quota error
                     const baseDelay = isQuotaError ? 20000 : 5000;
                     const delay = Math.pow(2, attempt - 1) * baseDelay;
 
-                    console.warn(`Intento ${attempt}/${MAX_RETRIES} fallido para ${sectionKey}. Reintentando en ${delay}ms...`, e.message);
+                    console.warn(`Intento ${attempt}/${MAX_RETRIES} fallido para ${sectionKey}. Reintentando en ${delay}ms...`, err.message);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     console.error(`Todos los intentos fallaron para ${sectionKey}:`, e);
@@ -164,7 +165,8 @@ export class AIService {
             }
         }
 
-        throw new LicitacionAIError(`Fallo persistente backend sección ${sectionKey} tras ${MAX_RETRIES} intentos: ${lastError?.message || String(lastError)}`, lastError);
+        const finalError = lastError instanceof Error ? lastError : new Error(String(lastError));
+        throw new LicitacionAIError(`Fallo persistente backend sección ${sectionKey} tras ${MAX_RETRIES} intentos: ${finalError.message}`, finalError);
     }
 
     private cleanAndParseJson<K extends keyof LicitacionContent>(text: string, sectionKey: K): Partial<LicitacionContent> {
@@ -196,6 +198,66 @@ export class AIService {
         // AUTO-UNWRAP: If the AI returned { "datosGenerales": { ... } } instead of { ... }
         if (parsedJson && typeof parsedJson === 'object' && (parsedJson as Record<string, unknown>)[sectionKey]) {
             parsedJson = (parsedJson as Record<string, unknown>)[sectionKey];
+        }
+
+        // AUTO-WRAP: If the AI returned an Array directly instead of { key: Array }
+        // Example: returned [{ tipo: "..." }] instead of { requisitosTecnicos: [{ tipo: "..." }] }
+        if (Array.isArray(parsedJson)) {
+            // Check if the expected schema IS an array or an object containing an array.
+            // Our Schema usually expects { [sectionKey]: ... } but the Schema validation
+            // runs against the Inner object content in some designs, or the container.
+
+            // Let's verify the Schema content. LicitacionContentSchema[sectionKey] usually expects the object structure.
+            // e.g. requisitosTecnicos: z.object({ funcionales: [], normativa: [] }) OR z.array(...) ?
+            // Looking at the logs: "Expected object, received array".
+            // Implementation: Verification shows logs say "received: array". 
+            // So we need to Check if we should wrap it or map it.
+
+            // Heuristic: If it's an array, it's likely a list of items that belong to a specific sub-property
+            // OR the Main Schema really needed an object wrapper.
+            // Given the logs showing keys like "tipo", "descripcion", it matches items inside "killCriteria" or similar?
+            // Actually, for "restriccionesYRiesgos", the schema expects { killCriteria: [], riesgos: [], penalizaciones: [] }.
+            // Receiving a flat array means the AI confused the structure.
+            // We need to try to bucket them or map them.
+            // OR simpler: Just try to re-prompt? No, too slow.
+            // Best fix: If it's an array, try to find "tipo" and bucket them locally.
+
+            if (sectionKey === 'restriccionesYRiesgos') {
+                const items = parsedJson as Record<string, unknown>[]; // Fix: was any[]
+                const newObj: { killCriteria: unknown[], riesgos: unknown[], penalizaciones: unknown[] } = { killCriteria: [], riesgos: [], penalizaciones: [] }; // Fix: strict type
+                items.forEach(item => {
+                    const t = (String(item.tipo || "")).toLowerCase();
+                    if (t.includes("kill")) newObj.killCriteria.push(item);
+                    else if (t.includes("riesgo")) newObj.riesgos.push(item);
+                    else if (t.includes("penaliz")) newObj.penalizaciones.push(item);
+                });
+                parsedJson = newObj;
+            } else if (sectionKey === 'criteriosAdjudicacion') {
+                // Expects { subjetivos: [], objetivos: [] }
+                const items = parsedJson as Record<string, unknown>[]; // Fix: was any[]
+                const newObj: { subjetivos: unknown[], objetivos: unknown[] } = { subjetivos: [], objetivos: [] };
+                items.forEach(item => {
+                    const t = (String(item.tipo || "")).toLowerCase();
+                    if (t.includes("subjetivo") || t.includes("juicio")) newObj.subjetivos.push(item);
+                    else newObj.objetivos.push(item);
+                });
+                parsedJson = newObj;
+            } else if (sectionKey === 'requisitosSolvencia') {
+                // Expects { economica: {}, tecnica: [] }
+                const items = parsedJson as Record<string, unknown>[]; // Fix: was any[]
+                const newObj: { economica: { cifraNegocioAnualMinima: number }, tecnica: unknown[] } = { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] };
+                items.forEach(item => {
+                    const t = (String(item.tipo || "")).toLowerCase();
+                    if (t.includes("economica")) {
+                        // try to extract number
+                        const nums = (String(item.requisito || "")).match(/\d+(\.\d+)?/);
+                        if (nums) newObj.economica.cifraNegocioAnualMinima = parseFloat(nums[0]);
+                    } else {
+                        newObj.tecnica.push(item.requisito || item.descripcion);
+                    }
+                });
+                parsedJson = newObj;
+            }
         }
 
         // Validate against Zod schema
