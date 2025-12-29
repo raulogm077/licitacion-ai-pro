@@ -1,0 +1,146 @@
+@antigravity @mcp:github-mcp-server
+
+Objetivo:
+Revisar todo el proyecto de pliegos (React 18 / Vite / TypeScript) para detectar errores, optimizar, eliminar código muerto y proponer mejoras. Ejecuta pruebas y amplía el plan de pruebas para que sea robusto.
+
+Contexto técnico (stack):
+- Front: React 18 + TS + Vite + React Router
+- Estado/validación: Zustand + Zod
+- IA: @google/generative-ai (Gemini)
+- Backend: Supabase JS (Auth + Postgres + RLS)
+- Tests: Vitest (y Playwright si está)
+
+Reglas de trabajo (obligatorias):
+- No inventes APIs ni asumas endpoints/contratos que no existan en el repo.
+- No uses placeholders tipo "TODO: implement" como solución final.
+- Cada hallazgo debe tener: (a) evidencia concreta (archivo/líneas), (b) impacto, (c) fix exacto, (d) tests/validación.
+- Manejo de errores robusto: fail-fast donde proceda, mensajes claros, sin filtrar secretos.
+- Documenta el “por qué” de decisiones complejas (seguridad, arquitectura, cambios de comportamiento).
+- Cambios mínimos, seguros y trazables. Si un refactor es grande, propón un plan por etapas.
+
+Alcance:
+- Código: src/**, scripts/**, config/**.
+  Incluye: servicios (IA/Supabase), hooks, páginas, componentes, store, scripts auxiliares.
+- Calidad: Arquitectura, SOLID, Clean Code, manejo de errores/edge cases, inmutabilidad, seguridad de entrada/salida.
+- Rendimiento: Evitar doble lectura de archivos, evitar filtrado cliente ineficiente en búsquedas, lazy init donde aplique.
+- Deuda: Código roto o no usado (ej. scripts), mensajes duplicados, mutaciones inesperadas.
+- Configuración: Variables de entorno (Gemini/Supabase) con manejo amable + fail-fast claro.
+- Seguridad: no exponer service_role, revisar RLS/policies, sanitización si renderizas contenido del pliego, no loggear PII.
+- Observabilidad: logs útiles (con niveles), sin ruido ni duplicados; trazas en flujos críticos.
+
+Tareas (en orden estricto):
+
+1) Inventario y mapa del sistema
+- Lee README, package.json, vite.config.*, tsconfig*, configs de lint/format, estructura de /src.
+- Mapea:
+  - rutas (React Router)
+  - stores (Zustand)
+  - schemas/validaciones (Zod)
+  - flujo IA (Gemini): input → prompt → response → parse/validate → persist
+  - flujo Supabase: auth → tablas/queries → RLS
+  - subida y procesamiento de PDF: lectura, límites, cancelación, errores
+
+2) Revisión de errores y fiabilidad
+Busca y reporta con ubicaciones exactas:
+- TypeScript: any innecesarios, ts-ignore, casts peligrosos, null/undefined no controlados.
+- React: hooks mal usados, dependencias incorrectas, fugas (event listeners, async sin cancel), renders innecesarios.
+- Asíncrono: falta de try/catch, falta de timeouts, reintentos mal planteados, estados intermedios rotos.
+- IA/Supabase:
+  - errores no manejados
+  - validación insuficiente de la salida de IA (Zod)
+  - edge cases (respuestas parciales, campos extra, strings enormes, nulos)
+  - fallos de red / rate-limit / permisos / RLS
+
+3) Limpieza y deuda técnica (código muerto)
+- Detecta:
+  - archivos/componentes/hooks no usados
+  - exports no usados
+  - dependencias no usadas o duplicadas
+  - rutas/páginas nunca alcanzables
+  - flags/config legacy
+- Si aplica, integra herramientas con cambios mínimos:
+  - knip (preferido) o ts-prune para exports muertos
+  - depcheck para deps no usadas
+- Propón y/o aplica eliminación segura (sin romper build/tests).
+
+4) Rendimiento (donde aporte valor real)
+- Archivo/PDF:
+  - evitar doble lectura
+  - evitar copias innecesarias en memoria
+  - límite de tamaño + feedback al usuario
+  - cancelación de procesamiento
+- Búsqueda/Histórico:
+  - evitar filtrado cliente pesado si hay alternativa (query server-side en Supabase)
+  - paginación, índices sugeridos (si hay SQL/migrations)
+  - memoización y selectors en Zustand para evitar re-renders
+
+5) Configuración y fail-fast
+- Variables de entorno:
+  - valida al arranque (ej. zod schema de env)
+  - mensajes claros (qué falta y cómo configurarlo)
+  - nunca imprimir secretos
+- Diferencia clara entre runtime dev/prod.
+- Revisar que Vite use VITE_* correctamente.
+
+6) Seguridad
+- Supabase:
+  - confirmar no uso de service_role en frontend
+  - comprobar RLS y policies mínimas para tablas (licitaciones, users, etc.)
+- XSS/HTML:
+  - si se renderiza contenido del pliego, sanitizar o renderizar como texto
+- Dependencias:
+  - npm audit (o equivalente) y acciones recomendadas
+
+7) Ejecutar pipelines / pruebas (y arreglar lo que falle)
+Ejecuta y reporta (salida resumida + fix si procede):
+- npm ci
+- npm run lint
+- npm run typecheck (si no existe, añade: "tsc -p tsconfig.json --noEmit")
+- npm run test (Vitest)
+- npm run build
+- si está configurado: npx playwright test
+Si fallan por dependencias externas (Gemini/Supabase), documenta motivo y ajusta el plan:
+- mocks (MSW) o inyección de dependencias
+- variables de entorno de test
+- tests que no dependan de red
+
+8) Plan de pruebas robusto (amplíalo si falta)
+Asegura cobertura de:
+- Happy path + edge cases + error handling en:
+  - IA (Gemini): timeouts, errores, respuesta parcial, schema inválido, campos extra
+  - DB/Supabase: RLS denegado, sesión caducada, fallos de red
+  - búsqueda: queries vacías, paginación, filtros, grandes volúmenes
+  - subida PDFs: tamaño, formato, cancelación, errores de lectura
+  - autenticación: login/logout/refresh, rutas protegidas
+  - dashboard/presentation/exportaciones: estados vacíos, loading, errores
+- Unit tests (Vitest):
+  - Zod schemas (válido/invalid/partial/extra/huge/null)
+  - stores (estados iniciales, transiciones, persist si existe)
+  - utilidades (parse/normalize/transform)
+- Integración:
+  - navegación y rutas críticas
+  - flujo completo upload → IA → validate → persist → visualizar
+  - MSW para Gemini/Supabase o mocks deterministas
+- E2E (Playwright, si procede):
+  - 2–4 flujos críticos (login, upload+analizar+guardar, histórico, búsqueda)
+- Objetivo coverage: ~70% líneas inicial (subir después), sin snapshots gigantes.
+
+Entregables (formato obligatorio):
+1) Lista de hallazgos con:
+   - clasificación: bug / deuda técnica / mejora rendimiento / cleanup / seguridad
+   - severidad: P0/P1/P2
+   - ubicación exacta (archivo + líneas)
+   - evidencia y explicación del impacto
+2) Acciones concretas por hallazgo:
+   - qué cambiar exactamente y dónde
+   - patch/diff o PR con commits claros
+   - tests añadidos/ajustados y cómo validarlos
+3) Resultado de pipelines/pruebas ejecutadas:
+   - comando → resultado → fixes aplicados (resumen)
+4) Plan de pruebas ampliado:
+   - checklist final + casos añadidos + cómo correr en CI
+   - si algo no se puede testear por dependencia externa, deja alternativa (mock/inyección) y justificación
+
+Importante:
+- Respeta: no inventar APIs; no placeholders; manejo de errores robusto; documentar “por qué” en decisiones complejas.
+- Si detectas mejoras grandes, propón plan incremental (iteración 1/2/3) en vez de un mega-refactor.

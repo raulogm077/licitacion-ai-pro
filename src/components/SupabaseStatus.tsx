@@ -11,17 +11,8 @@ export const SupabaseStatus: React.FC = () => {
     useEffect(() => {
         const checkConnection = async () => {
             try {
-                // Check if client is the proxy wrapper (missing env vars)
-                // Accessing any property on the proxy throws an error
-                try {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    void (supabase as any).auth;
-                } catch (configError: unknown) {
-                    if (configError instanceof Error && configError.message.includes('Variables de Entorno')) {
-                        setStatus('error-config');
-                        return;
-                    }
-                }
+                // Check connection
+                // Note: env.ts already validates VITE_SUPABASE_URL presence at startup.
 
                 // Simple read check regarding if user is logged in
                 const { error } = await supabase.from('licitaciones').select('count', { count: 'exact', head: true });

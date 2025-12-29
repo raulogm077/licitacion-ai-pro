@@ -20,16 +20,20 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => onOpenChange(false)} />
             <div className="relative w-full max-w-lg scale-100 transition-all z-50">
                 {React.Children.map(children, child =>
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    React.isValidElement(child) ? React.cloneElement(child as any, { onOpenChange }) : child
+                    React.isValidElement(child)
+                        ? React.cloneElement(child as React.ReactElement<{ onOpenChange?: (open: boolean) => void }>, { onOpenChange })
+                        : child
                 )}
             </div>
         </div>
     );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function DialogContent({ className, children, onOpenChange, ...props }: any) {
+interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
+    onOpenChange?: (open: boolean) => void;
+}
+
+export function DialogContent({ className, children, onOpenChange, ...props }: DialogContentProps) {
     return (
         <div
             className={cn(

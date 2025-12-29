@@ -1,0 +1,212 @@
+Arquitectura Ideal Propuesta para la Aplicación de Análisis de Pliegos
+Arquitectura General
+
+La solución propuesta sigue una arquitectura modular y escalable que separa claramente los componentes principales: un frontend de cliente, servicios backend por dominio, un motor de IA para el análisis, y sistemas de almacenamiento y autenticación. Esta arquitectura busca maximizar la robustez y mantenibilidad aplicando principios de separación de responsabilidades y bajo acoplamiento, lo cual mejora la mantenibilidad y escalabilidad del software
+mentorestech.com
+. A alto nivel, el flujo sería: el usuario interactúa con un frontend web seguro, que se comunica con un backend (vía API) encargado de orquestar la lógica de negocio por dominios; el backend utiliza un motor de IA (Gemini u otro) para analizar los PDFs y almacena los resultados estructurados con sus evidencias en una base de datos. Todos los componentes se diseñan sin estado (stateless) para facilitar la escalabilidad horizontal, conforme a las prácticas 12-Factor App, evitando dependencias en una sola máquina o instancia
+altenwald.org
+.
+
+En síntesis, la arquitectura se compone de los siguientes componentes principales:
+
+Frontend Web: Aplicación cliente (por ejemplo, construida con Next.js/React) desplegada en Vercel u otra plataforma, responsable de la interfaz de usuario. Gestiona la autenticación de forma segura (integra Supabase Auth u OAuth) y permite la carga de archivos PDF. Esta capa de presentación se comunica con la API backend mediante HTTPS (REST o GraphQL), enviando los PDFs y solicitando los análisis.
+
+Backend (API y Servicios): Conjunto de funciones serverless o microservicios organizados por dominios de negocio (usuarios, ingestión de documentos, análisis IA, etc.). Puede implementarse inicialmente como un monolito modular desplegado en Vercel Functions (para simplicidad), pero con una clara separación interna de módulos/dominios. Esto facilita que, en el futuro, cada dominio pueda escalarse o desplegarse por separado de ser necesario (p. ej., convertir un módulo en un microservicio independiente)
+mentorestech.com
+. El backend expone APIs seguras (con autenticación JWT vía Supabase) para que el frontend consulte resultados de análisis, suba nuevos documentos, etc.
+
+Motor de IA (Gemini u otro): Servicio especializado para el procesamiento inteligente de los PDFs. Idealmente está encapsulado detrás de una interfaz en el dominio de Análisis – por ejemplo, un microservicio o módulo que recibe texto del documento (posiblemente seccionado) y llama al modelo de IA (Google Gemini, OpenAI GPT, etc.) para extraer la información estructurada. Este motor puede ser un servicio externo consumido vía API o un componente interno si se tiene un modelo propio. La arquitectura aísla esta integración de IA para poder sustituir o escalar el motor en el futuro sin afectar al resto del sistema (siguiendo principios hexagonales de puertos y adaptadores
+mentorestech.com
+).
+
+Almacenamiento de Datos: Un sistema de base de datos relacional (p. ej., Supabase Postgres) almacenará la información de la aplicación: usuarios, metadatos de documentos, resultados de análisis estructurados, trazas de evidencia, y versiones de análisis. Postgres (vía Supabase) ofrece consistencia y facilidad de consulta para los datos estructurados, y permite definir esquemas claros (validado con Zod u otra herramienta) para los resultados de IA. Adicionalmente, un almacenamiento de objetos (Supabase Storage o S3 equivalente) se usa para los archivos PDF originales (y potencialmente para guardar texto extraído por secciones si se prefiere cachearlo). Separar los archivos binarios del datastore relacional asegura eficiencia y cumple el principio de servicios de apoyo conectables de 12-Factor App
+altenwald.org
+.
+
+Autenticación y Autorización: El sistema aprovechará Supabase Auth (u otro servicio como Auth0, según convenga) para gestionar los usuarios y sesiones de forma segura. Supabase Auth proporciona autenticación con correo/contraseña, OAuth, etc., emitiendo tokens JWT que el frontend usará para llamar al backend. El backend validará esos JWT en cada solicitud (middleware de autenticación) para asegurar que solo usuarios autorizados accedan a sus recursos. Todos los servicios se diseñan teniendo en cuenta la seguridad desde el inicio (p. ej., control de acceso a los archivos PDF en Storage mediante reglas de acceso Supabase).
+
+Servicios de Observabilidad: De manera transversal, la arquitectura incluye mecanismos de logging centralizado, monitoreo y alertas. Cada componente (frontend, funciones backend, worker) enviará logs estructurados (en formato JSON con contexto) a un sistema central de logging; esto facilita auditar el comportamiento del sistema y diagnosticar problemas en producción
+altenwald.org
+altenwald.org
+. Asimismo, se recogen métricas claves (uso de CPU, tiempo de respuesta de la IA, tamaño de colas, etc.) y se configuran alertas para anomalías, garantizando observabilidad integral del sistema en operación.
+
+Esta arquitectura general propone una separación de preocupaciones clara: la interfaz de usuario, la lógica de negocio por dominio, el procesamiento AI y el almacenamiento de datos están desacoplados. Así, cada pieza puede escalarse, desarrollarse y mantenerse de forma relativamente independiente, cumpliendo con las buenas prácticas de arquitectura moderna orientadas a servicios y dominios específicos.
+
+Dominios y Capas
+
+Bajo un enfoque de Domain-Driven Design (DDD), dividimos la solución en distintos dominios lógicos (Bounded Contexts) para reflejar sub-problemas del negocio. Esto refuerza la modularidad y permite que cada parte evolucione con alta cohesión y bajo acoplamiento respecto a las demás
+paradigmadigital.com
+paradigmadigital.com
+. A continuación se describen los dominios principales y cómo se estructuran internamente (siguiendo una arquitectura por capas hexagonal/onion):
+
+Dominio de Usuario (Autenticación y Perfil): Gestiona todo lo relativo a usuarios y sus permisos. Incluye registro/login seguro, gestión de sesiones (tokens JWT) y perfiles básicos. Aunque delegamos la autenticación básica a Supabase Auth, este dominio abarca la lógica adicional de negocio relacionada con usuarios (por ejemplo, asociación de roles o planes de suscripción en caso de necesitarse en el futuro). Internamente sigue una capa de aplicación (servicios de usuario) que orquesta llamadas a repositorios (por ejemplo, el repositorio de usuarios en la base de datos) y a proveedores de identidad (Supabase Auth) en un adaptador. Al separar la lógica de usuario en su propio módulo/servicio, garantizamos que concerniente a autenticación/autorización esté aislado y se pueda escalar o modificar (por ejemplo, cambiando de Supabase a Auth0) sin impacto en los otros dominios.
+
+Dominio de Ingestión de Documentos: Se ocupa de la carga y preparación de los PDF de licitación. Aquí se maneja la recepción de archivos PDF desde el frontend, su almacenamiento seguro en el bucket de archivos y el registro de un nuevo documento en la base de datos. Opcionalmente, esta capa podría encargarse de extraer texto del PDF (siempre que el PDF contenga texto, dado que actualmente no hay OCR) y dividirlo en secciones lógicas (por ejemplo, capítulos o apartados) para facilitar el análisis por la IA. Este procesamiento inicial puede incluir validaciones de formato (usando Zod para asegurar que el PDF es legible o cumple ciertos criterios). Internamente, la arquitectura por capas implica que el servicio de ingestión llama a adaptadores de infraestructura: uno para almacenamiento (interacción con Supabase Storage/S3) y otro potencialmente para extraer texto (usando librerías PDF si aplicable). Separar este dominio permite aplicar futuras mejoras como OCR en esta etapa sin tocar la lógica central de análisis.
+
+Dominio de Análisis (Motor IA): Es el núcleo de la aplicación, encargado de interactuar con la IA (Gemini u otro modelo) para analizar el contenido del documento y generar resultados estructurados. Este servicio toma como entrada el texto (completo o por secciones) del PDF y, siguiendo un esquema predefinido, obtiene mediante IA los campos requeridos (por ejemplo: fechas límite, requisitos, criterios de adjudicación, etc.). La lógica de análisis incluye dividir consultas a la IA por secciones si el documento es extenso, consolidar las respuestas y formatearlas según el esquema de datos. Cada resultado generado se asocia a la versión de análisis correspondiente y se guarda en la base de datos. Internamente, este dominio sigue una arquitectura hexagonal: la capa de dominio define entidades como Documento, ResultadoAnálisis, etc., y reglas (p. ej., cómo consolidar respuestas); una capa de aplicación/servicio de análisis orquesta el proceso (pudiendo manejar flujos asíncronos con workers, ver más abajo); y los adaptadores externos gestionan la interacción con el proveedor de IA (por ejemplo, a través de un cliente HTTP hacia la API de Gemini) y con la base de datos (repositorio que guarda resultados). Al tener la llamada a la IA encapsulada en un adaptador, podríamos reemplazar el modelo (por ejemplo, usar otra API o modelo local) sin cambiar la lógica de negocio, cumpliendo con la idea de no “manchar” el core de dominio con detalles tecnológicos
+paradigmadigital.com
+.
+
+Dominio de Evidencia y Trazabilidad: Este componente garantiza que cada dato extraído por la IA pueda ser rastreado hasta su origen en el PDF. Consiste en almacenar junto con los resultados estructurados, referencias precisas al documento fuente: por ejemplo, identificando página, sección y coordenadas o texto exacto de donde proviene cada campo. La funcionalidad de este dominio permite que un usuario final pueda ver la evidencia (highlight del texto original) que sustenta cada respuesta de la IA, proporcionando transparencia. Arquitectónicamente, esto puede implementarse con una entidad “Evidencia” relacionada con cada campo del resultado, y métodos para recuperar los fragmentos originales (quizá almacenando offsets de caracteres del texto extraído, o calculándolos on the fly buscando la cadena correspondiente en el PDF). Por capas, la lógica de trazabilidad reside en el dominio (reglas de cómo mapear campos a texto fuente) mientras que los detalles de almacenamiento (p. ej., guardar los offsets/páginas en la BD) e incluso de presentación (resaltar texto en una vista PDF) se mantienen en capas de infraestructura o front-end. Separar este dominio asegura que cualquier cambio en cómo se presenta o guarda la evidencia (por ejemplo, soportar PDFs escaneados con OCR en un futuro) no rompa la lógica de análisis en sí.
+
+Dominio de Búsqueda (Opcional/Futuro): Si se desea implementar funcionalidades de búsqueda (por ejemplo, buscar palabras clave en los documentos subidos o en los resultados de análisis), conviene aislar esta capacidad en su propio dominio. Esto podría involucrar indexar el contenido de los PDF o los datos extraídos en un motor de búsqueda (como ElasticSearch, MeiliSearch, etc.) para consultas full-text más rápidas. Aunque inicialmente no es prioritario, diseñar la arquitectura con este posible módulo en mente permite añadir búsqueda avanzada sin reestructurar todo el sistema. Este servicio de búsqueda interactuaría con la base de datos o almacenamiento de textos, alimentando el índice en segundo plano, y ofrecería al frontend APIs para consultas. Mantenerlo separado sigue el principio de single responsibility: el dominio de análisis extrae información, mientras el de búsqueda la indexa y consulta eficientemente.
+
+Cada dominio se implementa respetando una arquitectura por capas (inspirada en Hexagonal/Onion). En cada módulo de dominio encontramos típicamente:
+
+Entidades y Objetos de Valor que representan los conceptos centrales del negocio (ej. Documento, Licitación, Usuario, Resultado, CampoExtraído) y encapsulan reglas invariantes.
+
+Servicios de Dominio o Aplicación que coordinan casos de uso (ej. procesar un nuevo documento, autenticar usuario, generar análisis completo) orquestando entidades y llamando a otros servicios o eventos de dominio si hace falta.
+
+Puertos (Interfaces) que definen las operaciones necesarias hacia infraestructuras externas (ej. un puerto para “AnalizadorIA” que define una interfaz AnalizarTexto(seccion): Resultado sin concretar el modelo, o un puerto de “RepositorioDocumentos” que define métodos de guardar/obtener documentos).
+
+Adaptadores (Implementaciones de Puertos) que concretan esas interfaces usando tecnologías específicas: por ejemplo, un adaptador GeminiAnalizador que implementa el puerto de IA llamando la API de Gemini, o un adaptador PostgresDocumentoRepo que opera sobre Supabase/Postgres para guardar datos. Estos adaptadores están en la periferia de la aplicación y pueden cambiarse sin afectar la lógica central
+mentorestech.com
+.
+
+Este diseño de dominios y capas garantiza alta cohesión interna y bajo acoplamiento entre módulos, facilitando la mantenibilidad. Los beneficios de tal modularidad incluyen una solución más adaptable a cambios, equipos de desarrollo enfocados en contextos específicos, y la posibilidad de escalar o reescribir módulos individualmente sin tocar el resto
+paradigmadigital.com
+paradigmadigital.com
+. En última instancia, cada dominio lógico podría evolucionar en un microservicio independiente si la escala lo demanda, ya que los límites de contexto están bien definidos (un microservicio puede abarcar un Bounded Context completo o incluso subdividirse si es muy grande
+paradigmadigital.com
+).
+
+Servicios Adicionales Recomendados
+
+Además de los componentes principales, se recomiendan varios servicios y herramientas internas adicionales para fortalecer la arquitectura en términos de rendimiento, calidad y observabilidad:
+
+Procesamiento Asíncrono con Colas y Workers: Incorporar una cola de trabajos (por ejemplo, basada en Redis (BullMQ) o un servicio cloud como AWS SQS) para manejar tareas intensivas fuera del flujo principal. En esta aplicación, la generación de análisis con IA sobre documentos grandes puede tardar varios segundos o más; en lugar de hacer esperar al usuario, el backend puede encolar un trabajo de análisis cuando un PDF es subido o cuando se solicita re-analizar. Un worker (proceso separado) estará monitoreando la cola y procesará los documentos en segundo plano
+softwareontheroad.com
+softwareontheroad.com
+. Esto mejora la capacidad de respuesta y rendimiento del sistema, ya que la aplicación delega tareas pesadas a un proceso de fondo y el hilo principal queda libre para atender otras solicitudes
+softwareontheroad.com
+. También aporta escalabilidad horizontal, pues se pueden ejecutar múltiples workers en paralelo, incluso en servidores distintos, consumiendo trabajos de la cola para acelerar el procesamiento a medida que la carga crezca
+softwareontheroad.com
+. Adicionalmente, la cola puede implementar reintentos automáticos en caso de fallos, aumentando la fiabilidad de la solución (asegurando que un análisis eventualmente se complete incluso si hubo fallos transitorios)
+softwareontheroad.com
+. En Vercel, esto podría complementarse con funciones serverless dedicadas o utilizando un servicio externo para la ejecución continua del worker (ya que las funciones lambdas tienen límites de tiempo). En resumen, este patrón de jobs asíncronos alivia la carga del backend síncrono y sienta las bases para procesamiento por lotes y escalamiento de tareas intensivas.
+
+Almacenamiento de Versiones y Auditoría: Dado que se requiere almacenar versiones de análisis, conviene implementar una estrategia clara de versionado en la base de datos. Por ejemplo, tener una tabla de Analisis relacionada con Documento donde cada registro incluye un timestamp o número de versión, y un estado (completado, en proceso, fallido). Cada vez que se analice un documento (por mejoras en el modelo o nuevos datos), se crea un nuevo registro de análisis. Esto permite tener histórico y también facilita auditoría: conservar qué versión del modelo de IA o configuración produjo cada resultado, por transparencia. Se recomienda añadir campos para metadata de auditoría (quién lanzó el análisis, fecha, versión del esquema de IA usado). Este versionado se complementa con la trazabilidad al nivel de campo ya mencionada en el dominio de Evidencia.
+
+Logs Estructurados y Monitoreo Centralizado: Implementar logging estructurado en todos los servicios. En lugar de simples strings, loguear eventos y errores en formato JSON con campos clave (timestamp, nivel, servicio, usuarioID, documentoID, mensaje, etc.). Estos logs pueden ser enviados en tiempo real a un sistema central (por ejemplo, Elastic Stack, Datadog, o el propio servicio de logging de Vercel) para su almacenamiento y análisis unificado. La filosofía 12-Factor sugiere no conservar logs en archivos locales efímeros, sino enviarlos a un sistema agregado donde se puedan inspeccionar y generar alertas
+altenwald.org
+. Logs enriquecidos con contexto facilitan depuración y permiten crear métricas derivadas (p.ej., conteo de documentos analizados por hora). Junto a los logs, configurar monitorización de métricas: por ejemplo, tiempos de respuesta de la API, latencia de llamadas al motor de IA, tamaño de la cola de trabajos, tasa de errores, etc. Estas métricas pueden recopilarse con herramientas como Prometheus/Grafana (si se opta por auto-hosting) o con servicios cloud de observabilidad. Además, incorporar trazabilidad distribuida (mediante OpenTelemetry, por ejemplo) permitiría seguir una solicitud de usuario a través de múltiples servicios (frontend -> backend -> worker -> IA), identificando cuellos de botella. La combinación de logs centralizados, métricas y trazas ofrece una observabilidad completa para anticipar problemas y asegurar resiliencia.
+
+Herramientas de Testing Automatizado: Para asegurar la mantenibilidad a largo plazo, es vital incluir pruebas automáticas. Se deben implementar tests unitarios para la lógica de cada dominio (validaciones de datos, funciones de parsing de PDF, formateo de resultados, etc.), utilizando quizás mocks para el motor de IA (simulando respuestas de Gemini) de modo que los tests sean deterministas. Igualmente, tests de integración o end-to-end pueden cubrir el flujo completo: subir un PDF de ejemplo y verificar que se produce el resultado esperado con su trazabilidad. Al usar pipelines CI/CD, estos tests deben ejecutarse en cada cambio. También conviene usar herramientas de linting y análisis estático (ya sea ESLint, TypeScript type checking, etc.) integradas en el pipeline para mantener la calidad del código. Adicionalmente, se pueden aprovechar entornos de staging (por ejemplo, Vercel ofrece deploys previos) para que un pequeño grupo de usuarios pruebe la aplicación antes de ir a producción.
+
+Mejoras en Observabilidad de Errores: Complementando los logs, se sugiere integrar un servicio de tracking de errores/excepciones como Sentry. Esto permitirá capturar automáticamente excepciones no controladas tanto del frontend (errores JS) como del backend (errores en funciones serverless), asociarlas a contexto (usuario, versión de la app) y alertar al equipo de desarrollo. Con una buena observabilidad, el tiempo de detección y solución de bugs o incidencias de rendimiento se reduce significativamente, apoyando la robustez general de la plataforma.
+
+Cachés y Optimización: Aunque inicialmente no se utiliza Redis, considerar introducir una capa de caché para acelerar respuestas frecuentes. Por ejemplo, una vez generado un análisis, sus resultados (estructurados y evidencia) podrían cachearse en memoria distribuida o Redis durante un tiempo, para evitar recalcular o releer repetidamente de la base de datos cuando el mismo usuario (u otros autorizados) revisa el mismo documento. Asimismo, si se habilitan búsquedas, se pueden cachear resultados de consultas comunes. Una caché se debe invalidar adecuadamente (por ejemplo, al subir una nueva versión de análisis para un documento, invalidar la entrada antigua). Esta optimización mejora la escalabilidad bajo alta carga de lecturas.
+
+Separación de Entornos y Configuración: Siguiendo el factor de configuración como entorno de 12-Factor, todos los secretos y configuraciones (claves API de Gemini, URLs de BD, etc.) deben estar en variables de entorno seguras, no embebidas en código
+altenwald.org
+. Además, estructurar desde ya entornos separados (desarrollo, staging, producción) asegurará despliegues controlados. Supabase, Vercel, etc., permiten manejar diferentes proyectos o configuraciones por entorno, garantizando que pruebas iniciales con pocos usuarios no afecten a datos reales y que la escalabilidad se pruebe en staging antes de producción.
+
+Consideraciones de Seguridad y Compliance: Aunque no hay requisitos legales específicos ahora, la arquitectura debe ser capaz de incorporar fácilmente controles adicionales si en el futuro se manejan datos sensibles. Por ejemplo, diseñar la base de datos de modo que sea fácil cifrar columnas sensibles, o poder auditar accesos a documentos (log de qué usuario accedió qué). La separación por dominios también ayuda aquí: podría añadirse un servicio de auditoría transversal que escuche eventos (por ejemplo, "usuario X descargó el análisis Y") y los guarde para posibles requisitos regulatorios. Si en un futuro se requiere cumplimiento de estándares (ISO, GDPR, etc.), la arquitectura modular facilita insertar componentes de cumplimiento sin reescribir todo el sistema.
+
+En resumen, estos servicios y herramientas adicionales reforzarán la calidad, escalabilidad y confiabilidad del sistema. Desde el procesamiento asíncrono que mejora rendimiento y escalado horizontal, hasta la observabilidad que permite mantener el control sobre el comportamiento en producción, cada elemento recomendado atiende a un aspecto crítico de una plataforma moderna. La integración de estas piezas debe planificarse desde el inicio (aunque algunas, como colas o caches, quizás no se activen hasta que la carga lo justifique), de modo que el diseño resultante esté preparado para crecer y adaptarse sin sobresaltos.
+
+Justificación de Decisiones de Diseño
+
+Todas las decisiones en la arquitectura propuesta están fundamentadas en principios modernos reconocidos, buscando un balance óptimo entre flexibilidad, escalabilidad y mantenibilidad
+paradigmadigital.com
+:
+
+Domain-Driven Design (DDD) y Separación por Dominios: La elección de dividir el sistema en subdominios (usuarios, ingestión, análisis, evidencia, etc.) sigue los lineamientos de DDD para gestionar la complejidad. Cada subdominio representa un Bounded Context con un lenguaje ubicuo específico, evitando confusiones y mezclas de conceptos de negocio
+paradigmadigital.com
+. Esto aumenta la cohesión interna de cada módulo y minimiza el acoplamiento entre ellos, permitiendo soluciones modulares y adaptables a cambios futuros
+paradigmadigital.com
+. Por ejemplo, si mañana evoluciona la forma de autenticar usuarios o el mecanismo de análisis IA, podemos modificar (o reescribir) ese módulo sin que el resto del sistema se rompa. Además, DDD sugiere que microservicios y bounded contexts deben alinearse: en esta arquitectura, un microservicio puede equivaler a un dominio completo, o incluso a un agregado dentro de un dominio, dependiendo de las necesidades
+paradigmadigital.com
+. Inicialmente optamos por un monolito modular (menos complejidad operativa), pero con fronteras claras de contexto para que una transición a microservicios sea directa cuando la escala lo requiera
+mentorestech.com
+.
+
+Capas, Hexagonal/Onion Architecture: Separar la lógica de negocio central de los detalles de implementación técnica es una decisión clave para mantenibilidad. La arquitectura hexagonal (puertos y adaptadores) implementada garantiza que el core de dominio es independiente de frameworks, bases de datos o APIs externas
+mentorestech.com
+. Esto significa que las reglas de negocio (cómo interpretar un pliego, cómo vincular evidencia) no dependen de si usamos Supabase, AWS o cualquier otra tecnología – están aisladas. Consecuentemente, realizar cambios tecnológicos (p. ej., migrar de Supabase a un PostgreSQL propio, o cambiar el proveedor de IA) no implica reescribir la lógica de negocio, solo crear nuevos adaptadores. Esta separación también facilita las pruebas unitarias al poder mockear los puertos (por ejemplo, simular respuestas del AI o de la BD). La alta cohesión lograda y la ausencia de dependencias innecesarias entre módulos son coherentes con los objetivos de una arquitectura limpia y mantenible
+mentorestech.com
+.
+
+12-Factor App y Escalabilidad Horizontal: Siguiendo las prácticas de 12-Factor, la aplicación se construye para desplegarse fácilmente en la nube y escalar sin cambios drásticos en la arquitectura
+altenwald.org
+. Aspectos concretos: la configuración se externaliza vía variables de entorno (manteniendo la paridad entre entornos dev/staging/prod)
+altenwald.org
+; no se guarda estado en el sistema de archivos local de las funciones (cualquier archivo temporal, como partes de PDF, de ser necesario se almacena en Storage o en memoria solo durante la ejecución), asegurando que múltiples instancias puedan atender peticiones en paralelo sin inconsistencias. La escalabilidad horizontal está garantizada al ser todos los procesos sin estado y con servicios de apoyo desacoplados (BD, cola, storage son servicios conectables)
+altenwald.org
+altenwald.org
+. Por ejemplo, si la carga de análisis sube, simplemente se incrementa el número de instancias de worker en la cola o las regiones de Vercel Functions, sin necesidad de rediseñar. El uso de build pipelines y despliegue continuo ya implementado se alinea con el factor de deploys frecuentes y consistentes, reduciendo riesgos en entregas. En suma, la adopción de los factores 12-Factor conduce a una aplicación portátil y robusta, capaz de escalar y ser mantenida con mínimas fricciones.
+
+Procesamiento Asíncrono (Colas de trabajo): Esta decisión está guiada por la necesidad de responsive UX y throughput. La inclusión de colas y workers se apoya en el principio de que las tareas pesadas o lentas deben realizarse fuera del hilo de solicitud del usuario
+softwareontheroad.com
+. Al delegar a un worker, mejoramos la experiencia del usuario (respuestas rápidas indicando que el análisis está en proceso en lugar de hacerle esperar) y prevenimos timeouts en funciones serverless. Desde el punto de vista arquitectónico, esto aporta escalabilidad y resiliencia: la cola actúa como buffer regulando la carga y permitiendo reintentos en caso de fallo
+softwareontheroad.com
+softwareontheroad.com
+. Este patrón de diseño es ampliamente utilizado en arquitecturas de microservicios y serverless modernas para lograr sistemas que soporten picos de demanda manteniendo estabilidad. Justificadamente, compensa el aumento de complejidad (introducir un componente Redis/SQS y procesos extra) con mejoras significativas en robustez y rendimiento del sistema.
+
+Observabilidad y Mantenibilidad Operacional: En un sistema que se prepara para escalar, la observabilidad deja de ser opcional y se vuelve una necesidad fundamental. La decisión de integrar logging centralizado estructurado y monitoreo se basa en el principio de fallar rápido y visiblemente. Según las prácticas 12-Factor, los logs deben tratarse como flujos de eventos enviados a sistemas consolidados para análisis y alertas
+altenwald.org
+. Esto permite detectar excepciones o comportamientos anómalos en tiempo real, antes de que escalen. Adicionalmente, tener métricas e inspección de cada parte (latencia de IA, tasa de errores de parsing, etc.) se alinea con las recomendaciones de observabilidad en arquitecturas distribuidas, donde necesitamos visibilidad de extremo a extremo. La mantenibilidad operativa se logra al poder responder preguntas como "¿qué pasó con el documento X que no se analizó?" o "¿por qué está lento el análisis?" rápidamente gracias a trazas y dashboards. En resumen, invertir en observabilidad desde el diseño inicial se justifica por la reducción del MTTR (tiempo de recuperación ante fallos) y por asegurar la calidad de servicio continua a medida que la base de usuarios crezca.
+
+Separación de Preocupaciones y Responsabilidades: Cada componente propuesto cumple una responsabilidad específica y única, en concordancia con principios SOLID y de diseño limpio. Por ejemplo, el frontend no hace trabajo de análisis, solo sirve UX; el servicio de análisis no maneja detalles de cómo se almacena el PDF, solo la lógica IA. Esta separación clara facilita que diferentes miembros del equipo (o equipos distintos en el futuro) trabajen en paralelo en distintos dominios sin entorpecerse, y que el sistema sea extensible. Además, mantener los concerns separados ayuda en aislar fallos: un error en el módulo de análisis IA no tumbará el módulo de autenticación, por ejemplo. Esta filosofía de diseño reduce la complejidad general, pues cada parte puede comprenderse, desarrollarse y refactorizarse en aislamiento relativo, contribuyendo a la robustez y facilidad de evolución del software
+mentorestech.com
+.
+
+En conclusión, las decisiones arquitectónicas –desde la modularización por dominios DDD hasta la adopción de colas de trabajo, pasando por la implementación de hexagonal architecture y 12-Factor principles– están orientadas por prácticas modernas reconocidas por mejorar la calidad y escalabilidad de las aplicaciones. Se prioriza la adaptabilidad (para cambios de negocio o de volumen de usuarios), la observabilidad (para operar confiablemente) y la separación de responsabilidades (para facilitar el desarrollo y mantenimiento)
+paradigmadigital.com
+. No existe una solución "perfecta" universal, pero en este caso se ha buscado un diseño equilibrado que cubra las necesidades actuales y siente bases sólidas para el futuro
+paradigmadigital.com
+.
+
+Diagrama Lógico de Arquitectura (Descripción Textual)
+
+A modo de resumen, el diagrama lógico de la arquitectura propuesta se puede describir en texto de la siguiente forma, mostrando componentes y flujos principales:
+
+Cliente (Frontend Web): Un usuario interactúa mediante la aplicación web (Next.js/React) en su navegador. El frontend maneja la autenticación (ej. formulario de login, tokens) y permite seleccionar y subir un PDF. Cuando el usuario solicita un análisis (sube un documento o pide ver resultados), el frontend envía una petición HTTP segura al backend correspondiente.
+↳ Ejemplo de flujo: El usuario carga documento.pdf y hace clic en "Analizar"; el frontend toma el archivo y lo envía vía HTTPS a la API REST del backend (incluyendo el token de auth del usuario en la cabecera).
+
+Entrada API (Backend Gateway): Una función serverless (por ejemplo, endpoint /api/upload) recibe la solicitud del frontend. Este componente actúa como API Gateway o BFF (Backend for Frontend), canalizando la petición hacia el servicio de dominio adecuado.
+↳ Ejemplo: La función uploadDocument() valida el JWT del usuario (llamando a Supabase Auth internamente o verificando la firma) y luego invoca la lógica del Servicio de Ingestión de Documentos.
+
+Servicio de Ingestión de Documentos: Recibe el PDF y los metadatos (ej. nombre, tipo de licitación) para procesarlo. Primero, guarda el archivo en el Almacenamiento de Objetos (Supabase Storage/S3) bajo el espacio del usuario o proyecto. Luego crea un registro en la base de datos (Documentos y posiblemente una entrada inicial en Analisis marcada como "Pendiente"). Si corresponde, extrae el texto o divide el documento en secciones (utilizando alguna librería PDF en este punto) para preparar la siguiente etapa. Tras esto, encola una tarea de análisis.
+↳ Ejemplo: El servicio genera un ID de documento, almacena documento.pdf en storage://bucket/docs/{documentoId}.pdf y registra en Postgres un nuevo documento. Luego envía un mensaje a la Cola de Análisis indicando "Documento {ID} listo para analizar", incluyendo referencia al archivo o texto.
+
+Cola de Análisis (Message Queue): Es una cola de mensajes/trabajos que mantiene los análisis pendientes. El mensaje encolado contiene los datos necesarios (ID de documento, posiblemente trozos de texto ya extraídos, id de usuario para notificación, etc.). La cola garantiza entrega ordenada y persistencia temporal de estas tareas hasta que un worker las tome.
+↳ Ejemplo: El mensaje "Analizar documento 123 de usuario 45" queda en espera en la cola Redis/SQS.
+
+Worker de Análisis (Servicio Interno): Uno o varios procesos worker están ejecutándose continuamente escuchando la cola. Cuando detectan un nuevo trabajo, lo toman y comienzan el procesamiento AI. El worker recupera el contenido necesario (puede leer el PDF desde storage o usar el texto pre-extraído de la BD), y luego itera por secciones o fragmentos para llamar al Motor de IA. Combina los resultados parciales, formatea el resultado estructurado según el esquema definido (por ejemplo, JSON con campos y valores), y guarda este resultado en la base de datos. Asocia también la evidencia (referencias de texto original) a cada campo en las tablas correspondientes. Finalmente, marca el trabajo como completado (p. ej., actualiza el estado del análisis a "Completo" con timestamp).
+↳ Ejemplo: El Worker "AnalysisWorker-1" toma la tarea para documento 123, descarga documento.pdf o carga su texto, llama a la API de Gemini con cada sección del pliego, obtiene respuestas (por ejemplo, { campo: "Presupuesto", valor: "100000 EUR", fuente: pag 5 párrafo 2 } etc.), guarda estos datos en las tablas Resultados y Evidencias, y actualiza Analisis.version1 a estado "completado".
+
+Motor de IA (Gemini/API): Componente externo al que el Worker realiza solicitudes. Puede ser la API de Google Gemini u otro LLM, o incluso un modelo self-hosted. El worker se comunica vía HTTP/SDK con este motor, enviándole prompts con el texto de sección y recibiendo respuestas con la información extraída. Este motor escala independientemente (generalmente provisto por un tercero con alta escalabilidad).
+↳ Ejemplo: El Worker envía a Gemini: "Extracta del siguiente texto el presupuesto máximo: <texto sección>"; Gemini devuelve "El presupuesto es 100000 EUR"; el Worker interpreta y estructura eso.
+
+Base de Datos (Supabase Postgres): Almacena todos los datos estructurados y de control. Las tablas principales podrían ser: Usuarios, Documentos, Analisis (con versión, estado, referencia al documento), Resultados (campos extraídos por análisis, con referencias de evidencia) y Evidencias (detalle de página/posición o texto original para cada campo). Cada vez que un análisis termina, se inserta/actualiza un registro en estas tablas. La BD también guarda logs de auditoría si se implementan.
+↳ Ejemplo: Tras análisis del doc 123, la tabla Resultados contiene filas como (analisis_id=X, campo="Presupuesto", valor="100000 EUR", evidencia_id=Y) y Evidencias tiene Y-> (analisis_id X, campo "Presupuesto", pagina=5, texto="..."). Estos datos se unen para presentarlos al usuario.
+
+Notificación/Comunicación: Una vez completo el análisis, opcionalmente el sistema podría notificar al usuario. Por simplicidad, el frontend puede polling la API preguntando por el estado, o se podría integrar algo como WebSockets o notificaciones push (Supabase realtime, por ejemplo) para avisar al cliente que los resultados están listos. Este componente no es imprescindible inicial, pero es parte de la experiencia.
+↳ Ejemplo: El cliente cada 5 segundos consulta /api/analysis/status?docId=123; el backend lee el estado de Analisis y responde "completed" cuando esté listo, tras lo cual el frontend fetches los resultados.
+
+Servicio de Búsqueda (si implementado): Un componente separado (podría ser un microservicio con ElasticSearch) que indexa documentos y resultados para permitir búsquedas de texto. Tendría un flujo de ingesta de datos (actualizaciones cada vez que se sube o analiza un documento) y una API de búsqueda para consultas del frontend.
+↳ Ejemplo: El documento 123 se indexa con sus textos; el usuario busca "presupuesto > 50000" y el servicio devuelve que el documento 123 cumple, etc.
+
+Frontend Web (Visualización de Resultados): De vuelta en el cliente, cuando el usuario solicita ver un resultado, el frontend llama a otro endpoint (por ejemplo /api/analysis/result?docId=123&version=1). El backend Servicio de Análisis formatea la respuesta (posiblemente ya almacenada en JSON) y la envía. El frontend muestra los datos estructurados en la UI (campos y valores extraídos) y permite al usuario ver la evidencia (por ejemplo, al hacer hover en un campo resalta el párrafo original del PDF, que puede lograrse mostrando el PDF en un visor y navegando a la página referenciada). Los PDFs podrían visualizarse directamente desde el storage mediante una URL firmada de Supabase, manteniendo la seguridad.
+↳ Ejemplo: El usuario abre el análisis del doc 123 en la web: ve "Presupuesto: 100000 EUR" y al lado un botón/ver evidencias que, al pulsarlo, muestra la página 5 del PDF con el texto relevante resaltado.
+
+Módulo de Observabilidad: Paralelamente a los flujos de negocio, todos los componentes envían información a servicios internos de soporte: los logs viajan a un colector central (p. ej., la función API logea "Documento 123 recibido para usuario 45", el worker logea "Analisis de doc 123 completado en 8s", etc., con datos estructurados). Un sistema de monitoring recoge métricas (cada worker puede exponer contadores de trabajos procesados, etc.). Si algún error ocurre (ej. fallo en llamada a IA), se registra y genera una alerta (email/Slack) al equipo. Esta capa de observabilidad no interviene en la lógica de negocio, pero es clave para la operación estable.
+
+En forma resumida, la arquitectura lógica conecta estos componentes así:
+
+Usuario → Frontend Web → API Backend (por dominio) → Cola de Mensajes → Worker de Análisis → Motor IA → Base de Datos/Storage → Frontend (mostrar resultados).
+
+Componentes transversales: Auth (Supabase) valida en API; Logs/Metrics monitorean API y Workers; Storage almacena PDFs accesibles al Worker y evidencias para el Frontend.
+
+Esta descripción textual ilustra cómo cada pieza interactúa en el sistema propuesto, manteniendo límites claros y fomentando la escalabilidad y separación de responsabilidades en cada paso.
+
+Conclusión
+
+La arquitectura propuesta brinda una solución robusta, escalable y mantenible para la aplicación de análisis de pliegos con IA. Al adoptar una separación por dominios lógicos, apoyada en principios de DDD y arquitectura hexagonal, nos aseguramos de que el sistema pueda crecer en funcionalidad y volumen de usuarios sin volverse inmanejable. Cada decisión –desde el uso de colas de trabajo para procesamiento pesado, hasta la instrumentación de logs estructurados y monitoreo– se tomó para alinearse con las mejores prácticas modernas de desarrollo cloud-native. El resultado es un diseño preparado para la escalabilidad horizontal (gracias a su naturaleza stateless y componentes desacoplados) y para la evolución futura (gracias a módulos bien definidos con alta cohesión).
+
+En esta arquitectura, la observabilidad y la separación de responsabilidades juegan papeles centrales para garantizar que, a medida que la base de usuarios crezca y el sistema se vuelva más distribuido, siga siendo confiable y entendible. Si bien la implementación inicial será probada con pocos usuarios, construir sobre estos cimientos sólidos asegura que no habrá que replantear la arquitectura básica al escalar: simplemente se añadirá capacidad (más instancias, más workers, quizás separando servicios por dominio cuando convenga) y se activarán componentes ya previstos (p.ej. mecanismos de cache o búsqueda). En conclusión, esta arquitectura ideal valida y mejora la versión actual, alineándola con principios como DDD, 12-Factor App y diseños en capas, logrando un sistema preparado para el presente y el futuro del proyecto
+paradigmadigital.com
+.
+
+Todas las mejoras propuestas están justificadas en la búsqueda de una plataforma sólida donde nuevas funcionalidades puedan incorporarse sin romper lo existente, donde los errores puedan detectarse y mitigarse rápidamente, y que pueda soportar de manera resiliente un aumento significativo de carga o complejidad. De esta forma, el equipo podrá enfocarse en aportar valor al negocio (mejorando el análisis de licitaciones con IA) mientras la arquitectura soporta dicho crecimiento de forma segura y organizada.

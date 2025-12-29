@@ -9,7 +9,7 @@ type WizardStep = 'upload' | 'analyzing' | 'completed';
 
 export const AnalysisWizard: React.FC = () => {
     const { isAuthenticated } = useAuthStore();
-    const { status, thinkingOutput, error, analyzeFile, resetAnalysis } = useAnalysisStore();
+    const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis } = useAnalysisStore();
 
     // Local state for UI
     const [isDragging, setIsDragging] = useState(false);
@@ -197,7 +197,15 @@ export const AnalysisWizard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mt-6 text-center">
+                {/* Cancel Button */}
+                <div className="mt-6 flex flex-col items-center gap-3">
+                    <button
+                        onClick={cancelAnalysis}
+                        className="group inline-flex items-center gap-2 px-6 py-2.5 bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 font-medium rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-all hover:scale-105 border border-orange-200 dark:border-orange-800"
+                    >
+                        <X size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+                        Cancelar Análisis
+                    </button>
                     <p className="text-xs text-slate-400">
                         Esto puede tomar entre 10-30 segundos dependiendo del tamaño del PDF.
                     </p>

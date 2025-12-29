@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { services } from '../config/service-registry';
 import { LicitacionData } from '../types';
 
@@ -19,7 +19,21 @@ export function useAIAnalysis() {
         error: null
     });
 
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
+
     const analyze = useCallback(async (base64: string, fileName: string) => {
+        // Create new AbortController for this analysis
+        abortControllerRef.current = new AbortController();
+
         setAiState({
             status: 'ANALYZING',
             progress: 0,
@@ -36,7 +50,7 @@ export function useAIAnalysis() {
                     thinkingOutput: prev.thinkingOutput + "\n" + message,
                     progress: Math.min(10 + Math.round((processed / total) * 90), 99)
                 }));
-            });
+            }, undefined, abortControllerRef.current?.signal);
 
             setAiState(prev => ({
                 ...prev,
@@ -50,12 +64,35 @@ export function useAIAnalysis() {
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Error en análisis IA";
-            setAiState(prev => ({ ...prev, status: 'ERROR', error: errorMessage }));
+
+            // Check if it was a cancellation
+            if (errorMessage.includes('cancelado')) {
+                setAiState(prev => ({ ...prev, status: 'IDLE', error: null, thinkingOutput: 'Análisis cancelado por el usuario' }));
+            } else {
+                setAiState(prev => ({ ...prev, status: 'ERROR', error: errorMessage }));
+            }
             throw err;
+        } finally {
+            abortControllerRef.current = null;
+        }
+    }, []);
+
+    const cancelAnalysis = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            setAiState(prev => ({
+                ...prev,
+                status: 'IDLE',
+                thinkingOutput: '⚠️ Cancelando análisis...'
+            }));
         }
     }, []);
 
     const resetAI = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
         setAiState({ status: 'IDLE', progress: 0, thinkingOutput: '', result: null, error: null });
     }, []);
 
@@ -72,6 +109,7 @@ export function useAIAnalysis() {
     return {
         aiState,
         analyze,
+        cancelAnalysis,
         resetAI,
         loadResult
     };

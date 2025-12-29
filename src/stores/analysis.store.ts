@@ -12,21 +12,27 @@ interface AnalysisStore {
     thinkingOutput: string;
     error: string | null;
     persistenceWarning: string | null;
+    abortController: AbortController | null;
 
     // Actions
     analyzeFile: (file: File) => Promise<void>;
+    cancelAnalysis: () => void;
     resetAnalysis: () => void;
 }
 
-export const useAnalysisStore = create<AnalysisStore>((set) => ({
+export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     status: 'IDLE',
     progress: 0,
     thinkingOutput: '',
     error: null,
     persistenceWarning: null,
+    abortController: null,
 
     analyzeFile: async (file: File) => {
         const { loadLicitacion, reset: resetLicitacion } = useLicitacionStore.getState();
+
+        // Create new AbortController for this analysis
+        const newController = new AbortController();
 
         // Reset everything
         resetLicitacion();
@@ -35,7 +41,8 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
             progress: 0,
             thinkingOutput: `Iniciando lectura de ${file.name}...`,
             error: null,
-            persistenceWarning: null
+            persistenceWarning: null,
+            abortController: newController
         });
 
         try {
@@ -83,7 +90,7 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
                     thinkingOutput: state.thinkingOutput + "\n" + message,
                     progress: Math.min(currentProgress, 90)
                 }));
-            }, onPartialSave);
+            }, onPartialSave, newController.signal);
 
             // Update data store
             loadLicitacion(result, hash);
@@ -104,11 +111,33 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
         } catch (error) {
             console.error("Critical Analysis Error:", error);
             const errorMessage = error instanceof Error ? error.message : "Error inesperado en el motor de análisis";
-            set({ status: 'ERROR', error: errorMessage });
+
+            // Check if it was a cancellation
+            if (errorMessage.includes('cancelado')) {
+                set({ status: 'IDLE', error: null, thinkingOutput: 'Análisis cancelado por el usuario', abortController: null });
+            } else {
+                set({ status: 'ERROR', error: errorMessage, abortController: null });
+            }
+        }
+    },
+
+    cancelAnalysis: () => {
+        const { abortController } = get();
+        if (abortController) {
+            abortController.abort();
+            set({
+                status: 'IDLE',
+                thinkingOutput: '⚠️ Cancelando análisis...',
+                abortController: null
+            });
         }
     },
 
     resetAnalysis: () => {
-        set({ status: 'IDLE', progress: 0, thinkingOutput: '', error: null, persistenceWarning: null });
+        const { abortController } = get();
+        if (abortController) {
+            abortController.abort();
+        }
+        set({ status: 'IDLE', progress: 0, thinkingOutput: '', error: null, persistenceWarning: null, abortController: null });
     }
 }));

@@ -19,7 +19,8 @@ export class AIService {
     async analyzePdfContent(
         base64Content: string,
         onProgress?: (processed: number, total: number, message: string) => void,
-        onPartialSave?: (partialData: Partial<LicitacionContent>) => Promise<void>
+        onPartialSave?: (partialData: Partial<LicitacionContent>) => Promise<void>,
+        signal?: AbortSignal
     ): Promise<LicitacionContent> {
         const sections: { key: keyof LicitacionContent; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
@@ -38,10 +39,20 @@ export class AIService {
         let processed = 0;
 
         try {
+            // Check if already aborted before starting
+            if (signal?.aborted) {
+                throw new LicitacionAIError('Análisis cancelado por el usuario');
+            }
+
             if (onProgress) onProgress(0, total, `Iniciando análisis secuencial robusto...`);
 
             // Sequential processing to respect strict rate limits (RPM)
             for (let i = 0; i < sections.length; i++) {
+                // Check for cancellation before processing each section
+                if (signal?.aborted) {
+                    throw new LicitacionAIError('Análisis cancelado durante procesamiento');
+                }
+
                 const section = sections[i];
 
                 if (onProgress) {

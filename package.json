@@ -7,14 +7,13 @@
     "dev": "vite",
     "build": "npm run lint && tsc && vitest run && vite build",
     "test": "vitest",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@hookform/resolvers": "^5.2.2",
     "@sentry/react": "^10.32.1",
-    "@sentry/tracing": "^7.120.4",
     "@supabase/supabase-js": "^2.89.0",
     "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^1.3.1",
@@ -25,9 +24,7 @@
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-hook-form": "^7.69.0",
     "react-router-dom": "^7.10.1",
-    "react-tooltip": "^5.26.0",
     "tailwind-merge": "^2.2.1",
     "zod": "^3.22.4",
     "zustand": "^5.0.9"
@@ -41,7 +38,7 @@
     "@types/react-dom": "^18.2.19",
     "@typescript-eslint/eslint-plugin": "^7.0.2",
     "@typescript-eslint/parser": "^7.0.2",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.17",
     "dotenv": "^17.2.3",
     "eslint": "^8.56.0",
@@ -52,7 +49,7 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.21.0",
     "typescript": "^5.5.4",
-    "vite": "^5.1.4",
+    "vite": "^7.3.0",
     "vitest": "^4.0.15"
   }
 }

@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/your-org/analista-de-pliegos/workflows/CI%2FCD/badge.svg)](https://github.com/your-org/analista-de-pliegos/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev/)
-[![Tests](https://img.shields.io/badge/tests-127%20passing-success.svg)](.)
+[![Tests](https://img.shields.io/badge/tests-136%20passing-success.svg)](.)
 
 > Analiza automáticamente pliegos de licitación pública usando IA, extrayendo información clave y generando reportes profesionales.
 
@@ -86,7 +86,7 @@ See [Environment Setup Guide](docs/staging-setup.md) for detailed configuration.
 - **Vercel** - Hosting & CDN
 
 ### Quality
-- **Vitest** - Unit testing (127 tests)
+- **Vitest** - Unit testing (136 tests)
 - **Playwright** - E2E testing
 - **ESLint** - Code linting
 - **TypeScript** - Strict mode
@@ -128,7 +128,7 @@ npm run typecheck
 npm run build
 ```
 
-**Test Coverage**: 127 unit/integration tests + 7 E2E spec files
+**Test Coverage**: 136 unit/integration tests + 7 E2E spec files
 
 ## 🚢 Deployment
 
@@ -240,6 +240,6 @@ MIT License - see [LICENSE](LICENSE) file for details
 ---
 
 **Status**: ✅ Production Ready  
-**Build**: Passing (127/127 tests)  
+**Build**: Passing (136/136 tests)  
 **Deployment**: Automatic via CI/CD  
 **Last Updated**: 2025-12-29

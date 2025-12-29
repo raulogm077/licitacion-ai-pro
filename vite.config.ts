@@ -11,7 +11,7 @@ export default defineConfig({
                     vendor: ['react', 'react-dom'],
                     pdf: ['jspdf', 'jspdf-autotable'],
                     excel: ['exceljs'],
-                    ui: ['lucide-react', 'clsx', 'tailwind-merge', 'react-tooltip']
+                    ui: ['lucide-react', 'clsx', 'tailwind-merge']
                 }
             }
         },
