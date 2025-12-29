@@ -62,3 +62,20 @@ Object.defineProperty(window, 'matchMedia', {
         dispatchEvent: vi.fn(),
     })),
 });
+
+// Setup Mock Environment Variables for Tests
+// This ensures that env.ts validation passes even if the actual .env file or CI secrets are missing
+process.env.VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://mock.supabase.co';
+process.env.VITE_SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'mock-anon-key';
+
+// Also polyfill import.meta.env for components relying on it directly in tests
+Object.defineProperty(import.meta, 'env', {
+    value: {
+        ...import.meta.env,
+        VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+        MODE: 'test',
+        DEV: true,
+    },
+    writable: true,
+});
