@@ -9,6 +9,7 @@ import { useAnalysisStore } from './stores/analysis.store';
 import { AuthModal } from './components/ui/AuthModal';
 import { SupabaseStatus } from './components/SupabaseStatus';
 import { Layout } from './components/layout/Layout';
+import { DevToolsPanel } from './components/DevToolsPanel';
 
 // Lazy load pages for performance code-splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
@@ -78,6 +79,7 @@ function App() {
       <SupabaseStatus />
       <SpeedInsights />
       <Analytics />
+      <DevToolsPanel />
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <Routes>
         <Route element={
