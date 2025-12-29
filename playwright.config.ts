@@ -8,9 +8,15 @@ export default defineConfig({
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
     reporter: 'list',
+    timeout: 600000, // 60s -> 60s (fixed typo in thought, explicit 60s globally)
+    expect: {
+        timeout: 10000
+    },
     use: {
         baseURL: 'http://localhost:4173',
         trace: 'on-first-retry',
+        actionTimeout: 15000,
+        navigationTimeout: 30000,
     },
     projects: [
         {

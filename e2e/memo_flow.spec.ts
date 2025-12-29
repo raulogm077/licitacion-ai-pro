@@ -28,7 +28,13 @@ test('Memo P2 Full Flow: Upload and Analyze', async ({ page }) => {
 
     // 3. Upload File
     // Input type='file' usually hidden, use locator to set input files
+    // Wait for the container or button that triggers the upload to be visible first
+    await expect(page.getByText(/Subir/i).or(page.getByText(/Arrastra/i))).toBeVisible({ timeout: 20000 });
+
+    // Ensure the input exists in the DOM
     const fileInput = page.locator('input[type="file"]');
+    await fileInput.waitFor({ state: 'attached', timeout: 20000 });
+
     await fileInput.setInputFiles(path.resolve('memo_p2.pdf'));
 
     // 4. Verify Analysis Starts
