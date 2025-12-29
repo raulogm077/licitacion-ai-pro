@@ -3,13 +3,19 @@ import { Upload, FileText, Loader2, Lock, X } from 'lucide-react';
 import { useAuthStore } from '../../../stores/auth.store';
 import { useAnalysisStore } from '../../../stores/analysis.store';
 import { PluginSelector } from '../../../components/domain/PluginSelector';
+import { ProviderSelector } from '../../../components/domain/ProviderSelector';
+import { CancelButton } from '../../../components/domain/CancelButton';
 import { AuthModal } from '../../../components/ui/AuthModal';
+import { useKeyboardShortcut } from '../../../hooks/useKeyboardShortcut';
 
 type WizardStep = 'upload' | 'analyzing' | 'completed';
 
 export const AnalysisWizard: React.FC = () => {
     const { isAuthenticated } = useAuthStore();
-    const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis } = useAnalysisStore();
+    const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis, selectedProvider, setProvider } = useAnalysisStore();
+
+    // Keyboard shortcut for cancel (Esc key)
+    useKeyboardShortcut('Escape', cancelAnalysis, status === 'ANALYZING' || status === 'READING_PDF');
 
     // Local state for UI
     const [isDragging, setIsDragging] = useState(false);
@@ -121,9 +127,18 @@ export const AnalysisWizard: React.FC = () => {
                                 <input data-testid="file-upload-input" type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
                             </label>
 
-                            {/* Plugin Selector simplified */}
-                            <div className="pt-6 border-t border-slate-100 dark:border-slate-700/50 w-full max-w-sm mx-auto">
+                            {/* Provider and Plugin Selection */}
+                            <div className="pt-6 border-t border-slate-100 dark:border-slate-700/50 w-full max-w-lg mx-auto space-y-4">
                                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Configuración Avanzada</p>
+
+                                {/* Provider Selector */}
+                                <ProviderSelector
+                                    value={selectedProvider}
+                                    onChange={setProvider}
+                                    disabled={status === 'ANALYZING' || status === 'READING_PDF'}
+                                />
+
+                                {/* Plugin Selector */}
                                 <PluginSelector />
                             </div>
                         </div>
@@ -197,17 +212,11 @@ export const AnalysisWizard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Cancel Button */}
+                {/* Cancel Button - Enhanced */}
                 <div className="mt-6 flex flex-col items-center gap-3">
-                    <button
-                        onClick={cancelAnalysis}
-                        className="group inline-flex items-center gap-2 px-6 py-2.5 bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 font-medium rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-all hover:scale-105 border border-orange-200 dark:border-orange-800"
-                    >
-                        <X size={18} className="group-hover:rotate-90 transition-transform duration-300" />
-                        Cancelar Análisis
-                    </button>
+                    <CancelButton onClick={cancelAnalysis} />
                     <p className="text-xs text-slate-400">
-                        Esto puede tomar entre 10-30 segundos dependiendo del tamaño del PDF.
+                        Esto puede tomar entre 10-30 segundos. Presiona <kbd className="px-2 py-0.5 bg-slate-700 rounded text-slate-200">Esc</kbd> para cancelar.
                     </p>
                 </div>
             </div>

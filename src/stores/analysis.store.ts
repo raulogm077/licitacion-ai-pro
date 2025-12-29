@@ -14,12 +14,22 @@ interface AnalysisStore {
     error: string | null;
     persistenceWarning: string | null;
     abortController: AbortController | null;
+    selectedProvider: string; // 'gemini' | 'openai'
 
     // Actions
     analyzeFile: (file: File) => Promise<void>;
     cancelAnalysis: () => void;
     resetAnalysis: () => void;
+    setProvider: (provider: string) => void;
 }
+// Load selected provider from localStorage (default: gemini)
+const loadSelectedProvider = (): string => {
+    try {
+        return localStorage.getItem('selectedProvider') || 'gemini';
+    } catch {
+        return 'gemini';
+    }
+};
 
 export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     status: 'IDLE',
@@ -28,6 +38,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     error: null,
     persistenceWarning: null,
     abortController: null,
+    selectedProvider: loadSelectedProvider(),
 
     analyzeFile: async (file: File) => {
         const { loadLicitacion, reset: resetLicitacion } = useLicitacionStore.getState();
@@ -91,6 +102,9 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 }
             };
 
+            // Get selected provider from store
+            const { selectedProvider } = get();
+
             const result = await services.ai.analyzePdfContent(base64, (processed, total, message) => {
                 const progressWeight = 90 / total;
                 const currentProgress = 10 + Math.round(processed * progressWeight);
@@ -99,7 +113,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                     thinkingOutput: state.thinkingOutput + "\n" + message,
                     progress: Math.min(currentProgress, 90)
                 }));
-            }, onPartialSave, newController.signal);
+            }, onPartialSave, newController.signal, selectedProvider);
 
             // Update data store
             loadLicitacion(result, hash);
@@ -148,5 +162,15 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             abortController.abort();
         }
         set({ status: 'IDLE', progress: 0, thinkingOutput: '', error: null, persistenceWarning: null, abortController: null });
+    },
+
+    setProvider: (provider: string) => {
+        // Save to localStorage for persistence
+        try {
+            localStorage.setItem('selectedProvider', provider);
+        } catch (error) {
+            console.warn('Failed to save provider to localStorage:', error);
+        }
+        set({ selectedProvider: provider });
     }
 }));

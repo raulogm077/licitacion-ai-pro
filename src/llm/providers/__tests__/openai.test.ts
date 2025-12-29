@@ -58,8 +58,8 @@ describe('OpenAIProvider', () => {
                     sectionKey: 'informacionBasica'
                 });
                 expect.fail('Should have thrown an error');
-            } catch (error: any) {
-                expect(error.code).toBe(LLMErrorCode.CONFIG_MISSING_KEY);
+            } catch (error) {
+                expect((error as { code?: string }).code).toBe(LLMErrorCode.CONFIG_MISSING_KEY);
             }
         });
     });

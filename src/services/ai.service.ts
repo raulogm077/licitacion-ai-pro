@@ -20,7 +20,8 @@ export class AIService {
         base64Content: string,
         onProgress?: (processed: number, total: number, message: string) => void,
         onPartialSave?: (partialData: Partial<LicitacionContent>) => Promise<void>,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        providerName?: string  // NEW: Optional provider name, defaults to 'gemini'
     ): Promise<LicitacionContent> {
         const sections: { key: keyof LicitacionContent; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
@@ -60,7 +61,7 @@ export class AIService {
                 }
 
                 try {
-                    const sectionData = await this.analyzeSection(base64Content, section.key, signal);
+                    const sectionData = await this.analyzeSection(base64Content, section.key, signal, providerName);
                     partialResult = { ...partialResult, ...sectionData };
                 } catch (error) {
                     logger.error(`Error persistente en sección ${section.key}`, { error: String(error) });
@@ -112,14 +113,15 @@ export class AIService {
     private async analyzeSection<K extends keyof LicitacionContent>(
         base64Content: string,
         sectionKey: K,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        providerName?: string
     ): Promise<Partial<LicitacionContent>> {
         const plugin = promptRegistry.getActivePlugin();
         const systemPrompt = plugin.getSystemPrompt();
         const sectionPrompt = plugin.getSectionPrompt(sectionKey);
 
-        // Get the default LLM provider (Gemini)
-        const provider = llmFactory.getDefaultProvider();
+        // Get the LLM provider (default to gemini if not specified)
+        const provider = llmFactory.getProvider((providerName || 'gemini') as 'gemini' | 'openai');
 
         try {
             const result = await provider.analyzeSection({
