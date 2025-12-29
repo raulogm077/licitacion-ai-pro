@@ -1,6 +1,5 @@
 import React, { Suspense } from 'react';
 import { Header } from './Header';
-import { LogViewer } from '../debug/LogViewer';
 import { Loader2 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { ProcessingStatus, LicitacionData } from '../../types';
@@ -29,7 +28,6 @@ export const Layout: React.FC<LayoutProps> = (props) => {
                     <Outlet />
                 </Suspense>
             </main>
-            <LogViewer />
         </div >
     );
 };
