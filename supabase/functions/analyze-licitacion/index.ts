@@ -14,13 +14,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 2. Auth Check
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error("Missing Authorization header");
-    }
-
-    // 3. Parse Body
+    // 2. Parse Body
     const { base64Content, prompt, sectionKey } = await req.json();
 
     if (!base64Content || !prompt) {
@@ -33,12 +27,12 @@ Deno.serve(async (req) => {
     // 4. Secure API Key Access (Env Var)
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
-      throw new Error("Server Misconfiguration: GEMINI_API_KEY not set");
+      throw new Error("Server Misconfiguration: GEMINI_API_KEY not set in Supabase Secrets");
     }
 
-    // 5. Dual Model Logic
-    const PRIMARY_MODEL = "gemini-2.0-flash";
-    const FALLBACK_MODEL = "gemini-2.0-flash-lite";
+    // 5. Dual Model Logic - Pro as Primary (most powerful), Flash as Fallback
+    const PRIMARY_MODEL = "gemini-pro-latest";
+    const FALLBACK_MODEL = "gemini-flash-latest";
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -69,26 +63,27 @@ Deno.serve(async (req) => {
           },
         },
       ]);
-      return result.response;
+
+      const response = await result.response;
+      return response.text();
     };
 
     let responseText = "";
 
     try {
       // Try Primary
-      const response = await generate(PRIMARY_MODEL);
-      responseText = response.text();
-    } catch (e) {
-      const errStr = String(e);
-      if (errStr.includes("429") || errStr.includes("Quota exceeded")) {
-        console.warn(`[Edge] rate limit on Primary (${PRIMARY_MODEL}). Switching to Fallback (${FALLBACK_MODEL})...`);
+      responseText = await generate(PRIMARY_MODEL);
+    } catch (e: any) {
+      console.error(`[Edge Primary Fail] Section: ${sectionKey}, Error: ${e.message}`);
 
-        // Wait 1s and retry with Fallback
+      // Check for quota or other retryable errors
+      const errStr = String(e);
+      if (errStr.includes("429") || errStr.includes("Quota") || errStr.includes("500")) {
+        console.warn(`[Edge] Retrying with Fallback (${FALLBACK_MODEL})...`);
         await new Promise(r => setTimeout(r, 1000));
-        const responseFallback = await generate(FALLBACK_MODEL);
-        responseText = responseFallback.text();
+        responseText = await generate(FALLBACK_MODEL);
       } else {
-        throw e; // Rethrow non-quota errors
+        throw new Error(`Primary Model Error: ${e.message}`);
       }
     }
 
@@ -97,9 +92,13 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error(`[Edge Error]`, error);
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: any) {
+    console.error(`[Edge Critical Error]`, error);
+    return new Response(JSON.stringify({
+      error: error.message,
+      details: error.stack,
+      hint: "Check Supabase Secrets for GEMINI_API_KEY and Ensure API Quota"
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

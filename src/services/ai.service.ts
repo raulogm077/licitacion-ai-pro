@@ -84,7 +84,7 @@ export class AIService {
 
                 // Short throttle between chunks
                 if (i + chunkSize < sections.length) {
-                    await new Promise(resolve => setTimeout(resolve, 800));
+                    await new Promise(resolve => setTimeout(resolve, 3000));
                 }
             }
 
