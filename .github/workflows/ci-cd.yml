@@ -198,7 +198,8 @@ jobs:
         run: |
           echo "Checking production URL health..."
           # Fetch status code implies site is accessible
-          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" https://analista-de-pliegos.vercel.app)
+          # Project name is 'licitacion-ai-pro', so URL is likely https://licitacion-ai-pro.vercel.app
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" https://licitacion-ai-pro.vercel.app)
           echo "Status Code: $HTTP_STATUS"
           
           if [ "$HTTP_STATUS" != "200" ]; then
