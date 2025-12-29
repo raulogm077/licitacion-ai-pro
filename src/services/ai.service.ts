@@ -144,16 +144,7 @@ export class AIService {
                     let hint = "";
 
                     try {
-                        // Check if it's a FunctionsHttpError with context/response
-                        if (typeof error === 'object' && error !== null && 'context' in error) {
-                            const context = (error as any).context; // Safely access context
-                            if (context && typeof context.json === 'function') {
-                                // It's a Response object? Or a Promise? 
-                                // Usually invoke() handles parsing. If it failed, maybe context is the response.
-                                // But commonly error is just the parsed JSON if headers were application/json.
-                                // If the status is 4xx, supabase-js might return the body as 'error'.
-                            }
-                        }
+
 
                         // If the backend sent a JSON error, error might BE that object directly
                         const parsedError = typeof error === 'string' ? JSON.parse(error) : error;
