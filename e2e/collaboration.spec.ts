@@ -9,22 +9,23 @@ test.describe('Phase 8: Advanced Features', () => {
     test('should allow selecting Different AI Plugins', async ({ page }) => {
         await page.goto('/');
 
-        // Login if required (assuming a mock or test account)
-        // For now, check if PluginSelector is visible in IDLE state if authenticated
-
         // Wait for the plugin selector to be visible
-        const selector = page.locator('h3:has-text("Motor de Análisis (AI)")');
+        // UI uses "Proveedor de IA" label
+        const selector = page.locator('label:has-text("Proveedor de IA")');
         await expect(selector).toBeVisible();
 
-        // Check default plugin
-        await expect(page.locator('text=Analista Estándar')).toBeVisible();
+        // 1. Check default (Gemini)
+        await expect(page.locator('button:has-text("Google Gemini")')).toBeVisible();
 
-        // Select Fast Analyst
-        await page.click('text=Analista Rápido');
+        // 2. Open dropdown
+        await page.click('button:has-text("Google Gemini")');
 
-        // Verify selection change (check for the check icon or background class)
-        await expect(page.locator('text=Analista Rápido')).toBeVisible();
-        await expect(page.locator('text=v1.0.0 • Registry Mode: Active')).toBeVisible();
+        // 3. Select OpenAI
+        // Updated metadata displays 'OpenAI (Server-side)'
+        await page.click('text=OpenAI (Server-side)');
+
+        // 4. Verify selection update
+        await expect(page.locator('button:has-text("OpenAI (Server-side)")')).toBeVisible();
     });
 
     test('should persist changes and simulate real-time sync', async ({ page, context }) => {
