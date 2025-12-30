@@ -5,7 +5,7 @@ import {
     LicitacionContent as ZodContent, // Import new type
     WorkflowState as ZodWorkflow,
     AnalysisVersion as ZodVersion
-} from './schemas';
+} from './schemas.js';
 
 export type Note = ZodNote;
 export type LicitacionMetadata = ZodMetadata;

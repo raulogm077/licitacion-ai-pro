@@ -5,7 +5,7 @@
  * to the LicitacionData schema format.
  */
 
-import { LicitacionData } from '../shared/types';
+import { LicitacionData } from '../shared/types.js';
 
 /**
  * Agent Builder workflow output structure

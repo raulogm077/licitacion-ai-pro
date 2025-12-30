@@ -9,9 +9,9 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { runWorkflow } from '../_lib/openaiWorkflow/runner';
-import { mapWorkflowToLicitacionData } from '../_lib/mappers/openai-workflow-mapper';
-import { LicitacionSchema } from '../_lib/shared/schemas';
+import { runWorkflow } from '../_lib/openaiWorkflow/runner.js';
+import { mapWorkflowToLicitacionData } from '../_lib/mappers/openai-workflow-mapper.js';
+import { LicitacionSchema } from '../_lib/shared/schemas.js';
 
 // ... existing imports ...
 
