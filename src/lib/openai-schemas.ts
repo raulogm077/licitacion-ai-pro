@@ -41,16 +41,17 @@ const ModeloServicioSchema = z.object({
 });
 
 // Metadata schema for Quality and Evidence
+// Metadata schema for Quality and Evidence
 const WorkflowMetaSchema = z.object({
     quality: z.object({
-        overall: z.string(),
+        overall: z.enum(["COMPLETO", "PARCIAL", "VACIO"]),
         bySection: z.object({
-            datosGenerales: z.string(),
-            criteriosAdjudicacion: z.string(),
-            requisitosSolvencia: z.string(),
-            requisitosTecnicos: z.string(),
-            restriccionesYRiesgos: z.string(),
-            modeloServicio: z.string(),
+            datosGenerales: z.enum(["COMPLETO", "PARCIAL", "VACIO"]),
+            criteriosAdjudicacion: z.enum(["COMPLETO", "PARCIAL", "VACIO"]),
+            requisitosSolvencia: z.enum(["COMPLETO", "PARCIAL", "VACIO"]),
+            requisitosTecnicos: z.enum(["COMPLETO", "PARCIAL", "VACIO"]),
+            restriccionesYRiesgos: z.enum(["COMPLETO", "PARCIAL", "VACIO"]),
+            modeloServicio: z.enum(["COMPLETO", "PARCIAL", "VACIO"]),
         }),
         missingCriticalFields: z.array(z.string()),
         ambiguous_fields: z.array(z.string()),
@@ -59,9 +60,9 @@ const WorkflowMetaSchema = z.object({
     evidences: z.array(z.object({
         fieldPath: z.string(),
         quote: z.string(),
-        pageHint: z.string().default(""),
+        pageHint: z.string().nullable().or(z.string()), // Allow null as per strict schema usually expecting null or string
         confidence: z.number(),
-    })),
+    })).default([]),
 });
 
 // 2. Main Schema (The contract)

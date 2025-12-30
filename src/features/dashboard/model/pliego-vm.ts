@@ -53,10 +53,35 @@ export interface PliegoVM {
     id: string;
     notas: Note[];
     citations: Array<{ text: string; section: string }>;
+
+    // Helper to get evidence for a field
+    getEvidence: (fieldPath: string) => { quote: string; pageHint?: string } | undefined;
+    isAmbiguous: (fieldPath: string) => boolean;
 }
 
 export function buildPliegoVM(data: LicitacionData): PliegoVM {
-    const content = data.result || data; // Fallback for safety, though implementation plan implies data.result is source of truth.
+    const content = data.result || data; // Fallback
+
+    // Index evidences for fast lookup (explicit any for robustness)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const evidencesRaw = data.workflow?.evidences || (content as any).workflow?.evidences || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ambiguousRaw = data.workflow?.quality?.ambiguous_fields || (content as any).workflow?.quality?.ambiguous_fields || [];
+
+    const evidenceMap = new Map<string, { quote: string; pageHint?: string }>();
+    if (Array.isArray(evidencesRaw)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        evidencesRaw.forEach((ev: any) => {
+            if (ev.fieldPath && ev.quote) {
+                evidenceMap.set(ev.fieldPath, { quote: ev.quote, pageHint: ev.pageHint });
+            }
+        });
+    }
+
+    const ambiguousSet = new Set<string>(ambiguousRaw);
+
+    const getEvidence = (fieldPath: string) => evidenceMap.get(fieldPath);
+    const isAmbiguous = (fieldPath: string) => ambiguousSet.has(fieldPath);
 
     // 1. Detección de análisis vacío
     // isAnalysisEmpty = presupuesto===0 && plazo===0 && cpv.length===0 && ...
@@ -216,7 +241,9 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         },
         display,
         warnings,
-        chapters
+        chapters,
+        getEvidence,
+        isAmbiguous
     };
 }
 

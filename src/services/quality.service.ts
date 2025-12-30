@@ -62,11 +62,12 @@ export class QualityService {
         }
 
         return {
-            overall,
+            overall: overall,
             bySection: sectionStatus as Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>,
             missingCriticalFields: missingCritical,
+            ambiguous_fields: [], // TODO: wired up if we have this logic in frontend
             warnings: warnings, // Standard warnings (e.g. empty lists)
-            consistencyWarnings // New semantic warnings
+            consistencyWarnings: consistencyWarnings // New semantic warnings
         };
     }
 

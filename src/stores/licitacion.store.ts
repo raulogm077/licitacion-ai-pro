@@ -95,6 +95,7 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
                     current_version: 1,
                     status: 'succeeded',
                     steps: [],
+                    evidences: [],
                     updated_at: now
                 },
                 metadata: inputData.metadata || { tags: [] }

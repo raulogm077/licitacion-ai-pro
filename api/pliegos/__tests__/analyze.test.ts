@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import handler from '../analyze';
-import * as OpenAIRunner from '../../../src/server/openaiWorkflow/runner';
+import * as OpenAIRunner from '../../_lib/openaiWorkflow/runner';
 // import { services } from '../../../src/config/service-registry';
 
 // Mock Dependencies
-vi.mock('../../../src/server/openaiWorkflow/runner', () => ({
+vi.mock('../../_lib/openaiWorkflow/runner', () => ({
     runWorkflow: vi.fn()
 }));
 

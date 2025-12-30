@@ -1,7 +1,9 @@
+
 import { PliegoVM } from '../../model/pliego-vm';
 import { Card } from '../../../../components/ui/Card';
 import { Badge } from '../../../../components/ui/Badge';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { EvidenceToggle } from './EvidenceToggle';
 
 interface ChapterProps {
     vm: PliegoVM;
@@ -9,18 +11,10 @@ interface ChapterProps {
     onOpenDrawer?: () => void;
 }
 
-// Helper for "Empty State" within a chapter
-function EmptyChapter({ title, text }: { title: string; text: string }) {
-    return (
-        <div className="flex flex-col items-center justify-center py-12 px-6 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-            <AlertCircle className="w-8 h-8 text-slate-300 mb-3" />
-            <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
-            <p className="text-sm text-slate-500 mt-1 max-w-sm">{text}</p>
-        </div>
-    );
-}
+// ... empty chapter ...
 
 export function ChapterSummary({ vm, onReanalyze, onOpenDrawer }: ChapterProps) {
+    // ... existing ... (no changes needed here as it uses kpi tiles)
     return (
         <section id="resumen" className="space-y-6">
             {vm.isAnalysisEmpty && (
@@ -75,10 +69,7 @@ function KpiTile({ label, value, highlight }: { label: string; value: string; hi
 
 export function ChapterDatos({ vm }: ChapterProps) {
     const general = vm.result.datosGenerales;
-    const status = vm.chapters.find(c => c.id === 'datos'); // Should verify if empty
-
-    // Check critical fields manually if needed or adhere to VM status
-    // const isCriticalMissing = vm.warnings.some(w => w.severity === 'CRITICO');
+    const status = vm.chapters.find(c => c.id === 'datos');
 
     if (status?.status === 'VACIO' && status.emptyMessage) {
         return <section id="datos" className="py-8"><EmptyChapter title={status.emptyMessage.title} text={status.emptyMessage.text} /></section>;
@@ -90,11 +81,11 @@ export function ChapterDatos({ vm }: ChapterProps) {
 
             <Card className="rounded-2xl border-neutral-200/60 shadow-sm overflow-hidden">
                 <div className="divide-y divide-neutral-100">
-                    <Row label="Título" value={vm.display.titulo} />
-                    <Row label="Órgano de Contratación" value={vm.display.organo} />
-                    <Row label="Presupuesto Base" value={vm.display.presupuesto} />
-                    <Row label="Plazo de Ejecución" value={vm.display.plazo} />
-                    <Row label="CPV" value={vm.display.cpv} />
+                    <Row label="Título" value={vm.display.titulo} evidence={vm.getEvidence('result.datosGenerales.titulo')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.titulo')} />
+                    <Row label="Órgano de Contratación" value={vm.display.organo} evidence={vm.getEvidence('result.datosGenerales.organoContratacion')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.organoContratacion')} />
+                    <Row label="Presupuesto Base" value={vm.display.presupuesto} evidence={vm.getEvidence('result.datosGenerales.presupuesto')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.presupuesto')} />
+                    <Row label="Plazo de Ejecución" value={vm.display.plazo} evidence={vm.getEvidence('result.datosGenerales.plazoEjecucionMeses')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.plazoEjecucionMeses')} />
+                    <Row label="CPV" value={vm.display.cpv} evidence={vm.getEvidence('result.datosGenerales.cpv')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.cpv')} />
                     {general.fechaLimitePresentacion && (
                         <Row label="Fecha Límite" value={general.fechaLimitePresentacion} />
                     )}
@@ -104,11 +95,19 @@ export function ChapterDatos({ vm }: ChapterProps) {
     );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, evidence, isAmbiguous }: { label: string; value: string; evidence?: { quote: string; pageHint?: string }, isAmbiguous?: boolean }) {
     const isNotDetected = value === 'No detectado';
     return (
-        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between p-5 hover:bg-slate-50/50 transition-colors gap-2">
-            <span className="text-sm font-medium text-slate-500 w-1/3">{label}</span>
+        <div className={`flex flex-col sm:flex-row sm:items-baseline justify-between p-5 hover:bg-slate-50/50 transition-colors gap-2 group relative ${isAmbiguous ? 'bg-orange-50/50' : ''}`}>
+            <div className="flex items-center gap-2 w-1/3">
+                <span className="text-sm font-medium text-slate-500">{label}</span>
+                {isAmbiguous && (
+                    <div title="Dato ambiguo o contradictorio" className="text-orange-500">
+                        <AlertCircle size={14} />
+                    </div>
+                )}
+                <EvidenceToggle evidence={evidence} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
             <span className={`text-sm font-medium text-slate-900 sm:text-right flex-1 ${isNotDetected ? 'italic text-slate-400' : ''}`}>
                 {value}
             </span>
@@ -142,8 +141,11 @@ export function ChapterCriterios({ vm }: ChapterProps) {
                         </h3>
                         <div className="grid gap-4">
                             {objetivos.map((c, i) => (
-                                <div key={i} className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm">
-                                    <div className="flex justify-between items-start gap-4">
+                                <div key={i} className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm relative group">
+                                    <div className="absolute top-4 right-4">
+                                        <EvidenceToggle evidence={vm.getEvidence(`result.criteriosAdjudicacion.objetivos[${i}]`)} />
+                                    </div>
+                                    <div className="flex justify-between items-start gap-4 pr-8">
                                         <div>
                                             <p className="font-medium text-slate-900 mb-1">{c.descripcion}</p>
                                             {c.formula && <p className="text-xs text-slate-500 font-mono bg-slate-50 p-1.5 rounded mt-2 block w-fit">{c.formula}</p>}
@@ -164,8 +166,11 @@ export function ChapterCriterios({ vm }: ChapterProps) {
                         </h3>
                         <div className="grid gap-4">
                             {subjetivos.map((c, i) => (
-                                <div key={i} className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm">
-                                    <div className="flex justify-between items-start gap-4">
+                                <div key={i} className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm relative group">
+                                    <div className="absolute top-4 right-4">
+                                        <EvidenceToggle evidence={vm.getEvidence(`result.criteriosAdjudicacion.subjetivos[${i}]`)} />
+                                    </div>
+                                    <div className="flex justify-between items-start gap-4 pr-8">
                                         <div>
                                             <p className="font-medium text-slate-900 mb-1">{c.descripcion}</p>
                                             {c.detalles && <p className="text-sm text-slate-500 mt-1">{c.detalles}</p>}
@@ -196,9 +201,12 @@ export function ChapterSolvencia({ vm }: ChapterProps) {
 
             <div className="grid gap-6">
                 {(economica.cifraNegocioAnualMinima > 0 || jsonHasContent(economica.descripcion)) && (
-                    <div className="bg-white p-6 rounded-2xl border border-neutral-200/60 shadow-sm">
+                    <div className="bg-white p-6 rounded-2xl border border-neutral-200/60 shadow-sm relative group">
+                        <div className="absolute top-6 right-6">
+                            <EvidenceToggle evidence={vm.getEvidence('result.requisitosSolvencia.economica.cifraNegocioAnualMinima')} />
+                        </div>
                         <h3 className="font-semibold text-slate-900 mb-4">Solvencia Económica</h3>
-                        <div className="space-y-4">
+                        <div className="space-y-4 pr-8">
                             {economica.cifraNegocioAnualMinima > 0 && (
                                 <div>
                                     <span className="text-xs text-slate-500 uppercase tracking-wide">Cifra de Negocio Mínima</span>
@@ -219,16 +227,12 @@ export function ChapterSolvencia({ vm }: ChapterProps) {
                         <h3 className="font-semibold text-slate-900 mb-4">Solvencia Técnica</h3>
                         <ul className="space-y-4">
                             {tecnica.map((req, i) => {
-                                // Polymorphic handling already done in schema? No, VM gets raw object/string from data.result.
-                                // But data.result IS schema-compliant. 
-                                // wait, schema normalization happens in Zod.
-                                // LicitacionContent types "killCriteria" as string | object. Solvencia tecnica is string | object.
-                                // We need to handle this here too.
                                 const desc = typeof req === 'string' ? req : req.descripcion;
                                 return (
-                                    <li key={i} className="flex gap-3 text-sm text-slate-700">
-                                        <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                                        <span>{desc as React.ReactNode}</span>
+                                    <li key={i} className="flex gap-3 text-sm text-slate-700 group items-start">
+                                        <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                                        <span className="flex-1">{desc as React.ReactNode}</span>
+                                        <EvidenceToggle evidence={vm.getEvidence(`result.requisitosSolvencia.tecnica[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </li>
                                 );
                             })}
@@ -237,6 +241,16 @@ export function ChapterSolvencia({ vm }: ChapterProps) {
                 )}
             </div>
         </section>
+    );
+}
+
+function EmptyChapter({ title, text }: { title?: string; text?: string }) {
+    return (
+        <div className="flex flex-col items-center justify-center py-12 px-6 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            <AlertCircle className="w-8 h-8 text-slate-300 mb-3" />
+            <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
+            <p className="text-sm text-slate-500 mt-1 max-w-sm">{text}</p>
+        </div>
     );
 }
 

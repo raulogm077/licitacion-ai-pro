@@ -67,6 +67,7 @@ export class DBService {
                     status: 'succeeded',
                     steps: envelope.workflow?.steps || [],
                     updated_at: now,
+                    evidences: envelope.workflow?.evidences || [],
                     quality: qualityReport
                 };
 
@@ -93,6 +94,7 @@ export class DBService {
                         created_at: now,
                         updated_at: now,
                         steps: [],
+                        evidences: [],
                         quality: qualityReport
                     },
                     metadata: {

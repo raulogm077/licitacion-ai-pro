@@ -5,7 +5,7 @@
  * to the LicitacionData schema format.
  */
 
-import { LicitacionData } from '../../types';
+import { LicitacionData } from '../shared/types';
 
 /**
  * Agent Builder workflow output structure
@@ -56,7 +56,12 @@ interface AgentOutput {
         evidences: Array<{
             fieldPath: string;
             quote: string;
-            pageHint: string;
+            evidences: Array<{
+                fieldPath: string;
+                quote: string;
+                pageHint: string | null;
+                confidence: number;
+            }>;
             confidence: number;
         }>;
     };
@@ -199,16 +204,16 @@ export function mapWorkflowToLicitacionData(
             updated_at: new Date().toISOString(),
             status: workflow.quality?.overall === 'COMPLETO' ? 'succeeded' : 'failed',
             current_version: 1,
-        };
-
-        // Store evidences if available
-        if (workflow.evidences && workflow.evidences.length > 0) {
-            // We could store these in a separate field or in metadata
-            // For now, we'll keep them in workflow.evidences (custom extension)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (mapped.workflow as any).evidences = workflow.evidences;
-        }
+            evidences: (workflow.evidences || []).map((e: any) => ({
+                fieldPath: e.fieldPath,
+                quote: e.quote,
+                pageHint: e.pageHint,
+                confidence: e.confidence
+            }))
+        };
     }
+
 
     return mapped;
 }

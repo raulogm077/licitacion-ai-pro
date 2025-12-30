@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import handler from '../../../api/pliegos/analyze';
-import * as OpenAIRunner from '../../server/openaiWorkflow/runner';
+import * as OpenAIRunner from '../../../api/_lib/openaiWorkflow/runner';
 
 // Mock Runner
-vi.mock('../../server/openaiWorkflow/runner', () => ({
+vi.mock('../../../api/_lib/openaiWorkflow/runner', () => ({
     runWorkflow: vi.fn()
 }));
 
 // Mock Mapper
-vi.mock('../../server/mappers/openai-workflow-mapper', () => ({
+vi.mock('../../../api/_lib/mappers/openai-workflow-mapper', () => ({
     mapWorkflowToLicitacionData: vi.fn(val => val)
 }));
 

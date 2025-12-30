@@ -9,13 +9,15 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { runWorkflow } from '../../src/server/openaiWorkflow/runner';
-import { mapWorkflowToLicitacionData } from '../../src/server/mappers/openai-workflow-mapper';
-import { LicitacionContentSchema } from '../../src/lib/schemas';
+import { runWorkflow } from '../_lib/openaiWorkflow/runner';
+import { mapWorkflowToLicitacionData } from '../_lib/mappers/openai-workflow-mapper';
+import { LicitacionSchema } from '../_lib/shared/schemas';
 
-// SSE event types
-type SSEStage = 'auth' | 'validate' | 'read' | 'hash' | 'extract' | 'ai' | 'map' | 'persist' | 'done';
+// ... existing imports ...
+
+// Types for SSE
 type SSELogLevel = 'info' | 'warn' | 'error';
+type SSEStage = 'auth' | 'validate' | 'ai' | 'map' | 'persist' | 'done';
 
 interface SSEStageEvent {
     stage: SSEStage;
@@ -45,6 +47,10 @@ function sendSSE(res: VercelResponse, event: string, data: unknown) {
     res.write(`event: ${event}\n`);
     res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
+
+export const config = {
+    maxDuration: 60,
+};
 
 /**
  * POST /api/pliegos/analyze
@@ -231,7 +237,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // ========== STAGE: MAP ==========
         sendSSE(res, 'stage', { stage: 'map' } as SSEStageEvent);
 
-        let mappedData: unknown;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let mappedData: any;
         try {
             mappedData = mapWorkflowToLicitacionData(rawOutput);
         } catch (error) {
@@ -243,14 +250,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.end();
         }
 
-        // Validate with Zod
-        const validationResult = LicitacionContentSchema.safeParse(mappedData);
+        // --- Module 3 Rules: Quality Check ---
+        const quality = mappedData.workflow?.quality;
+        if (quality?.overall === 'VACIO') {
+            sendSSE(res, 'error', {
+                code: 'QUALITY_REJECTION',
+                userMessage: 'El documento no parece ser un pliego válido o es ilegible (' + (quality.warnings?.[0] || 'Sin datos detectados') + ').'
+            } as SSEErrorEvent);
+            return res.end();
+        }
+
+        if (quality?.overall === 'PARCIAL') {
+            sendSSE(res, 'log', {
+                level: 'warn',
+                code: 'QUALITY_PARTIAL',
+                message: 'Atención: Lectura parcial. Faltan campos críticos.'
+            } as SSELogEvent);
+        }
+
+        if (quality?.ambiguous_fields?.length > 0) {
+            sendSSE(res, 'log', {
+                level: 'warn',
+                code: 'QUALITY_AMBIGUITY',
+                message: `Detectadas ambigüedades en campos: ${quality.ambiguous_fields.join(', ')}`
+            } as SSELogEvent);
+        }
+
+        // Validate with Zod (Use LicitacionSchema to preserve workflow/metadata)
+        const validationResult = LicitacionSchema.safeParse(mappedData);
 
         if (!validationResult.success) {
             console.error('[API] Zod validation failed:', validationResult.error);
             sendSSE(res, 'error', {
                 code: 'SCHEMA_VALIDATION_ERROR',
-                userMessage: 'El resultado de la IA no cumple con el formato esperado'
+                userMessage: 'El resultado de la IA no cumple con el formato interno'
             } as SSEErrorEvent);
             return res.end();
         }

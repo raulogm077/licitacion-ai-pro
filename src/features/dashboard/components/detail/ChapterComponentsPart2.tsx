@@ -3,6 +3,7 @@ import { Badge } from '../../../../components/ui/Badge';
 import { AlertCircle, AlertTriangle, Check, FileJson, Copy, XCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../../components/ui/Dialog';
 import { Button } from '../../../../components/ui/Button';
+import { EvidenceToggle } from './EvidenceToggle';
 
 // Reusing helper
 function EmptyChapter({ title, text }: { title: string; text: string }) {
@@ -36,13 +37,17 @@ export function ChapterTecnicos({ vm }: { vm: PliegoVM }) {
                                 const text = typeof req === 'string' ? req : req.requisito;
                                 const required = typeof req === 'object' ? req.obligatorio : true;
                                 return (
-                                    <li key={i} className="flex gap-3 text-sm">
+                                    <li key={i} className={`flex gap-3 text-sm group items-start p-1 rounded ${vm.isAmbiguous(`result.requisitosTecnicos.funcionales[${i}]`) ? 'bg-orange-50' : ''}`}>
                                         {required ? (
                                             <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5"><span className="w-1.5 h-1.5 bg-slate-600 rounded-full" /></div>
                                         ) : (
                                             <div className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center shrink-0 mt-0.5"><span className="text-[10px] text-slate-400">op</span></div>
                                         )}
-                                        <span className="text-slate-700">{text}</span>
+                                        <span className="text-slate-700 flex-1">
+                                            {text}
+                                            {vm.isAmbiguous(`result.requisitosTecnicos.funcionales[${i}]`) && <AlertTriangle className="inline w-3 h-3 text-orange-500 ml-2" />}
+                                        </span>
+                                        <EvidenceToggle evidence={vm.getEvidence(`result.requisitosTecnicos.funcionales[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </li>
                                 );
                             })}
@@ -57,9 +62,13 @@ export function ChapterTecnicos({ vm }: { vm: PliegoVM }) {
                             {normativa.map((req, i) => {
                                 const text = typeof req === 'string' ? req : req.norma;
                                 return (
-                                    <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
+                                    <li key={i} className={`flex items-center gap-2 text-sm text-slate-600 group p-1 rounded ${vm.isAmbiguous(`result.requisitosTecnicos.normativa[${i}]`) ? 'bg-orange-50' : ''}`}>
                                         <Check className="w-4 h-4 text-green-500" />
-                                        {text}
+                                        <span className="flex-1">
+                                            {text}
+                                            {vm.isAmbiguous(`result.requisitosTecnicos.normativa[${i}]`) && <AlertTriangle className="inline w-3 h-3 text-orange-500 ml-2" />}
+                                        </span>
+                                        <EvidenceToggle evidence={vm.getEvidence(`result.requisitosTecnicos.normativa[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </li>
                                 );
                             })}
@@ -98,7 +107,10 @@ export function ChapterRiesgos({ vm }: { vm: PliegoVM }) {
                                 const text = typeof k === 'string' ? k : k.criterio;
                                 const just = typeof k === 'object' ? k.justificacion : null;
                                 return (
-                                    <li key={i} className="text-red-800 text-sm">
+                                    <li key={i} className="text-red-800 text-sm group relative pr-8">
+                                        <div className="absolute top-0 right-0">
+                                            <EvidenceToggle evidence={vm.getEvidence(`result.restriccionesYRiesgos.killCriteria[${i}]`)} />
+                                        </div>
                                         <p className="font-semibold">{text}</p>
                                         {just && <p className="mt-1 opacity-90">{just}</p>}
                                     </li>
@@ -110,14 +122,22 @@ export function ChapterRiesgos({ vm }: { vm: PliegoVM }) {
 
                 <div className="grid gap-4">
                     {riesgos.map((r, i) => (
-                        <div key={i} className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm flex items-start gap-4">
+                        <div key={i} className={`bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm flex items-start gap-4 relative group ${vm.isAmbiguous(`result.restriccionesYRiesgos.riesgos[${i}]`) ? 'ring-2 ring-orange-200 bg-orange-50/30' : ''}`}>
+                            <div className="absolute top-4 right-4">
+                                <div className="flex gap-2">
+                                    {vm.isAmbiguous(`result.restriccionesYRiesgos.riesgos[${i}]`) && (
+                                        <div title="Dato ambiguo o contradictorio" className="text-orange-500"><AlertTriangle size={16} /></div>
+                                    )}
+                                    <EvidenceToggle evidence={vm.getEvidence(`result.restriccionesYRiesgos.riesgos[${i}]`)} />
+                                </div>
+                            </div>
                             <div className={`p-2 rounded-lg shrink-0 ${r.impacto === 'CRITICO' ? 'bg-red-100 text-red-600' :
                                 r.impacto === 'ALTO' ? 'bg-orange-100 text-orange-600' :
                                     'bg-yellow-100 text-yellow-600'
                                 }`}>
                                 <AlertTriangle className="w-5 h-5" />
                             </div>
-                            <div>
+                            <div className="pr-8">
                                 <h4 className="font-medium text-slate-900">{r.descripcion}</h4>
                                 <div className="flex gap-2 mt-2">
                                     <Badge variant={
@@ -152,7 +172,6 @@ export function ChapterServicio({ vm }: { vm: PliegoVM }) {
     return (
         <section id="servicio" className="py-8 scroll-mt-32">
             <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-8">Modelo de Servicio</h2>
-            {/* Same list pattern... keeping distinct for modularity */}
             <div className="grid md:grid-cols-2 gap-6">
                 {sla.length > 0 && (
                     <div className="bg-white p-6 rounded-2xl border border-neutral-200/60 shadow-sm">
@@ -162,8 +181,11 @@ export function ChapterServicio({ vm }: { vm: PliegoVM }) {
                                 const metric = typeof s === 'string' ? s : s.metrica;
                                 const target = typeof s === 'object' ? s.objetivo : null;
                                 return (
-                                    <li key={i} className="text-sm border-b border-slate-50 pb-2 last:border-0 last:pb-0">
-                                        <p className="font-medium text-slate-700">{metric}</p>
+                                    <li key={i} className="text-sm border-b border-slate-50 pb-2 last:border-0 last:pb-0 group relative">
+                                        <div className="absolute top-0 right-0">
+                                            <EvidenceToggle evidence={vm.getEvidence(`result.modeloServicio.sla[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                        <p className="font-medium text-slate-700 pr-6">{metric}</p>
                                         {target && <p className="text-slate-500 text-xs">Objetivo: {target}</p>}
                                     </li>
                                 );
@@ -179,9 +201,12 @@ export function ChapterServicio({ vm }: { vm: PliegoVM }) {
                                 const role = typeof e === 'string' ? e : e.rol;
                                 const exp = typeof e === 'object' ? `${e.experienciaAnios} años` : null;
                                 return (
-                                    <li key={i} className="flex justify-between items-center text-sm">
+                                    <li key={i} className="flex justify-between items-center text-sm group">
                                         <span className="text-slate-700">{role}</span>
-                                        {exp && <Badge variant="secondary" className="text-xs">{exp}</Badge>}
+                                        <div className="flex items-center gap-2">
+                                            {exp && <Badge variant="secondary" className="text-xs">{exp}</Badge>}
+                                            <EvidenceToggle evidence={vm.getEvidence(`result.modeloServicio.equipoMinimo[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
                                     </li>
                                 );
                             })}
@@ -192,6 +217,7 @@ export function ChapterServicio({ vm }: { vm: PliegoVM }) {
         </section>
     );
 }
+
 
 export function TechnicalJsonModal({ vm, isOpen, onClose }: { vm: PliegoVM; isOpen: boolean; onClose: () => void }) {
     const handleCopy = () => {
