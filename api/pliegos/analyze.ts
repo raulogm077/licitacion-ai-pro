@@ -9,8 +9,9 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-// Dynamic imports will be used in handler to catch startup errors
-// Removed static imports: LicitacionContentSchema, runWorkflow, mapWorkflowToLicitacionData
+import { runWorkflow } from '../../src/server/openaiWorkflow/runner';
+import { mapWorkflowToLicitacionData } from '../../src/server/mappers/openai-workflow-mapper';
+import { LicitacionContentSchema } from '../../src/lib/schemas';
 
 // SSE event types
 type SSEStage = 'auth' | 'validate' | 'read' | 'hash' | 'extract' | 'ai' | 'map' | 'persist' | 'done';
@@ -120,26 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // ========== STAGE: VALIDATE ==========
         sendSSE(res, 'stage', { stage: 'validate' } as SSEStageEvent);
 
-        // Load dependencies dynamically to catch import errors
-        let runWorkflow, mapWorkflowToLicitacionData, LicitacionContentSchema;
-        try {
-            const runnerModule = await import('../../src/server/openaiWorkflow/runner');
-            runWorkflow = runnerModule.runWorkflow;
-
-            const mapperModule = await import('../../src/server/mappers/openai-workflow-mapper');
-            mapWorkflowToLicitacionData = mapperModule.mapWorkflowToLicitacionData;
-
-            const schemasModule = await import('../../src/lib/schemas');
-            LicitacionContentSchema = schemasModule.LicitacionContentSchema;
-        } catch (importError) {
-             console.error('[API] Dependency Import Error:', importError);
-             const msg = importError instanceof Error ? importError.message : String(importError);
-             sendSSE(res, 'error', {
-                 code: 'IMPORT_ERROR',
-                 userMessage: `Error crítico de servidor (Dependencias): ${msg}`
-             } as SSEErrorEvent);
-             return res.end();
-        }
+        // ... handler starts below ...
 
         // Validate provider
         if (!provider || !['gemini', 'openai'].includes(provider)) {
@@ -217,7 +199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         userId: user.id
                     },
                     {
-                        onProgress: (stage, message) => {
+                        onProgress: (stage: string, message: string) => {
                             sendSSE(res, 'delta', { text: `[${stage}] ${message}` } as SSEDeltaEvent);
                         }
                     }
