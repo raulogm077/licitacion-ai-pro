@@ -1,0 +1,6 @@
+{
+    "imports": {
+        "openai": "npm:openai@^4.0.0",
+        "zod": "npm:zod@3.22.4"
+    }
+}

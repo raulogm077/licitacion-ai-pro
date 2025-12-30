@@ -6,7 +6,8 @@ import { generateBufferHash, validateBufferMagicBytes, bufferToBase64 } from '..
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
 import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB } from '../config/constants';
-import { analyzeWithSSE } from '../services/sse-client';
+// import { analyzeWithSSE } from '../services/sse-client'; // Deprecated for OpenAI
+
 
 interface AnalysisStore {
     status: ProcessingStatus;
@@ -16,6 +17,7 @@ interface AnalysisStore {
     persistenceWarning: string | null;
     abortController: AbortController | null;
     selectedProvider: string; // 'gemini' | 'openai'
+    currentJobId: string | null; // NEW: Track active async job
 
     // Actions
     analyzeFile: (file: File) => Promise<void>;
@@ -40,6 +42,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     persistenceWarning: null,
     abortController: null,
     selectedProvider: loadSelectedProvider(),
+    currentJobId: null,
 
     analyzeFile: async (file: File) => {
         const { loadLicitacion, reset: resetLicitacion } = useLicitacionStore.getState();
@@ -109,64 +112,96 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             let result: LicitacionContent | undefined;
 
             // Route based on provider
+            // Route based on provider
             if (selectedProvider === 'openai') {
-                // OpenAI: Use backend API with SSE streaming
+                // OpenAI: Use Async Job Architecture (Supabase Edge Function)
                 set(state => ({
                     status: 'ANALYZING',
-                    thinkingOutput: state.thinkingOutput + "\n🔄 Conectando con backend API..."
+                    thinkingOutput: state.thinkingOutput + "\n🔄 Iniciando trabajo en servidor..."
                 }));
 
-                await analyzeWithSSE(
-                    {
-                        provider: 'openai',
-                        readingMode: 'full', // Hardcoded default
-                        hash,
-                        pdfBase64: base64,
-                        filename: file.name
-                    },
-                    {
-                        onStage: (event) => {
-                            const stageMessages: Record<string, string> = {
-                                auth: '🔐 Autenticando...',
-                                validate: '✅ Validando...',
-                                ai: '🤖 Analizando con OpenAI...',
-                                map: '🗺️ Mapeando resultado...',
-                                persist: '💾 Guardando...',
-                                done: '✅ Completado'
-                            };
-                            const message = stageMessages[event.stage] || `Etapa: ${event.stage}`;
-                            set(state => ({
-                                thinkingOutput: state.thinkingOutput + "\n" + message
-                            }));
-                        },
-                        onLog: (event) => {
-                            const emoji = event.level === 'error' ? '❌' : event.level === 'warn' ? '⚠️' : 'ℹ️';
-                            set(state => ({
-                                thinkingOutput: state.thinkingOutput + `\n${emoji} ${event.message}`
-                            }));
-                        },
-                        onDelta: (event) => {
-                            set(state => ({
-                                thinkingOutput: state.thinkingOutput + event.text
-                            }));
-                        },
-                        onResult: (event) => {
-                            result = event.licitacionData as LicitacionContent;
-                            set(state => ({
-                                progress: 90,
-                                thinkingOutput: state.thinkingOutput + "\n✅ Resultado recibido del servidor"
-                            }));
-                        },
-                        onError: (event) => {
-                            throw new Error(event.userMessage);
-                        }
-                    },
-                    newController.signal
-                );
+                // 1. Start Job
+                const { supabase } = await import('../config/supabase'); // Dynamic import
 
-                if (!result) {
-                    throw new Error('No se recibió resultado del servidor');
+                const { data: jobData, error: startError } = await supabase.functions.invoke('openai-runner', {
+                    body: {
+                        pdfBase64: base64,
+                        filename: file.name,
+                        hash,
+                        readingMode: 'full'
+                    }
+                });
+
+                if (startError || !jobData?.jobId) {
+                    throw new Error(`No se pudo iniciar el análisis: ${startError?.message || 'Respuesta inválida'}`);
                 }
+
+                const jobId = jobData.jobId;
+                set({ currentJobId: jobId, thinkingOutput: `✅ Trabajo iniciado (ID: ${jobId.slice(0, 8)}...)\nEsperando worker...` });
+
+                // 2. Poll for Completion
+                let jobStatus = 'pending';
+                let attempts = 0;
+                const maxAttempts = 120; // 120 * 2s = 4 mins timeout protection
+
+                while (jobStatus !== 'completed' && jobStatus !== 'failed' && attempts < maxAttempts) {
+                    if (newController.signal.aborted) throw new Error('Cancelado por usuario');
+
+                    await new Promise(r => setTimeout(r, 2000)); // Poll every 2s
+                    attempts++;
+
+                    const { data: job, error: pollError } = await supabase
+                        .from('analysis_jobs')
+                        .select('status, result, error, metadata')
+                        .eq('id', jobId)
+                        .single();
+
+                    if (pollError) {
+                        console.warn('Polling error (retrying):', pollError);
+                        continue;
+                    }
+
+                    jobStatus = job.status;
+
+                    // Update UI with metadata message
+                    if (job.metadata?.message && job.metadata?.step) {
+                        // Only append if different from last line to avoid spam? 
+                        // For now just append simplisticly or replace last line.
+                        // Let's simplified: Append only if it's a new major step or just keep it lively.
+                        const msg = `[${job.metadata.step}] ${job.metadata.message}`;
+                        set(state => {
+                            const lines = state.thinkingOutput.split('\n');
+                            if (lines[lines.length - 1] !== msg) {
+                                return { thinkingOutput: state.thinkingOutput + "\n" + msg };
+                            }
+                            return {};
+                        });
+                    }
+
+                    if (jobStatus === 'failed') {
+                        throw new Error(job.error || 'El análisis falló en el servidor');
+                    }
+                }
+
+                if (jobStatus !== 'completed') {
+                    throw new Error('Timeout esperando resultado del servidor');
+                }
+
+                // 3. Get Result
+                const { data: finalJob } = await supabase
+                    .from('analysis_jobs')
+                    .select('result')
+                    .eq('id', jobId)
+                    .single();
+
+                if (!finalJob) throw new Error('No se pudo recuperar el resultado final del análisis');
+
+                result = finalJob.result as LicitacionContent;
+                set(state => ({
+                    progress: 90,
+                    thinkingOutput: state.thinkingOutput + "\n✅ Resultado recibido del servidor"
+                }));
+
             } else {
                 // Gemini: Use existing client-side logic
                 result = await services.ai.analyzePdfContent(base64, (processed, total, message) => {
@@ -186,7 +221,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             set(state => ({
                 status: 'COMPLETED',
                 progress: 100,
-                thinkingOutput: state.thinkingOutput + "\n✅ Análisis completado con éxito."
+                thinkingOutput: state.thinkingOutput + "\n✅ Análisis completado con éxito.",
+                currentJobId: null
             }));
 
             // Handle persistence in background
