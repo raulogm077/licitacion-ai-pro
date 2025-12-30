@@ -39,7 +39,7 @@ test.describe('Phase 9: Export Functionality', () => {
         await expect(page).toHaveTitle(/Analista de Pliegos/);
     });
 
-    test.skip('should show PDF export option in Dashboard', async ({ page }) => {
+    test('should show PDF export option in Dashboard', async ({ page }) => {
         console.log('--- Starting Dashboard Export Test (Direct Injection) ---');
         await page.goto('/');
 
