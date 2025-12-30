@@ -16,5 +16,14 @@ export default defineConfig({
             }
         },
         chunkSizeWarningLimit: 1000
+    },
+    server: {
+        proxy: {
+            '/api': {
+                target: process.env.VITE_API_URL || 'https://licitacion-ai-pro.vercel.app',
+                changeOrigin: true,
+                secure: false,
+            }
+        }
     }
 });

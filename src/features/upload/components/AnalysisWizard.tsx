@@ -83,7 +83,7 @@ export const AnalysisWizard: React.FC = () => {
                 {/* Main Upload Card */}
                 <div
                     className={`
-                        relative overflow-hidden
+                        relative overflow-visible min-h-[800px] flex flex-col justify-center
                         border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-300
                         ${!isAuthenticated
                             ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40' // Blurred/Locked state
