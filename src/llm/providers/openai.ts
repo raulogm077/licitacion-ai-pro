@@ -22,14 +22,13 @@ export class OpenAIProvider implements LLMProvider {
     }
 
     isAvailable(): boolean {
-        // Always return false - OpenAI is server-side only now
-        return false;
+        // OpenAI is server-side only, so we assume it is available if the app is deployed
+        return true;
     }
 
     validateConfig(): { valid: boolean; errors?: string[] } {
         return {
-            valid: false,
-            errors: ['OpenAI provider is server-side only. Use /api/pliegos/analyze endpoint.']
+            valid: true
         };
     }
 

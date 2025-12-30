@@ -5,7 +5,7 @@ import { useLicitacionStore } from './licitacion.store';
 import { generateBufferHash, validateBufferMagicBytes, bufferToBase64 } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
-import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB, ReadingMode, READING_MODES } from '../config/constants';
+import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB } from '../config/constants';
 import { analyzeWithSSE } from '../services/sse-client';
 
 interface AnalysisStore {
@@ -16,14 +16,12 @@ interface AnalysisStore {
     persistenceWarning: string | null;
     abortController: AbortController | null;
     selectedProvider: string; // 'gemini' | 'openai'
-    readingMode: ReadingMode; // 'full' | 'keydata'
 
     // Actions
     analyzeFile: (file: File) => Promise<void>;
     cancelAnalysis: () => void;
     resetAnalysis: () => void;
     setProvider: (provider: string) => void;
-    setReadingMode: (mode: ReadingMode) => void;
 }
 // Load selected provider from localStorage (default: gemini)
 const loadSelectedProvider = (): string => {
@@ -31,18 +29,6 @@ const loadSelectedProvider = (): string => {
         return localStorage.getItem('selectedProvider') || 'gemini';
     } catch {
         return 'gemini';
-    }
-};
-
-// Load selected reading mode from localStorage (default: full)
-const loadReadingMode = (): ReadingMode => {
-    try {
-        const stored = localStorage.getItem('readingMode');
-        return (stored === READING_MODES.KEY_DATA || stored === READING_MODES.FULL)
-            ? stored as ReadingMode
-            : READING_MODES.FULL;
-    } catch {
-        return READING_MODES.FULL;
     }
 };
 
@@ -54,7 +40,6 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     persistenceWarning: null,
     abortController: null,
     selectedProvider: loadSelectedProvider(),
-    readingMode: loadReadingMode(),
 
     analyzeFile: async (file: File) => {
         const { loadLicitacion, reset: resetLicitacion } = useLicitacionStore.getState();
@@ -118,8 +103,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 }
             };
 
-            // Get selected provider and reading mode from store
-            const { selectedProvider, readingMode } = get();
+            // Get selected provider from store
+            const { selectedProvider } = get();
 
             let result: LicitacionContent | undefined;
 
@@ -134,7 +119,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 await analyzeWithSSE(
                     {
                         provider: 'openai',
-                        readingMode: readingMode as 'full' | 'keydata',
+                        readingMode: 'full', // Hardcoded default
                         hash,
                         pdfBase64: base64,
                         filename: file.name
@@ -252,15 +237,5 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             console.warn('Failed to save provider to localStorage:', error);
         }
         set({ selectedProvider: provider });
-    },
-
-    setReadingMode: (mode: ReadingMode) => {
-        // Save to localStorage for persistence
-        try {
-            localStorage.setItem('readingMode', mode);
-        } catch (error) {
-            console.warn('Failed to save reading mode to localStorage:', error);
-        }
-        set({ readingMode: mode });
     }
 }));

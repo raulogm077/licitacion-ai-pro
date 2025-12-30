@@ -26,21 +26,18 @@ describe('Analysis Store (TC-UI)', () => {
             progress: 0,
             thinkingOutput: '',
             error: null,
-            selectedProvider: 'openai',
-            readingMode: 'full'
+            selectedProvider: 'openai'
         });
     });
 
 
 
-    it('should persist provider and reading mode selection (TC-UI-01)', () => {
+    it('should persist provider selection (TC-UI-01)', () => {
         // Act: Change settings
         useAnalysisStore.getState().setProvider('gemini');
-        useAnalysisStore.getState().setReadingMode('keydata');
 
         // Assert: State updated
         expect(useAnalysisStore.getState().selectedProvider).toBe('gemini');
-        expect(useAnalysisStore.getState().readingMode).toBe('keydata');
     });
 
     it('should update state immediately on cancellation (TC-UI-02)', () => {
@@ -57,11 +54,5 @@ describe('Analysis Store (TC-UI)', () => {
         expect(useAnalysisStore.getState().abortController).toBeNull();
     });
 
-    it('should set reading mode correctly', () => {
-        expect(useAnalysisStore.getState().readingMode).toBe('full'); // Default after reset
 
-        useAnalysisStore.getState().setReadingMode('keydata');
-
-        expect(useAnalysisStore.getState().readingMode).toBe('keydata');
-    });
 });
