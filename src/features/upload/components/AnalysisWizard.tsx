@@ -4,6 +4,7 @@ import { useAuthStore } from '../../../stores/auth.store';
 import { useAnalysisStore } from '../../../stores/analysis.store';
 import { PluginSelector } from '../../../components/domain/PluginSelector';
 import { ProviderSelector } from '../../../components/domain/ProviderSelector';
+import { ReadingModeSelector } from '../../../components/domain/ReadingModeSelector';
 import { CancelButton } from '../../../components/domain/CancelButton';
 import { AuthModal } from '../../../components/ui/AuthModal';
 import { useKeyboardShortcut } from '../../../hooks/useKeyboardShortcut';
@@ -12,7 +13,7 @@ type WizardStep = 'upload' | 'analyzing' | 'completed';
 
 export const AnalysisWizard: React.FC = () => {
     const { isAuthenticated } = useAuthStore();
-    const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis, selectedProvider, setProvider } = useAnalysisStore();
+    const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis, selectedProvider, setProvider, readingMode, setReadingMode } = useAnalysisStore();
 
     // Keyboard shortcut for cancel (Esc key)
     useKeyboardShortcut('Escape', cancelAnalysis, status === 'ANALYZING' || status === 'READING_PDF');
@@ -135,6 +136,13 @@ export const AnalysisWizard: React.FC = () => {
                                 <ProviderSelector
                                     value={selectedProvider}
                                     onChange={setProvider}
+                                    disabled={status === 'ANALYZING' || status === 'READING_PDF'}
+                                />
+
+                                {/* Reading Mode Selector */}
+                                <ReadingModeSelector
+                                    value={readingMode}
+                                    onChange={setReadingMode}
                                     disabled={status === 'ANALYZING' || status === 'READING_PDF'}
                                 />
 

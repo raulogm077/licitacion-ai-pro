@@ -26,3 +26,11 @@ export const OPENAI_MODELS = {
     PRO: 'gpt-5.2-pro',        // $21/$168 (advanced tasks, 84x cost)
     // Legacy: 'gpt-4o-mini' ($0.15/$0.60, cheaper but older)
 } as const;
+
+/** Reading Modes for AI Analysis */
+export const READING_MODES = {
+    FULL: 'full',
+    KEY_DATA: 'keydata',
+} as const;
+
+export type ReadingMode = typeof READING_MODES[keyof typeof READING_MODES];

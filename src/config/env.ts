@@ -1,10 +1,17 @@
 import { z } from 'zod';
 
+/**
+ * Client-side environment variables schema
+ * 
+ * IMPORTANT: OpenAI API key should ONLY be set server-side as OPENAI_API_KEY
+ * (without VITE_ prefix) in Vercel environment variables for security.
+ * Client-side OpenAI usage has been deprecated.
+ */
 const envSchema = z.object({
     VITE_SUPABASE_URL: z.string().url("VITE_SUPABASE_URL must be a valid URL"),
     VITE_SUPABASE_ANON_KEY: z.string().min(1, "VITE_SUPABASE_ANON_KEY is required"),
     VITE_SENTRY_DSN: z.string().optional(),
-    VITE_OPENAI_API_KEY: z.string().optional(),
+    // VITE_OPENAI_API_KEY removed - OpenAI now server-side only
 });
 
 const getEnvSource = () => {
@@ -31,7 +38,6 @@ export const env = parsed.success ? parsed.data : {
     VITE_SUPABASE_URL: "",
     VITE_SUPABASE_ANON_KEY: "",
     VITE_SENTRY_DSN: undefined,
-    VITE_OPENAI_API_KEY: undefined,
 };
 
 if (!parsed.success) {
