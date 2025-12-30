@@ -14,7 +14,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({ value, onCha
 
     React.useEffect(() => {
         // Load available providers and ensure uniqueness
-        let availableProviders = Array.from(new Set(llmFactory.listProviders()));
+        const availableProviders = Array.from(new Set(llmFactory.listProviders()));
 
         // FAILSAFE: Force 'openai' if missing (user request)
         if (!availableProviders.includes('openai')) {

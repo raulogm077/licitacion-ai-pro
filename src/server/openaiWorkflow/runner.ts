@@ -10,30 +10,6 @@
  * 3. Receive Structured Output (JSON) defined in the Agent's End Node
  */
 
-// OpenAI import used for file management
-import OpenAI from 'openai';
-
-export interface WorkflowInput {
-    extractedText?: string;
-    pdfBase64?: string;
-    readingMode: 'full' | 'keydata';
-    hash: string;
-    userId: string; // Required for auditing/context
-    filename?: string;
-}
-
-export interface WorkflowOptions {
-    signal?: AbortSignal;
-    onProgress?: (stage: string, message: string) => void;
-}
-
-/**
- * Runs the OpenAI Agent via Responses API
- * 
- * Contract:
- * - Agent Input Variables: { file_id, reading_mode, hash, extracted_text }
- * - Agent Output: Structured JSON matching LicitacionData schema (or subset)
- */
 import OpenAI from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { LicitacionResponseSchema } from '../../lib/openai-schemas';
@@ -135,6 +111,7 @@ export async function runWorkflow(
                     content
                 }
             ],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             response_format: zodResponseFormat(LicitacionResponseSchema as any, "analisis_licitacion"),
         });
 
