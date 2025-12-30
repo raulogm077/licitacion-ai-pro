@@ -1,19 +1,19 @@
+
 /**
- * OpenAI Agent Builder Runner (Responses API)
+ * OpenAI Agent Runner (Agents SDK)
  * 
- * Implements the "Black Box" integration strategy using the Responses API (POST /v1/responses).
- * Executes a hosted Agent statelessly, adhering to strict Input/Output contracts.
- * 
- * Architecture:
- * 1. Upload PDF to OpenAI Storage -> get file_id
- * 2. Call POST /v1/responses with agent_id and input variables
- * 3. Receive Structured Output (JSON) defined in the Agent's End Node
+ * Implements the "Assisted RAG" flow using the @openai/agents SDK:
+ * 1. Ingest Document -> Vector Store (Standard API)
+ * 2. Create Agent with File Search Tool (Agents SDK)
+ * 3. Run Agent to extract structured data (Agents SDK)
  */
 
 import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
+import { Agent, run } from '@openai/agents';
+import { fileSearchTool } from '@openai/agents';
 import { LicitacionResponseSchema } from '../../lib/openai-schemas';
 
+// Types
 export interface WorkflowInput {
     extractedText?: string;
     pdfBase64?: string;
@@ -29,104 +29,115 @@ export interface WorkflowOptions {
 }
 
 /**
- * Runs the OpenAI Analysis using the Responses API with Zod Schema.
+ * Main Entry Point: Orchestrates the Analysis Workflow via Agents SDK
  */
 export async function runWorkflow(
     input: WorkflowInput,
     options: WorkflowOptions = {}
 ): Promise<unknown> {
-    const { signal, onProgress } = options;
-    const apiKey = process.env.OPENAI_API_KEY;
-
+    const { onProgress, signal } = options;
+    const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
     if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+    
+    // Critical: Agents SDK uses process.env.OPENAI_API_KEY by default
+    process.env.OPENAI_API_KEY = apiKey;
 
     const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 3 });
 
-    // 1. Upload File
+    let vectorStoreId: string | undefined;
     let fileId: string | undefined;
-    if (input.pdfBase64) {
-        onProgress?.('upload', 'Subiendo documento PDF a OpenAI Storage...');
-        const pdfBuffer = Buffer.from(input.pdfBase64, 'base64');
-        const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
-        const file = new File([blob], input.filename || 'document.pdf', { type: 'application/pdf' });
-
-        const uploadedFile = await openai.files.create({
-            file,
-            purpose: 'user_data' // Tutorial specifies 'user_data' for Responses API
-        });
-        fileId = uploadedFile.id;
-    }
-
-    if (signal?.aborted) {
-        if (fileId) await openai.files.delete(fileId).catch(() => { });
-        throw new Error('Workflow cancelled');
-    }
-
-    // 2. Call Responses API
-    onProgress?.('processing', 'Analizando pliego con OpenAI Responses API...');
 
     try {
-        // Prepare content array
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const content: any[] = [
-            {
-                type: "input_text",
-                text: `Analiza el pliego adjunto. Extrae TODA la información requerida para completar el esquema JSON.
-                     
-                     Contexto:
-                     - Hash: ${input.hash}
-                     - UserID: ${input.userId}
-                     
-                     Instrucciones para 'workflow.quality':
-                     - Evalúa si la sección está completa o 'VACIO'.
-                     - Si falta un dato crítico (ej. presupuesto), añádelo a missingCriticalFields.
-                     
-                     Instrucciones para 'workflow.evidences':
-                     - Cita la frase exacta del PDF donde encontraste el presupuesto y la solvencia.`
-            }
-        ];
+        // --- Module 1: Document Ingestion (Standard API) ---
+        // We still use standard API for file management as Agents SDK wrappers expect existing resources.
 
-        if (fileId) {
-            content.push({
-                type: "input_file",
-                file_id: fileId
-            });
+        if (!input.pdfBase64) {
+            throw new Error('PDF Content required for Agent analysis');
         }
 
-        // Use the beta responses API if available in SDK typings (which we confirmed it has 'responses')
-        // We assume 'openai.responses.parse' exists or we use 'create' and parse manually?
-        // The script showed 'responses' exists.
-        // If the typing is missing in local environment, we might need a cast.
+        onProgress?.('upload', 'Subiendo documento a OpenAI Cloud...');
+        const pdfBuffer = Buffer.from(input.pdfBase64, 'base64');
+        const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+        // Need to cast to any to satisfy OpenAI type requirement for 'File' interface overlap
+        const file = new File([blob], input.filename || 'pliego.pdf', { type: 'application/pdf' });
 
-        // Note: The tutorial assumed 'client.responses.parse'.
-        // If it doesn't exist on the type definition yet, we fallback to 'any'.
+        const uploadedFile = await openai.files.create({
+            file: file,
+            purpose: 'assistants'
+        });
+        fileId = uploadedFile.id;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response: any = await (openai as any).responses.parse({
-            model: "gpt-4o-2024-08-06",
-            tools: [{ type: "file_search" }],
-            input: [
-                {
-                    role: "user",
-                    content
-                }
-            ],
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            response_format: zodResponseFormat(LicitacionResponseSchema as any, "analisis_licitacion"),
+        if (signal?.aborted) throw new Error('Cancelled');
+
+        // Create Vector Store
+        onProgress?.('indexing', 'Creando índice vectorial (Vector Store)...');
+        const vectorStore = await openai.vectorStores.create({
+            name: `Licitacion-${input.hash.substring(0, 8)}`,
+            expires_after: { anchor: 'last_active_at', days: 1 }
+        });
+        vectorStoreId = vectorStore.id;
+
+        // Link File
+        await openai.vectorStores.files.create(vectorStoreId, {
+            file_id: fileId
         });
 
-        const output = response.output_parsed || response.output; // Fallback if parsed not directly available
-
-        // 3. Cleanup
-        if (fileId) {
-            await openai.files.delete(fileId).catch(() => { });
+        // POLLING: Wait for file processing to complete
+        // This is critical for Agents SDK to "see" the content immediately
+        onProgress?.('indexing', 'Procesando archivo para búsqueda...');
+        let status = 'in_progress';
+        while (status !== 'completed' && status !== 'failed') {
+            if (signal?.aborted) throw new Error('Cancelled');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const f = await openai.vectorStores.files.retrieve(fileId, { vector_store_id: vectorStoreId });
+            status = f.status;
         }
 
-        return output;
+        if (status === 'failed') throw new Error('OpenAI failed to process the PDF file.');
+        
+        if (signal?.aborted) throw new Error('Cancelled');
+
+        // --- Module 2: Agent Definition (Agents SDK) ---
+        onProgress?.('processing', 'Inicializando Agente de Análisis...');
+
+        const agent = new Agent({
+            name: "Analista de Pliegos",
+            model: "gpt-4o",
+            instructions: `Eres un experto legal en licitaciones públicas ("Analista de Pliegos").
+            Tu tarea es leer documentos técnicos y administrativos (Pliegos) y extraer datos estructurados.
+            
+            REGLAS:
+            1. Cita siempre la fuente. Usa annotations para referenciar la página del PDF.
+            2. Si un dato no existe, déjalo como null, 0 o array vacío según el tipo. No inventes.
+            3. Para campos de texto libre, sé conciso pero captura el detalle técnico importante.
+            4. Basa tu respuesta EXCLUSIVAMENTE en el archivo adjunto.
+            `,
+            tools: [fileSearchTool([vectorStoreId])],
+            outputType: LicitacionResponseSchema
+        });
+
+        // --- Module 3: Execution ---
+        onProgress?.('analyzing', 'Ejecutando análisis estructurado...');
+        
+        const result = await run(agent, "Analiza el documento legal adjunto (Pliego) y extrae TODOS los datos solicitados en la estructura JSON. Busca específicamente el Presupuesto, Solvencia y Criterios. Si el documento es corto o parece una prueba, extrae lo que haya.");
+
+        // The result.finalOutput is already typed/parsed by outputType (Zod)
+        return result.finalOutput;
 
     } catch (error) {
-        if (fileId) await openai.files.delete(fileId).catch(() => { });
-        console.error("OpenAI Responses API Error:", error);
+        console.error('OpenAI Agent Workflow Error:', error);
         throw error;
+    } finally {
+        // Cleanup
+        if (vectorStoreId) {
+            try {
+                await openai.vectorStores.delete(vectorStoreId);
+            } catch (e) { console.warn('Cleanup warning (VectorStore):', e); }
+        }
+        if (fileId) {
+            try {
+                await openai.files.delete(fileId);
+            } catch (e) { console.warn('Cleanup warning (File):', e); }
+        }
     }
 }
