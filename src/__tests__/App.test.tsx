@@ -24,6 +24,11 @@ vi.mock('../services/auth.service', () => ({
     }
 }));
 
+// Mock HomePage
+vi.mock('../pages/HomePage', () => ({
+    HomePage: () => <div>Home Page Mock</div>
+}));
+
 describe('App', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -36,8 +41,8 @@ describe('App', () => {
         // Mock session null is default
         render(<App />);
 
-        // Use findBy because of useEffect async session check
-        expect(await screen.findByText('Iniciar Sesión para Continuar')).toBeInTheDocument();
+        // Use findBy because of useEffect async session check which might trigger lazy load
+        expect(await screen.findByText('Home Page Mock')).toBeInTheDocument();
     });
 
     // Note: Testing authenticated state requires mocking the module return value before render, 
