@@ -20,6 +20,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+    console.log(`[ENTRY] Request received: ${req.method} ${req.url}`);
+
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -45,7 +47,10 @@ serve(async (req) => {
         );
 
         const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-        if (userError || !user) throw new Error('Unauthorized');
+        if (userError || !user) {
+            console.error('Auth Check Failed:', userError);
+            return new Response(JSON.stringify({ error: 'Internal Auth Failed', details: userError }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
 
         // Admin client for background worker (bypasses RLS for updates)
         const supabaseAdmin = createClient(
