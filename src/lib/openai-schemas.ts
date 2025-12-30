@@ -59,7 +59,7 @@ const WorkflowMetaSchema = z.object({
     evidences: z.array(z.object({
         fieldPath: z.string(),
         quote: z.string(),
-        pageHint: z.number().nullable(),
+        pageHint: z.string().default(""),
         confidence: z.number(),
     })),
 });
