@@ -18,7 +18,8 @@ export class OpenAIProvider implements LLMProvider {
     readonly name = 'openai';
 
     constructor() {
-        console.warn('[OpenAIProvider] Client-side OpenAI usage is deprecated. Use server-side API instead.');
+        // Warning removed to prevent console noise at startup
+        // Deprecation is handled via runtime error in analyzeSection
     }
 
     isAvailable(): boolean {
