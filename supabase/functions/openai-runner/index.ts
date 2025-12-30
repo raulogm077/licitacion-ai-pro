@@ -1,8 +1,12 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-empty */
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 import OpenAI from "npm:openai@^4.0.0";
-import { LicitacionContentSchema } from "./_shared/schemas.ts";
+// import { LicitacionContentSchema } from "./_shared/schemas.ts";
 
 /**
  * Supabase Edge Function: openai-runner
@@ -52,7 +56,7 @@ serve(async (req) => {
         );
 
         // 2. Parse Body
-        const { pdfBase64, filename, hash, readingMode } = await req.json();
+        const { pdfBase64, filename, hash } = await req.json();
 
         if (!pdfBase64) throw new Error('Missing pdfBase64');
         if (!hash) throw new Error('Missing hash');
@@ -247,10 +251,10 @@ async function processAnalysis({ jobId, pdfBase64, filename, hash, openaiKey, as
     } finally {
         // Cleanup OpenAI Resources
         if (vectorStoreId && openaiKey) {
-            try { const openai = new OpenAI({ apiKey: openaiKey }); await openai.beta.vectorStores.del(vectorStoreId); } catch { }
+            try { const openai = new OpenAI({ apiKey: openaiKey }); await openai.beta.vectorStores.del(vectorStoreId); } catch { /* ignore */ }
         }
         if (fileId && openaiKey) {
-            try { const openai = new OpenAI({ apiKey: openaiKey }); await openai.files.del(fileId); } catch { }
+            try { const openai = new OpenAI({ apiKey: openaiKey }); await openai.files.del(fileId); } catch { /* ignore */ }
         }
     }
 }
