@@ -135,7 +135,7 @@ export async function runWorkflow(
                     content
                 }
             ],
-            response_format: zodResponseFormat(LicitacionResponseSchema, "analisis_licitacion"),
+            response_format: zodResponseFormat(LicitacionResponseSchema as any, "analisis_licitacion"),
         });
 
         const output = response.output_parsed || response.output; // Fallback if parsed not directly available
