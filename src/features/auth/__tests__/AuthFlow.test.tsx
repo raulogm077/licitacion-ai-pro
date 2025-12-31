@@ -54,7 +54,7 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        expect(screen.getByText('Acceso Requerido')).toBeInTheDocument();
+        expect(screen.getByText('auth.required_title')).toBeInTheDocument();
     });
 
     it('should open AuthModal with Password form', async () => {
@@ -64,7 +64,7 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        const loginButton = screen.getByRole('button', { name: /iniciar sesión/i });
+        const loginButton = screen.getByRole('button', { name: 'auth.login_button' });
         fireEvent.click(loginButton);
 
         expect(await screen.findByRole('heading', { name: 'Iniciar Sesión' }, { timeout: 3000 })).toBeInTheDocument();
