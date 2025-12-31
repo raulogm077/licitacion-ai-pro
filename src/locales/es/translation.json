@@ -1,0 +1,26 @@
+{
+    "common": {
+        "loading": "Cargando...",
+        "error": "Error",
+        "cancel": "Cancelar",
+        "retry": "Intentar de nuevo",
+        "export_excel": "Exportar Datos (.xlsx)"
+    },
+    "auth": {
+        "required_title": "Acceso Requerido",
+        "required_desc": "Para garantizar la seguridad y el historial de tus análisis, necesitas iniciar sesión.",
+        "login_button": "Iniciar Sesión para Continuar",
+        "modal_welcome": "Bienvenido de nuevo"
+    },
+    "wizard": {
+        "title": "Analista de Pliegos",
+        "subtitle": "Sube tu pliego de condiciones y nuestra IA extraerá los puntos clave, riesgos y requisitos automáticamente.",
+        "upload_title": "Sube tu documento PDF",
+        "upload_desc": "Arrastra y suelta tu archivo aquí, o haz clic para explorar.",
+        "select_button": "Seleccionar PDF",
+        "advanced_config": "Configuración Avanzada",
+        "analyzing_title": "Analizando Documento",
+        "analyzing_desc": "Nuestra IA está leyendo y estructurando la información...",
+        "cancel_hint": "Esto puede tomar entre 10-30 segundos. Presiona {{key}} para cancelar."
+    }
+}

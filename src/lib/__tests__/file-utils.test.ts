@@ -4,14 +4,12 @@ import { validatePdfMagicBytes, validateBufferMagicBytes, generateFileHash, read
 describe('file-utils', () => {
     describe('validatePdfMagicBytes', () => {
         it('returns true for valid PDF header', async () => {
-            const blob = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])]);
-            const file = new File([blob], 'test.pdf');
+            const file = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'test.pdf', { type: 'application/pdf' });
             expect(await validatePdfMagicBytes(file)).toBe(true);
         });
 
         it('returns false for invalid header', async () => {
-            const blob = new Blob([new Uint8Array([0x00, 0x00, 0x00, 0x00])]);
-            const file = new File([blob], 'test.txt');
+            const file = new File([new Uint8Array([0x00, 0x00, 0x00, 0x00])], 'test.txt', { type: 'text/plain' });
             expect(await validatePdfMagicBytes(file)).toBe(false);
         });
     });

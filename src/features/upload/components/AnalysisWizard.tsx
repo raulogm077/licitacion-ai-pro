@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, FileText, Loader2, Lock, X } from 'lucide-react';
+import { useTranslation, Trans } from 'react-i18next'; // Import i18n
 import { useAuthStore } from '../../../stores/auth.store';
 import { useAnalysisStore } from '../../../stores/analysis.store';
 import { ProviderSelector } from '../../../components/domain/ProviderSelector';
@@ -10,6 +11,7 @@ import { useKeyboardShortcut } from '../../../hooks/useKeyboardShortcut';
 type WizardStep = 'upload' | 'analyzing' | 'completed';
 
 export const AnalysisWizard: React.FC = () => {
+    const { t } = useTranslation(); // Hook initialization
     const { isAuthenticated } = useAuthStore();
     const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis, selectedProvider, setProvider } = useAnalysisStore();
 
@@ -73,10 +75,10 @@ export const AnalysisWizard: React.FC = () => {
                 {/* Header Text */}
                 <div className="text-center mb-10">
                     <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 mb-3">
-                        Analista de Pliegos
+                        {t('wizard.title')}
                     </h1>
                     <p className="text-lg text-slate-600 dark:text-slate-400">
-                        Sube tu pliego de condiciones y nuestra IA extraerá los puntos clave, riesgos y requisitos automáticamente.
+                        {t('wizard.subtitle')}
                     </p>
                 </div>
 
@@ -108,27 +110,27 @@ export const AnalysisWizard: React.FC = () => {
 
                     {/* Main Action Text */}
                     <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-3">
-                        {isAuthenticated ? 'Sube tu documento PDF' : 'Acceso Requerido'}
+                        {isAuthenticated ? t('wizard.upload_title') : t('auth.required_title')}
                     </h2>
 
                     <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-md mx-auto">
                         {isAuthenticated
-                            ? 'Arrastra y suelta tu archivo aquí, o haz clic para explorar.'
-                            : 'Para garantizar la seguridad y el historial de tus análisis, necesitas iniciar sesión.'}
+                            ? t('wizard.upload_desc')
+                            : t('auth.required_desc')}
                     </p>
 
                     {/* Action Buttons */}
                     {isAuthenticated ? (
                         <div className="space-y-6">
                             <label className="group relative inline-flex items-center justify-center px-8 py-4 font-semibold text-white transition-all duration-200 bg-brand-600 rounded-xl hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-500/30 hover:-translate-y-0.5 cursor-pointer">
-                                <span className="mr-2">Seleccionar PDF</span>
+                                <span className="mr-2">{t('wizard.select_button')}</span>
                                 <FileText size={20} className="group-hover:scale-110 transition-transform" />
                                 <input data-testid="file-upload-input" type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
                             </label>
 
                             {/* Provider and Plugin Selection */}
                             <div className="pt-6 border-t border-slate-100 dark:border-slate-700/50 w-full max-w-lg mx-auto space-y-4">
-                                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Configuración Avanzada</p>
+                                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">{t('wizard.advanced_config')}</p>
 
                                 {/* Provider Selector */}
                                 <ProviderSelector
@@ -144,7 +146,7 @@ export const AnalysisWizard: React.FC = () => {
                             className="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold rounded-xl hover:opacity-90 transition-all shadow-lg hover:-translate-y-0.5"
                         >
                             <Lock size={18} />
-                            Iniciar Sesión para Continuar
+                            {t('auth.login_button')}
                         </button>
                     )}
                 </div>
@@ -160,7 +162,7 @@ export const AnalysisWizard: React.FC = () => {
                                 onClick={resetAnalysis}
                                 className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 dark:hover:text-red-200 underline decoration-red-300 underline-offset-2"
                             >
-                                Intentar de nuevo
+                                {t('common.retry')}
                             </button>
                         </div>
                     </div>
@@ -180,8 +182,8 @@ export const AnalysisWizard: React.FC = () => {
                         <div className="absolute inset-0 rounded-full border-4 border-blue-100 dark:border-blue-900/30 border-t-blue-600 dark:border-t-blue-500 animate-spin"></div>
                         <Loader2 className="text-blue-600 dark:text-blue-400" size={32} />
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Analizando Documento</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2">Nuestra IA está leyendo y estructurando la información...</p>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('wizard.analyzing_title')}</h2>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2">{t('wizard.analyzing_desc')}</p>
                 </div>
 
                 {/* Terminal / Log Output */}
@@ -212,7 +214,7 @@ export const AnalysisWizard: React.FC = () => {
                 <div className="mt-6 flex flex-col items-center gap-3">
                     <CancelButton onClick={cancelAnalysis} />
                     <p className="text-xs text-slate-400">
-                        Esto puede tomar entre 10-30 segundos. Presiona <kbd className="px-2 py-0.5 bg-slate-700 rounded text-slate-200">Esc</kbd> para cancelar.
+                        <Trans i18nKey="wizard.cancel_hint" values={{ key: 'Esc' }} components={{ kbd: <kbd className="px-2 py-0.5 bg-slate-700 rounded text-slate-200" /> }} />
                     </p>
                 </div>
             </div>

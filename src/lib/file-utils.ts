@@ -10,6 +10,9 @@ export async function validatePdfMagicBytes(file: File): Promise<boolean> {
     );
 }
 
+/**
+ * @deprecated Use processFile() for better efficiency
+ */
 export async function generateFileHash(file: File): Promise<string> {
     const buffer = await file.arrayBuffer();
     return generateBufferHash(buffer);
@@ -48,6 +51,9 @@ export function bufferToBase64(buffer: ArrayBuffer): Promise<string> {
     });
 }
 
+/**
+ * @deprecated Use processFile() if you also need hash/validation
+ */
 export function readFileAsBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -60,4 +66,27 @@ export function readFileAsBase64(file: File): Promise<string> {
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
+}
+
+/**
+ * Optimized file processor: reads file ONCE and generates all needed artifacts.
+ */
+export async function processFile(file: File): Promise<{
+    hash: string;
+    base64: string;
+    isValidPdf: boolean;
+}> {
+    // Read once as ArrayBuffer (needed for Hash and MagicBytes)
+    const arrayBuffer = await file.arrayBuffer();
+
+    // 1. Validate
+    const isValidPdf = validateBufferMagicBytes(arrayBuffer);
+
+    // 2. Hash
+    const hash = await generateBufferHash(arrayBuffer);
+
+    // 3. Base64
+    const base64 = await bufferToBase64(arrayBuffer);
+
+    return { hash, base64, isValidPdf };
 }
