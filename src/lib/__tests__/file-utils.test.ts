@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { validateBufferMagicBytes, generateFileHash, readFileAsBase64, bufferToBase64 } from '../file-utils';
+import { describe, it, expect } from 'vitest';
+import { validateBufferMagicBytes, readFileAsBase64, bufferToBase64 } from '../file-utils';
 
 describe('file-utils', () => {
 
