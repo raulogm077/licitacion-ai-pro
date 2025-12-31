@@ -3,7 +3,7 @@
  */
 
 /** Maximum PDF file size in MB */
-export const MAX_PDF_SIZE_MB = 6;
+export const MAX_PDF_SIZE_MB = 4;
 
 /** Maximum PDF file size in bytes */
 export const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024;
