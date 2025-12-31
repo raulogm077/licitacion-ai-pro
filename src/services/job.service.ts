@@ -17,13 +17,19 @@ export class JobService {
      * Starts a new analysis job on the server (OpenAI Async)
      */
     async startJob(fileBase64: string, fileName: string, fileHash: string): Promise<string> {
+        // Explicitly get session to ensure we send the token
+        const { data: { session } } = await supabase.auth.getSession();
+
         const { data, error } = await supabase.functions.invoke('openai-runner', {
             body: {
                 pdfBase64: fileBase64,
                 filename: fileName,
                 hash: fileHash,
                 readingMode: 'full'
-            }
+            },
+            headers: session?.access_token ? {
+                Authorization: `Bearer ${session.access_token}`
+            } : undefined
         });
 
         if (error || !data?.jobId) {
