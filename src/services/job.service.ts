@@ -83,7 +83,8 @@ export class JobService {
                 // 1. Strict Timeout Check
                 if (elapsed > MAX_TOTAL_WAIT_MS) {
                     clearInterval(interval);
-                    reject(new Error("TIMEOUT_CLIENT_SIDE: El análisis ha tardado demasiado (30m)."));
+                    const minutes = Math.floor(elapsed / 60000);
+                    reject(new Error(`Tiempo de espera agotado (Timeout): El análisis superó el límite de 60 minutos (actual: ${minutes}m). Estado del job: ${job.status}, Última actividad: ${lastMessage || 'ninguna'}`));
                     return;
                 }
 
@@ -127,14 +128,19 @@ export class JobService {
                 // 4. TRIGGER BACKEND SYNC (The Driver)
                 // We only sync if status is processing to "wake up" the backend logic
                 if (job.status === 'processing') {
-                    console.log(`[JobService] 🔄 Triggering Backend Sync...`);
+                    console.log(`[JobService] 🔄 Triggering Backend Sync (elapsed: ${Math.floor(elapsed / 1000)}s)...`);
                     try {
-                        const { error: invokeError } = await supabase.functions.invoke('openai-runner', {
+                        const { data: syncResponse, error: invokeError } = await supabase.functions.invoke('openai-runner', {
                             body: { action: 'sync', jobId: jobId, pdfBase64: null, hash: null }
                         });
-                        if (invokeError) console.warn("[JobService] Sync invoke warn:", invokeError);
+
+                        if (invokeError) {
+                            console.warn("[JobService] Sync invoke error:", invokeError);
+                        } else {
+                            console.log("[JobService] Sync response:", syncResponse);
+                        }
                     } catch (invokeTrap) {
-                        console.warn("[JobService] Sync invoke failed (transient):", invokeTrap);
+                        console.error("[JobService] Sync invoke failed (transient):", invokeTrap);
                     }
                 }
 
