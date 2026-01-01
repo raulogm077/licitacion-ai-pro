@@ -53,10 +53,10 @@ class LLMFactory {
     }
 
     /**
-     * Get default provider (Gemini)
+     * Get default provider (OpenAI)
      */
     getDefaultProvider(): LLMProvider {
-        return this.getProvider(LLM_PROVIDERS.GEMINI);
+        return this.getProvider(LLM_PROVIDERS.OPENAI);
     }
 
     /**

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Loader2, Lock, X } from 'lucide-react';
-import { useTranslation, Trans } from 'react-i18next'; // Import i18n
+import { Upload, Loader2, Lock, X, ArrowRight, ChevronRight, FileType } from 'lucide-react';
+import { useTranslation, Trans } from 'react-i18next';
 import { useAuthStore } from '../../../stores/auth.store';
 import { useAnalysisStore } from '../../../stores/analysis.store';
 import { ProviderSelector } from '../../../components/domain/ProviderSelector';
@@ -11,21 +11,20 @@ import { useKeyboardShortcut } from '../../../hooks/useKeyboardShortcut';
 type WizardStep = 'upload' | 'analyzing' | 'completed';
 
 export const AnalysisWizard: React.FC = () => {
-    const { t } = useTranslation(); // Hook initialization
+    const { t } = useTranslation();
     const { isAuthenticated } = useAuthStore();
     const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis, selectedProvider, setProvider } = useAnalysisStore();
 
-    // Keyboard shortcut for cancel (Esc key)
     useKeyboardShortcut('Escape', cancelAnalysis, status === 'ANALYZING' || status === 'READING_PDF');
 
-    // Local state for UI
     const [isDragging, setIsDragging] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     // Sync wizard step with global store status
     useEffect(() => {
-        if (status === 'ANALYZING') setCurrentStep('analyzing');
+        if (status === 'ANALYZING' || status === 'READING_PDF') setCurrentStep('analyzing');
         if (status === 'COMPLETED') setCurrentStep('completed');
         if (status === 'IDLE' || status === 'ERROR') setCurrentStep('upload');
     }, [status]);
@@ -39,7 +38,7 @@ export const AnalysisWizard: React.FC = () => {
         setIsDragging(false);
     };
 
-    const handleDrop = async (e: React.DragEvent) => {
+    const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
 
@@ -50,11 +49,11 @@ export const AnalysisWizard: React.FC = () => {
 
         const file = e.dataTransfer.files[0];
         if (file && file.type === 'application/pdf') {
-            await analyzeFile(file);
+            setSelectedFile(file); // Step 1: Just select, don't analyze yet
         }
     };
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isAuthenticated) {
             setShowAuthModal(true);
             return;
@@ -62,93 +61,198 @@ export const AnalysisWizard: React.FC = () => {
 
         const file = e.target.files?.[0];
         if (file) {
-            await analyzeFile(file);
+            setSelectedFile(file);
         }
     };
+
+    const handleStartAnalysis = async () => {
+        if (selectedFile) {
+            await analyzeFile(selectedFile);
+        }
+    };
+
+    const handleClearFile = () => {
+        setSelectedFile(null);
+        resetAnalysis();
+    };
+
+    // --- RENDER HELPERS ---
+
+    const renderStepIndicator = () => (
+        <div className="flex items-center justify-center space-x-4 mb-8 text-sm font-medium">
+            <div className={`flex items-center ${currentStep === 'upload' ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400'}`}>
+                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-2 text-xs border-current">1</span>
+                {t('wizard.step_upload', 'Subir')}
+            </div>
+            <ChevronRight size={16} className="text-slate-300" />
+            <div className={`flex items-center ${currentStep === 'analyzing' ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400'}`}>
+                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-2 text-xs border-current">2</span>
+                {t('wizard.step_analysis', 'Análisis')}
+            </div>
+            <ChevronRight size={16} className="text-slate-300" />
+            <div className={`flex items-center ${currentStep === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-slate-400'}`}>
+                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-2 text-xs border-current">3</span>
+                {t('wizard.step_result', 'Resultado')}
+            </div>
+        </div>
+    );
 
     // --- STEP 1: UPLOAD VIEW ---
     if (currentStep === 'upload') {
         return (
-            <div className="max-w-3xl mx-auto mt-12 px-4">
+            <div className="relative max-w-4xl mx-auto mt-8 px-4">
                 <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
 
-                {/* Header Text */}
-                <div className="text-center mb-10">
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 mb-3">
+                {/* Decorative Background Gradients */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-96 bg-brand-500/20 rounded-full blur-[100px] -z-10 opacity-50 dark:opacity-20 pointer-events-none" />
+
+                {/* Header Section */}
+                <div className="text-center mb-8 relative z-10">
+                    <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
                         {t('wizard.title')}
                     </h1>
-                    <p className="text-lg text-slate-600 dark:text-slate-400">
+                    <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-700 delay-100">
                         {t('wizard.subtitle')}
                     </p>
                 </div>
 
-                {/* Main Upload Card */}
-                <div
-                    className={`
-                        relative overflow-visible min-h-[800px] flex flex-col justify-center
-                        border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-300
-                        ${!isAuthenticated
-                            ? 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40' // Blurred/Locked state
-                            : isDragging
-                                ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/10 scale-[1.01] shadow-xl'
-                                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:border-brand-400 hover:shadow-md'
-                        }
-                    `}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    {/* Icon Circle */}
-                    <div className={`
-                        w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 transition-colors
-                        ${isAuthenticated
-                            ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}
-                    `}>
-                        {isAuthenticated ? <Upload size={40} strokeWidth={1.5} /> : <Lock size={40} strokeWidth={1.5} />}
+                {renderStepIndicator()}
+
+                {/* Main Card (Glassmorphism) */}
+                <div className="relative backdrop-blur-xl bg-white/70 dark:bg-slate-900/60 border border-white/20 dark:border-slate-700/50 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300">
+
+                    {/* Card Header (Provider Badge) */}
+                    {isAuthenticated && (
+                        <div className="absolute top-4 right-4 z-20">
+                            <ProviderSelector
+                                value={selectedProvider}
+                                onChange={setProvider}
+                                variant="minimal"
+                            />
+                        </div>
+                    )}
+
+                    <div className="p-10 min-h-[500px] flex flex-col justify-center items-center relative">
+
+                        {!selectedFile ? (
+                            // --- STATE: NO FILE ---
+                            <div
+                                className={`
+                                    w-full max-w-2xl border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 group cursor-pointer
+                                    flex flex-col items-center justify-center gap-6
+                                    ${!isAuthenticated
+                                        ? 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20'
+                                        : isDragging
+                                            ? 'border-brand-500 bg-brand-50/30 scale-[1.02]'
+                                            : 'border-slate-300 dark:border-slate-600 hover:border-brand-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
+                                    }
+                                `}
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                            >
+                                <div className={`
+                                    w-24 h-24 rounded-full flex items-center justify-center transition-transform duration-500
+                                    ${isAuthenticated ? 'group-hover:scale-110 group-hover:rotate-3' : ''}
+                                    ${isDragging ? 'scale-110' : ''}
+                                    bg-gradient-to-br from-brand-50 to-brand-100 dark:from-brand-900/40 dark:to-brand-800/40
+                                `}>
+                                    {isAuthenticated ? (
+                                        <Upload className="w-10 h-10 text-brand-600 dark:text-brand-400" strokeWidth={1.5} />
+                                    ) : (
+                                        <Lock className="w-10 h-10 text-slate-400" strokeWidth={1.5} />
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+                                        {isAuthenticated ? t('wizard.upload_title', 'Sube tu documento PDF') : t('auth.required_title')}
+                                    </h3>
+                                    <p className="text-slate-500 dark:text-slate-400">
+                                        {isAuthenticated
+                                            ? t('wizard.drag_drop_hint', 'Arrastra y suelta aquí o haz clic para explorar')
+                                            : t('auth.required_desc')}
+                                    </p>
+                                </div>
+
+                                {isAuthenticated ? (
+                                    <label className="relative pointer-events-none group-hover:pointer-events-auto">
+                                        <input
+                                            type="file"
+                                            accept=".pdf"
+                                            className="hidden"
+                                            onChange={handleFileSelect}
+                                        />
+                                        <span className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg">
+                                            Seleccionar Archivo
+                                        </span>
+                                    </label>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowAuthModal(true)}
+                                        className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg"
+                                    >
+                                        Iniciar Sesión
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            // --- STATE: FILE SELECTED (PREVIEW) ---
+                            <div className="w-full max-w-lg animate-in zoom-in-95 duration-300">
+                                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+                                    <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500" />
+
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-14 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center shrink-0">
+                                                <FileType className="w-8 h-8 text-red-500" strokeWidth={1.5} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold text-slate-900 dark:text-white text-lg truncate max-w-[200px]" title={selectedFile.name}>
+                                                    {selectedFile.name}
+                                                </h3>
+                                                <p className="text-sm text-slate-500 font-mono">
+                                                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleClearFile}
+                                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400 hover:text-red-500 transition-colors"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-8 grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={handleClearFile}
+                                            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                                        >
+                                            Cambiar archivo
+                                        </button>
+                                        <button
+                                            onClick={handleStartAnalysis}
+                                            className="relative overflow-hidden px-4 py-3 rounded-xl bg-brand-600 text-white font-semibold shadow-lg hover:bg-brand-700 hover:shadow-brand-500/25 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 group/btn"
+                                        >
+                                            <span className="relative z-10">{t('wizard.start_button', 'Analizar con IA')}</span>
+                                            <ArrowRight size={18} className="relative z-10 group-hover/btn:translate-x-1 transition-transform" />
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-4 text-center">
+                                        <p className="text-xs text-slate-400">
+                                            Motor seleccionado: <span className="font-medium text-brand-600 dark:text-brand-400">{selectedProvider.toUpperCase()}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Main Action Text */}
-                    <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-3">
-                        {isAuthenticated ? t('wizard.upload_title') : t('auth.required_title')}
-                    </h2>
-
-                    <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-md mx-auto">
-                        {isAuthenticated
-                            ? t('wizard.upload_desc')
-                            : t('auth.required_desc')}
-                    </p>
-
-                    {/* Action Buttons */}
-                    {isAuthenticated ? (
-                        <div className="space-y-6">
-                            <label className="group relative inline-flex items-center justify-center px-8 py-4 font-semibold text-white transition-all duration-200 bg-brand-600 rounded-xl hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-500/30 hover:-translate-y-0.5 cursor-pointer">
-                                <span className="mr-2">{t('wizard.select_button')}</span>
-                                <FileText size={20} className="group-hover:scale-110 transition-transform" />
-                                <input data-testid="file-upload-input" type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />
-                            </label>
-
-                            {/* Provider and Plugin Selection */}
-                            <div className="pt-6 border-t border-slate-100 dark:border-slate-700/50 w-full max-w-lg mx-auto space-y-4">
-                                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">{t('wizard.advanced_config')}</p>
-
-                                {/* Provider Selector */}
-                                <ProviderSelector
-                                    value={selectedProvider}
-                                    onChange={setProvider}
-                                    disabled={status === 'ANALYZING' || status === 'READING_PDF'}
-                                />
-                            </div>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={() => setShowAuthModal(true)}
-                            className="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold rounded-xl hover:opacity-90 transition-all shadow-lg hover:-translate-y-0.5"
-                        >
-                            <Lock size={18} />
-                            {t('auth.login_button')}
-                        </button>
-                    )}
+                    {/* Footer decoration */}
+                    <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 to-blue-600 opacity-20" />
                 </div>
 
                 {/* Error Banner */}
@@ -157,7 +261,7 @@ export const AnalysisWizard: React.FC = () => {
                         <X className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={20} />
                         <div className="flex-1">
                             <h3 className="font-semibold text-red-900 dark:text-red-100">Error en el análisis</h3>
-                            <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+                            <p className="text-sm text-red-700 dark:text-red-300 mt-1 whitespace-pre-wrap font-mono text-xs">{error}</p>
                             <button
                                 onClick={resetAnalysis}
                                 className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 dark:hover:text-red-200 underline decoration-red-300 underline-offset-2"
@@ -176,52 +280,57 @@ export const AnalysisWizard: React.FC = () => {
         const lines = thinkingOutput.split('\n');
 
         return (
-            <div className="max-w-2xl mx-auto mt-16 px-4">
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4 relative">
-                        <div className="absolute inset-0 rounded-full border-4 border-blue-100 dark:border-blue-900/30 border-t-blue-600 dark:border-t-blue-500 animate-spin"></div>
-                        <Loader2 className="text-blue-600 dark:text-blue-400" size={32} />
-                    </div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('wizard.analyzing_title')}</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2">{t('wizard.analyzing_desc')}</p>
-                </div>
+            <div className="max-w-3xl mx-auto mt-12 px-4">
+                {renderStepIndicator()}
 
-                {/* Terminal / Log Output */}
-                <div className="bg-slate-900 rounded-xl overflow-hidden shadow-2xl border border-slate-800 font-mono text-sm">
-                    <div className="bg-slate-800/50 px-4 py-2 flex items-center gap-2 border-b border-slate-800">
-                        <div className="flex gap-1.5">
-                            <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                            <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                            <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-slate-100 dark:bg-slate-800">
+                        <div className="h-full bg-brand-500 animate-progress-indeterminate" />
+                    </div>
+
+                    <div className="p-10 text-center">
+                        <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+                            <div className="absolute inset-0 rounded-full border-4 border-blue-100 dark:border-blue-900/30 border-t-blue-600 dark:border-t-blue-500 animate-spin"></div>
+                            <Loader2 className="text-blue-600 dark:text-blue-400" size={36} />
                         </div>
-                        <span className="text-slate-500 ml-2 text-xs">analysis_process.log</span>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('wizard.analyzing_title')}</h2>
+                        <p className="text-slate-500 dark:text-slate-400">{t('wizard.analyzing_desc')}</p>
                     </div>
-                    <div className="p-4 h-64 overflow-y-auto scroll-smooth text-emerald-400">
-                        {lines.length === 0 && (
-                            <span className="opacity-50 italic">Iniciando motor de IA...</span>
-                        )}
-                        {lines.map((line, i) => (
-                            <div key={i} className="mb-1 flex">
-                                <span className="opacity-50 mr-2 select-none">$</span>
-                                <span className="animate-in fade-in slide-in-from-left-1">{line}</span>
+
+                    {/* Terminal / Log Output */}
+                    <div className="bg-slate-950 border-t border-slate-800 font-mono text-sm">
+                        <div className="px-4 py-2 flex items-center gap-2 border-b border-slate-900 bg-slate-900/50">
+                            <div className="flex gap-1.5">
+                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                                <div className="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
                             </div>
-                        ))}
-                        <div className="w-2 h-4 bg-emerald-500/50 animate-pulse inline-block align-middle ml-1"></div>
+                            <span className="text-slate-600 ml-2 text-xs">analysis_engine.log</span>
+                        </div>
+                        <div className="p-6 h-64 overflow-y-auto scroll-smooth text-emerald-400/90 font-light">
+                            {lines.length === 0 && (
+                                <span className="opacity-40 italic">Iniciando contexto de ejecución...</span>
+                            )}
+                            {lines.map((line, i) => (
+                                <div key={i} className="mb-1.5 flex leading-relaxed">
+                                    <span className="opacity-40 mr-3 select-none text-slate-500">➜</span>
+                                    <span className="animate-in fade-in slide-in-from-left-1">{line}</span>
+                                </div>
+                            ))}
+                            <div className="w-1.5 h-4 bg-emerald-500/50 animate-pulse inline-block align-middle ml-1"></div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Cancel Button - Enhanced */}
-                <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="mt-8 flex flex-col items-center gap-4">
                     <CancelButton onClick={cancelAnalysis} />
                     <p className="text-xs text-slate-400">
-                        <Trans i18nKey="wizard.cancel_hint" values={{ key: 'Esc' }} components={{ kbd: <kbd className="px-2 py-0.5 bg-slate-700 rounded text-slate-200" /> }} />
+                        <Trans i18nKey="wizard.cancel_hint" values={{ key: 'Esc' }} components={{ kbd: <kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 rounded text-slate-500 dark:text-slate-300 font-sans mx-1" /> }} />
                     </p>
                 </div>
             </div>
         );
     }
 
-    // Step 3 (Completed) is handled by the parent HomePage usually showing the Dashboard, 
-    // but just in case we need a transition state here:
     return null;
 };

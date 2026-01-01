@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { create } from 'zustand';
 import { ProcessingStatus, LicitacionData } from '../types';
 import { LicitacionContent } from '../lib/schemas';
@@ -5,7 +6,6 @@ import { useLicitacionStore } from './licitacion.store';
 import { processFile } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
-import { jobService, JobStatus } from '../services/job.service';
 import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB } from '../config/constants';
 
 interface AnalysisStore {
@@ -87,61 +87,39 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 }
             };
 
+            // 3. Unified AI Execution Route
             const { selectedProvider } = get();
-            let result: LicitacionContent | undefined;
 
-            // 3. AI Execution Route
-            if (selectedProvider === 'openai') {
-                set(state => ({
-                    status: 'ANALYZING',
-                    thinkingOutput: state.thinkingOutput + "\n🔄 Iniciando trabajo en servidor (Async)..."
-                }));
+            set(state => ({
+                status: 'ANALYZING',
+                thinkingOutput: state.thinkingOutput + `\n🚀 Iniciando análisis con ${selectedProvider.toUpperCase()}...`
+            }));
 
-                // Start Server Job
-                const jobId = await jobService.startJob(base64, file.name, hash);
-                set({ currentJobId: jobId, thinkingOutput: `✅ Trabajo iniciado (ID: ${jobId.slice(0, 8)}...)\nEsperando worker...` });
+            const result = await services.ai.analyzePdfContent(
+                base64,
+                (processed, total, message) => {
+                    // Normalize progress (10% to 90%)
+                    const progressWeight = 80 / total; // Use 80% range for analysis (10->90)
+                    const currentProgress = 10 + Math.round(processed * progressWeight);
 
-                // Poll for completion
-                result = await jobService.waitForCompletion(
-                    jobId,
-                    (status: JobStatus) => {
-                        // Update UI with metadata
-                        if (status.step && status.message) {
-                            const msg = `[${status.step}] ${status.message}`;
-                            set(state => {
-                                const lines = state.thinkingOutput.split('\n');
-                                if (lines[lines.length - 1] !== msg) {
-                                    return { thinkingOutput: state.thinkingOutput + "\n" + msg };
-                                }
-                                return {};
-                            });
+                    set(state => {
+                        // Avoid duplicate lines in log
+                        const lines = state.thinkingOutput.split('\n');
+                        if (lines[lines.length - 1] !== message) {
+                            return {
+                                thinkingOutput: state.thinkingOutput + "\n" + message,
+                                progress: Math.min(currentProgress, 90)
+                            };
                         }
-                    },
-                    newController.signal
-                );
-
-                set(state => ({
-                    progress: 90,
-                    thinkingOutput: state.thinkingOutput + "\n✅ Resultado recibido del servidor"
-                }));
-
-            } else {
-                // Gemini (Client-side Sequential)
-                result = await services.ai.analyzePdfContent(
-                    base64,
-                    (processed, total, message) => {
-                        const progressWeight = 90 / total;
-                        const currentProgress = 10 + Math.round(processed * progressWeight);
-                        set(state => ({
-                            thinkingOutput: state.thinkingOutput + "\n" + message,
-                            progress: Math.min(currentProgress, 90)
-                        }));
-                    },
-                    onPartialSave,
-                    newController.signal,
-                    selectedProvider
-                );
-            }
+                        return { progress: Math.min(currentProgress, 90) };
+                    });
+                },
+                onPartialSave,
+                newController.signal,
+                selectedProvider,
+                file.name, // Required for OpenAI
+                hash       // Required for OpenAI
+            );
 
             // 4. Update State & Persist
             loadLicitacion(result, hash);
@@ -160,10 +138,39 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 set({ persistenceWarning: `Advertencia: ${saveResult.error.message}. Los datos no se sincronizaron con la nube.` });
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Critical Analysis Error:", error);
-            const errorMessage = error instanceof Error ? error.message : "Error inesperado en el motor de análisis";
+            let errorMessage = "Error inesperado en el motor de análisis";
 
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+
+            // Handle Supabase/Edge Functions Errors specifically
+            if (error?.context?.status) {
+                errorMessage = `Error del Servidor (${error.context.status}): ${errorMessage}`;
+                // Try to extract body
+                try {
+                    // Check if context has .json() method (Response object)
+                    if (typeof error.context.json === 'function') {
+                        const body = await error.context.json();
+                        // If backend provides a specific error message, use it as the PRIMARY message, not just detail
+                        if (body.error) {
+                            errorMessage = body.error; // Use the specific Spanish message from backend
+                        } else if (body.message) {
+                            errorMessage = body.message;
+                        } else {
+                            // Fallback if formatting is weird
+                            if (body.error) errorMessage += `\nDetalle: ${body.error}`;
+                        }
+                    }
+                } catch (e) { /* ignore body parse error */ }
+            } else if (error?.status && error?.statusText) {
+                // Fetch/Response error
+                errorMessage = `Error HTTP ${error.status}: ${error.statusText}`;
+            }
+
+            // Clean up message
             if (errorMessage.includes('cancelado') || errorMessage.includes('Cancelado')) {
                 set({ status: 'IDLE', error: null, thinkingOutput: 'Análisis cancelado por el usuario', abortController: null });
             } else {

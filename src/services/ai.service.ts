@@ -21,8 +21,47 @@ export class AIService {
         onProgress?: (processed: number, total: number, message: string) => void,
         onPartialSave?: (partialData: Partial<LicitacionContent>) => Promise<void>,
         signal?: AbortSignal,
-        providerName?: string  // NEW: Optional provider name, defaults to 'gemini'
+        providerName?: string,
+        filename?: string, // NEW: Required for OpenAI
+        hash?: string     // NEW: Required for OpenAI
     ): Promise<LicitacionContent> {
+        // OpenAI Specific Route (Server-Side)
+        if (providerName === 'openai') {
+            try {
+                if (!filename || !hash) {
+                    throw new LicitacionAIError("Filename and Hash are required for OpenAI analysis");
+                }
+
+                // 1. Start Job
+                if (onProgress) onProgress(0, 100, "Iniciando trabajo en servidor (Async)...");
+                // Import dynamically to avoid circular dependency issues if any (though jobService is safe)
+                const { jobService } = await import('./job.service');
+
+                const jobId = await jobService.startJob(base64Content, filename, hash);
+                if (onProgress) onProgress(10, 100, `✅ Trabajo iniciado (ID: ${jobId.slice(0, 8)}...)\nEsperando worker...`);
+
+                // 2. Wait for Completion
+                const result = await jobService.waitForCompletion(
+                    jobId,
+                    (status: any) => { // Type as any to avoid import dance, or use the imported type
+                        if (status.step && status.message && onProgress) {
+                            // Map server progress to generic progress (0-100)
+                            // We don't have exact % from server, so we fake it or use a steady state
+                            onProgress(50, 100, `[${status.step}] ${status.message}`);
+                        }
+                    }
+                );
+
+                if (onProgress) onProgress(100, 100, "✅ Resultado recibido del servidor");
+                return result;
+
+            } catch (err: any) {
+                // Convert Job errors to LicitacionAIError
+                throw new LicitacionAIError(err.message || "Error en OpenAIService", err);
+            }
+        }
+
+        // Gemini Route (Client-Side Sequential)
         const sections: { key: keyof LicitacionContent; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
             { key: 'criteriosAdjudicacion', label: 'Criterios de Adjudicación' },

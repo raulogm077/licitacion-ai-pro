@@ -64,36 +64,82 @@ export class JobService {
     }
 
     /**
-     * Polls until completion or timeout (Helper for simple flows)
+     * Polls until completion or timeout (Active Sync)
      */
-    async waitForCompletion(
-        jobId: string,
-        onProgress?: (status: JobStatus) => void,
-        signal?: AbortSignal
-    ): Promise<LicitacionContent> {
-        let attempts = 0;
-        const maxAttempts = 120; // 4 minutes
+    async waitForCompletion(jobId: string, onUpdate?: (status: JobStatus) => void): Promise<LicitacionContent> {
+        return new Promise((resolve, reject) => {
+            const MAX_TOTAL_WAIT_MS = 60 * 60 * 1000; // 60 mins (Generous Timeout)
+            const SYNC_INTERVAL_MS = 15000; // 15s Sync Interval
 
-        while (attempts < maxAttempts) {
-            if (signal?.aborted) throw new Error('Operación cancelada');
+            const startTime = Date.now();
+            // Start polling loop
+            let lastMessage = "";
 
-            const status = await this.pollJob(jobId);
+            console.log(`[JobService] Starting Active Sync Loop for Job ${jobId}. Interval: 15s`);
 
-            if (onProgress) onProgress(status);
+            const interval = setInterval(async () => {
+                const elapsed = Date.now() - startTime;
 
-            if (status.status === 'completed' && status.result) {
-                return status.result;
-            }
+                // 1. Strict Timeout Check
+                if (elapsed > MAX_TOTAL_WAIT_MS) {
+                    clearInterval(interval);
+                    reject(new Error("TIMEOUT_CLIENT_SIDE: El análisis ha tardado demasiado (30m)."));
+                    return;
+                }
 
-            if (status.status === 'failed') {
-                throw new Error(status.error || 'El análisis falló en el servidor');
-            }
+                // 2. Poll DB for status (Read-Only Check)
+                const { data: job, error } = await supabase
+                    .from('analysis_jobs')
+                    .select('*')
+                    .eq('id', jobId)
+                    .single();
 
-            await new Promise(r => setTimeout(r, 2000));
-            attempts++;
-        }
+                if (error || !job) {
+                    console.warn("Error polling job:", error);
+                    return;
+                }
 
-        throw new Error('Tiempo de espera agotado (Timeout)');
+                // Update UI
+                if (onUpdate) onUpdate(job);
+
+                // Activity Check
+                const currentMessage = job.metadata?.message || "";
+                if (currentMessage !== lastMessage) {
+                    console.log(`[JobService] Activity: ${currentMessage}`);
+                    lastMessage = currentMessage;
+
+                }
+
+                // 3. Handle Completion
+                if (job.status === 'completed' && job.result) {
+                    clearInterval(interval);
+                    console.log("Job Completed!", job.result);
+                    resolve(job.result as LicitacionContent);
+                    return;
+                }
+
+                if (job.status === 'failed') {
+                    clearInterval(interval);
+                    reject(new Error(job.error || "Job failed"));
+                    return;
+                }
+
+                // 4. TRIGGER BACKEND SYNC (The Driver)
+                // We only sync if status is processing to "wake up" the backend logic
+                if (job.status === 'processing') {
+                    console.log(`[JobService] 🔄 Triggering Backend Sync...`);
+                    try {
+                        const { error: invokeError } = await supabase.functions.invoke('openai-runner', {
+                            body: { action: 'sync', jobId: jobId, pdfBase64: null, hash: null }
+                        });
+                        if (invokeError) console.warn("[JobService] Sync invoke warn:", invokeError);
+                    } catch (invokeTrap) {
+                        console.warn("[JobService] Sync invoke failed (transient):", invokeTrap);
+                    }
+                }
+
+            }, SYNC_INTERVAL_MS);
+        });
     }
 }
 

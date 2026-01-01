@@ -21,7 +21,7 @@ export type LLMProvider = typeof LLM_PROVIDERS[keyof typeof LLM_PROVIDERS];
 
 /** OpenAI Models - Using GPT-5 mini (most economical GPT-5 family model) */
 export const OPENAI_MODELS = {
-    DEFAULT: 'gpt-5-mini',     // $0.25/1M input, $2/1M output (Dec 2025)
+    DEFAULT: 'gpt-4o-mini',    // Fallback: 5-mini not ready for Assistants API yet (Dec 2025)
     STANDARD: 'gpt-5.2',       // $1.75/$14 (better reasoning, 7x cost)
     PRO: 'gpt-5.2-pro',        // $21/$168 (advanced tasks, 84x cost)
     // Legacy: 'gpt-4o-mini' ($0.15/$0.60, cheaper but older)

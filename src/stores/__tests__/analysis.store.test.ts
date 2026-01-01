@@ -2,9 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAnalysisStore } from '../analysis.store';
 
 // Mock dependencies
-vi.mock('../../services/sse-client', () => ({
-    analyzeWithSSE: vi.fn()
-}));
 
 // Mock LicitacionStore if needed (it is used in analyzeFile)
 vi.mock('../licitacion.store', () => ({

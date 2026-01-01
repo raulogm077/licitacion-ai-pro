@@ -6,9 +6,10 @@ interface ProviderSelectorProps {
     value: string;
     onChange: (provider: string) => void;
     disabled?: boolean;
+    variant?: 'default' | 'minimal';
 }
 
-export const ProviderSelector: React.FC<ProviderSelectorProps> = ({ value, onChange, disabled = false }) => {
+export const ProviderSelector: React.FC<ProviderSelectorProps> = ({ value, onChange, disabled = false, variant = 'default' }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [providers, setProviders] = React.useState<string[]>([]);
 
@@ -39,6 +40,71 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({ value, onCha
 
     const selectedMetadata = getProviderMetadata(value);
 
+    // Minimal Variant (Badge Style)
+    if (variant === 'minimal') {
+        return (
+            <div className="relative inline-block text-left">
+                <button
+                    type="button"
+                    onClick={() => !disabled && setIsOpen(!isOpen)}
+                    disabled={disabled}
+                    className={`
+                        inline-flex items-center gap-2 px-3 py-1.5 rounded-full
+                        text-xs font-medium transition-all duration-200
+                        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10'}
+                        ${isOpen ? 'bg-black/5 dark:bg-white/10' : ''}
+                        text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700
+                    `}
+                >
+                    <span className="opacity-70">Powered by</span>
+                    <span className="font-semibold text-brand-600 dark:text-brand-400">
+                        {selectedMetadata?.displayName || value}
+                    </span>
+                    <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isOpen && !disabled && (
+                    <div className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in zoom-in-95 duration-100">
+                        <div className="py-1">
+                            {providers.map((providerName) => {
+                                const metadata = getProviderMetadata(providerName);
+                                const available = isProviderAvailable(providerName);
+                                const isSelected = providerName === value;
+
+                                return (
+                                    <button
+                                        key={providerName}
+                                        onClick={() => handleSelect(providerName)}
+                                        className={`
+                                            group flex items-center w-full px-4 py-2 text-sm
+                                            ${isSelected ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'}
+                                            ${!available ? 'opacity-50' : ''}
+                                        `}
+                                    >
+                                        <div className="flex-1 flex flex-col items-start">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium">{metadata?.displayName || providerName}</span>
+                                                {isSelected && <Check size={14} />}
+                                            </div>
+                                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                                {metadata?.description}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {isOpen && (
+                    <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+                )}
+            </div>
+        );
+    }
+
+    // Default Variant (Full Input)
     return (
         <div className="relative w-full max-w-md">
             <label className="block text-sm font-medium text-gray-700 mb-2">
