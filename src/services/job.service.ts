@@ -69,13 +69,13 @@ export class JobService {
     async waitForCompletion(jobId: string, onUpdate?: (status: JobStatus) => void): Promise<LicitacionContent> {
         return new Promise((resolve, reject) => {
             const MAX_TOTAL_WAIT_MS = 60 * 60 * 1000; // 60 mins (Generous Timeout)
-            const SYNC_INTERVAL_MS = 15000; // 15s Sync Interval
+            const SYNC_INTERVAL_MS = 30000; // 30s Sync Interval
 
             const startTime = Date.now();
             // Start polling loop
             let lastMessage = "";
 
-            console.log(`[JobService] Starting Active Sync Loop for Job ${jobId}. Interval: 15s`);
+            console.log(`[JobService] Starting Active Sync Loop for Job ${jobId}. Interval: 30s`);
 
             const interval = setInterval(async () => {
                 const elapsed = Date.now() - startTime;
