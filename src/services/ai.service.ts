@@ -4,6 +4,7 @@ import { logger } from "./logger";
 import { promptRegistry } from "../config/prompt-registry";
 import { llmFactory } from "../llm/llmFactory";
 import { LLMProviderError, LLMErrorCode } from "../llm/errors";
+import type { JobStatus } from "./job.service";
 
 export class LicitacionAIError extends Error {
     constructor(message: string, public readonly originalError?: unknown) {
@@ -43,7 +44,7 @@ export class AIService {
                 // 2. Wait for Completion
                 const result = await jobService.waitForCompletion(
                     jobId,
-                    (status: any) => { // Type as any to avoid import dance, or use the imported type
+                    (status: JobStatus) => {
                         if (status.step && status.message && onProgress) {
                             // Map server progress to generic progress (0-100)
                             // We don't have exact % from server, so we fake it or use a steady state
@@ -55,9 +56,10 @@ export class AIService {
                 if (onProgress) onProgress(100, 100, "✅ Resultado recibido del servidor");
                 return result;
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 // Convert Job errors to LicitacionAIError
-                throw new LicitacionAIError(err.message || "Error en OpenAIService", err);
+                const errorMessage = err instanceof Error ? err.message : "Error en OpenAIService";
+                throw new LicitacionAIError(errorMessage, err);
             }
         }
 

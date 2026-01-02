@@ -1,5 +1,5 @@
 
-export function mapOpenAIError(error: any): string {
+export function mapOpenAIError(error: { code?: string; message?: string } | Error | string | unknown): string {
     // If it's a "Run" error style object
     if (error?.code && error?.message) {
         switch (error.code) {

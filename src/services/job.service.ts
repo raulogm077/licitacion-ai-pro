@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { LicitacionContent } from '../types';
 import { transformAgentResponseToFrontend } from '../agents/utils/schema-transformer';
 import { LicitacionContentSchema } from '../lib/schemas';
+import type { LicitacionAgentResponse } from '../agents/schemas/licitacion-agent.schema';
 
 export interface JobStatus {
     id: string;
@@ -67,7 +68,7 @@ export class JobService {
             }
 
             return data.jobId;
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[JobService] Error in startJob:', error);
             throw error;
         }
@@ -244,7 +245,7 @@ export class JobService {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
-            let finalResult: any = null;
+            let finalResult: unknown = null;
 
             let reading = true;
             while (reading) {
@@ -304,19 +305,21 @@ export class JobService {
             console.log('[JobService] Resultado recibido, aplicando transformación...');
 
             // 4. Transform from Agent schema to Frontend schema
-            const transformed = transformAgentResponseToFrontend(finalResult);
+            // Type assertion: we expect finalResult to match LicitacionAgentResponse
+            const transformed = transformAgentResponseToFrontend(finalResult as LicitacionAgentResponse);
 
             // 5. Validate with frontend schema
             const validated = LicitacionContentSchema.parse(transformed);
 
             console.log('[JobService] ✅ Análisis completado y validado');
-            if (finalResult.workflow) {
-                console.log(`[JobService] Quality: ${finalResult.workflow.quality?.overall || 'N/A'}`);
+            const typedResult = finalResult as LicitacionAgentResponse;
+            if (typedResult.workflow) {
+                console.log(`[JobService] Quality: ${typedResult.workflow.quality?.overall || 'N/A'}`);
             }
 
             return validated;
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[JobService] Error en análisis:', error);
             throw error;
         }
@@ -326,8 +329,8 @@ export class JobService {
 // Type for streaming events
 export interface StreamEvent {
     type: 'heartbeat' | 'agent_message' | 'complete' | 'error';
-    content?: string | any;
-    result?: any;
+    content?: string | unknown;
+    result?: unknown;
     message?: string;
     timestamp: number;
     eventsProcessed?: number;

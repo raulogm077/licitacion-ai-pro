@@ -65,9 +65,12 @@ describe('Auth Validation Flow', () => {
         );
 
         const loginButton = screen.getByRole('button', { name: 'auth.login_button' });
-        fireEvent.click(loginButton);
 
-        expect(await screen.findByRole('heading', { name: 'Iniciar Sesión' }, { timeout: 3000 })).toBeInTheDocument();
+        await waitFor(async () => {
+            fireEvent.click(loginButton);
+            expect(await screen.findByRole('heading', { name: 'Iniciar Sesión' }, { timeout: 3000 })).toBeInTheDocument();
+        });
+
         expect(screen.getByPlaceholderText(/••••••••/)).toBeInTheDocument(); // Password field check
     });
 

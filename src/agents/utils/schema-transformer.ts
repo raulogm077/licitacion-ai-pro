@@ -8,7 +8,7 @@ import type { LicitacionAgentResponse } from '../schemas/licitacion-agent.schema
  */
 export function transformAgentResponseToFrontend(
     agentResponse: LicitacionAgentResponse
-): any {  // Retorna any porque será validado después por el Zod del frontend
+): unknown {  // Retorna unknown porque será validado después por el Zod del frontend
 
     const { result, workflow } = agentResponse;
 

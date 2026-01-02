@@ -33,10 +33,11 @@ These migrations were part of the old async architecture using pgmq and pg_cron:
 
 ### Edge Function
 - ✅ `supabase/functions/openai-runner/`
-  - **Status**: Kept temporarily
-  - **Reason**: May have existing jobs in flight or external dependencies
-  - **Action**: Can be removed after confirming no usage
-  - **Replacement**: `supabase/functions/analyze-with-agents/`
+  - **Status**: Still in use (Legacy)
+  - **Usage**: Called by `JobService.startJob()` for legacy polling-based analysis
+  - **Reason**: Kept for backwards compatibility with existing startJob API
+  - **Action**: Can be removed once analyzeWithAgents() is proven stable (after Jan 2026)
+  - **Replacement**: `supabase/functions/analyze-with-agents/` (Streaming)
 
 ---
 
@@ -108,7 +109,9 @@ npx supabase functions deploy queue-processor
 
 - **2026-01-01**: Old architecture created (pgmq + cron)
 - **2026-01-02**: Agents SDK migration completed
-- **2026-01-02**: Old files removed (this cleanup)
+- **2026-01-02**: Removed old pgmq/cron files
+- **2026-01-02**: Code quality improvements (0 ESLint warnings achieved)
+- **Planned Q1 2026**: Remove openai-runner after analyzeWithAgents stability confirmed
 
 ---
 

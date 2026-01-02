@@ -1,4 +1,4 @@
-// @ts-ignore
+// @ts-expect-error - OpenAI types not fully compatible with Deno
 /* eslint-disable */
 import OpenAI from "https://esm.sh/openai@4.77.0";
 import { mapOpenAIError } from "../utils/error.utils.ts";

@@ -10,7 +10,7 @@ describe('Analista Agent', () => {
 
     it('should have submit_result tool', () => {
         const tools = analistaAgent.tools;
-        const hasTool = tools.some((t: any) => t.name === 'submit_analysis_result');
+        const hasTool = tools.some((t) => 'name' in t && t.name === 'submit_analysis_result');
         expect(hasTool).toBe(true);
     });
 

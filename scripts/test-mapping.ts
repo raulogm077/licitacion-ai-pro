@@ -50,15 +50,15 @@ const MOCK_OPENAI_RESPONSE = {
 console.log("🚀 Starting Mapping Verification Test...");
 
 try {
-    const rawData: any = MOCK_OPENAI_RESPONSE;
+    const rawData: unknown = MOCK_OPENAI_RESPONSE;
 
     // --- THIS IS THE LOGIC I ADDED TO THE BACKEND ---
     console.log("👉 Simulating Backend Logic: Unwrapping 'result'...");
 
     let contentToValidate = rawData;
-    if (rawData.result && typeof rawData.result === 'object') {
+    if (typeof rawData === 'object' && rawData !== null && 'result' in rawData && typeof (rawData as Record<string, unknown>).result === 'object') {
         console.log("✅ Detected 'result' wrapper. Unwrapping...");
-        contentToValidate = rawData.result;
+        contentToValidate = (rawData as Record<string, unknown>).result;
     } else {
         console.log("ℹ️ No wrapper detected (or raw data).");
     }
