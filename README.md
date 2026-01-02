@@ -17,6 +17,30 @@
 - **🔍 Advanced Search** - Motor de búsqueda full-text con filtros contextuales
 - **🎨 Modern UI** - Interfaz responsive con modo oscuro
 
+## 🏗️ Architecture
+
+**Updated Jan 2026**: This project uses **OpenAI Agents SDK** for AI-powered analysis with real-time streaming.
+
+```
+User → Frontend → analyze-with-agents (Edge Function)
+         ↓
+  OpenAI Files API + Vector Store
+         ↓
+  Agents SDK (streaming)
+         ↓
+  SSE Real-time Events → UI
+```
+
+**Key Benefits**:
+- ✅ Real-time feedback via Server-Sent Events (SSE)
+- ✅ Simplified architecture (no queues, no polling)
+- ✅ OpenAI Vector Store for intelligent PDF search
+- ✅ Type-safe with Zod schemas
+
+📖 **For detailed architecture**, see [ARCHITECTURE.md](./ARCHITECTURE.md)
+
+📋 **Migration notes**, see [DEPRECATED.md](./DEPRECATED.md)
+
 ## 🚀 Quick Start
 
 ### Prerequisites
