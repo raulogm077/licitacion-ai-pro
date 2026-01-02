@@ -14,7 +14,7 @@ const client = new OpenAI({ apiKey });
 // Job ID from the last run: f1855e38-c7cb-43ef-9250-9511346a0b55
 // I need the Thread ID. I will query the DB first to get it.
 
-import { createClient } from '@supabase/supabase-js';
+// import { createClient } from '@supabase/supabase-js';
 async function run() {
     // Hardcoded from Error Message
     const threadId = 'thread_SCG6H1AlPHHhczKLmrQCiMXG';

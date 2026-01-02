@@ -30,7 +30,7 @@ async function runTest() {
     console.log("🚀 Starting Async Flow Verification...");
 
     // 1. Auth as Anon User (REAL WORLD SCENARIO)
-    const { data: { session }, error: authError } = await supabase.auth.signUp({
+    const { data: { session } } = await supabase.auth.signUp({
         email: `test_async_${Date.now()}@example.com`,
         password: 'password123'
     });

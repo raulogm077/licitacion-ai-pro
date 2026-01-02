@@ -1,5 +1,3 @@
-
-import { z } from 'zod';
 import { LicitacionContentSchema } from '../src/lib/schemas';
 
 // Mock Response exactly as OpenAI Assistant V2 returns it (based on setup-assistant-v2.ts)

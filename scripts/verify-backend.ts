@@ -79,7 +79,7 @@ async function main() {
     let lastMsg = '';
     const startTime = Date.now();
 
-    while (true) {
+    while (attempts < maxAttempts) {
         const { data: job, error: jobError } = await supabase
             .from('analysis_jobs')
             .select('*')

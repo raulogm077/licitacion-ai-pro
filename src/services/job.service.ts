@@ -246,10 +246,12 @@ export class JobService {
             let buffer = '';
             let finalResult: any = null;
 
-            while (true) {
+            let reading = true;
+            while (reading) {
                 const { done, value } = await reader.read();
 
                 if (done) {
+                    reading = false;
                     break;
                 }
 

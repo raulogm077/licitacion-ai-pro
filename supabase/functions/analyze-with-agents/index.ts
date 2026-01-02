@@ -151,13 +151,6 @@ HEURÍSTICAS DE BÚSQUEDA (file_search)
 - Servicio: "SLA", "nivel de servicio", "disponibilidad", "tiempo de respuesta", "equipo mínimo"
 - Penalizaciones/exclusión: "penalidad", "incumplimiento", "resolución", "causa de exclusión", "sobre"`;
 
-// Helper: base64 to File
-function base64ToFile(base64: string, filename: string): File {
-    const binString = atob(base64);
-    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
-    return new File([bytes], filename, { type: 'application/pdf' });
-}
-
 // Main handler
 serve(async (req) => {
     // Handle CORS
