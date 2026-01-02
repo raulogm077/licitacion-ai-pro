@@ -64,7 +64,8 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        const loginButton = screen.getByRole('button', { name: 'auth.login_button' });
+        // Button shows translated text "Iniciar Sesión", not the i18n key
+        const loginButton = screen.getByRole('button', { name: /iniciar sesión/i });
 
         await waitFor(async () => {
             fireEvent.click(loginButton);
