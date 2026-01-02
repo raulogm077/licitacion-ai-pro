@@ -187,8 +187,6 @@ export class JobService {
                     return;
                 }
 
-                // NOTE: Sync is now handled automatically by pg_cron (every 60s)
-                // No need to manually trigger sync from frontend
 
             }, SYNC_INTERVAL_MS);
         })
