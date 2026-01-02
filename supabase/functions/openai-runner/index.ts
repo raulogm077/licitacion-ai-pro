@@ -3,8 +3,8 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.39.3";
-import { OpenAIService } from "./services/openai.service.ts";
-import { JobService } from "./services/job.service.ts";
+import { OpenAIService } from "../_shared/services/openai.service.ts";
+import { JobService } from "../_shared/services/job.service.ts";
 
 /**
  * Controller: OpenAI Runner (Refactored)
@@ -49,34 +49,64 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
-        const jobService = new JobService(supabaseAdmin);
+        // Parse Body
+        const { action = 'start', jobId: existingJobId, pdfBase64, storageUrl, filename, hash } = await req.json();
+
+        // Validate critical inputs
         const openaiKey = Deno.env.get('OPENAI_API_KEY');
         const assistantId = Deno.env.get('VITE_OPENAI_ASSISTANT_ID') ?? Deno.env.get('OPENAI_ASSISTANT_ID');
+
+        if (!openaiKey) throw new Error('Missing OPENAI_API_KEY');
+        if (!assistantId) throw new Error('Missing VITE_OPENAI_ASSISTANT_ID');
+
+        // --- Service Instances ---
+        const jobService = new JobService(supabaseAdmin);
 
         // --- ROUTER ---
 
         if (action === 'start') {
-            if (!pdfBase64 || !hash) throw new Error('Missing required body fields (pdfBase64, hash)');
+            // Validate: Either storageUrl (new) OR pdfBase64 (legacy)
+            if (!storageUrl && !pdfBase64) {
+                throw new Error('Missing required parameter: storageUrl or pdfBase64');
+            }
+            if (!hash) {
+                throw new Error('Missing required parameter: hash');
+            }
 
-            // 3. Create Job
+            // 1. Create Job in DB
             const jobId = await jobService.createJob(user.id, filename, hash);
-            console.log(`[Controller] Job ${jobId} created. Starting Sequence...`);
+            console.log(`[Controller] Job ${jobId} created. Enqueueing...`);
 
-            // 4. Start (Upload -> Index -> Run)
-            // Fire-and-forget to ensure immediate response (<1s)
-            // The 'sync' endpoint handles the case where metadata is not yet ready.
-            const task = startAnalysisSequence({
-                jobId, pdfBase64, filename, hash, jobService, openaiKey, assistantId
+            // 2. Enqueue Message in pgmq
+            // Pass storageUrl (preferred) or pdfBase64 (legacy fallback)
+            const { error: queueError } = await supabaseAdmin.rpc('send', {
+                queue_name: 'analysis_queue',
+                msg: {
+                    jobId,
+                    storageUrl: storageUrl || null,  // ✅ Preferred (Storage URL)
+                    pdfBase64: pdfBase64 || null,    // 🔄 Legacy fallback
+                    filename,
+                    hash
+                }
             });
 
-            EdgeRuntime.waitUntil(task);
+            if (queueError) {
+                console.error('[Controller] Queue error:', queueError);
+                await jobService.failJob(jobId, `Failed to enqueue: ${queueError.message}`);
+                throw new Error(`Failed to enqueue job: ${queueError.message}`);
+            }
 
+            console.log(`[Controller] Job ${jobId} enqueued successfully`);
+
+            // 3. Return immediately (job will be processed by queue-processor)
             return new Response(
-                JSON.stringify({ jobId, status: 'started' }),
+                JSON.stringify({ jobId, status: 'queued' }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 202 }
             );
 
         } else if (action === 'sync') {
+            // Legacy sync endpoint - keep for backward compatibility
+            // In new architecture, sync is handled by queue-processor via pg_cron
             if (!existingJobId) throw new Error('Missing jobId for sync');
 
             // Load Job Metadata
@@ -177,64 +207,3 @@ serve(async (req) => {
         );
     }
 });
-
-// --- Startup Sequence ---
-
-interface RunParams {
-    jobId: string;
-    pdfBase64: string;
-    filename?: string;
-    hash: string;
-    jobService: JobService;
-    openaiKey?: string;
-    assistantId?: string;
-}
-
-async function startAnalysisSequence(params: RunParams) {
-    const { jobId, pdfBase64, filename, hash, jobService, openaiKey, assistantId } = params;
-    let aiService: OpenAIService | null = null;
-
-    try {
-        aiService = new OpenAIService({
-            apiKey: openaiKey || '',
-            assistantId: assistantId || '',
-            maxRetries: 5
-        });
-
-        // Step 1: Upload
-        await jobService.updateProgress(jobId, 'upload', 'Subiendo documento...', filename, hash);
-        const fileId = await aiService.uploadFile(pdfBase64, filename || 'doc.pdf');
-
-        // Step 2: Indexing
-        await jobService.updateProgress(jobId, 'indexing', 'Creando índice...');
-        const vsName = `Licitacion-${new Date().getFullYear()}-${hash.substring(0, 8)}`;
-        const vectorStoreId = await aiService.createVectorStore(vsName, fileId);
-        await aiService.waitForVectorStore(vectorStoreId, fileId);
-
-        // Step 3: Start Run (Non-Blocking)
-        await jobService.updateProgress(jobId, 'analyzing', 'IA Iniciada. Procesamiento en segundo plano...');
-        const instruction = `Analiza el documento legal adjunto (Pliego). Extrae los datos siguiendo estrictamente el esquema JSON definido.
-            
-            IMPORTANTE: Si no encuentras información o el documento parece vacío, NO termines sin responder. Devuelve el JSON con valores vacíos o nulos, pero SIEMPRE devuelve un JSON válido.`;
-
-        const { threadId, runId } = await aiService.startRun(vectorStoreId, instruction);
-
-        // Step 4: SAVE METADATA (Critical for Sync)
-        await jobService.updateMetadata(jobId, {
-            step: 'analyzing',
-            message: 'IA pensando...',
-            filename,
-            hash,
-            threadId,
-            runId,
-            fileId,
-            vectorStoreId
-        });
-
-        console.log(`[Startup] Job ${jobId} started successfully. Run: ${runId}`);
-
-    } catch (error: any) {
-        await jobService.failJob(jobId, error.message);
-        // If we fail here, we should cleanup if possible, but simplest is just fail.
-    }
-}

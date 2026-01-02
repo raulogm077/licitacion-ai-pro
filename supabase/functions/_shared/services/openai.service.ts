@@ -2,7 +2,7 @@
 /* eslint-disable */
 import OpenAI from "https://esm.sh/openai@4.77.0";
 import { mapOpenAIError } from "../utils/error.utils.ts";
-import { LicitacionContentSchema } from "../_shared/schemas.ts";
+import { LicitacionContentSchema } from "../schemas.ts";
 
 export interface OpenAIServiceConfig {
     apiKey: string;
@@ -26,27 +26,44 @@ export class OpenAIService {
     }
 
     async uploadFile(base64: string, filename: string): Promise<string> {
-        const pdfBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-        const file = new File([pdfBuffer], filename || 'pliego.pdf', { type: 'application/pdf' });
+        console.log(`[OpenAIService] Uploading file: ${filename}...`);
+        const start = Date.now();
 
-        const uploaded = await this.openai.files.create({
-            file: file,
-            purpose: 'assistants'
-        });
-        return uploaded.id;
+        // Convert Base64 to Blob/File (Mocking the file object for consumption)
+        // Note: Deno Edge doesn't support Buffer, so we use Uint8Array
+        const binString = atob(base64);
+        const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+        const file = new File([bytes], filename, { type: 'application/pdf' });
+
+        try {
+            const response = await this.openai.files.create({
+                file: file,
+                purpose: "assistants",
+            }, { timeout: 50000 }); // 50s Timeout (Safe buffer before 60s Function Limit)
+
+            console.log(`[OpenAIService] Upload Complete. ID: ${response.id} (${Date.now() - start}ms)`);
+            return response.id;
+        } catch (e) {
+            console.error(`[OpenAIService] Upload Failed (${Date.now() - start}ms):`, e);
+            throw e;
+        }
     }
 
     async createVectorStore(name: string, fileId: string): Promise<string> {
-        const vs = await this.openai.beta.vectorStores.create({
-            name: name,
-            expires_after: { anchor: 'last_active_at', days: 1 }
-        });
+        console.log(`[OpenAIService] Creating Vector Store: ${name}...`);
+        const start = Date.now();
+        try {
+            const vs = await this.openai.beta.vectorStores.create({
+                name: name,
+                file_ids: [fileId]
+            }, { timeout: 20000 }); // 20s Timeout
 
-        await this.openai.beta.vectorStores.files.create(vs.id, {
-            file_id: fileId
-        });
-
-        return vs.id;
+            console.log(`[OpenAIService] Vector Store Created. ID: ${vs.id} (${Date.now() - start}ms)`);
+            return vs.id;
+        } catch (e) {
+            console.error(`[OpenAIService] VS Creation Failed (${Date.now() - start}ms):`, e);
+            throw e;
+        }
     }
 
     async waitForVectorStore(vectorStoreId: string, fileId: string): Promise<void> {
