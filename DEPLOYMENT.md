@@ -1,3 +1,15 @@
+> ⚠️ **AVISO DE DEPRECACIÓN**  (Enero 2026)
+>
+> Este documento describe la **ARQUITECTURA ANTIGUA** usando pgmq + pg_cron + queue-processor.
+> 
+> **Para la NUEVA arquitectura con Agents SDK**, ver:
+> - [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitectura actual
+> - [DEPRECATED.md](./DEPRECATED.md) - Qué se eliminó y por qué
+>
+> Este archivo se mantiene solo para referencia histórica.
+
+---
+
 # Instrucciones de Despliegue
 
 ## 1. Aplicar Migraciones
