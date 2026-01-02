@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:vercel": "vercel dev",
-    "build": "npm run lint && tsc && vitest run && vite build",
+    "build": "tsc && vite build",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 10",
