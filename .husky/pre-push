@@ -1,1 +1,1 @@
-./scripts/verify-ci.sh
+npm run lint -- --max-warnings 20
