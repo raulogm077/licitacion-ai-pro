@@ -28,10 +28,10 @@ test('Memo P2 Full Flow: Upload and Analyze', async ({ page }) => {
 
     // 3. Upload File
     // Input type='file' usually hidden, use locator to set input files
-    // Wait for the container or button that triggers the upload to be visible first
-    await expect(page.getByText(/Subir/i).or(page.getByText(/Arrastra/i))).toBeVisible({ timeout: 20000 });
+    // Wait for the dropzone paragraph specifically to avoid matching step indicator
+    await expect(page.locator('p:has-text("Arrastra y suelta")')).toBeVisible({ timeout: 20000 });
 
-    // Ensure the input exists in the DOM
+    // Ensure the button exists in the DOM
     await expect(page.getByText('Seleccionar PDF')).toBeVisible();
 
     // Fallback to generic input locator if testid is flaky or stripped
