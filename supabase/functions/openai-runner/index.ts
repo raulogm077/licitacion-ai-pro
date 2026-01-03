@@ -32,10 +32,17 @@ serve(async (req) => {
 
         // 2. Auth & Validation
         const authHeader = req.headers.get('Authorization');
-        if (!authHeader) throw new Error('Missing Authorization header');
+        console.log(`[Auth] Header present: ${!!authHeader}, starts with Bearer: ${authHeader?.startsWith('Bearer ')}`);
+
+        if (!authHeader) {
+            console.error('[Auth] Missing Authorization header');
+            throw new Error('Missing Authorization header');
+        }
 
         // 3. Initialize Clients
         const token = authHeader.replace(/^Bearer\s+/i, "");
+        console.log(`[Auth] Token extracted, length: ${token.length}, first 10 chars: ${token.substring(0, 10)}...`);
+
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -43,8 +50,20 @@ serve(async (req) => {
         );
 
         // Check User
+        console.log('[Auth] Calling getUser()...');
         const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-        if (userError || !user) throw new Error('Unauthorized: Invalid Token');
+
+        if (userError) {
+            console.error('[Auth] getUser() error:', userError.message, userError.status);
+            throw new Error(`Unauthorized: ${userError.message}`);
+        }
+
+        if (!user) {
+            console.error('[Auth] getUser() returned null user');
+            throw new Error('Unauthorized: Invalid Token');
+        }
+
+        console.log(`[Auth] ✅ User authenticated: ${user.id}`);
 
         // Admin Client (for Jobs)
         const supabaseAdmin = createClient(
