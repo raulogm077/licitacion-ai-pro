@@ -52,15 +52,16 @@ export class JobService {
             const { data, error } = await supabase.functions.invoke('openai-runner', {
                 body: {
                     action: 'start',
-                    // pdfBase64,  // ❌ OLD: ~7MB in queue message
-                    storageUrl: storagePath,  // ✅ NEW: ~50 bytes
+                    storageUrl: storagePath,
                     filename: fileName,
                     hash: fileHash,
                     readingMode: 'full'
                 },
-                headers: session?.access_token ? {
+                // CRITICAL: Explicitly set Authorization header
+                // The auto-include from createClient doesn't always work reliably
+                headers: {
                     Authorization: `Bearer ${session.access_token}`
-                } : undefined
+                }
             });
 
             if (error || !data?.jobId) {
