@@ -14,6 +14,7 @@ import { JobService } from "../_shared/services/job.service.ts";
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
@@ -22,17 +23,18 @@ serve(async (req) => {
 
     // CORS Preflight
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
+        return new Response('ok', { headers: corsHeaders, status: 200 });
     }
 
     try {
-        // 1. Auth & Validation
+        // 1. Parse Request Body (ONLY ONCE)
+        const { action = 'start', jobId: existingJobId, pdfBase64, storageUrl, filename, hash } = await req.json();
+
+        // 2. Auth & Validation
         const authHeader = req.headers.get('Authorization');
         if (!authHeader) throw new Error('Missing Authorization header');
 
-        const { pdfBase64, filename, hash, action = 'start', jobId: existingJobId } = await req.json();
-
-        // 2. Initialize Clients
+        // 3. Initialize Clients
         const token = authHeader.replace(/^Bearer\s+/i, "");
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
@@ -49,8 +51,6 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
-        // Parse Body
-        const { action = 'start', jobId: existingJobId, pdfBase64, storageUrl, filename, hash } = await req.json();
 
         // Validate critical inputs
         const openaiKey = Deno.env.get('OPENAI_API_KEY');
