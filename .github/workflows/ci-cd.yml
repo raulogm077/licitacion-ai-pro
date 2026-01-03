@@ -189,8 +189,9 @@ jobs:
           # supabase link --project-ref $SUPABASE_PROJECT_ID --password "$SUPABASE_DB_PASSWORD"
           # supabase db push --password "$SUPABASE_DB_PASSWORD"
           
-          # Deploy functions directly using Access Token (ENV)
-          supabase functions deploy --project-ref $SUPABASE_PROJECT_ID
+          # Deploy only active functions (not deprecated analyze-licitacion)
+          supabase functions deploy openai-runner --project-ref $SUPABASE_PROJECT_ID
+          supabase functions deploy analyze-with-agents --project-ref $SUPABASE_PROJECT_ID
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
