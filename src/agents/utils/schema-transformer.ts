@@ -5,35 +5,54 @@ import type { LicitacionAgentResponse } from '../schemas/licitacion-agent.schema
  * al schema complejo que espera el frontend.
  * 
  * IMPORTANTE: Esta transformación es CRÍTICA para compatibilidad.
+ *
+ * UPDATE: Added strict defensive coding to prevent crashes on partial data
  */
 export function transformAgentResponseToFrontend(
     agentResponse: LicitacionAgentResponse
 ): unknown {  // Retorna unknown porque será validado después por el Zod del frontend
 
-    const { result, workflow } = agentResponse;
+    // Defensive check for top-level keys
+    const result = agentResponse?.result || {};
+    const workflow = agentResponse?.workflow || {};
+
+    // Helper to safely access arrays
+    const safeArray = (arr: any[]) => Array.isArray(arr) ? arr : [];
+    // Helper to safely access strings
+    const safeString = (str: any) => typeof str === 'string' ? str : '';
+    // Helper to safely access numbers
+    const safeNumber = (num: any) => typeof num === 'number' ? num : 0;
+
+    // Defensive access to sections
+    const datosGenerales = result.datosGenerales || {};
+    const criterios = result.criteriosAdjudicacion || {};
+    const tecnicos = result.requisitosTecnicos || {};
+    const solvencia = result.requisitosSolvencia || {};
+    const riesgos = result.restriccionesYRiesgos || {};
+    const servicio = result.modeloServicio || {};
 
     return {
         // Datos Generales - mapeo 1:1
         datosGenerales: {
-            titulo: result.datosGenerales.titulo,
-            presupuesto: result.datosGenerales.presupuesto,
-            moneda: result.datosGenerales.moneda,
-            plazoEjecucionMeses: result.datosGenerales.plazoEjecucionMeses,
-            cpv: result.datosGenerales.cpv,
-            organoContratacion: result.datosGenerales.organoContratacion,
-            fechaLimitePresentacion: result.datosGenerales.fechaLimitePresentacion
+            titulo: safeString(datosGenerales.titulo),
+            presupuesto: safeNumber(datosGenerales.presupuesto),
+            moneda: safeString(datosGenerales.moneda) || "EUR",
+            plazoEjecucionMeses: safeNumber(datosGenerales.plazoEjecucionMeses),
+            cpv: safeArray(datosGenerales.cpv).map(safeString),
+            organoContratacion: safeString(datosGenerales.organoContratacion),
+            fechaLimitePresentacion: datosGenerales.fechaLimitePresentacion
         },
 
         // Criterios - transformar strings a objetos
         criteriosAdjudicacion: {
-            subjetivos: result.criteriosAdjudicacion.subjetivos.map(desc => ({
-                descripcion: desc,
-                ponderacion: 0,  // Default, el schema lo acepta
+            subjetivos: safeArray(criterios.subjetivos).map(desc => ({
+                descripcion: safeString(desc),
+                ponderacion: 0,
                 detalles: undefined,
                 cita: undefined
             })),
-            objetivos: result.criteriosAdjudicacion.objetivos.map(desc => ({
-                descripcion: desc,
+            objetivos: safeArray(criterios.objetivos).map(desc => ({
+                descripcion: safeString(desc),
                 ponderacion: 0,
                 formula: undefined,
                 cita: undefined
@@ -42,14 +61,14 @@ export function transformAgentResponseToFrontend(
 
         // Requisitos Técnicos - strings a objetos
         requisitosTecnicos: {
-            funcionales: result.requisitosTecnicos.funcionales.map(req => ({
-                requisito: req,
+            funcionales: safeArray(tecnicos.funcionales).map(req => ({
+                requisito: safeString(req),
                 obligatorio: true,
                 referenciaPagina: undefined,
                 cita: undefined
             })),
-            normativa: result.requisitosTecnicos.normativa.map(norma => ({
-                norma,
+            normativa: safeArray(tecnicos.normativa).map(norma => ({
+                norma: safeString(norma),
                 descripcion: undefined,
                 cita: undefined
             }))
@@ -58,11 +77,11 @@ export function transformAgentResponseToFrontend(
         // Solvencia - transformación parcial
         requisitosSolvencia: {
             economica: {
-                cifraNegocioAnualMinima: result.requisitosSolvencia.economica.cifraNegocioAnualMinima,
-                descripcion: result.requisitosSolvencia.economica.descripcion
+                cifraNegocioAnualMinima: safeNumber(solvencia.economica?.cifraNegocioAnualMinima),
+                descripcion: safeString(solvencia.economica?.descripcion)
             },
-            tecnica: result.requisitosSolvencia.tecnica.map(desc => ({
-                descripcion: desc,
+            tecnica: safeArray(solvencia.tecnica).map(desc => ({
+                descripcion: safeString(desc),
                 proyectosSimilaresRequeridos: 0,
                 importeMinimoProyecto: undefined,
                 cita: undefined
@@ -71,20 +90,20 @@ export function transformAgentResponseToFrontend(
 
         // Riesgos - transformación compleja
         restriccionesYRiesgos: {
-            killCriteria: result.restriccionesYRiesgos.killCriteria.map(kc => ({
-                criterio: kc,
+            killCriteria: safeArray(riesgos.killCriteria).map(kc => ({
+                criterio: safeString(kc),
                 justificacion: undefined,
                 cita: undefined
             })),
-            riesgos: result.restriccionesYRiesgos.riesgos.map(riesgo => ({
-                descripcion: riesgo,
-                impacto: 'MEDIO' as const,  // Default
+            riesgos: safeArray(riesgos.riesgos).map(riesgo => ({
+                descripcion: safeString(riesgo),
+                impacto: 'MEDIO' as const,
                 probabilidad: 'MEDIA' as const,
                 mitigacionSugerida: undefined,
                 cita: undefined
             })),
-            penalizaciones: result.restriccionesYRiesgos.penalizaciones.map(pen => ({
-                causa: pen,
+            penalizaciones: safeArray(riesgos.penalizaciones).map(pen => ({
+                causa: safeString(pen),
                 sancion: '',
                 cita: undefined
             }))
@@ -92,13 +111,13 @@ export function transformAgentResponseToFrontend(
 
         // Modelo Servicio
         modeloServicio: {
-            sla: result.modeloServicio.sla.map(sla => ({
-                metrica: sla,
+            sla: safeArray(servicio.sla).map(sla => ({
+                metrica: safeString(sla),
                 objetivo: 'N/A',
                 cita: undefined
             })),
-            equipoMinimo: result.modeloServicio.equipoMinimo.map(perfil => ({
-                rol: perfil,
+            equipoMinimo: safeArray(servicio.equipoMinimo).map(perfil => ({
+                rol: safeString(perfil),
                 experienciaAnios: 0,
                 titulacion: undefined,
                 cita: undefined
@@ -106,6 +125,6 @@ export function transformAgentResponseToFrontend(
         },
 
         // Workflow - pasar directo (ya es compatible)
-        workflow
+        workflow: workflow
     };
 }
