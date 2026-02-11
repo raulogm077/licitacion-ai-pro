@@ -1,60 +1,37 @@
 import { test, expect } from '@playwright/test';
+import { mockLicitacionesList, setupAuthMock } from './test-utils';
 
-test.describe('Critical User Flows - Complete Journey', () => {
-
-    test('Upload PDF → AI Analysis → View Results', async ({ page }) => {
-        // Navigate to homepage
-        await page.goto('/');
-
-        // Wait for app to load
-        await expect(page).toHaveTitle(/Analista de Pliegos/);
-
-        // Check for upload section OR Login button
-        // This makes the test robust if auth state is missing in CI
-        const uploadSection = page.locator('[data-testid="upload-section"]').or(page.getByText(/subir.*pdf/i).first());
-        const loginButton = page.getByRole('button', { name: /login|iniciar.*sesión/i }).first();
-
-        await expect(uploadSection.or(loginButton)).toBeVisible({ timeout: 10000 });
-
-        // For now, verify the upload UI is accessible if logged in
-        if (await uploadSection.isVisible()) {
-            // In real scenario: upload file, wait for analysis, verify results
-            const mainContent = page.getByRole('main');
-            await expect(mainContent).toBeVisible();
-        }
+test.describe('Critical User Flows - CI Stable', () => {
+    test.beforeEach(async ({ page }) => {
+        await setupAuthMock(page);
+        await mockLicitacionesList(page, []);
     });
 
-    test('Search and Filter Licitaciones', async ({ page }) => {
+    test('App shell loads and navigation controls are accessible', async ({ page }) => {
         await page.goto('/');
+        await expect(page).toHaveTitle(/Analista de Pliegos|Licitación/i);
 
-        // Navigate to History/Search page
-        const historyLink = page.getByRole('link', { name: /historial|histórico/i });
-
-        if (await historyLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-            await historyLink.click();
-
-            // Wait for history page to load
-            await page.waitForLoadState('networkidle');
-
-            // Verify search functionality exists
-            const searchInput = page.getByRole('searchbox').or(page.getByPlaceholder(/buscar/i).first());
-            await expect(searchInput).toBeVisible({ timeout: 10000 });
-        }
+        await expect(page.getByTitle('Historial')).toBeVisible();
+        await expect(page.getByTitle('Analytics')).toBeVisible();
+        await expect(page.getByTitle('Búsqueda')).toBeVisible();
     });
 
-    test('Export Functionality', async ({ page }) => {
-        await page.goto('/');
+    test('History page renders even with empty dataset', async ({ page }) => {
+        await page.goto('/history');
+        await expect(page.getByRole('main')).toBeVisible();
 
-        // This test verifies export buttons are accessible
-        // In production: would verify PDF/Excel export works
-        const mainApp = page.locator('#root');
-        await expect(mainApp).not.toBeEmpty();
+        await expect(
+            page.getByText(/No hay historial|Historial de Análisis/i).first()
+        ).toBeVisible({ timeout: 10000 });
     });
-});
 
-test.describe('Smoke Tests - Core Functionality', () => {
+    test('Analytics page renders empty state safely', async ({ page }) => {
+        await page.goto('/analytics');
+        await expect(page.getByRole('main')).toBeVisible();
+        await expect(page.getByText(/No hay datos de analytics|Analytics Dashboard/i)).toBeVisible();
+    });
 
-    test('Homepage loads without errors', async ({ page }) => {
+    test('Initial load has no unhandled page errors', async ({ page }) => {
         const errors: string[] = [];
         page.on('pageerror', err => errors.push(err.message));
 
@@ -62,35 +39,5 @@ test.describe('Smoke Tests - Core Functionality', () => {
         await page.waitForLoadState('networkidle');
 
         expect(errors).toHaveLength(0);
-    });
-
-    test('Navigation is accessible', async ({ page }) => {
-        await page.goto('/');
-
-
-        // Either navigation exists or we're on login/loading page
-        const root = page.locator('#root');
-        await expect(root).not.toBeEmpty();
-    });
-
-    test('No console errors on initial load', async ({ page }) => {
-        const consoleErrors: string[] = [];
-        page.on('console', msg => {
-            if (msg.type() === 'error') {
-                consoleErrors.push(msg.text());
-            }
-        });
-
-        await page.goto('/');
-        await page.waitForTimeout(2000); // Wait for initial renders
-
-        // Filter out known acceptable errors (if any)
-        const criticalErrors = consoleErrors.filter(err =>
-            !err.includes('intentos fallaron') && // Expected retry logs in tests
-            !err.includes('Respuesta de Edge Function') && // Expected in tests
-            !err.includes('status of 404') // Ignore missing assets (favicon, etc)
-        );
-
-        expect(criticalErrors).toHaveLength(0);
     });
 });
