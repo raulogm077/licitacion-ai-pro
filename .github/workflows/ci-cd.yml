@@ -132,6 +132,53 @@ jobs:
             path: playwright-report/
             retention-days: 30
 
+
+  # 3b. Extended E2E (non-blocking) for broader regression signal
+  e2e-extended:
+    name: 🧪 E2E Extended (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers (resilient)
+        run: |
+          # WHY: Keep broader regression visibility without blocking deployments.
+          npx playwright install --with-deps chromium || npx playwright install chromium
+
+      - name: Build for Extended E2E
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Run Extended E2E (non-gating)
+        run: |
+          # Run broader exploratory suites. Failures are reported but do not gate CD.
+          npx playwright test e2e/collaboration.spec.ts e2e/exports.spec.ts e2e/memo_flow.spec.ts
+        env:
+          CI: true
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Upload Extended Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-extended
+          path: playwright-report/
+          retention-days: 14
+
   # 4. Deploy to Vercel (Frontend) - Depends on Checks
   deploy-vercel:
     name: 🚀 Deploy to Vercel
