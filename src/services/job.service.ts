@@ -4,6 +4,7 @@ import { LicitacionContent } from '../types';
 import { transformAgentResponseToFrontend } from '../agents/utils/schema-transformer';
 import { LicitacionContentSchema } from '../lib/schemas';
 import type { LicitacionAgentResponse } from '../agents/schemas/licitacion-agent.schema';
+import { parseSseChunk, type StreamEvent } from './stream-events';
 
 export interface JobStatus {
     id: string;
@@ -242,11 +243,33 @@ export class JobService {
                 throw new Error('No response body');
             }
 
-            // 3. Read SSE stream
+            // 3. Read and validate SSE stream
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
             let finalResult: unknown = null;
+
+            const processEvent = (event: StreamEvent): void => {
+                if (onProgress) {
+                    onProgress(event);
+                }
+
+                if (event.type === 'agent_message') {
+                    const preview = typeof event.content === 'string'
+                        ? event.content.substring(0, 80)
+                        : JSON.stringify(event.content).substring(0, 80);
+                    console.log(`[Agent]: ${preview}...`);
+                }
+
+                if (event.type === 'complete' && event.result) {
+                    finalResult = event.result;
+                    console.log('[JobService] Resultado final recibido del stream');
+                }
+
+                if (event.type === 'error') {
+                    throw new Error(event.message || 'Error en streaming');
+                }
+            };
 
             let reading = true;
             while (reading) {
@@ -257,45 +280,21 @@ export class JobService {
                     break;
                 }
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+                const chunk = decoder.decode(value, { stream: true });
+                const parsed = parseSseChunk(chunk, buffer);
+                buffer = parsed.buffer;
 
-                for (const line of lines) {
-                    if (!line.trim() || !line.startsWith('data: ')) {
-                        continue;
-                    }
+                for (const event of parsed.events) {
+                    processEvent(event);
+                }
+            }
 
-                    try {
-                        const event = JSON.parse(line.slice(6));
-
-                        // Notify progress
-                        if (onProgress) {
-                            onProgress(event);
-                        }
-
-                        // Log important events
-                        if (event.type === 'agent_message') {
-                            const preview = typeof event.content === 'string'
-                                ? event.content.substring(0, 80)
-                                : JSON.stringify(event.content).substring(0, 80);
-                            console.log(`[Agent]: ${preview}...`);
-                        }
-
-                        // Capture final result
-                        if (event.type === 'complete' && event.result) {
-                            finalResult = event.result;
-                            console.log('[JobService] Resultado final recibido del stream');
-                        }
-
-                        // Handle error
-                        if (event.type === 'error') {
-                            throw new Error(event.message || 'Error en streaming');
-                        }
-
-                    } catch (parseError) {
-                        console.warn('[JobService] No se pudo parsear evento:', line);
-                    }
+            // WHY: Streams are not guaranteed to end with a trailing newline. We flush the
+            // remaining buffer to avoid losing the last valid event.
+            if (buffer.trim()) {
+                const finalParsed = parseSseChunk('\n', buffer);
+                for (const event of finalParsed.events) {
+                    processEvent(event);
                 }
             }
 
@@ -325,16 +324,6 @@ export class JobService {
             throw error;
         }
     }
-}
-
-// Type for streaming events
-export interface StreamEvent {
-    type: 'heartbeat' | 'agent_message' | 'complete' | 'error';
-    content?: string | unknown;
-    result?: unknown;
-    message?: string;
-    timestamp: number;
-    eventsProcessed?: number;
 }
 
 export const jobService = new JobService();
