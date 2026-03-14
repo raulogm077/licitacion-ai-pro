@@ -88,7 +88,8 @@ test.describe('Smoke Tests - Core Functionality', () => {
         const criticalErrors = consoleErrors.filter(err =>
             !err.includes('intentos fallaron') && // Expected retry logs in tests
             !err.includes('Respuesta de Edge Function') && // Expected in tests
-            !err.includes('status of 404') // Ignore missing assets (favicon, etc)
+            !err.includes('status of 404') && // Ignore missing assets (favicon, etc)
+            !err.includes('ERR_NAME_NOT_RESOLVED') // Ignore environmental DNS errors (Sentry, etc)
         );
 
         expect(criticalErrors).toHaveLength(0);
