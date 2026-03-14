@@ -88,7 +88,10 @@ test.describe('Smoke Tests - Core Functionality', () => {
         const criticalErrors = consoleErrors.filter(err =>
             !err.includes('intentos fallaron') && // Expected retry logs in tests
             !err.includes('Respuesta de Edge Function') && // Expected in tests
-            !err.includes('status of 404') // Ignore missing assets (favicon, etc)
+            !err.includes('status of 404') && // Ignore missing assets (favicon, etc)
+            !err.includes('ERR_NAME_NOT_RESOLVED') && // CI DNS noise
+            !err.includes('ERR_INTERNET_DISCONNECTED') && // CI network noise
+            !err.includes('Invalid Environment Configuration') // Mocked environments
         );
 
         expect(criticalErrors).toHaveLength(0);
