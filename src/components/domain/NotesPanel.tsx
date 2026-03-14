@@ -28,7 +28,7 @@ export function NotesPanel({ notes, onChange, requirementIndex }: NotesPanelProp
         if (!newNote.text.trim()) return;
 
         const note: Note = {
-            id: `note-${Date.now()}-${Math.random()}`,
+            id: `note-${Date.now()}-${crypto.randomUUID()}`,
             text: newNote.text,
             author: newNote.author,
             timestamp: Date.now(),
