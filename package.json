@@ -14,7 +14,6 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@openai/agents": "^0.3.7",
     "@sentry/react": "^10.32.1",
     "@supabase/supabase-js": "^2.89.0",

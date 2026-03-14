@@ -31,10 +31,10 @@ describe('Analysis Store (TC-UI)', () => {
 
     it('should persist provider selection (TC-UI-01)', () => {
         // Act: Change settings
-        useAnalysisStore.getState().setProvider('gemini');
+        useAnalysisStore.getState().setProvider('openai');
 
         // Assert: State updated
-        expect(useAnalysisStore.getState().selectedProvider).toBe('gemini');
+        expect(useAnalysisStore.getState().selectedProvider).toBe('openai');
     });
 
     it('should update state immediately on cancellation (TC-UI-02)', () => {

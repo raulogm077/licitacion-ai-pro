@@ -15,7 +15,7 @@ interface AnalysisStore {
     error: string | null;
     persistenceWarning: string | null;
     abortController: AbortController | null;
-    selectedProvider: string; // 'gemini' | 'openai'
+    selectedProvider: string; // 'openai'
     currentJobId: string | null;
 
     // Actions
@@ -27,9 +27,9 @@ interface AnalysisStore {
 
 const loadSelectedProvider = (): string => {
     try {
-        return localStorage.getItem('selectedProvider') || 'gemini';
+        return localStorage.getItem('selectedProvider') || 'openai';
     } catch {
-        return 'gemini';
+        return 'openai';
     }
 };
 
@@ -95,6 +95,32 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 thinkingOutput: state.thinkingOutput + `\n🚀 Iniciando análisis con ${selectedProvider.toUpperCase()}...`
             }));
 
+            // Cargar la guía base64 desde la URL estática
+            let guiaBase64: string | null = null;
+            try {
+                // Asumiendo que guia_lectura.pdf está disponible públicamente
+                const response = await fetch('/guia_lectura.pdf');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const reader = new FileReader();
+                    guiaBase64 = await new Promise<string>((resolve, reject) => {
+                        reader.onloadend = () => {
+                            const result = reader.result as string;
+                            resolve(result.split(',')[1]); // remove data:application/pdf;base64,
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    });
+                    set(state => ({
+                        thinkingOutput: state.thinkingOutput + `\n✅ Guía de lectura cargada.`
+                    }));
+                } else {
+                    console.warn("No se pudo cargar la guía de lectura desde el servidor public.");
+                }
+            } catch (e) {
+                console.warn("Error leyendo guia_lectura.pdf", e);
+            }
+
             const result = await services.ai.analyzePdfContent(
                 base64,
                 (processed, total, message) => {
@@ -118,7 +144,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 newController.signal,
                 selectedProvider,
                 file.name, // Required for OpenAI
-                hash       // Required for OpenAI
+                hash,      // Required for OpenAI
+                guiaBase64
             );
 
             // 4. Update State & Persist
