@@ -4,7 +4,6 @@ import { logger } from "./logger";
 import { promptRegistry } from "../config/prompt-registry";
 import { llmFactory } from "../llm/llmFactory";
 import { LLMProviderError, LLMErrorCode } from "../llm/errors";
-import type { JobStatus } from "./job.service";
 
 export class LicitacionAIError extends Error {
     constructor(message: string, public readonly originalError?: unknown) {
