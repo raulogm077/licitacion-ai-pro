@@ -330,8 +330,56 @@ serve(async (req) => {
             }
         });
 
+        // Helper function to cleanup OpenAI resources
+        const cleanupResources = async () => {
+            console.log('[analyze-with-agents] Iniciando limpieza de recursos OpenAI...');
+            try {
+                if (vectorStore?.id) {
+                    await openai.beta.vectorStores.del(vectorStore.id);
+                    console.log(`[analyze-with-agents] Vector Store eliminado: ${vectorStore.id}`);
+                }
+                for (const fileId of fileIds) {
+                    if (fileId) {
+                        await openai.files.del(fileId);
+                        console.log(`[analyze-with-agents] Archivo eliminado: ${fileId}`);
+                    }
+                }
+            } catch (cleanupError) {
+                console.error('[analyze-with-agents] Error limpiando recursos:', cleanupError);
+            }
+        };
+
+        // Envolvemos el stream para limpiar los recursos al finalizar (o al abortar)
+        const cleanupStream = new ReadableStream({
+            start(controller) {
+                const reader = readable.getReader();
+
+                function pump() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            cleanupResources().finally(() => {
+                                controller.close();
+                            });
+                            return;
+                        }
+                        controller.enqueue(value);
+                        pump();
+                    }).catch((err) => {
+                        cleanupResources().finally(() => {
+                            controller.error(err);
+                        });
+                    });
+                }
+                pump();
+            },
+            cancel(reason) {
+                console.log('[analyze-with-agents] Stream cancelado, limpiando recursos...', reason);
+                cleanupResources();
+            }
+        });
+
         // 9. Return streaming response
-        return new Response(readable, {
+        return new Response(cleanupStream, {
             headers: {
                 ...corsHeaders,
                 'Content-Type': 'text/event-stream',
@@ -342,6 +390,21 @@ serve(async (req) => {
 
     } catch (error) {
         console.error('[Error]:', error);
+
+        // Clean up immediately if error occurs before stream
+        if (typeof vectorStore !== 'undefined' || typeof fileIds !== 'undefined') {
+             try {
+                if (vectorStore?.id) await openai.beta.vectorStores.del(vectorStore.id);
+                if (fileIds) {
+                    for (const id of fileIds) {
+                        if (id) await openai.files.del(id);
+                    }
+                }
+             } catch (e) {
+                 console.error('[analyze-with-agents] Error al limpiar tras fallo inicial', e);
+             }
+        }
+
         return new Response(
             JSON.stringify({
                 error: error.message || 'Internal server error',

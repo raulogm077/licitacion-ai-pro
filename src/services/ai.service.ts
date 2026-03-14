@@ -33,27 +33,47 @@ export class AIService {
                     throw new LicitacionAIError("Filename and Hash are required for OpenAI analysis");
                 }
 
-                // 1. Start Job
-                if (onProgress) onProgress(0, 100, "Iniciando trabajo en servidor (Async)...");
                 // Import dynamically to avoid circular dependency issues if any (though jobService is safe)
                 const { jobService } = await import('./job.service');
 
-                const jobId = await jobService.startJob(base64Content, filename, hash);
-                if (onProgress) onProgress(10, 100, `✅ Trabajo iniciado (ID: ${jobId.slice(0, 8)}...)\nEsperando worker...`);
+                if (onProgress) onProgress(0, 100, "Iniciando análisis con AI Agents (Streaming)...");
 
-                // 2. Wait for Completion
-                const result = await jobService.waitForCompletion(
-                    jobId,
-                    (status: JobStatus) => {
-                        if (status.step && status.message && onProgress) {
-                            // Map server progress to generic progress (0-100)
-                            // We don't have exact % from server, so we fake it or use a steady state
-                            onProgress(50, 100, `[${status.step}] ${status.message}`);
+                // Check for cancellation before starting
+                if (signal?.aborted) {
+                    throw new LicitacionAIError('Análisis cancelado por el usuario');
+                }
+
+                let processedEvents = 0;
+
+                // Call the new streaming architecture
+                const result = await jobService.analyzeWithAgents(
+                    base64Content,
+                    null, // No guide PDF needed currently
+                    filename,
+                    (event) => {
+                        if (signal?.aborted) {
+                            // If aborted during stream, we can't easily kill the edge function
+                            // from here without a separate endpoint, but we can stop processing
+                            throw new LicitacionAIError('Análisis cancelado durante procesamiento');
+                        }
+
+                        processedEvents++;
+                        if (onProgress) {
+                            // Fake progress up to 95%, based on events received
+                            const estimatedTotal = 50; // Arbitrary expected event count
+                            const rawProgress = Math.min((processedEvents / estimatedTotal) * 95, 95);
+
+                            if (event.type === 'agent_message' && typeof event.content === 'string') {
+                                onProgress(rawProgress, 100, `[Agent] ${event.content.substring(0, 60)}...`);
+                            } else if (event.type === 'heartbeat') {
+                                // Just a keep-alive
+                                onProgress(rawProgress, 100, "Procesando documento...");
+                            }
                         }
                     }
                 );
 
-                if (onProgress) onProgress(100, 100, "✅ Resultado recibido del servidor");
+                if (onProgress) onProgress(100, 100, "✅ Resultado validado recibido del servidor");
                 return result;
 
             } catch (err: unknown) {

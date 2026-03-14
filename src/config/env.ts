@@ -25,6 +25,8 @@ const getEnvSource = () => {
 
 const processEnv = getEnvSource();
 
+const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+
 const parsed = envSchema.safeParse(processEnv);
 
 export const envConfig = {
@@ -40,6 +42,6 @@ export const env = parsed.success ? parsed.data : {
     VITE_SENTRY_DSN: undefined,
 };
 
-if (!parsed.success) {
+if (!parsed.success && !isTestEnv) {
     console.error("❌ Invalid Environment Configuration:", parsed.error.format());
 }

@@ -17,6 +17,11 @@ Object.defineProperty(window, 'matchMedia', {
     })),
 });
 
+// Mock environment variables so zod validation in env.ts passes in tests
+import { env } from 'process';
+env.VITE_SUPABASE_URL = 'https://mock.supabase.co';
+env.VITE_SUPABASE_ANON_KEY = 'mock-anon-key';
+
 // Mock i18next
 vi.mock('react-i18next', () => ({
     // this mock makes sure any components using the translate hook can use it without a warning being shown
