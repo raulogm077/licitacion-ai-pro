@@ -16,10 +16,12 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     useEffect(() => {
-        if (inputValue.trim()) {
+        const query = inputValue.trim().toLowerCase();
+        if (query) {
+            const tagSet = new Set(tags);
             const filtered = suggestions.filter(s =>
-                s.toLowerCase().includes(inputValue.toLowerCase()) &&
-                !tags.includes(s)
+                s.toLowerCase().includes(query) &&
+                !tagSet.has(s)
             );
             setFilteredSuggestions(filtered);
             setShowSuggestions(filtered.length > 0);
