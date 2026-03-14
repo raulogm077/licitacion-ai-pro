@@ -192,13 +192,7 @@ export class OpenAIService {
 
             try {
                 const jsonData = JSON.parse(cleanedText);
-
-                // CRITICAL FIX: Unwrap 'result' wrapper
-                let contentToValidate = jsonData;
-                if (jsonData.result && typeof jsonData.result === 'object') {
-                    contentToValidate = jsonData.result;
-                }
-
+                const contentToValidate = this.unwrapResult(jsonData);
                 return LicitacionContentSchema.parse(contentToValidate);
             } catch (e) {
                 // Strategy 2: Regex Extraction
@@ -206,7 +200,8 @@ export class OpenAIService {
                 if (jsonMatch) {
                     try {
                         const fallbackData = JSON.parse(jsonMatch[0]);
-                        return LicitacionContentSchema.parse(fallbackData);
+                        const contentToValidate = this.unwrapResult(fallbackData);
+                        return LicitacionContentSchema.parse(contentToValidate);
                     } catch (e2) {
                         console.error("Regex failed", e2);
                     }
@@ -216,6 +211,17 @@ export class OpenAIService {
         }
 
         throw new Error(`No se encontró mensaje de respuesta válido. (Msgs: ${lastMessage ? 1 : 0}, Retry: ${retryCount}, LastLen: ${lastMessage ? 'OK' : 'ZERO'})`);
+    }
+
+    /**
+     * CRITICAL FIX: Unwrap 'result' wrapper from JSON data if present.
+     * Some OpenAI responses come wrapped in a { result: ... } object.
+     */
+    private unwrapResult(data: any): any {
+        if (data && typeof data === 'object' && data.result && typeof data.result === 'object') {
+            return data.result;
+        }
+        return data;
     }
 
     async cleanup(vectorStoreId?: string, fileId?: string) {
