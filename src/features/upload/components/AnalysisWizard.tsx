@@ -1,336 +1,241 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Loader2, Lock, X, ArrowRight, ChevronRight, FileType } from 'lucide-react';
-import { useTranslation, Trans } from 'react-i18next';
+import { Sparkles, ChevronRight, ArrowRight, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../stores/auth.store';
 import { useAnalysisStore } from '../../../stores/analysis.store';
-import { ProviderSelector } from '../../../components/domain/ProviderSelector';
-import { CancelButton } from '../../../components/domain/CancelButton';
 import { AuthModal } from '../../../components/ui/AuthModal';
-import { useKeyboardShortcut } from '../../../hooks/useKeyboardShortcut';
+import { Dropzone } from './wizard/Dropzone';
+import { AnalysisProgress } from './wizard/AnalysisProgress';
+import { RecentTenders } from './wizard/RecentTenders';
+import { Button } from '../../../components/ui/Button';
 
-type WizardStep = 'upload' | 'analyzing' | 'completed';
+type WizardState = "idle" | "ready" | "analyzing" | "error"
 
 export const AnalysisWizard: React.FC = () => {
-    const { t } = useTranslation();
-    const { isAuthenticated } = useAuthStore();
-    const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis, selectedProvider, setProvider } = useAnalysisStore();
+  const { t } = useTranslation();
+  const { isAuthenticated } = useAuthStore();
+  const { status, error, analyzeFile, resetAnalysis } = useAnalysisStore();
 
-    useKeyboardShortcut('Escape', cancelAnalysis, status === 'ANALYZING' || status === 'READING_PDF');
+  const [state, setState] = useState<WizardState>("idle")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-    const [isDragging, setIsDragging] = useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  useEffect(() => {
+    if (status === 'ANALYZING' || status === 'READING_PDF') setState("analyzing");
+    else if (status === 'ERROR') setState("error");
+    else if (status === 'IDLE' && selectedFile) setState("ready");
+    else if (status === 'IDLE') setState("idle");
+  }, [status, selectedFile]);
 
-    // Sync wizard step with global store status
-    useEffect(() => {
-        if (status === 'ANALYZING' || status === 'READING_PDF') setCurrentStep('analyzing');
-        if (status === 'COMPLETED') setCurrentStep('completed');
-        if (status === 'IDLE' || status === 'ERROR') setCurrentStep('upload');
-    }, [status]);
+  const handleFileAccepted = (file: File) => {
+    if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return;
+    }
+    setSelectedFile(file)
+    setState("ready")
+  }
 
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        if (isAuthenticated) setIsDragging(true);
-    };
+  const handleStartAnalysis = async () => {
+    if (!selectedFile) return;
+    setState("analyzing");
+    // Trigger real analysis
+    await analyzeFile(selectedFile);
+  }
 
-    const handleDragLeave = () => {
-        setIsDragging(false);
-    };
+  return (
+    <main className="flex flex-col items-center gap-10 px-4 py-10 md:py-14 max-w-[900px] mx-auto w-full animate-fade-in">
+      {/* Auth Modal */}
+      {showAuthModal && (
+          <AuthModal
+              isOpen={showAuthModal}
+              onClose={() => setShowAuthModal(false)}
+                        />
+      )}
 
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
-
-        const file = e.dataTransfer.files[0];
-        if (file && file.type === 'application/pdf') {
-            setSelectedFile(file); // Step 1: Just select, don't analyze yet
-        }
-    };
-
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
-
-        const file = e.target.files?.[0];
-        if (file) {
-            setSelectedFile(file);
-        }
-    };
-
-    const handleStartAnalysis = async () => {
-        if (selectedFile) {
-            await analyzeFile(selectedFile);
-        }
-    };
-
-    const handleClearFile = () => {
-        setSelectedFile(null);
-        resetAnalysis();
-    };
-
-    // --- RENDER HELPERS ---
-
-    const renderStepIndicator = () => (
-        <div className="flex items-center justify-center space-x-4 mb-8 text-sm font-medium">
-            <div className={`flex items-center ${currentStep === 'upload' ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400'}`}>
-                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-2 text-xs border-current">1</span>
-                {t('wizard.step_upload', 'Subir')}
-            </div>
-            <ChevronRight size={16} className="text-slate-300" />
-            <div className={`flex items-center ${currentStep === 'analyzing' ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400'}`}>
-                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-2 text-xs border-current">2</span>
-                {t('wizard.step_analysis', 'Análisis')}
-            </div>
-            <ChevronRight size={16} className="text-slate-300" />
-            <div className={`flex items-center ${currentStep === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-slate-400'}`}>
-                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-2 text-xs border-current">3</span>
-                {t('wizard.step_result', 'Resultado')}
-            </div>
+      {/* Hero text */}
+      {state === "idle" && (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold font-sans mb-1"
+            style={{
+              backgroundColor: "rgba(0,229,255,0.1)",
+              color: "var(--brand-cyan-dim)",
+              border: "1px solid rgba(0,229,255,0.25)",
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Análisis inteligente de licitaciones
+          </div>
+          <h1
+            className="text-3xl md:text-4xl font-bold font-sans text-balance leading-tight"
+            style={{ color: "var(--brand-navy)" }}
+          >
+            Analiza pliegos en{" "}
+            <span style={{ color: "var(--brand-cyan-dim)" }}>segundos</span>,<br className="hidden md:block" />
+            no en días
+          </h1>
+          <p className="text-base text-slate-500 font-sans leading-relaxed max-w-lg text-pretty">
+            Sube el PDF del pliego de licitación y obtén un análisis completo de riesgos,
+            cláusulas clave y criterios de adjudicación de forma automática.
+          </p>
         </div>
-    );
+      )}
 
-    // --- STEP 1: UPLOAD VIEW ---
-    if (currentStep === 'upload') {
-        return (
-            <div className="relative max-w-4xl mx-auto mt-8 px-4">
-                <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-
-                {/* Decorative Background Gradients */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-96 bg-brand-500/20 rounded-full blur-[100px] -z-10 opacity-50 dark:opacity-20 pointer-events-none" />
-
-                {/* Header Section */}
-                <div className="text-center mb-8 relative z-10">
-                    <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        {t('wizard.title')}
-                    </h1>
-                    <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-700 delay-100">
-                        {t('wizard.subtitle')}
-                    </p>
-                </div>
-
-                {renderStepIndicator()}
-
-                {/* Main Card (Glassmorphism) */}
-                <div className="relative backdrop-blur-xl bg-white/70 dark:bg-slate-900/60 border border-white/20 dark:border-slate-700/50 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300">
-
-                    {/* Card Header (Provider Badge) */}
-                    {isAuthenticated && (
-                        <div className="absolute top-4 right-4 z-20">
-                            <ProviderSelector
-                                value={selectedProvider}
-                                onChange={setProvider}
-                                variant="minimal"
-                            />
-                        </div>
-                    )}
-
-                    <div className="p-10 min-h-[500px] flex flex-col justify-center items-center relative">
-
-                        {!selectedFile ? (
-                            // --- STATE: NO FILE ---
-                            <div
-                                className={`
-                                    w-full max-w-2xl border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 group cursor-pointer
-                                    flex flex-col items-center justify-center gap-6
-                                    ${!isAuthenticated
-                                        ? 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20'
-                                        : isDragging
-                                            ? 'border-brand-500 bg-brand-50/30 scale-[1.02]'
-                                            : 'border-slate-300 dark:border-slate-600 hover:border-brand-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
-                                    }
-                                `}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                            >
-                                <div className={`
-                                    w-24 h-24 rounded-full flex items-center justify-center transition-transform duration-500
-                                    ${isAuthenticated ? 'group-hover:scale-110 group-hover:rotate-3' : ''}
-                                    ${isDragging ? 'scale-110' : ''}
-                                    bg-gradient-to-br from-brand-50 to-brand-100 dark:from-brand-900/40 dark:to-brand-800/40
-                                `}>
-                                    {isAuthenticated ? (
-                                        <Upload className="w-10 h-10 text-brand-600 dark:text-brand-400" strokeWidth={1.5} />
-                                    ) : (
-                                        <Lock className="w-10 h-10 text-slate-400" strokeWidth={1.5} />
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
-                                        {isAuthenticated ? t('wizard.upload_title', 'Sube tu documento PDF') : t('auth.required_title')}
-                                    </h3>
-                                    <p className="text-slate-500 dark:text-slate-400">
-                                        {isAuthenticated
-                                            ? t('wizard.drag_drop_hint', 'Arrastra y suelta aquí o haz clic para explorar')
-                                            : t('auth.required_desc')}
-                                    </p>
-                                </div>
-
-                                {isAuthenticated ? (
-                                    <label className="relative pointer-events-none group-hover:pointer-events-auto">
-                                        <input
-                                            type="file"
-                                            accept=".pdf"
-                                            className="hidden"
-                                            onChange={handleFileSelect}
-                                        />
-                                        <span className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg">
-                                            Seleccionar Archivo
-                                        </span>
-                                    </label>
-                                ) : (
-                                    <button
-                                        onClick={() => setShowAuthModal(true)}
-                                        className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg"
-                                    >
-                                        Iniciar Sesión
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            // --- STATE: FILE SELECTED (PREVIEW) ---
-                            <div className="w-full max-w-lg animate-in zoom-in-95 duration-300">
-                                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-                                    <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500" />
-
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center shrink-0">
-                                                <FileType className="w-8 h-8 text-red-500" strokeWidth={1.5} />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-semibold text-slate-900 dark:text-white text-lg truncate max-w-[200px]" title={selectedFile.name}>
-                                                    {selectedFile.name}
-                                                </h3>
-                                                <p className="text-sm text-slate-500 font-mono">
-                                                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={handleClearFile}
-                                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400 hover:text-red-500 transition-colors"
-                                        >
-                                            <X size={20} />
-                                        </button>
-                                    </div>
-
-                                    <div className="mt-8 grid grid-cols-2 gap-3">
-                                        <button
-                                            onClick={handleClearFile}
-                                            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                                        >
-                                            Cambiar archivo
-                                        </button>
-                                        <button
-                                            onClick={handleStartAnalysis}
-                                            className="relative overflow-hidden px-4 py-3 rounded-xl bg-brand-600 text-white font-semibold shadow-lg hover:bg-brand-700 hover:shadow-brand-500/25 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 group/btn"
-                                        >
-                                            <span className="relative z-10">{t('wizard.start_button', 'Analizar con IA')}</span>
-                                            <ArrowRight size={18} className="relative z-10 group-hover/btn:translate-x-1 transition-transform" />
-                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
-                                        </button>
-                                    </div>
-
-                                    <div className="mt-4 text-center">
-                                        <p className="text-xs text-slate-400">
-                                            Motor seleccionado: <span className="font-medium text-brand-600 dark:text-brand-400">{selectedProvider.toUpperCase()}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Footer decoration */}
-                    <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 to-blue-600 opacity-20" />
-                </div>
-
-                {/* Error Banner */}
-                {status === 'ERROR' && error && (
-                    <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2">
-                        <X className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={20} />
-                        <div className="flex-1">
-                            <h3 className="font-semibold text-red-900 dark:text-red-100">Error en el análisis</h3>
-                            <p className="text-sm text-red-700 dark:text-red-300 mt-1 whitespace-pre-wrap font-mono text-xs">{error}</p>
-                            <button
-                                onClick={resetAnalysis}
-                                className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 dark:hover:text-red-200 underline decoration-red-300 underline-offset-2"
-                            >
-                                {t('common.retry')}
-                            </button>
-                        </div>
-                    </div>
-                )}
+      {/* Stats bar (idle only) */}
+      {state === "idle" && (
+        <div className="grid grid-cols-3 gap-4 w-full">
+          {[
+            { value: "2.400+", label: "Pliegos analizados" },
+            { value: "94%", label: "Precisión de IA" },
+            { value: "<45s", label: "Tiempo promedio" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="flex flex-col items-center justify-center gap-0.5 py-3 px-4 rounded-xl bg-white border border-slate-200 shadow-sm"
+            >
+              <span
+                className="text-xl font-bold font-sans tabular-nums"
+                style={{ color: "var(--brand-navy)" }}
+              >
+                {stat.value}
+              </span>
+              <span className="text-xs text-slate-500 font-sans text-center leading-tight">
+                {stat.label}
+              </span>
             </div>
-        );
-    }
+          ))}
+        </div>
+      )}
 
-    // --- STEP 2: ANALYZING VIEW ---
-    if (currentStep === 'analyzing') {
-        const lines = thinkingOutput.split('\n');
+      {/* Main upload card */}
+      <div
+        className="w-full rounded-2xl overflow-hidden transition-all duration-500 bg-white border border-slate-200 shadow-xl shadow-navy/5"
+      >
+        {/* Card header */}
+        <div
+          className="flex items-center justify-between px-6 py-4 border-b border-slate-100"
+          style={{
+            background: "linear-gradient(135deg, rgba(0,28,61,0.02) 0%, rgba(0,229,255,0.02) 100%)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2 h-2 rounded-full ${state === "analyzing" ? "animate-pulse" : ""}`}
+              style={{
+                backgroundColor:
+                  state === "analyzing"
+                    ? "var(--brand-cyan)"
+                    : state === "error"
+                    ? "#ef4444"
+                    : "#94a3b8",
+              }}
+            />
+            <span
+              className="text-sm font-semibold font-sans"
+              style={{ color: "var(--brand-navy)" }}
+            >
+              {state === "idle" || state === "ready"
+                ? "Cargar pliego de licitación"
+                : state === "analyzing"
+                ? "Analizando documento"
+                : "Error en el análisis"}
+            </span>
+          </div>
 
-        return (
-            <div className="max-w-3xl mx-auto mt-12 px-4">
-                {renderStepIndicator()}
+          {/* Breadcrumb steps */}
+          <div className="hidden md:flex items-center gap-1.5">
+            {["Subida", "Análisis", "Resultados"].map((step, i) => {
+              const stepNum = i + 1
+              const isActive =
+                (stepNum === 1 && (state === "idle" || state === "ready" || state === "error")) ||
+                (stepNum === 2 && state === "analyzing")
+              const isDone =
+                (stepNum === 1 && state === "analyzing")
+              return (
+                <div key={step} className="flex items-center gap-1.5">
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all"
+                    style={{
+                      backgroundColor: isActive
+                        ? "rgba(0,28,61,0.08)"
+                        : isDone
+                        ? "rgba(0,229,255,0.12)"
+                        : "transparent",
+                    }}
+                  >
+                    <span
+                      className="text-xs font-medium font-sans"
+                      style={{
+                        color: isActive
+                          ? "var(--brand-navy)"
+                          : isDone
+                          ? "var(--brand-cyan-dim)"
+                          : "#94a3b8",
+                      }}
+                    >
+                      {step}
+                    </span>
+                  </div>
+                  {i < 2 && (
+                    <ChevronRight className="w-3 h-3" style={{ color: "#cbd5e1" }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
 
-                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-slate-100 dark:bg-slate-800">
-                        <div className="h-full bg-brand-500 animate-progress-indeterminate" />
-                    </div>
+        {/* Card body */}
+        <div className="px-6 py-6">
+          {(state === "idle" || state === "ready" || state === "error") && (
+            <div className="flex flex-col gap-5">
+              <Dropzone onFileAccepted={handleFileAccepted} disabled={false} />
 
-                    <div className="p-10 text-center">
-                        <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-                            <div className="absolute inset-0 rounded-full border-4 border-blue-100 dark:border-blue-900/30 border-t-blue-600 dark:border-t-blue-500 animate-spin"></div>
-                            <Loader2 className="text-blue-600 dark:text-blue-400" size={36} />
-                        </div>
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('wizard.analyzing_title')}</h2>
-                        <p className="text-slate-500 dark:text-slate-400">{t('wizard.analyzing_desc')}</p>
-                    </div>
-
-                    {/* Terminal / Log Output */}
-                    <div className="bg-slate-950 border-t border-slate-800 font-mono text-sm">
-                        <div className="px-4 py-2 flex items-center gap-2 border-b border-slate-900 bg-slate-900/50">
-                            <div className="flex gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
-                            </div>
-                            <span className="text-slate-600 ml-2 text-xs">analysis_engine.log</span>
-                        </div>
-                        <div className="p-6 h-64 overflow-y-auto scroll-smooth text-emerald-400/90 font-light">
-                            {lines.length === 0 && (
-                                <span className="opacity-40 italic">Iniciando contexto de ejecución...</span>
-                            )}
-                            {lines.map((line, i) => (
-                                <div key={i} className="mb-1.5 flex leading-relaxed">
-                                    <span className="opacity-40 mr-3 select-none text-slate-500">➜</span>
-                                    <span className="animate-in fade-in slide-in-from-left-1">{line}</span>
-                                </div>
-                            ))}
-                            <div className="w-1.5 h-4 bg-emerald-500/50 animate-pulse inline-block align-middle ml-1"></div>
-                        </div>
+              {state === "error" && error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in fade-in">
+                    <X className="text-red-500 shrink-0 mt-0.5" size={20} />
+                    <div className="flex-1">
+                        <h3 className="font-semibold text-red-800 text-sm">Error en el análisis</h3>
+                        <p className="text-xs text-red-600 mt-1 whitespace-pre-wrap font-mono">{error}</p>
+                        <button
+                            onClick={() => resetAnalysis()}
+                            className="mt-2 text-xs font-medium text-red-700 hover:text-red-900 underline decoration-red-300"
+                        >
+                            {t('common.retry', 'Reintentar')}
+                        </button>
                     </div>
                 </div>
+              )}
 
-                <div className="mt-8 flex flex-col items-center gap-4">
-                    <CancelButton onClick={cancelAnalysis} />
-                    <p className="text-xs text-slate-400">
-                        <Trans i18nKey="wizard.cancel_hint" values={{ key: 'Esc' }} components={{ kbd: <kbd className="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 rounded text-slate-500 dark:text-slate-300 font-sans mx-1" /> }} />
-                    </p>
-                </div>
+              {state === "ready" && selectedFile && (
+                <Button
+                  onClick={handleStartAnalysis}
+                  className="w-full h-12 text-sm font-semibold font-sans rounded-xl gap-2 transition-all duration-200 hover:opacity-90 hover:shadow-lg active:scale-[0.98] border-0"
+                  style={{
+                    background: "linear-gradient(135deg, var(--brand-navy) 0%, #00304f 100%)",
+                    color: "white",
+                    boxShadow: "0 4px 14px rgba(0,28,61,0.3)",
+                  }}
+                >
+                  <Sparkles className="w-4.5 h-4.5" style={{ color: "var(--brand-cyan)" }} />
+                  {t('wizard.start_button', 'Analizar Pliego')}
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </Button>
+              )}
             </div>
-        );
-    }
+          )}
 
-    return null;
-};
+          {state === "analyzing" && selectedFile && (
+            <AnalysisProgress
+              fileName={selectedFile.name}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Recent tenders — only show on idle */}
+      {state === "idle" && <RecentTenders />}
+    </main>
+  )
+}

@@ -28,8 +28,6 @@ describe('Auth Validation Flow', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-
-        // Default unauthenticated state
         const mockStore = {
             isAuthenticated: false,
             user: null,
@@ -38,12 +36,7 @@ describe('Auth Validation Flow', () => {
             signOut: mockSignOut,
             signInWithMagicLink: vi.fn().mockResolvedValue({ success: true })
         };
-
-        // Mock the hook implementation
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(AuthStore.useAuthStore).mockReturnValue(mockStore as unknown as any);
-
-        // Mock the static getState method which is now used in AuthModal
         AuthStore.useAuthStore.getState = vi.fn().mockReturnValue(mockStore);
     });
 
@@ -53,8 +46,7 @@ describe('Auth Validation Flow', () => {
                 <HomePage />
             </BrowserRouter>
         );
-
-        expect(screen.getByText('auth.required_title')).toBeInTheDocument();
+        expect(screen.getByText(/Análisis inteligente de licitaciones/i)).toBeInTheDocument();
     });
 
     it('should open AuthModal with Password form', async () => {
@@ -64,15 +56,14 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        // Button shows translated text "Iniciar Sesión", not the i18n key
-        const loginButton = screen.getByRole('button', { name: /iniciar sesión/i });
+        // Upload a dummy file to trigger auth modal
+        const fileInput = screen.getByLabelText(/Arrastra el pliego de licitación/i, { selector: 'input[type="file"]' });
+        const file = new File(['dummy content'], 'test.pdf', { type: 'application/pdf' });
 
-        await waitFor(async () => {
-            fireEvent.click(loginButton);
-            expect(await screen.findByRole('heading', { name: 'Iniciar Sesión' }, { timeout: 3000 })).toBeInTheDocument();
-        });
+        fireEvent.change(fileInput, { target: { files: [file] } });
 
-        expect(screen.getByPlaceholderText(/••••••••/)).toBeInTheDocument(); // Password field check
+        expect(await screen.findByRole('heading', { name: 'Iniciar Sesión' })).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/••••••••/)).toBeInTheDocument();
     });
 
     it('should call signInWithPassword on form submission', async () => {
