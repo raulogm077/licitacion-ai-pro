@@ -2,19 +2,19 @@
 
 ## To Do (Siguiente Iteración)
 
-- [ ] Revisar y actualizar la documentación principal (`README.md`, `ARCHITECTURE.md`) para reflejar los cambios realizados y la arquitectura actual puramente OpenAI Agents SDK.
-- [ ] Explorar mejoras en la UI para el streaming en tiempo real (manejo de errores SSE y feedback visual del proceso de agentes).
-- [ ] Preparar el soporte para carga de múltiples pliegos en lote para análisis conjunto en el Agent.
+- [ ] Preparar el soporte real para carga de múltiples pliegos en lote para análisis conjunto en el Agent.
+- [ ] Implementar exportación de los análisis consolidados a múltiples formatos (Word, Excel) con un formato estandarizado superior.
+- [ ] Incluir un historial de las ejecuciones del agente por cada usuario y la posibilidad de retomar chats/análisis.
 
 ## Deuda Técnica / Refactorización
 
-- Revisar si se puede unificar el manejo de variables de entorno obsoletas que correspondan a features desactivadas o legacy (ej. VITE_FEATURE_AI_ANALYSIS, que ahora asume que OpenAI Agents siempre está activo).
-- Limpieza de features toggles innecesarios ahora que el motor principal está consolidado y las rutas legacy eliminadas.
+- [ ] Revisar si se puede unificar el manejo de variables de entorno obsoletas que correspondan a features desactivadas o legacy (ej. VITE_FEATURE_AI_ANALYSIS, que ahora asume que OpenAI Agents siempre está activo).
+- [ ] Limpieza de features toggles innecesarios ahora que el motor principal está consolidado y las rutas legacy eliminadas.
+- [ ] Habilitar y actualizar tests de e2e (Playwright) para el nuevo flujo con SSE.
 
 ## Ideas de Producto
 
-- Exportación de los análisis consolidados a múltiples formatos (Word, Excel) con un formato estandarizado superior.
-- Incluir un historial de las ejecuciones del agente por cada usuario y la posibilidad de retomar chats/análisis.
+- Visualización interactiva de KPIs extraídos de pliegos con gráficos incrustados.
 
 ## Done
 
@@ -22,3 +22,6 @@
 - [x] Eliminar código legacy y funciones sin uso de la arquitectura antigua (`pgmq`, `openai-runner`).
 - [x] Integrar el uso de `guiaBase64` en el flujo de `JobService.analyzeWithAgents` usando el OpenAI Agents SDK.
 - [x] Limpieza de tests antiguos que dependan de la arquitectura de colas o `openai-runner`.
+- [x] Revisar y actualizar la documentación principal (`README.md`, `ARCHITECTURE.md`) para reflejar la arquitectura actual puramente OpenAI Agents SDK.
+- [x] Explorar mejoras en la UI para el streaming en tiempo real (manejo de errores SSE y feedback visual limpio del proceso de agentes).
+- [x] UI preparada visualmente para la carga batch de archivos (prop multiple).

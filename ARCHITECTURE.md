@@ -162,7 +162,7 @@ async analyzeWithAgents(
 
 **Parameters**:
 - `pdfBase64`: PDF file in base64 format
-- `guiaBase64`: Optional guide PDF (currently unused)
+- `guiaBase64`: Guide PDF in base64 format
 - `filename`: Original filename
 - `onProgress`: Callback for streaming events
 
@@ -189,6 +189,7 @@ If upgrading from the old architecture:
 2. **Update frontend calls**: Replace `startJob()` with `analyzeWithAgents()`
 3. **Remove polling logic**: No longer needed with streaming
 4. **Update tests**: Adapt to new async patterns
+5. **Pass Guia de Lectura**: Provide `guiaBase64` file content to the Edge function via `jobService`.
 
 For full migration details, see:
 - `migration_progress_report.md`

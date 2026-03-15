@@ -9,8 +9,8 @@
 
 ## 🎯 Features
 
-- **📄 AI-Powered Analysis** - Extracción automática de datos usando Gemini AI
-- **⚡ Real-time Processing** - Análisis de PDFs con feedback en tiempo real
+- **📄 AI-Powered Analysis** - Extracción automática de datos usando OpenAI Agents SDK
+- **⚡ Real-time Processing** - Análisis de PDFs con feedback en tiempo real (Streaming SSE)
 - **📊 Smart Filtering** - Búsqueda avanzada y filtrado por múltiples criterios
 - **📈 Analytics Dashboard** - Visualización de tendencias y estadísticas
 - **📤 Multi-format Export** - Exportación a PDF, Excel y presentaciones
@@ -48,7 +48,7 @@ User → Frontend → analyze-with-agents (Edge Function)
 - Node.js 20+
 - npm 10+
 - Supabase account ([supabase.com](https://supabase.com))
-- Google AI API key ([ai.google.dev](https://ai.google.dev))
+- OpenAI API key ([platform.openai.com](https://platform.openai.com))
 
 ### Installation
 
@@ -106,7 +106,7 @@ See [Environment Setup Guide](docs/staging-setup.md) for detailed configuration.
 ### Backend & Services
 - **Supabase** - Database & Auth
 - **Edge Functions** - Serverless API
-- **Google Gemini AI** - Document analysis
+- **OpenAI Agents SDK** - Document analysis
 - **Vercel** - Hosting & CDN
 
 ### Quality
@@ -256,7 +256,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🙏 Acknowledgments
 
-- Google Gemini AI for document analysis
+- OpenAI for document analysis models and Agents SDK
 - Supabase for backend infrastructure
 - Vercel for hosting and analytics
 - Open source community

@@ -180,11 +180,12 @@ export const AnalysisWizard: React.FC = () => {
                                         <input
                                             type="file"
                                             accept=".pdf"
+                                            multiple // Preparado para soporte batch futuro
                                             className="hidden"
                                             onChange={handleFileSelect}
                                         />
                                         <span className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg">
-                                            Seleccionar Archivo
+                                            Seleccionar Archivos (Solo 1 soportado)
                                         </span>
                                     </label>
                                 ) : (
