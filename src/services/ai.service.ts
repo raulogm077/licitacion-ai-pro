@@ -40,13 +40,15 @@ export class AIService {
                     guiaBase64 || null,
                     filename,
                     (event) => {
-                         if (onProgress && event.message) {
-                            onProgress(50, 100, `[Agent] ${event.message}`);
-                         } else if (onProgress && event.type === 'agent_message' && typeof event.content === 'string') {
+                         if (!onProgress) return;
+
+                         if (event.type === 'error' && event.message) {
+                            onProgress(50, 100, `[Error del Agente] ${event.message}`);
+                         } else if (event.type === 'agent_message' && typeof event.content === 'string') {
                             // Render a clean substring of the message to simulate thinking chunks
                             onProgress(50, 100, event.content.trim().substring(0, 120));
-                         } else if (onProgress && event.type === 'error' && event.message) {
-                            onProgress(50, 100, `[Error del Agente] ${event.message}`);
+                         } else if (event.message) {
+                            onProgress(50, 100, `[Agent] ${event.message}`);
                          }
                     }
                 );
