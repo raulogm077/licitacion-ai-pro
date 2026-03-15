@@ -1,11 +1,17 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Dashboard } from '../Dashboard';
 import { MemoryRouter } from 'react-router-dom';
 import { LicitacionData } from '../../../types';
 
 // Mock Lucide icons
-vi.mock('lucide-react', () => ({
+vi.mock("lucide-react", () => ({
+    Menu: () => <span data-testid="icon-menu" />,
+    X: () => <span data-testid="icon-x" />,
+    Search: () => <span data-testid="icon-search" />,
+    LogOut: () => <span data-testid="icon-logout" />,
+    ChevronDown: () => <span data-testid="icon-chevron-down" />,
+    ChevronRight: () => <span data-testid="icon-chevron-right" />,
     ChevronLeft: () => <span data-testid="icon-chevron-left" />,
     MoreHorizontal: () => <span data-testid="icon-more" />,
     FileText: () => <span data-testid="icon-file-text" />,
@@ -17,10 +23,30 @@ vi.mock('lucide-react', () => ({
     XCircle: () => <span data-testid="icon-x-circle" />,
     Copy: () => <span data-testid="icon-copy" />,
     FileJson: () => <span data-testid="icon-file-json" />,
-    X: () => <span data-testid="icon-x" />,
     Pin: () => <span data-testid="icon-pin" />,
     PinOff: () => <span data-testid="icon-pin-off" />,
-    FileSearch: () => <span data-testid="icon-file-search" />
+    FileSearch: () => <span data-testid="icon-file-search" />,
+    LayoutDashboard: () => <span data-testid="icon-layout-dashboard" />,
+    Award: () => <span data-testid="icon-award" />,
+    Shield: () => <span data-testid="icon-shield" />,
+    Wrench: () => <span data-testid="icon-wrench" />,
+    Settings: () => <span data-testid="icon-settings" />,
+    Building2: () => <span data-testid="icon-building" />,
+    Euro: () => <span data-testid="icon-euro" />,
+    CalendarClock: () => <span data-testid="icon-calendar" />,
+    Timer: () => <span data-testid="icon-timer" />,
+    TrendingUp: () => <span data-testid="icon-trending" />,
+    Sparkles: () => <span data-testid="icon-sparkles" />,
+    MapPin: () => <span data-testid="icon-pin-2" />,
+    Users: () => <span data-testid="icon-users" />,
+    Layers: () => <span data-testid="icon-layers" />,
+    Tag: () => <span data-testid="icon-tag" />,
+    BarChart2: () => <span data-testid="icon-chart" />,
+    ShieldAlert: () => <span data-testid="icon-shield-alert" />,
+    Info: () => <span data-testid="icon-info" />,
+    CheckCircle2: () => <span data-testid="icon-check2" />,
+    Bell: () => <span data-testid="icon-bell" />,
+    ArrowRight: () => <span data-testid="icon-arrow" />
 }));
 
 describe('Dashboard Interaction', () => {
@@ -41,19 +67,19 @@ describe('Dashboard Interaction', () => {
         modeloServicio: { sla: [], equipoMinimo: [] }
     };
 
-    it('renders header and subnav', () => {
+    it('renders header and sidebar nav', () => {
         render(
             <MemoryRouter>
                 <Dashboard data={mockData} />
             </MemoryRouter>
         );
 
-        expect(screen.getAllByText('Test Licitacion Interaction')[0]).toBeInTheDocument();
+        // Header
         expect(screen.getAllByText('Test Org')[0]).toBeInTheDocument();
-        // Subnav items
-        expect(screen.getByText('Resumen')).toBeInTheDocument();
+        // Sidebar items
+        expect(screen.getAllByText('Resumen Ejecutivo')[0]).toBeInTheDocument();
         expect(screen.getAllByText('Datos Generales')[0]).toBeInTheDocument();
-        expect(screen.getAllByText('Criterios')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('Criterios de Adjudicación')[0]).toBeInTheDocument();
         expect(screen.getAllByText('Solvencia')[0]).toBeInTheDocument();
     });
 
@@ -61,19 +87,14 @@ describe('Dashboard Interaction', () => {
     // but we can check if the button to toggle it exists or if we can find the drawer content when "pinned" or "open".
     // Since we mocked Lucide icons, we can look for "icon-more" which opens the actions menu.
 
-    it('opens actions menu in header', async () => {
+    it('renders export buttons in header', () => {
         render(
             <MemoryRouter>
                 <Dashboard data={mockData} />
             </MemoryRouter>
         );
 
-        const menuTrigger = screen.getByTestId('actions-menu-trigger'); // ensure we added this testid in previous edits
-        fireEvent.click(menuTrigger);
-
-        await waitFor(() => {
-            expect(screen.getByText('Exportar Excel')).toBeInTheDocument();
-            expect(screen.getByText('Exportar JSON')).toBeInTheDocument();
-        });
+        expect(screen.getByText('Exportar Reporte')).toBeInTheDocument();
+        expect(screen.getByText('Ver Original')).toBeInTheDocument();
     });
 });

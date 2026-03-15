@@ -35,11 +35,37 @@ export default {
                     light: '#ffe4e6', // rose-100
                     DEFAULT: '#f43f5e', // rose-500
                     dark: '#be123c', // rose-700
+                },
+                // Minsait/Indra corporate colors
+                navy: {
+                    DEFAULT: '#001C3D',
+                    mid: '#002A5C',
+                    light: '#003B7A',
+                },
+                cyan: {
+                    DEFAULT: '#00E5FF',
+                    muted: '#00B8CC',
+                },
+                sidebar: {
+                    DEFAULT: '#001C3D',
+                    foreground: '#F5F7FA',
+                    accent: '#002A5C',
+                    border: '#003B7A',
+                },
+                card: {
+                    DEFAULT: '#ffffff',
+                },
+                secondary: {
+                    DEFAULT: '#F5F7FA',
+                },
+                border: {
+                    DEFAULT: '#e2e8f0',
                 }
             },
             animation: {
                 'fade-in': 'fadeIn 0.3s ease-in-out',
                 'slide-up': 'slideUp 0.4s ease-out',
+                'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
                 fadeIn: {

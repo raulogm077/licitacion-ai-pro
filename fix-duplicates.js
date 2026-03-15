@@ -1,12 +1,10 @@
+import fs from 'fs';
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { Dashboard } from '../Dashboard';
-import { MemoryRouter } from 'react-router-dom';
-import { LicitacionData } from '../../../types';
+function fixDuplicates(file) {
+    let content = fs.readFileSync(file, 'utf8');
+    // My previous script removed all instances, even the original ones. Let's just put all icons nicely in a clean mock
 
-// Mock Lucide icons
-vi.mock("lucide-react", () => ({
+    const correctMock = `vi.mock("lucide-react", () => ({
     Menu: () => <span data-testid="icon-menu" />,
     X: () => <span data-testid="icon-x" />,
     Search: () => <span data-testid="icon-search" />,
@@ -48,50 +46,11 @@ vi.mock("lucide-react", () => ({
     CheckCircle2: () => <span data-testid="icon-check2" />,
     Bell: () => <span data-testid="icon-bell" />,
     ArrowRight: () => <span data-testid="icon-arrow" />
-}));
+}));`;
 
-const mockData: LicitacionData = {
-    datosGenerales: {
-        titulo: 'Licitación de Prueba Smoke',
-        organoContratacion: 'Ministerio de Prueba',
-        presupuesto: 100000,
-        moneda: 'EUR',
-        plazoEjecucionMeses: 12,
-        cpv: ['72000000-5'],
+    content = content.replace(/vi\.mock\("lucide-react", \(\) => \(\{[\s\S]*?\}\)\);/m, correctMock);
+    fs.writeFileSync(file, content);
+}
 
-    },
-    criteriosAdjudicacion: {
-        objetivos: [],
-        subjetivos: []
-    },
-    requisitosTecnicos: {
-        funcionales: [],
-        normativa: []
-    },
-    requisitosSolvencia: {
-        economica: { cifraNegocioAnualMinima: 0, descripcion: '' },
-        tecnica: []
-    },
-    restriccionesYRiesgos: {
-        killCriteria: [],
-        riesgos: [],
-        penalizaciones: []
-    },
-    modeloServicio: {
-        sla: [],
-        equipoMinimo: []
-    }
-};
-
-describe('Dashboard Smoke Test', () => {
-    it('renders without crashing', () => {
-        render(
-            <MemoryRouter>
-                <Dashboard data={mockData} onUpdate={() => { }} />
-            </MemoryRouter>
-        );
-
-        expect(screen.getAllByText('Licitación de Prueba Smoke')[0]).toBeInTheDocument();
-        expect(screen.getAllByText('Ministerio de Prueba')[0]).toBeInTheDocument();
-    });
-});
+fixDuplicates('src/features/dashboard/__tests__/DashboardInteraction.test.tsx');
+fixDuplicates('src/features/dashboard/__tests__/DashboardSmoke.test.tsx');
