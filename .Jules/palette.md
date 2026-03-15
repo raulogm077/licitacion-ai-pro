@@ -1,0 +1,3 @@
+## 2026-03-15 - Missing ARIA Labels on TagManager
+**Learning:** Discovered a pattern of missing `aria-label` attributes on dynamically rendered interactive elements, such as badge/tag removal buttons and the accompanying text input in the `TagManager` component. Without ARIA labels, screen reader users do not receive context about what action the icon-only button performs, or the purpose of the input field.
+**Action:** Always ensure that dynamically generated icon-only buttons (like tag removals) and complex custom input structures receive appropriate, context-specific `aria-label`s to maintain accessibility.

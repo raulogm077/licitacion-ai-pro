@@ -65,6 +65,7 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
                             onClick={() => removeTag(tag)}
                             className="ml-1 hover:bg-brand-200 dark:hover:bg-brand-800 rounded-full p-0.5 transition-colors"
                             type="button"
+                            aria-label={`Eliminar etiqueta ${tag}`}
                         >
                             <X size={12} />
                         </button>
@@ -79,6 +80,7 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
                     onFocus={() => inputValue && setShowSuggestions(filteredSuggestions.length > 0)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     placeholder="Añadir..."
+                    aria-label="Añadir nueva etiqueta"
                     className="flex-1 min-w-[120px] outline-none bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400"
                 />
             </div>
