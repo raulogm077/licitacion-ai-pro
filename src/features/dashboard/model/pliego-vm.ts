@@ -137,7 +137,7 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     };
 
     // 3. Quality & Stats
-    const qualityReport = qualityService.evaluateQuality(content);
+    const qualityReport = qualityService.evaluateQuality(content, ambiguousRaw);
 
     // 4. Warnings Generation
     const warnings: Array<{ message: string; severity: 'CRITICO' | 'NORMAL' }> = [];

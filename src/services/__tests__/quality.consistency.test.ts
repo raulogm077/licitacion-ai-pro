@@ -58,4 +58,30 @@ describe('QualityService - Semantic Consistency', () => {
         const hasWarning = report.consistencyWarnings?.some(w => w.includes('Detectados elementos duplicados'));
         expect(hasWarning).toBe(true);
     });
+
+    it('should downgrade overall quality to PARCIAL if ambiguous fields exist', () => {
+        const content = {
+            ...baseContent,
+            requisitosSolvencia: {
+                economica: { cifraNegocioAnualMinima: 100 },
+                tecnica: [{ descripcion: 'Tec', proyectosSimilaresRequeridos: 1 }]
+            },
+            criteriosAdjudicacion: {
+                subjetivos: [{ descripcion: 'Sub', ponderacion: 50 }],
+                objetivos: [{ descripcion: 'Obj', ponderacion: 50 }]
+            },
+            requisitosTecnicos: {
+                funcionales: [{ requisito: 'Req', obligatorio: true }],
+                normativa: [{ norma: 'ISO' }]
+            }
+        };
+        // Verify it is COMPLETO without ambiguous fields
+        const report1 = service.evaluateQuality(content);
+        expect(report1.overall).toBe('COMPLETO');
+
+        // Verify it downgrades to PARCIAL with ambiguous fields
+        const report2 = service.evaluateQuality(content, ['datosGenerales.presupuesto']);
+        expect(report2.overall).toBe('PARCIAL');
+        expect(report2.ambiguous_fields).toEqual(['datosGenerales.presupuesto']);
+    });
 });

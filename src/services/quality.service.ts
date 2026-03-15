@@ -4,7 +4,7 @@ type QualityReport = NonNullable<WorkflowState['quality']>;
 
 export class QualityService {
 
-    evaluateQuality(content: LicitacionContent): QualityReport {
+    evaluateQuality(content: LicitacionContent, ambiguousFields: string[] = []): QualityReport {
         const warnings: string[] = [];
         const missingCritical: string[] = [];
         const sectionStatus: Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'> = {};
@@ -61,11 +61,16 @@ export class QualityService {
             overall = 'PARCIAL';
         }
 
+        // Explicitly downgrade overall quality if there are any ambiguous fields
+        if (ambiguousFields.length > 0 && overall === 'COMPLETO') {
+            overall = 'PARCIAL';
+        }
+
         return {
             overall: overall,
             bySection: sectionStatus as Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>,
             missingCriticalFields: missingCritical,
-            ambiguous_fields: [], // TODO: wired up if we have this logic in frontend
+            ambiguous_fields: ambiguousFields,
             warnings: warnings, // Standard warnings (e.g. empty lists)
             consistencyWarnings: consistencyWarnings // New semantic warnings
         };

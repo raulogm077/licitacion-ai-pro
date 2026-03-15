@@ -31,11 +31,17 @@ export class DBService {
 
             const now = new Date().toISOString();
 
-            // Calculate Quality
-            const qualityReport = qualityService.evaluateQuality(content);
-
             // 1. Fetch existing envelope to manage versioning
             const existingResult = await this.getLicitacion(hash);
+
+            // Extract ambiguous fields either from incoming content or existing result
+            const ambiguousFields = (content as any).workflow?.quality?.ambiguous_fields
+                || (existingResult.ok ? existingResult.value.data.workflow?.quality?.ambiguous_fields : [])
+                || [];
+
+            // Calculate Quality
+            const qualityReport = qualityService.evaluateQuality(content, ambiguousFields);
+
             let envelope: LicitacionData;
 
             if (existingResult.ok) {
