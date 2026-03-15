@@ -208,14 +208,24 @@ serve(async (req) => {
         // Wait for indexing to complete
         console.log('[analyze-with-agents] Waiting for indexing...');
         let vectorStoreReady = false;
-        for (let i = 0; i < 30; i++) { // Max 30 segundos
+
+        // ⚡ Performance Optimization: Exponential Backoff for Polling
+        // Starts with a 500ms delay and scales up by 1.5x each iteration up to a max of 5s.
+        // This significantly reduces API strain while maintaining responsiveness for quick indexings.
+        let delayMs = 500;
+        const maxDelayMs = 5000;
+        const maxWaitMs = 30000;
+        const start = Date.now();
+
+        while (Date.now() - start < maxWaitMs) {
             const vs = await openai.beta.vectorStores.retrieve(vectorStore.id);
             if (vs.status === 'completed') {
                 vectorStoreReady = true;
                 console.log('[analyze-with-agents] Vector Store indexed!');
                 break;
             }
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            delayMs = Math.min(delayMs * 1.5, maxDelayMs);
         }
 
         if (!vectorStoreReady) {
