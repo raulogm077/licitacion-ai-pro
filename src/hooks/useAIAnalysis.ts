@@ -1,110 +1,64 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback } from 'react';
 import { services } from '../config/service-registry';
 import { LicitacionData } from '../types';
-
-interface AIState {
-    status: 'IDLE' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
-    progress: number;
-    thinkingOutput: string;
-    result: LicitacionData | null;
-    error: string | null;
-}
+import { useAIState } from './useAIState';
+import { useAbortController } from './useAbortController';
 
 export function useAIAnalysis() {
-    const [aiState, setAiState] = useState<AIState>({
-        status: 'IDLE',
-        progress: 0,
-        thinkingOutput: '',
-        result: null,
-        error: null
-    });
+    const {
+        aiState,
+        startAnalysis,
+        updateProgress,
+        completeAnalysis,
+        setAnalysisError,
+        cancelAnalysisState,
+        resetAIState,
+        loadResultState
+    } = useAIState();
 
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
-    }, []);
+    const { createAbortController, getSignal, abort, clear } = useAbortController();
 
     const analyze = useCallback(async (base64: string, fileName: string) => {
         // Create new AbortController for this analysis
-        abortControllerRef.current = new AbortController();
+        createAbortController();
 
-        setAiState({
-            status: 'ANALYZING',
-            progress: 0,
-            thinkingOutput: `Iniciando análisis de ${fileName}...`,
-            result: null,
-            error: null
-        });
+        startAnalysis(fileName);
 
         try {
             // apiKey no longer needed on client side (Backend Proxy)
             const result = await services.ai.analyzePdfContent(base64, (processed, total, message) => {
-                setAiState(prev => ({
-                    ...prev,
-                    thinkingOutput: prev.thinkingOutput + "\n" + message,
-                    progress: Math.min(10 + Math.round((processed / total) * 90), 99)
-                }));
-            }, undefined, abortControllerRef.current?.signal);
+                updateProgress(message, processed, total);
+            }, undefined, getSignal());
 
-            setAiState(prev => ({
-                ...prev,
-                status: 'COMPLETED',
-                progress: 100,
-                result,
-                thinkingOutput: prev.thinkingOutput + "\n✅ Análisis completado."
-            }));
+            completeAnalysis(result);
 
             return result;
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Error en análisis IA";
-
-            // Check if it was a cancellation
-            if (errorMessage.includes('cancelado')) {
-                setAiState(prev => ({ ...prev, status: 'IDLE', error: null, thinkingOutput: 'Análisis cancelado por el usuario' }));
-            } else {
-                setAiState(prev => ({ ...prev, status: 'ERROR', error: errorMessage }));
-            }
+            setAnalysisError(errorMessage);
             throw err;
         } finally {
-            abortControllerRef.current = null;
+            clear();
         }
-    }, []);
+    }, [createAbortController, startAnalysis, updateProgress, getSignal, completeAnalysis, setAnalysisError, clear]);
 
     const cancelAnalysis = useCallback(() => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            setAiState(prev => ({
-                ...prev,
-                status: 'IDLE',
-                thinkingOutput: '⚠️ Cancelando análisis...'
-            }));
+        const signal = getSignal();
+        if (signal && !signal.aborted) {
+            abort();
+            cancelAnalysisState();
         }
-    }, []);
+    }, [getSignal, abort, cancelAnalysisState]);
 
     const resetAI = useCallback(() => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-        }
-        setAiState({ status: 'IDLE', progress: 0, thinkingOutput: '', result: null, error: null });
-    }, []);
+        abort();
+        resetAIState();
+    }, [abort, resetAIState]);
 
     const loadResult = useCallback((result: LicitacionData) => {
-        setAiState({
-            status: 'COMPLETED',
-            progress: 100,
-            thinkingOutput: 'Cargado desde historial/memoria.',
-            result,
-            error: null
-        });
-    }, []);
+        loadResultState(result);
+    }, [loadResultState]);
 
     return {
         aiState,
