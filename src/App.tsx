@@ -10,6 +10,8 @@ import { AuthModal } from './components/ui/AuthModal';
 import { SupabaseStatus } from './components/SupabaseStatus';
 import { Layout } from './components/layout/Layout';
 import { DevToolsPanel } from './components/DevToolsPanel';
+import { PageLoader } from './components/ui/PageLoader';
+import { useDarkMode } from './hooks/useDarkMode';
 
 // Lazy load pages for performance code-splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
@@ -21,10 +23,7 @@ const PresentationPage = lazy(() => import('./pages/PresentationPage').then(modu
 function App() {
   const { data, reset } = useLicitacionStore();
   const { status } = useAnalysisStore();
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
+  const [darkMode, setDarkMode] = useDarkMode();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const { isAuthenticated, initialize, loading } = useAuthStore();
@@ -34,16 +33,6 @@ function App() {
     initialize();
   }, [initialize]);
 
-  // Persist dark mode
-  useEffect(() => {
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
-
   const handleAuthAction = () => {
     if (isAuthenticated) {
       useAuthStore.getState().signOut();
@@ -51,16 +40,6 @@ function App() {
       setShowAuthModal(true);
     }
   };
-
-  // Shared loading component for Suspense
-  const PageLoader = () => (
-    <div className="flex justify-center items-center h-full min-h-[50vh]">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-        <p className="text-sm text-slate-500">Cargando módulo...</p>
-      </div>
-    </div>
-  );
 
   if (loading) {
     return (
