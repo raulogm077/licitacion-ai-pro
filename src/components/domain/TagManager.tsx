@@ -16,10 +16,16 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     useEffect(() => {
-        if (inputValue.trim()) {
+        const trimmedInput = inputValue.trim();
+        if (trimmedInput) {
+            // Bolt Performance Optimization:
+            // 1. O(1) lookup with Set instead of O(N) array.includes() inside filter loop
+            // 2. Hoist lowercase conversion outside the loop to avoid redundant operations
+            const tagsSet = new Set(tags);
+            const lowerInput = trimmedInput.toLowerCase();
+
             const filtered = suggestions.filter(s =>
-                s.toLowerCase().includes(inputValue.toLowerCase()) &&
-                !tags.includes(s)
+                !tagsSet.has(s) && s.toLowerCase().includes(lowerInput)
             );
             setFilteredSuggestions(filtered);
             setShowSuggestions(filtered.length > 0);

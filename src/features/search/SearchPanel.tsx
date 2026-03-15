@@ -27,6 +27,11 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
         onReset();
     };
 
+    // Bolt Performance Optimization:
+    // Memoize the Set for O(1) lookups during tag rendering, avoiding O(N) includes()
+    // and preventing Set recreation on every render when tags haven't changed.
+    const activeTagsSet = useMemo(() => new Set(filters.tags || []), [filters.tags]);
+
     const addTag = (tag: string) => {
         const currentTags = filters.tags || [];
         if (!currentTags.includes(tag)) {
@@ -183,7 +188,7 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
 
                             {/* Tag Suggestions */}
                             <div className="flex flex-wrap gap-2">
-                                {COMMON_TAGS.filter(tag => !filters.tags?.includes(tag)).slice(0, 8).map((tag, idx) => (
+                                {COMMON_TAGS.filter(tag => !activeTagsSet.has(tag)).slice(0, 8).map((tag, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => addTag(tag)}
