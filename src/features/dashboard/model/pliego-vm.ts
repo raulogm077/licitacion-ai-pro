@@ -9,18 +9,9 @@ export interface ChapterStatus {
 }
 
 export interface PliegoVM {
-    // Identity
-    // id: string; // Removed as implicit/contextual 
-    // We'll focus on content.
-
-    // Core Data (Rule: ALWAYS from data.result)
     result: LicitacionContent;
-
-    // Calculated flags
     isAnalysisEmpty: boolean;
-    isIncomplete: boolean; // succeeded but empty
-
-    // Quality & Stats
+    isIncomplete: boolean;
     quality: {
         overall: 'COMPLETO' | 'PARCIAL' | 'VACIO';
         bySection: Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>;
@@ -28,11 +19,9 @@ export interface PliegoVM {
     counts: {
         riesgos: number;
         killCriteria: number;
-        criterios: number; // subjetivos + objetivos
-        requerimientos: number; // funcionales + normativa
+        criterios: number;
+        requerimientos: number;
     };
-
-    // Normalized Display Values (Ready for UI, handling "No detectado")
     display: {
         presupuesto: string;
         plazo: string;
@@ -41,28 +30,54 @@ export interface PliegoVM {
         titulo: string;
         moneda: string;
     };
-
-    // Warnings for "Avisos" tab
     warnings: Array<{ message: string; severity: 'CRITICO' | 'NORMAL' }>;
-
-    // Sections Metadata for Nav
     chapters: ChapterStatus[];
-
-    // Functional Data
     hash?: string;
     id: string;
     notas: Note[];
     citations: Array<{ text: string; section: string }>;
-
-    // Helper to get evidence for a field
     getEvidence: (fieldPath: string) => { quote: string; pageHint?: string } | undefined;
     isAmbiguous: (fieldPath: string) => boolean;
 }
 
 export function buildPliegoVM(data: LicitacionData): PliegoVM {
-    const content = data.result || data; // Fallback
+    const content = data.result || data;
 
-    // Index evidences for fast lookup (explicit any for robustness)
+    const { getEvidence, isAmbiguous } = createEvidenceHelpers(data, content);
+    const emptyFlags = checkEmptySections(content);
+    const display = buildDisplay(content.datosGenerales);
+    const qualityReport = qualityService.evaluateQuality(content);
+    const warnings = generateWarnings(display, emptyFlags);
+    const chapters = buildChapters(qualityReport, emptyFlags);
+    const citations = collectAllCitations(content);
+
+    return {
+        id: (data as LicitacionData & { hash?: string }).hash || 'unknown',
+        hash: (data as LicitacionData & { hash?: string }).hash,
+        result: content,
+        notas: data.notas || [],
+        citations,
+        isAnalysisEmpty: emptyFlags.isAnalysisEmpty,
+        isIncomplete: emptyFlags.isAnalysisEmpty,
+        quality: {
+            overall: qualityReport.overall,
+            bySection: qualityReport.bySection
+        },
+        counts: {
+            riesgos: restrictionsCount(content.restriccionesYRiesgos),
+            killCriteria: content.restriccionesYRiesgos.killCriteria.length,
+            criterios: content.criteriosAdjudicacion.objetivos.length + content.criteriosAdjudicacion.subjetivos.length,
+            requerimientos: content.requisitosTecnicos.funcionales.length + content.requisitosTecnicos.normativa.length
+        },
+        display,
+        warnings,
+        chapters,
+        getEvidence,
+        isAmbiguous
+    };
+}
+
+function createEvidenceHelpers(data: LicitacionData, content: LicitacionContent) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const evidencesRaw = data.workflow?.evidences || (content as any).workflow?.evidences || [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,8 +98,10 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     const getEvidence = (fieldPath: string) => evidenceMap.get(fieldPath);
     const isAmbiguous = (fieldPath: string) => ambiguousSet.has(fieldPath);
 
-    // 1. Detección de análisis vacío
-    // isAnalysisEmpty = presupuesto===0 && plazo===0 && cpv.length===0 && ...
+    return { getEvidence, isAmbiguous };
+}
+
+function checkEmptySections(content: LicitacionContent) {
     const { datosGenerales, criteriosAdjudicacion, requisitosSolvencia, requisitosTecnicos, restriccionesYRiesgos, modeloServicio } = content;
 
     const isEmptyGenerales =
@@ -115,7 +132,10 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
 
     const isAnalysisEmpty = isEmptyGenerales && isEmptyCriterios && isEmptySolvencia && isEmptyTecnicos && isEmptyRiesgos && isEmptyServicio;
 
-    // 2. Normalización de defaults
+    return { isEmptyGenerales, isEmptyCriterios, isEmptySolvencia, isEmptyTecnicos, isEmptyRiesgos, isEmptyServicio, isAnalysisEmpty };
+}
+
+function buildDisplay(datosGenerales: LicitacionContent['datosGenerales']) {
     const formatCurrency = (amount: number, currency: string) => {
         if (!amount || amount === 0) return "No detectado";
         return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency || 'EUR' }).format(amount);
@@ -126,20 +146,18 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         return `${months} meses`;
     };
 
-    const display = {
+    return {
         presupuesto: formatCurrency(datosGenerales.presupuesto, datosGenerales.moneda),
         plazo: formatMonths(datosGenerales.plazoEjecucionMeses),
         organo: (!datosGenerales.organoContratacion || datosGenerales.organoContratacion === 'Desconocido' || datosGenerales.organoContratacion.includes('Error'))
             ? "No detectado" : datosGenerales.organoContratacion,
         cpv: (datosGenerales.cpv.length === 0) ? "No detectado" : datosGenerales.cpv.join(', '),
         titulo: (!datosGenerales.titulo || datosGenerales.titulo === 'Sin título') ? "No detectado" : datosGenerales.titulo,
-        moneda: datosGenerales.moneda || 'EUR' // For internal use mostly
+        moneda: datosGenerales.moneda || 'EUR'
     };
+}
 
-    // 3. Quality & Stats
-    const qualityReport = qualityService.evaluateQuality(content);
-
-    // 4. Warnings Generation
+function generateWarnings(display: ReturnType<typeof buildDisplay>, emptyFlags: ReturnType<typeof checkEmptySections>) {
     const warnings: Array<{ message: string; severity: 'CRITICO' | 'NORMAL' }> = [];
 
     if (display.presupuesto === "No detectado") warnings.push({ message: "No se detectó presupuesto.", severity: 'CRITICO' });
@@ -148,12 +166,15 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     if (display.titulo === "No detectado") warnings.push({ message: "No se detectó el título de la licitación.", severity: 'CRITICO' });
     if (display.organo === "No detectado") warnings.push({ message: "El órgano de contratación no está identificado.", severity: 'CRITICO' });
 
-    if (isEmptyCriterios) warnings.push({ message: "No se detectaron criterios de adjudicación.", severity: 'NORMAL' });
-    if (isEmptyTecnicos) warnings.push({ message: "No se detectaron requisitos técnicos.", severity: 'NORMAL' });
-    if (isEmptyRiesgos) warnings.push({ message: "No se detectaron riesgos, penalizaciones ni criterios excluyentes.", severity: 'NORMAL' });
+    if (emptyFlags.isEmptyCriterios) warnings.push({ message: "No se detectaron criterios de adjudicación.", severity: 'NORMAL' });
+    if (emptyFlags.isEmptyTecnicos) warnings.push({ message: "No se detectaron requisitos técnicos.", severity: 'NORMAL' });
+    if (emptyFlags.isEmptyRiesgos) warnings.push({ message: "No se detectaron riesgos, penalizaciones ni criterios excluyentes.", severity: 'NORMAL' });
 
-    // 5. Chapters Configuration
-    const chapters: ChapterStatus[] = [
+    return warnings;
+}
+
+function buildChapters(qualityReport: ReturnType<typeof qualityService.evaluateQuality>, emptyFlags: ReturnType<typeof checkEmptySections>): ChapterStatus[] {
+    return [
         {
             id: 'resumen',
             label: 'Resumen',
@@ -186,21 +207,21 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         {
             id: 'riesgos',
             label: 'Riesgos',
-            status: isEmptyRiesgos ? 'VACIO' : 'COMPLETO', // Simplified logic, could use quality report if updated
+            status: emptyFlags.isEmptyRiesgos ? 'VACIO' : 'COMPLETO',
             emptyMessage: { title: 'Sin riesgos detectados', text: 'Si el pliego es complejo, reintenta el análisis o revisa manualmente la sección de restricciones y penalizaciones.' }
         },
         {
             id: 'servicio',
             label: 'Servicio',
-            status: isEmptyServicio ? 'VACIO' : 'COMPLETO',
+            status: emptyFlags.isEmptyServicio ? 'VACIO' : 'COMPLETO',
             emptyMessage: { title: 'No se han detectado SLAs ni equipo mínimo', text: 'Si el contrato requiere niveles de servicio o perfiles mínimos, reintenta el análisis o revisa el documento.' }
         }
     ];
+}
 
-
+function collectAllCitations(content: LicitacionContent) {
     const citations: Array<{ text: string; section: string }> = [];
 
-    // Aggregating citations (robust check for undefined)
     const collectCitations = (obj: unknown, sectionName: string) => {
         if (!obj) return;
         if (typeof obj === 'object') {
@@ -214,37 +235,13 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         }
     };
 
-    // Naive collection - could be more targeted if needed
     collectCitations(content.datosGenerales, 'Datos Generales');
     collectCitations(content.criteriosAdjudicacion, 'Criterios');
     collectCitations(content.requisitosSolvencia, 'Solvencia');
     collectCitations(content.requisitosTecnicos, 'Requisitos Técnicos');
     collectCitations(content.restriccionesYRiesgos, 'Riesgos');
 
-    return {
-        id: (data as LicitacionData & { hash?: string }).hash || 'unknown', // Implicit ID for updates
-        hash: (data as LicitacionData & { hash?: string }).hash,
-        result: content,
-        notas: data.notas || [], // Pass through notes
-        citations, // Aggregated citations
-        isAnalysisEmpty,
-        isIncomplete: isAnalysisEmpty, // Alias for now
-        quality: {
-            overall: qualityReport.overall,
-            bySection: qualityReport.bySection
-        },
-        counts: {
-            riesgos: restrictionsCount(restriccionesYRiesgos),
-            killCriteria: restriccionesYRiesgos.killCriteria.length,
-            criterios: criteriosAdjudicacion.objetivos.length + criteriosAdjudicacion.subjetivos.length,
-            requerimientos: requisitosTecnicos.funcionales.length + requisitosTecnicos.normativa.length
-        },
-        display,
-        warnings,
-        chapters,
-        getEvidence,
-        isAmbiguous
-    };
+    return citations;
 }
 
 function restrictionsCount(section: LicitacionContent['restriccionesYRiesgos']): number {
