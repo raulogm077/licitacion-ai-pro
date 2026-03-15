@@ -206,7 +206,7 @@ serve(async (req) => {
                     if (data?.metadata?.threadId) {
                         debugInfo = ` (Thread: ${data.metadata.threadId})`;
                     }
-                } catch (e) { /* ignore */ }
+                } catch (_) { /* ignore */ }
 
                 await jobService.failJob(existingJobId, syncError.message + debugInfo);
                 await aiService.cleanup(meta.vectorStoreId, meta.fileId);

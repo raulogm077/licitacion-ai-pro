@@ -27,7 +27,7 @@ export const SupabaseStatus: React.FC = () => {
                 } else {
                     setStatus('connected');
                 }
-            } catch (e) {
+            } catch (_) {
                 setStatus('error');
             }
         };

@@ -38,7 +38,7 @@ interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButton
     asChild?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export function DropdownMenuTrigger({ children, asChild: _, ...props }: DropdownMenuTriggerProps) {
     const { open, setOpen } = React.useContext(DropdownContext);
     const child = React.Children.only(children) as React.ReactElement;

@@ -267,7 +267,7 @@ serve(async (req) => {
                                 type: 'heartbeat',
                                 timestamp: Date.now()
                             })}\n\n`));
-                        } catch (e) {
+                        } catch (_) {
                             clearInterval(keepAlive);
                         }
                     }, 10000); // Every 10s

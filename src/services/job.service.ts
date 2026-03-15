@@ -293,7 +293,7 @@ export class JobService {
                             throw new Error(event.message || 'Error en streaming');
                         }
 
-                    } catch (parseError) {
+                    } catch (_) {
                         console.warn('[JobService] No se pudo parsear evento:', line);
                     }
                 }
