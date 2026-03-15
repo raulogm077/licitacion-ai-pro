@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 // Just directly inject the component again to avoid all upload and network dependencies that fail in this test context
 test('Render Dashboard Direct', async ({ page }) => {
