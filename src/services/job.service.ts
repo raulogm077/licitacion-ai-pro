@@ -4,6 +4,7 @@ import { LicitacionContent } from '../types';
 import { transformAgentResponseToFrontend } from '../agents/utils/schema-transformer';
 import { LicitacionContentSchema } from '../lib/schemas';
 import type { LicitacionAgentResponse } from '../agents/schemas/licitacion-agent.schema';
+import { logger } from './logger';
 
 export interface JobStatus {
     id: string;
@@ -46,7 +47,7 @@ export class JobService {
                 throw new Error(`Error subiendo PDF a Storage: ${uploadError.message}`);
             }
 
-            console.log(`[JobService] PDF uploaded to Storage: ${storagePath}`);
+            logger.info(`[JobService] PDF uploaded to Storage: ${storagePath}`);
 
             // 2. Enqueue job with Storage URL (not base64)
             const { data, error } = await supabase.functions.invoke('openai-runner', {
@@ -70,7 +71,7 @@ export class JobService {
 
             return data.jobId;
         } catch (error: unknown) {
-            console.error('[JobService] Error in startJob:', error);
+            logger.error('[JobService] Error in startJob:', error);
             throw error;
         }
     }
@@ -128,7 +129,7 @@ export class JobService {
             const startTime = Date.now();
             let lastMessage = '';
 
-            console.log(`[JobService] Starting polling for Job ${jobId}. Interval: 60s`);
+            logger.info(`[JobService] Starting polling for Job ${jobId}. Interval: 60s`);
 
             const interval = setInterval(async () => {
                 const elapsed = Date.now() - startTime;
@@ -149,14 +150,14 @@ export class JobService {
                     .single();
 
                 if (error || !job) {
-                    console.error('[JobService] Poll error:', error);
+                    logger.error('[JobService] Poll error:', error);
                     return; // Continue trying
                 }
 
                 // 3. Track activity
                 const currentMessage = job.metadata?.message || '';
                 if (currentMessage !== lastMessage) {
-                    console.log(`[JobService] Activity: ${currentMessage}`);
+                    logger.info(`[JobService] Activity: ${currentMessage}`);
                     lastMessage = currentMessage;
                 }
 
@@ -215,7 +216,7 @@ export class JobService {
             // 1. Note: We'll use fetch API directly for streaming
             // supabase.functions.invoke doesn't support streaming properly
 
-            console.log('[JobService] Usando fetch API para streaming...');
+            logger.info('[JobService] Usando fetch API para streaming...');
 
             const { data: { session: currentSession } } = await supabase.auth.getSession();
             const projectUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -279,13 +280,13 @@ export class JobService {
                             const preview = typeof event.content === 'string'
                                 ? event.content.substring(0, 80)
                                 : JSON.stringify(event.content).substring(0, 80);
-                            console.log(`[Agent]: ${preview}...`);
+                            logger.info(`[Agent]: ${preview}...`);
                         }
 
                         // Capture final result
                         if (event.type === 'complete' && event.result) {
                             finalResult = event.result;
-                            console.log('[JobService] Resultado final recibido del stream');
+                            logger.info('[JobService] Resultado final recibido del stream');
                         }
 
                         // Handle error
@@ -294,7 +295,7 @@ export class JobService {
                         }
 
                     } catch (parseError) {
-                        console.warn('[JobService] No se pudo parsear evento:', line);
+                        logger.warn('[JobService] No se pudo parsear evento:', line);
                     }
                 }
             }
@@ -303,7 +304,7 @@ export class JobService {
                 throw new Error('No se recibió resultado final del stream');
             }
 
-            console.log('[JobService] Resultado recibido, aplicando transformación...');
+            logger.info('[JobService] Resultado recibido, aplicando transformación...');
 
             // 4. Transform from Agent schema to Frontend schema
             // Type assertion: we expect finalResult to match LicitacionAgentResponse
@@ -312,16 +313,16 @@ export class JobService {
             // 5. Validate with frontend schema
             const validated = LicitacionContentSchema.parse(transformed);
 
-            console.log('[JobService] ✅ Análisis completado y validado');
+            logger.info('[JobService] ✅ Análisis completado y validado');
             const typedResult = finalResult as LicitacionAgentResponse;
             if (typedResult.workflow) {
-                console.log(`[JobService] Quality: ${typedResult.workflow.quality?.overall || 'N/A'}`);
+                logger.info(`[JobService] Quality: ${typedResult.workflow.quality?.overall || 'N/A'}`);
             }
 
             return validated;
 
         } catch (error: unknown) {
-            console.error('[JobService] Error en análisis:', error);
+            logger.error('[JobService] Error en análisis:', error);
             throw error;
         }
     }

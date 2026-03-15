@@ -1,5 +1,6 @@
 import { tool } from '@openai/agents';
 import { LicitacionAgentResponseSchema } from '../schemas/licitacion-agent.schema';
+import { logger } from '../../services/logger';
 
 /**
  * Tool para que el Agent submita el resultado estructurado
@@ -16,9 +17,9 @@ export const submitResultTool = tool({
         // Validar con Zod
         const validated = LicitacionAgentResponseSchema.parse(result);
 
-        console.log('[submit_analysis_result] Resultado validado correctamente');
-        console.log(`[submit_analysis_result] Quality: ${validated.workflow.quality.overall}`);
-        console.log(`[submit_analysis_result] Evidences: ${validated.workflow.evidences.length}`);
+        logger.info('[submit_analysis_result] Resultado validado correctamente');
+        logger.info(`[submit_analysis_result] Quality: ${validated.workflow.quality.overall}`);
+        logger.info(`[submit_analysis_result] Evidences: ${validated.workflow.evidences.length}`);
 
         return {
             success: true,
