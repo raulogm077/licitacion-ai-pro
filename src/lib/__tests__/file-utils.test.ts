@@ -53,11 +53,11 @@ describe('file-utils', () => {
 
             // JSDOM File objects might not support arrayBuffer(), mock it
             file.arrayBuffer = () => {
-                // Ensure the returned buffer is compatible with the crypto.subtle context
-                const buffer = new ArrayBuffer(content.length);
-                const view = new Uint8Array(buffer);
-                view.set(content);
-                return Promise.resolve(buffer);
+                // Ensure the returned buffer is compatible with the native Node.js crypto.subtle context
+                // by using Node's Buffer to get a genuine native ArrayBuffer instance.
+                const nodeBuffer = Buffer.from(content);
+                const nativeArrayBuffer = nodeBuffer.buffer.slice(nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength);
+                return Promise.resolve(nativeArrayBuffer);
             };
 
             const result = await processFile(file);
@@ -75,11 +75,11 @@ describe('file-utils', () => {
             const file = new File([content], 'test.txt', { type: 'text/plain' });
 
             file.arrayBuffer = () => {
-                // Ensure the returned buffer is compatible with the crypto.subtle context
-                const buffer = new ArrayBuffer(content.length);
-                const view = new Uint8Array(buffer);
-                view.set(content);
-                return Promise.resolve(buffer);
+                // Ensure the returned buffer is compatible with the native Node.js crypto.subtle context
+                // by using Node's Buffer to get a genuine native ArrayBuffer instance.
+                const nodeBuffer = Buffer.from(content);
+                const nativeArrayBuffer = nodeBuffer.buffer.slice(nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength);
+                return Promise.resolve(nativeArrayBuffer);
             };
 
             const result = await processFile(file);
