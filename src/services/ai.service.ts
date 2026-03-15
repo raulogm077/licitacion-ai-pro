@@ -4,7 +4,7 @@ import { logger } from "./logger";
 import { promptRegistry } from "../config/prompt-registry";
 import { llmFactory } from "../llm/llmFactory";
 import { LLMProviderError, LLMErrorCode } from "../llm/errors";
-import type { JobStatus } from "./job.service";
+
 
 export class LicitacionAIError extends Error {
     constructor(message: string, public readonly originalError?: unknown) {
@@ -26,6 +26,7 @@ export class AIService {
         filename?: string, // NEW: Required for OpenAI
         hash?: string     // NEW: Required for OpenAI
     ): Promise<LicitacionContent> {
+
         // OpenAI Specific Route (Server-Side)
         if (providerName === 'openai') {
             try {
@@ -33,36 +34,105 @@ export class AIService {
                     throw new LicitacionAIError("Filename and Hash are required for OpenAI analysis");
                 }
 
-                // 1. Start Job
-                if (onProgress) onProgress(0, 100, "Iniciando trabajo en servidor (Async)...");
-                // Import dynamically to avoid circular dependency issues if any (though jobService is safe)
-                const { jobService } = await import('./job.service');
+                if (onProgress) onProgress(0, 100, "Conectando al servidor OpenAI (Streaming)...");
 
-                const jobId = await jobService.startJob(base64Content, filename, hash);
-                if (onProgress) onProgress(10, 100, `✅ Trabajo iniciado (ID: ${jobId.slice(0, 8)}...)\nEsperando worker...`);
+                // We get the Supabase variables dynamically to use them
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-                // 2. Wait for Completion
-                const result = await jobService.waitForCompletion(
-                    jobId,
-                    (status: JobStatus) => {
-                        if (status.step && status.message && onProgress) {
-                            // Map server progress to generic progress (0-100)
-                            // We don't have exact % from server, so we fake it or use a steady state
-                            onProgress(50, 100, `[${status.step}] ${status.message}`);
+                // Call the Edge Function directly using fetch to get the SSE stream
+                const response = await fetch(`${supabaseUrl}/functions/v1/analyze-with-agents`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${supabaseAnonKey}`
+                    },
+                    body: JSON.stringify({
+                        pdfBase64: base64Content,
+                        filename: filename,
+                        guiaBase64: null // Guia might be read locally or omitted here as it may be pre-indexed
+                    }),
+                    signal
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Edge Function returned ${response.status}: ${errorText}`);
+                }
+
+                if (!response.body) {
+                    throw new Error("Respuesta del servidor sin cuerpo de datos");
+                }
+
+                if (onProgress) onProgress(10, 100, "Analizando el pliego...");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResult = null;
+                let done = false;
+                let textBuffer = '';
+
+                // Read SSE stream
+                while (!done) {
+                    if (signal?.aborted) {
+                        reader.cancel();
+                        throw new LicitacionAIError('Análisis cancelado por el usuario');
+                    }
+
+                    const { value, done: readerDone } = await reader.read();
+                    done = readerDone;
+
+                    if (value) {
+                        textBuffer += decoder.decode(value, { stream: true });
+                        const lines = textBuffer.split('');
+                        textBuffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const dataStr = line.substring(6);
+                                if (dataStr === '[DONE]') continue;
+
+                                try {
+                                    const event = JSON.parse(dataStr);
+
+                                    if (event.type === 'heartbeat') {
+                                        continue;
+                                    }
+
+                                    if (event.type === 'agent_message') {
+                                        // Update progress text dynamically
+                                        if (onProgress) onProgress(50, 100, `[Analizando]: ${event.content ? String(event.content).substring(0, 50) + '...' : 'Procesando...'}`);
+                                    }
+
+                                    if (event.type === 'complete' && event.result) {
+                                        fullResult = typeof event.result === 'string' ? JSON.parse(event.result) : event.result;
+                                    }
+                                } catch (_) {
+                                    // Ignore parse errors for partial chunks
+                                }
+                            }
                         }
                     }
-                );
+                }
+
+                if (!fullResult) {
+                    throw new Error("No se recibió el resultado final del análisis");
+                }
 
                 if (onProgress) onProgress(100, 100, "✅ Resultado recibido del servidor");
-                return result;
+
+                // Unpack from {"result": {...}, "workflow": {...}} if present
+                if (fullResult.result) {
+                    return fullResult.result as LicitacionContent;
+                }
+
+                return fullResult as LicitacionContent;
 
             } catch (err: unknown) {
-                // Convert Job errors to LicitacionAIError
                 const errorMessage = err instanceof Error ? err.message : "Error en OpenAIService";
                 throw new LicitacionAIError(errorMessage, err);
             }
         }
-
         // Gemini Route (Client-Side Sequential)
         const sections: { key: keyof LicitacionContent; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
@@ -123,8 +193,8 @@ export class AIService {
                 if (onPartialSave && Object.keys(partialResult).length > 0) {
                     try {
                         await onPartialSave(partialResult);
-                    } catch (e) {
-                        console.warn("Error saving partial progress", e);
+                    } catch (_) {
+                        console.warn("Error saving partial progress", _);
                     }
                 }
 
