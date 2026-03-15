@@ -1,40 +1,61 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LicitacionData } from '../types';
+import { formatCurrency } from './formatters';
+
+interface AutoTableDoc extends jsPDF {
+    lastAutoTable: { finalY: number };
+}
+
+interface PdfContext {
+    doc: jsPDF;
+    pageWidth: number;
+    yPos: number;
+}
 
 export function exportToPDF(data: LicitacionData, filename: string) {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let yPos = 20;
+    const ctx: PdfContext = {
+        doc: new jsPDF(),
+        pageWidth: 0,
+        yPos: 20
+    };
+    ctx.pageWidth = ctx.doc.internal.pageSize.getWidth();
 
-    // Header
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Análisis de Licitación', pageWidth / 2, yPos, { align: 'center' });
+    addHeader(ctx, data.datosGenerales.titulo);
+    addGeneralInfo(ctx, data);
+    addMetadata(ctx, data);
+    addCriteria(ctx, data);
+    addRequirements(ctx, data);
+    addRisks(ctx, data);
+    addSolvency(ctx, data);
 
-    yPos += 15;
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'normal');
-    doc.text(data.datosGenerales.titulo, 15, yPos, { maxWidth: pageWidth - 30 });
+    ctx.doc.save(`${filename}.pdf`);
+}
 
-    yPos += 10;
+function addHeader(ctx: PdfContext, titulo: string) {
+    ctx.doc.setFontSize(20);
+    ctx.doc.setFont('helvetica', 'bold');
+    ctx.doc.text('Análisis de Licitación', ctx.pageWidth / 2, ctx.yPos, { align: 'center' });
 
-    // General Info
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Datos Generales', 15, yPos);
-    yPos += 7;
+    ctx.yPos += 15;
+    ctx.doc.setFontSize(14);
+    ctx.doc.setFont('helvetica', 'normal');
+    ctx.doc.text(titulo, 15, ctx.yPos, { maxWidth: ctx.pageWidth - 30 });
 
-    const formatter = new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: data.datosGenerales.moneda
-    });
+    ctx.yPos += 10;
+}
 
-    autoTable(doc, {
-        startY: yPos,
+function addGeneralInfo(ctx: PdfContext, data: LicitacionData) {
+    ctx.doc.setFontSize(12);
+    ctx.doc.setFont('helvetica', 'bold');
+    ctx.doc.text('Datos Generales', 15, ctx.yPos);
+    ctx.yPos += 7;
+
+    autoTable(ctx.doc, {
+        startY: ctx.yPos,
         head: [['Campo', 'Valor']],
         body: [
-            ['Presupuesto', formatter.format(data.datosGenerales.presupuesto)],
+            ['Presupuesto', formatCurrency(data.datosGenerales.presupuesto, data.datosGenerales.moneda)],
             ['Plazo', `${data.datosGenerales.plazoEjecucionMeses} meses`],
             ['Órgano', data.datosGenerales.organoContratacion],
             ['CPV', data.datosGenerales.cpv.join(', ')],
@@ -44,54 +65,52 @@ export function exportToPDF(data: LicitacionData, filename: string) {
         headStyles: { fillColor: [59, 130, 246] },
     });
 
-    interface AutoTableDoc extends jsPDF {
-        lastAutoTable: { finalY: number };
+    ctx.yPos = (ctx.doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
+}
+
+function addMetadata(ctx: PdfContext, data: LicitacionData) {
+    if (!data.metadata) return;
+
+    ctx.doc.addPage();
+    ctx.yPos = 20;
+    ctx.doc.setFontSize(12);
+    ctx.doc.setFont('helvetica', 'bold');
+    ctx.doc.text('Información Adicional', 15, ctx.yPos);
+    ctx.yPos += 7;
+
+    const metadataBody: string[][] = [];
+    if (data.metadata.cliente) {
+        metadataBody.push(['Cliente', data.metadata.cliente]);
+    }
+    if (data.metadata.importeAdjudicado) {
+        metadataBody.push(['Importe Adjudicado', formatCurrency(data.metadata.importeAdjudicado, data.datosGenerales.moneda)]);
+    }
+    if (data.metadata.estado) {
+        metadataBody.push(['Estado', data.metadata.estado]);
+    }
+    if (data.metadata.tags && data.metadata.tags.length > 0) {
+        metadataBody.push(['Tags', data.metadata.tags.join(', ')]);
     }
 
-    yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
-
-    // Metadata (if exists)
-    if (data.metadata) {
-        doc.addPage();
-        yPos = 20;
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Información Adicional', 15, yPos);
-        yPos += 7;
-
-        const metadataBody: string[][] = [];
-        if (data.metadata.cliente) {
-            metadataBody.push(['Cliente', data.metadata.cliente]);
-        }
-        if (data.metadata.importeAdjudicado) {
-            metadataBody.push(['Importe Adjudicado', formatter.format(data.metadata.importeAdjudicado)]);
-        }
-        if (data.metadata.estado) {
-            metadataBody.push(['Estado', data.metadata.estado]);
-        }
-        if (data.metadata.tags && data.metadata.tags.length > 0) {
-            metadataBody.push(['Tags', data.metadata.tags.join(', ')]);
-        }
-
-        if (metadataBody.length > 0) {
-            autoTable(doc, {
-                startY: yPos,
-                head: [['Campo', 'Valor']],
-                body: metadataBody,
-                theme: 'grid',
-                headStyles: { fillColor: [59, 130, 246] },
-            });
-            yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
-        }
+    if (metadataBody.length > 0) {
+        autoTable(ctx.doc, {
+            startY: ctx.yPos,
+            head: [['Campo', 'Valor']],
+            body: metadataBody,
+            theme: 'grid',
+            headStyles: { fillColor: [59, 130, 246] },
+        });
+        ctx.yPos = (ctx.doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
     }
+}
 
-    // Criteria
-    doc.addPage();
-    yPos = 20;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Criterios de Adjudicación', 15, yPos);
-    yPos += 7;
+function addCriteria(ctx: PdfContext, data: LicitacionData) {
+    ctx.doc.addPage();
+    ctx.yPos = 20;
+    ctx.doc.setFontSize(12);
+    ctx.doc.setFont('helvetica', 'bold');
+    ctx.doc.text('Criterios de Adjudicación', 15, ctx.yPos);
+    ctx.yPos += 7;
 
     const criteriaBody = [
         ...data.criteriosAdjudicacion.subjetivos.map(c => [
@@ -108,8 +127,8 @@ export function exportToPDF(data: LicitacionData, filename: string) {
         ])
     ];
 
-    autoTable(doc, {
-        startY: yPos,
+    autoTable(ctx.doc, {
+        startY: ctx.yPos,
         head: [['Tipo', 'Descripción', 'Ponderación', 'Detalle']],
         body: criteriaBody,
         theme: 'grid',
@@ -120,82 +139,84 @@ export function exportToPDF(data: LicitacionData, filename: string) {
         }
     });
 
-    yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
+    ctx.yPos = (ctx.doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
+}
 
-    // Requirements
-    if (data.requisitosTecnicos.funcionales.length > 0) {
-        doc.addPage();
-        yPos = 20;
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Requisitos Técnicos', 15, yPos);
-        yPos += 7;
+function addRequirements(ctx: PdfContext, data: LicitacionData) {
+    if (data.requisitosTecnicos.funcionales.length === 0) return;
 
-        autoTable(doc, {
-            startY: yPos,
-            head: [['Requisito', 'Obligatorio', 'Página']],
-            body: data.requisitosTecnicos.funcionales.map(r => [
-                r.requisito,
-                r.obligatorio ? 'Sí' : 'No',
-                r.referenciaPagina?.toString() || ''
-            ]),
-            theme: 'grid',
-            headStyles: { fillColor: [59, 130, 246] },
-        });
+    ctx.doc.addPage();
+    ctx.yPos = 20;
+    ctx.doc.setFontSize(12);
+    ctx.doc.setFont('helvetica', 'bold');
+    ctx.doc.text('Requisitos Técnicos', 15, ctx.yPos);
+    ctx.yPos += 7;
 
-        yPos = (doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
-    }
+    autoTable(ctx.doc, {
+        startY: ctx.yPos,
+        head: [['Requisito', 'Obligatorio', 'Página']],
+        body: data.requisitosTecnicos.funcionales.map(r => [
+            r.requisito,
+            r.obligatorio ? 'Sí' : 'No',
+            r.referenciaPagina?.toString() || ''
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] },
+    });
 
-    // Risks
-    if (data.restriccionesYRiesgos.riesgos.length > 0) {
-        doc.addPage();
-        yPos = 20;
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Riesgos Detectados', 15, yPos);
-        yPos += 7;
+    ctx.yPos = (ctx.doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
+}
 
-        autoTable(doc, {
-            startY: yPos,
-            head: [['Descripción', 'Impacto', 'Probabilidad', 'Mitigación']],
-            body: data.restriccionesYRiesgos.riesgos.map(r => [
-                r.descripcion,
-                r.impacto,
-                r.probabilidad || '',
-                r.mitigacionSugerida || ''
-            ]),
-            theme: 'grid',
-            headStyles: { fillColor: [239, 68, 68] }, // Red for risks
-            columnStyles: {
-                0: { cellWidth: 60 }
-            }
-        });
-    }
+function addRisks(ctx: PdfContext, data: LicitacionData) {
+    if (data.restriccionesYRiesgos.riesgos.length === 0) return;
 
-    // Solvency
-    doc.addPage();
-    yPos = 20;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Requisitos de Solvencia', 15, yPos);
-    yPos += 7;
+    ctx.doc.addPage();
+    ctx.yPos = 20;
+    ctx.doc.setFontSize(12);
+    ctx.doc.setFont('helvetica', 'bold');
+    ctx.doc.text('Riesgos Detectados', 15, ctx.yPos);
+    ctx.yPos += 7;
+
+    autoTable(ctx.doc, {
+        startY: ctx.yPos,
+        head: [['Descripción', 'Impacto', 'Probabilidad', 'Mitigación']],
+        body: data.restriccionesYRiesgos.riesgos.map(r => [
+            r.descripcion,
+            r.impacto,
+            r.probabilidad || '',
+            r.mitigacionSugerida || ''
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [239, 68, 68] }, // Red for risks
+        columnStyles: {
+            0: { cellWidth: 60 }
+        }
+    });
+
+    ctx.yPos = (ctx.doc as unknown as AutoTableDoc).lastAutoTable.finalY + 10;
+}
+
+function addSolvency(ctx: PdfContext, data: LicitacionData) {
+    ctx.doc.addPage();
+    ctx.yPos = 20;
+    ctx.doc.setFontSize(12);
+    ctx.doc.setFont('helvetica', 'bold');
+    ctx.doc.text('Requisitos de Solvencia', 15, ctx.yPos);
+    ctx.yPos += 7;
 
     const solvencyBody = [
-        ['Económica - Cifra de Negocio', formatter.format(data.requisitosSolvencia.economica.cifraNegocioAnualMinima)],
+        ['Económica - Cifra de Negocio', formatCurrency(data.requisitosSolvencia.economica.cifraNegocioAnualMinima, data.datosGenerales.moneda)],
         ...data.requisitosSolvencia.tecnica.map(t => [
             `Técnica - ${t.descripcion}`,
-            `${t.proyectosSimilaresRequeridos} proyectos${t.importeMinimoProyecto ? `, min: ${formatter.format(t.importeMinimoProyecto)}` : ''}`
+            `${t.proyectosSimilaresRequeridos} proyectos${t.importeMinimoProyecto ? `, min: ${formatCurrency(t.importeMinimoProyecto, data.datosGenerales.moneda)}` : ''}`
         ])
     ];
 
-    autoTable(doc, {
-        startY: yPos,
+    autoTable(ctx.doc, {
+        startY: ctx.yPos,
         head: [['Tipo', 'Requisito']],
         body: solvencyBody,
         theme: 'grid',
         headStyles: { fillColor: [16, 185, 129] },
     });
-
-    // Save
-    doc.save(`${filename}.pdf`);
 }
