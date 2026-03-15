@@ -23,6 +23,20 @@ describe('Feature Flags', () => {
     });
 
     describe('isEnabled helper', () => {
+        it('should return true when a feature flag is truthy', () => {
+            const originalValue = features.enablePDFUpload;
+            features.enablePDFUpload = true;
+            expect(isEnabled('enablePDFUpload')).toBe(true);
+            features.enablePDFUpload = originalValue;
+        });
+
+        it('should return false when a feature flag is falsy', () => {
+            const originalValue = features.enablePDFUpload;
+            features.enablePDFUpload = false;
+            expect(isEnabled('enablePDFUpload')).toBe(false);
+            features.enablePDFUpload = originalValue;
+        });
+
         it('should return boolean for feature flags', () => {
             const result = isEnabled('enablePDFUpload');
             expect(typeof result).toBe('boolean');
@@ -35,6 +49,18 @@ describe('Feature Flags', () => {
     });
 
     describe('getFeature helper', () => {
+        it('should return the exact value of the feature flag', () => {
+            const originalUploadSize = features.maxUploadSizeMB;
+            features.maxUploadSizeMB = 42;
+            expect(getFeature('maxUploadSizeMB')).toBe(42);
+            features.maxUploadSizeMB = originalUploadSize;
+
+            const originalServerFiltering = features.enableServerSideFiltering;
+            features.enableServerSideFiltering = true;
+            expect(getFeature('enableServerSideFiltering')).toBe(true);
+            features.enableServerSideFiltering = originalServerFiltering;
+        });
+
         it('should return feature value', () => {
             const maxUpload = getFeature('maxUploadSizeMB');
             expect(typeof maxUpload).toBe('number');
