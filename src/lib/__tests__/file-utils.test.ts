@@ -52,7 +52,13 @@ describe('file-utils', () => {
             const file = new File([content], 'test.pdf', { type: 'application/pdf' });
 
             // JSDOM File objects might not support arrayBuffer(), mock it
-            file.arrayBuffer = () => Promise.resolve(content.buffer);
+            file.arrayBuffer = () => {
+                // Ensure the returned buffer is compatible with the crypto.subtle context
+                const buffer = new ArrayBuffer(content.length);
+                const view = new Uint8Array(buffer);
+                view.set(content);
+                return Promise.resolve(buffer);
+            };
 
             const result = await processFile(file);
 
@@ -68,7 +74,13 @@ describe('file-utils', () => {
             const content = new TextEncoder().encode(contentText);
             const file = new File([content], 'test.txt', { type: 'text/plain' });
 
-            file.arrayBuffer = () => Promise.resolve(content.buffer);
+            file.arrayBuffer = () => {
+                // Ensure the returned buffer is compatible with the crypto.subtle context
+                const buffer = new ArrayBuffer(content.length);
+                const view = new Uint8Array(buffer);
+                view.set(content);
+                return Promise.resolve(buffer);
+            };
 
             const result = await processFile(file);
 
