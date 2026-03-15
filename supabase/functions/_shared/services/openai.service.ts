@@ -68,11 +68,16 @@ export class OpenAIService {
 
     async waitForVectorStore(vectorStoreId: string, fileId: string): Promise<void> {
         let status = 'in_progress';
-        // Bump to 90s for large files (300+ pages)
-        for (let i = 0; i < 90; i++) {
+        let delay = 1000;
+        let timeElapsed = 0;
+        const maxTime = 90000; // Bump to 90s for large files (300+ pages)
+
+        while (timeElapsed < maxTime) {
             if (status === 'completed' || status === 'failed') break;
 
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, delay));
+            timeElapsed += delay;
+
             const vs = await this.openai.beta.vectorStores.retrieve(vectorStoreId);
             status = vs.status;
 
@@ -80,6 +85,8 @@ export class OpenAIService {
                 const f = await this.openai.beta.vectorStores.files.retrieve(vectorStoreId, fileId);
                 if (f.status === 'failed') status = 'failed';
             }
+
+            delay = Math.min(Math.round(delay * 1.5), 10000); // Exponential backoff max 10s
         }
 
         if (status === 'failed') throw new Error('OpenAI falló al procesar el índice del archivo PDF.');
