@@ -43,6 +43,12 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
         return Object.values(filters).filter(v => v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
     }, [filters]);
 
+    const suggestedTags = useMemo(() => {
+        // Cache selected tags as a Set for O(1) lookups
+        const selectedTagsSet = new Set(filters.tags || []);
+        return COMMON_TAGS.filter(tag => !selectedTagsSet.has(tag)).slice(0, 8);
+    }, [filters.tags]);
+
     return (
         <Card>
             <CardHeader>
@@ -183,7 +189,7 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
 
                             {/* Tag Suggestions */}
                             <div className="flex flex-wrap gap-2">
-                                {COMMON_TAGS.filter(tag => !filters.tags?.includes(tag)).slice(0, 8).map((tag, idx) => (
+                                {suggestedTags.map((tag, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => addTag(tag)}
