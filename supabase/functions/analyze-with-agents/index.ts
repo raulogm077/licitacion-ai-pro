@@ -175,7 +175,8 @@ serve(async (req) => {
 
         // 2. Convertir base64 a buffers
         const pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-        const guiaBuffer = guiaBase64 ? Uint8Array.from(atob(guiaBase64), c => c.charCodeAt(0)) : null;
+        const extractBase64Data = (str: string) => str.includes(',') ? str.split(',')[1] : str;
+        const guiaBuffer = guiaBase64 ? Uint8Array.from(atob(extractBase64Data(guiaBase64)), c => c.charCodeAt(0)) : null;
 
         // 3. Upload files a OpenAI
         console.log('[analyze-with-agents] Uploading PDF to OpenAI Files API...');
@@ -206,20 +207,26 @@ serve(async (req) => {
         console.log(`[analyze-with-agents] Vector Store created: ${vectorStore.id}`);
 
         // Wait for indexing to complete
+        // IMPROVED: Increased timeout to 60s and polling interval to 2s
         console.log('[analyze-with-agents] Waiting for indexing...');
         let vectorStoreReady = false;
-        for (let i = 0; i < 30; i++) { // Max 30 segundos
+        for (let i = 0; i < 30; i++) { // 30 checks * 2000ms = 60 seconds
             const vs = await openai.beta.vectorStores.retrieve(vectorStore.id);
             if (vs.status === 'completed') {
                 vectorStoreReady = true;
                 console.log('[analyze-with-agents] Vector Store indexed!');
                 break;
+            } else if (vs.status === 'failed') {
+                throw new Error(`Vector Store indexing failed: ${JSON.stringify(vs.last_active_at)}`);
             }
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Wait 2s between checks
+            await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
+        // If not ready, we proceed anyway but log a warning.
+        // Usually 'in_progress' might still work for small files, but ideal is 'completed'.
         if (!vectorStoreReady) {
-            throw new Error('Vector Store indexing timeout');
+            console.warn('[analyze-with-agents] Vector Store indexing timeout (60s). Proceeding anyway...');
         }
 
         // 5. Create Agent (SINGLETON PATTERN - created once here)
@@ -237,7 +244,13 @@ serve(async (req) => {
 
         // 6. Execute Agent with streaming (CORRECTED PATTERN)
         console.log('[analyze-with-agents] Starting Agent run with streaming...');
-        const result = await run(
+
+        // Timeout wrapper for the agent run
+        // Supabase Edge Functions limit is typically 150s (soft) - 400s (hard).
+        // We set a safe internal timeout to close the stream gracefully.
+        const TIMEOUT_MS = 240000; // 4 mins
+
+        const runPromise = run(
             agent,
             'Analiza este pliego de licitación siguiendo la guía de lectura. Cuando termines, usa la herramienta submit_analysis_result con el JSON estructurado completo.',
             {
@@ -259,10 +272,15 @@ serve(async (req) => {
             async start(controller) {
                 try {
                     let eventCount = 0;
+                    let completed = false;
 
                     // Keepalive heartbeat
                     const keepAlive = setInterval(() => {
                         try {
+                            if (completed) {
+                                clearInterval(keepAlive);
+                                return;
+                            }
                             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                                 type: 'heartbeat',
                                 timestamp: Date.now()
@@ -272,8 +290,27 @@ serve(async (req) => {
                         }
                     }, 10000); // Every 10s
 
+                    // Timeout handler
+                    const timeoutId = setTimeout(() => {
+                        if (!completed) {
+                            console.error('[analyze-with-agents] Execution Timeout');
+                            controller.enqueue(encoder.encode(
+                                `data: ${JSON.stringify({
+                                    type: 'error',
+                                    message: 'Tiempo de ejecución excedido (4 min). Intente con un PDF más pequeño.'
+                                })}\n\n`
+                            ));
+                            // Close gently
+                            controller.close();
+                            completed = true;
+                        }
+                    }, TIMEOUT_MS);
+
+                    const result = await runPromise;
+
                     // CORRECCIÓN: Iterar sobre result.stream, NO sobre result directamente
                     for await (const event of result.stream) {
+                        if (completed) break;
                         eventCount++;
 
                         // Enviar evento al cliente
@@ -284,54 +321,102 @@ serve(async (req) => {
                         });
 
                         controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                    }
 
-                        // Log progress
-                        if (event.type === 'agent_message' && event.content) {
-                            const preview = typeof event.content === 'string'
-                                ? event.content.substring(0, 100)
-                                : JSON.stringify(event.content).substring(0, 100);
-                            console.log(`[Agent Event #${eventCount}]: ${preview}...`);
+                    if (!completed) {
+                        clearInterval(keepAlive);
+                        clearTimeout(timeoutId);
+
+                        // 8. CORRECCIÓN: Obtener resultado final de result.finalOutput
+                        console.log('[analyze-with-agents] Stream completed, getting final output...');
+                        const finalOutput = result.finalOutput;
+
+                        if (!finalOutput) {
+                            throw new Error('No se recibió resultado final del Agent');
                         }
+
+                        console.log(`[analyze-with-agents] Final output received (${eventCount} eventos procesados)`);
+
+                        // Send complete event with final result
+                        controller.enqueue(encoder.encode(
+                            `data: ${JSON.stringify({
+                                type: 'complete',
+                                result: finalOutput,
+                                eventsProcessed: eventCount
+                            })}\n\n`
+                        ));
+
+                        controller.close();
+                        completed = true;
                     }
-
-                    clearInterval(keepAlive);
-
-                    // 8. CORRECCIÓN: Obtener resultado final de result.finalOutput
-                    console.log('[analyze-with-agents] Stream completed, getting final output...');
-                    const finalOutput = result.finalOutput;
-
-                    if (!finalOutput) {
-                        throw new Error('No se recibió resultado final del Agent');
-                    }
-
-                    console.log(`[analyze-with-agents] Final output received (${eventCount} eventos procesados)`);
-
-                    // Send complete event with final result
-                    controller.enqueue(encoder.encode(
-                        `data: ${JSON.stringify({
-                            type: 'complete',
-                            result: finalOutput,
-                            eventsProcessed: eventCount
-                        })}\n\n`
-                    ));
-
-                    controller.close();
 
                 } catch (error) {
                     console.error('[Stream Error]:', error);
-                    controller.enqueue(encoder.encode(
-                        `data: ${JSON.stringify({
-                            type: 'error',
-                            message: error.message || 'Unknown error'
-                        })}\n\n`
-                    ));
-                    controller.error(error);
+                    try {
+                        controller.enqueue(encoder.encode(
+                            `data: ${JSON.stringify({
+                                type: 'error',
+                                message: error.message || 'Unknown error'
+                            })}\n\n`
+                        ));
+                        controller.close(); // Don't error() to allow client to read the error message
+                    } catch (e) {
+                        // ignore if controller closed
+                    }
                 }
             }
         });
 
+        // Helper function to cleanup OpenAI resources
+        const cleanupResources = async () => {
+            console.log('[analyze-with-agents] Iniciando limpieza de recursos OpenAI...');
+            try {
+                if (vectorStore?.id) {
+                    await openai.beta.vectorStores.del(vectorStore.id);
+                    console.log(`[analyze-with-agents] Vector Store eliminado: ${vectorStore.id}`);
+                }
+                for (const fileId of fileIds) {
+                    if (fileId) {
+                        await openai.files.del(fileId);
+                        console.log(`[analyze-with-agents] Archivo eliminado: ${fileId}`);
+                    }
+                }
+            } catch (cleanupError) {
+                console.error('[analyze-with-agents] Error limpiando recursos:', cleanupError);
+            }
+        };
+
+        // Envolvemos el stream para limpiar los recursos al finalizar (o al abortar)
+        const cleanupStream = new ReadableStream({
+            start(controller) {
+                const reader = readable.getReader();
+
+                function pump() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            cleanupResources().finally(() => {
+                                controller.close();
+                            });
+                            return;
+                        }
+                        controller.enqueue(value);
+                        pump();
+                    }).catch((err) => {
+                        cleanupResources().finally(() => {
+                            controller.error(err);
+                        });
+                    });
+                }
+                pump();
+            },
+            cancel(reason) {
+                console.log('[analyze-with-agents] Stream cancelado, limpiando recursos...', reason);
+                cleanupResources();
+            }
+        });
+
         // 9. Return streaming response
-        return new Response(readable, {
+        return new Response(cleanupStream, {
             headers: {
                 ...corsHeaders,
                 'Content-Type': 'text/event-stream',
@@ -342,6 +427,21 @@ serve(async (req) => {
 
     } catch (error) {
         console.error('[Error]:', error);
+
+        // Clean up immediately if error occurs before stream
+        if (typeof vectorStore !== 'undefined' || typeof fileIds !== 'undefined') {
+             try {
+                if (vectorStore?.id) await openai.beta.vectorStores.del(vectorStore.id);
+                if (fileIds) {
+                    for (const id of fileIds) {
+                        if (id) await openai.files.del(id);
+                    }
+                }
+             } catch (e) {
+                 console.error('[analyze-with-agents] Error al limpiar tras fallo inicial', e);
+             }
+        }
+
         return new Response(
             JSON.stringify({
                 error: error.message || 'Internal server error',

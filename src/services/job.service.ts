@@ -17,9 +17,8 @@ export interface JobStatus {
 
 export class JobService {
     /**
-     * Starts a new analysis job
-     * Now uploads PDF to Storage first, then enqueues with URL (not base64)
-     * This reduces queue message size from ~7MB to ~1KB
+     * @deprecated Use `analyzeWithAgents` instead.
+     * Starts a new analysis job via legacy polling queue system.
      */
     async startJob(fileBase64: string, fileName: string, fileHash: string): Promise<string> {
         const { data: { session } } = await supabase.auth.getSession();
@@ -94,7 +93,8 @@ export class JobService {
     }
 
     /**
-     * Polls the job status once
+     * @deprecated Use `analyzeWithAgents` instead.
+     * Polls the job status once (legacy polling system).
      */
     async pollJob(jobId: string): Promise<JobStatus> {
         const { data, error } = await supabase
@@ -118,7 +118,8 @@ export class JobService {
     }
 
     /**
-     * Polls until completion or timeout
+     * @deprecated Use `analyzeWithAgents` instead.
+     * Polls until completion or timeout (legacy polling system).
      */
     async waitForCompletion(jobId: string, onUpdate?: (status: JobStatus) => void): Promise<LicitacionContent> {
         return new Promise((resolve, reject) => {
