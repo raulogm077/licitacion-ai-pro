@@ -234,7 +234,7 @@ See [Feature Flags Guide](docs/feature_flags_guide.md) for all options.
 
 ## 🤝 Contributing
 
-1. Create feature branch: `git checkout -b feature/amazing-feature`
+1. Work directly on `main` branch or create a branch if explicitly required.
 2. Make changes and add tests
 3. Ensure tests pass: `npm test`
 4. Commit: `git commit -m 'Add amazing feature'`
