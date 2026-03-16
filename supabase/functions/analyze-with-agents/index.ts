@@ -175,7 +175,8 @@ serve(async (req) => {
 
         // 2. Convertir base64 a buffers
         const pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
-        const guiaBuffer = guiaBase64 ? Uint8Array.from(atob(guiaBase64), c => c.charCodeAt(0)) : null;
+        const extractBase64Data = (str: string) => str.includes(',') ? str.split(',')[1] : str;
+        const guiaBuffer = guiaBase64 ? Uint8Array.from(atob(extractBase64Data(guiaBase64)), c => c.charCodeAt(0)) : null;
 
         // 3. Upload files a OpenAI
         console.log('[analyze-with-agents] Uploading PDF to OpenAI Files API...');

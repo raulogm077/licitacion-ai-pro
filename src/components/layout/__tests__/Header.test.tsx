@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Header } from '../../layout/Header';
 import { MemoryRouter } from 'react-router-dom';
@@ -37,7 +37,7 @@ describe('Header', () => {
         expect(screen.getByText(/Historial/i)).toBeInTheDocument();
     });
 
-    it('calls logout when clicked', () => {
+    it('calls logout when clicked', async () => {
         const mockSignOut = vi.fn();
 
         // Mock authenticated state with signOut function
@@ -73,6 +73,6 @@ describe('Header', () => {
         fireEvent.click(logoutBtn);
 
         // 3. Expect store signOut to be called
-        expect(mockSignOut).toHaveBeenCalled();
+        await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
     });
 });

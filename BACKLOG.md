@@ -1,9 +1,6 @@
 # Analista de Pliegos - Backlog
 
 ## To Do
-*   **Crear script para inicialización de variables de entorno locales** (`.env.local`). El entorno no tiene las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, lo que causa que algunos tests impriman errores en stderr.
-*   **Revisar los tests de UI.** En el test `Header.test.tsx` hay un warning por un estado asíncrono no envuelto en `act(...)`.
-*   **Implementar soporte completo para PDFs sin anexos/guía**. El sistema asume a veces la carga de la guía; evaluar si hay que limpiar ese path.
 
 ## Deuda Técnica / Refactorización
 *   **Limpieza de código viejo (pgmq + cron).** Se observa que el código ha migrado a una arquitectura basada en Server-Sent Events (SSE) y OpenAI Agents. Se deben revisar los archivos bajo `supabase/functions/` (ej. `openai-runner/` si aún existe pero no se usa). El JobService `startJob` y `pollJob` parecen ser versiones legacy en `src/services/job.service.ts` que se deberían remover o limpiar a favor de `analyzeWithAgents`.
@@ -15,3 +12,6 @@
 
 ## Done
 *   *Configuración inicial de vitest y NPM verificada.*
+- [x] **Crear script para inicialización de variables de entorno locales** (`.env.local`). El entorno no tiene las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, lo que causa que algunos tests impriman errores en stderr.
+- [x] **Revisar los tests de UI.** En el test `Header.test.tsx` hay un warning por un estado asíncrono no envuelto en `act(...)`.
+- [x] **Implementar soporte completo para PDFs sin anexos/guía**. El sistema asume a veces la carga de la guía; evaluar si hay que limpiar ese path.

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+vi.unmock('../env');
+
+
 
 describe('Environment Configuration', () => {
     beforeEach(() => {
         vi.resetModules();
-        vi.unmock('../env');
     });
 
     it('should mark config as invalid if required vars are missing', async () => {
