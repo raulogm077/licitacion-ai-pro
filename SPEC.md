@@ -23,3 +23,8 @@
 
 ### 4. Backlog
 - Se actualizaron las tareas correspondientes moviéndolas de la sección `## To Do` a la sección `## Done` y marcándolas como completadas en `BACKLOG.md`.
+
+### 5. Módulo Avanzado de Historial de Licitaciones
+- **Historia de Usuario:** Como analista, quiero poder buscar, filtrar por estado y exportar mi histórico de licitaciones analizadas para encontrar pliegos relevantes rápidamente sin tener que re-analizar.
+- **Requerimientos de Datos (Supabase):** Aprovechar y ampliar los métodos de búsqueda existentes (se requiere integrar o potenciar `advancedSearch` en `src/services/db.service.ts` para que soporte de manera eficiente filtrados complejos de JSONB en la UI).
+- **UX Esperada (v0):** Reemplazar el listado básico actual de `HistoryView` con una UI moderna que incluya una tabla avanzada, filtros rápidos (rango de fechas, cliente, presupuesto mínimo/máximo), barra de búsqueda general y paginación.
