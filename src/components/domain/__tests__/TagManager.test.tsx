@@ -2,6 +2,16 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TagManager } from '../TagManager';
 
+// Only mock icons
+vi.mock('lucide-react', () => ({
+    X: () => <span data-testid="icon-x">X</span>,
+    Tag: () => <span data-testid="icon-tag">Tag</span>,
+    Plus: () => <span data-testid="icon-plus">+</span>
+}));
+
+
+
+
 describe('TagManager', () => {
     const mockOnChange = vi.fn();
 
@@ -11,12 +21,7 @@ describe('TagManager', () => {
         expect(screen.getByText('tag2')).toBeInTheDocument();
     });
 
-    // Only mock icons
-    vi.mock('lucide-react', () => ({
-        X: () => <span data-testid="icon-x">X</span>,
-        Tag: () => <span data-testid="icon-tag">Tag</span>,
-        Plus: () => <span data-testid="icon-plus">+</span>
-    }));
+
 
     beforeEach(() => {
         mockOnChange.mockClear();

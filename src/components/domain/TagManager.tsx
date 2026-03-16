@@ -63,7 +63,8 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
                         {tag}
                         <button
                             onClick={() => removeTag(tag)}
-                            className="ml-1 hover:bg-brand-200 dark:hover:bg-brand-800 rounded-full p-0.5 transition-colors"
+                            className="ml-1 hover:bg-brand-200 dark:hover:bg-brand-800 rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            aria-label={`Eliminar etiqueta ${tag}`}
                             type="button"
                         >
                             <X size={12} />
