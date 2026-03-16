@@ -1,6 +1,6 @@
 # Analista de Pliegos - Backlog
 
-## To Do
+## To Do (Iteración Actual)
 
 ## Deuda Técnica / Refactorización
 *   **Limpieza de código viejo (pgmq + cron).** Se observa que el código ha migrado a una arquitectura basada en Server-Sent Events (SSE) y OpenAI Agents. Se deben revisar los archivos bajo `supabase/functions/` (ej. `openai-runner/` si aún existe pero no se usa). El JobService `startJob` y `pollJob` parecen ser versiones legacy en `src/services/job.service.ts` que se deberían remover o limpiar a favor de `analyzeWithAgents`.
