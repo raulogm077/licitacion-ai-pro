@@ -1,6 +1,7 @@
 # Analista de Pliegos - Backlog
 
-## To Do
+## To Do (Iteración Actual)
+- [ ] Implementar Historial de Análisis Guardados (Cloud Sync) según especificación en SPEC.md.
 *   **Crear script para inicialización de variables de entorno locales** (`.env.local`). El entorno no tiene las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, lo que causa que algunos tests impriman errores en stderr.
 *   **Revisar los tests de UI.** En el test `Header.test.tsx` hay un warning por un estado asíncrono no envuelto en `act(...)`.
 *   **Implementar soporte completo para PDFs sin anexos/guía**. El sistema asume a veces la carga de la guía; evaluar si hay que limpiar ese path.
