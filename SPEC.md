@@ -48,3 +48,21 @@
 - Modificar el Edge Function `analyze-with-agents` para que acepte un schema dinámico (transformar el JSONB de Supabase en un schema compatible con OpenAI `response_format`).
 - Ajustar las instrucciones del sistema en el Agente de OpenAI basándose en los campos de la plantilla seleccionada.
 - Mantener compatibilidad con el fallback schema por defecto si no se selecciona plantilla.
+
+## 5. Nueva Funcionalidad (Próxima Iteración): Soporte para Múltiples Documentos por Licitación
+**Problema:** Actualmente el sistema solo permite subir un único archivo PDF principal (y una guía opcional). Las licitaciones suelen estar compuestas por múltiples documentos (ej. Pliego de Cláusulas Administrativas, Pliego de Prescripciones Técnicas, Anexos). Los usuarios tienen que unir los PDFs manualmente antes de subirlos.
+**Solución:** Permitir la subida múltiple de documentos y enviarlos en conjunto al Vector Store de OpenAI para su análisis unificado.
+**User Story:** Como analista técnico, quiero poder subir todos los documentos que componen una licitación a la vez, para que la IA analice el contexto completo sin que yo tenga que combinar los PDFs previamente.
+
+**Requerimientos de Datos (Supabase):**
+- Modificar la tabla `licitaciones` para que `fileName` pueda representar múltiples archivos, o añadir una nueva columna `files` (array de JSON con nombre y path).
+- Ajustar el almacenamiento en Supabase Storage si es necesario para agrupar múltiples archivos bajo una misma licitación.
+
+**UX Esperada (v0 / Frontend):**
+- **Subida de Archivos:** Refactorizar el componente principal (Dropzone) para aceptar múltiples archivos simultáneos (e.g., `<input type="file" multiple />`).
+- **Lista de Archivos:** Mostrar los documentos subidos en forma de lista, con su peso y un botón para eliminar archivos individuales antes de lanzar el análisis.
+- **Feedback Visual:** Mantener un estado de carga claro mientras se procesan múltiples documentos.
+
+**Métricas de IA / Backend:**
+- Actualizar el Edge Function `analyze-with-agents` para recibir un array de documentos (Base64) en lugar de uno único.
+- Iterar sobre el array para subir todos los documentos a OpenAI usando el endpoint de Files, y luego asociarlos todos al mismo Vector Store para que el Agent tenga acceso al contexto completo.
