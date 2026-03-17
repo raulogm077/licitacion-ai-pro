@@ -1,226 +1,188 @@
-# 📝 Agents SDK Migration - Architecture Update
+# ARCHITECTURE - Analista de Pliegos
 
-**Added to README.md** - Section about the new architecture
+## 1. Propósito
 
----
+Este documento describe la arquitectura vigente de la aplicación y define qué cambios obligan a actualizarlo. Debe mantenerse alineado con el código real.
 
-## 🏗️ Architecture (Updated Jan 2026)
+## 2. Regla de mantenimiento
 
-### Current: OpenAI Agents SDK with Streaming
+Este documento es obligatorio actualizarlo cuando cambie cualquiera de estos puntos:
 
-```
-User uploads PDF
-       ↓
-Frontend (React + Vite)
-       ↓
-JobService.analyzeWithAgents()
-       ↓
-Supabase Edge Function: analyze-with-agents
-       ↓
-┌──────────────────────────────────────┐
-│ 1. Upload PDF → OpenAI Files API    │
-│ 2. Create Vector Store (file_search)│
-│ 3. Wait for indexing completion     │
-│ 4. Initialize Agent (Agents SDK)    │
-│ 5. Run with streaming enabled       │
-│ 6. Stream events via SSE             │
-└──────────────────────────────────────┘
-       ↓
-Real-time SSE Stream
-  - heartbeat events (keep-alive)
-  - agent_message events (progress)
-  - complete event (final result)
-       ↓
-Frontend receives events
-       ↓
-Transform Agent schema → Frontend schema
-       ↓
-Validate with Zod
-       ↓
-Render in UI (real-time)
+- flujo principal de análisis
+- `JobService`
+- contrato SSE
+- estructura de entrada o salida del análisis
+- arquitectura de plantillas
+- soporte multi-documento
+- responsabilidades técnicas relevantes de los agentes
+
+## 3. Vista general
+
+La aplicación está diseñada para analizar documentos PDF de licitaciones usando una Edge Function con **OpenAI Agents SDK** y enviar el progreso al frontend mediante **Server-Sent Events (SSE)**.
+
+Flujo actual:
+
+```text
+Frontend
+  └─ JobService.analyzeWithAgents()
+       └─ Supabase Edge Function: analyze-with-agents
+            └─ OpenAI Files API / Vector Store
+                 └─ Agents SDK
+                      └─ SSE → Frontend
 ```
 
-### Key Components
+## 4. Componentes principales
 
-**Frontend**:
-- `src/services/job.service.ts` - `analyzeWithAgents()` method
-- `src/agents/utils/schema-transformer.ts` - Response transformation
-- SSE stream consumption with ReadableStream
+### 4.1. Frontend
 
-**Backend (Supabase Edge Functions)**:
-- `supabase/functions/analyze-with-agents/` - Main analysis function
-  - OpenAI Files API integration
-  - Vector Store management  
-  - Agents SDK streaming
-  - SSE event streaming
+Responsabilidades principales:
 
-**Agent Configuration**:
-- `src/agents/analista.agent.ts` - Agent instance
-- `src/agents/tools/submit-result.tool.ts` - Result submission tool
-- `src/agents/schemas/licitacion-agent.schema.ts` - Zod schemas
-- `src/agents/utils/instructions.ts` - 143 lines of instructions
+- subida de documentos
+- interacción del usuario con el flujo de análisis
+- visualización del progreso en tiempo real
+- render del resultado estructurado
+- gestión de historial de análisis
+- futura gestión de plantillas y multi-documento
 
-### Benefits vs Previous Architecture
+Superficies típicas:
 
-| Feature | Old (pgmq + cron) | New (Agents SDK) |
-|---------|-------------------|------------------|
-| **Response Time** | 60-120s (polling) | 30-90s (streaming) |
-| **Real-time Feedback** | ❌ No | ✅ Yes (SSE) |
-| **Architecture Complexity** | High (queue + cron + polling) | Low (single function) |
-| **Database Load** | High (polling every 5s) | Minimal (no polling) |
-| **Scalability** | Limited (cron bottleneck) | High (concurrent streams) |
-| **Maintenance** | 2 functions + 3 migrations | 1 function |
-| **Code Lines** | ~850 | ~610 |
+- `src/components/**`
+- `src/features/**`
+- `src/pages/**`
+- `src/stores/**`
+- `src/services/**`
 
----
+### 4.2. JobService
 
-## 🚀 Development
+`JobService` actúa como capa de orquestación frontend para el análisis.
 
-### Running Locally
+Responsabilidades:
 
-```bash
-# Install dependencies
-npm install
+- preparar la petición al backend
+- invocar `analyze-with-agents`
+- consumir eventos SSE
+- notificar progreso a la UI
+- transformar o encaminar el resultado al flujo de render
 
-# Set up environment variables
-cp .env.example .env.local
-# Add:
-# - VITE_SUPABASE_URL
-# - VITE_SUPABASE_ANON_KEY
-# - OPENAI_API_KEY (in Supabase secrets)
+Cualquier cambio relevante en este servicio obliga a revisar este documento.
 
-# Start dev server
-npm run dev
+### 4.3. Edge Function `analyze-with-agents`
 
-# Run tests
-npm test
+Es el núcleo del pipeline de IA.
 
-# Type check
-npm run type-check
+Responsabilidades:
+
+- recibir la solicitud de análisis
+- cargar archivos a OpenAI cuando aplique
+- construir el contexto del agente
+- ejecutar análisis con Agents SDK
+- emitir eventos SSE
+- devolver resultado estructurado compatible con frontend
+
+### 4.4. Persistencia
+
+Supabase se usa para:
+
+- autenticación
+- datos de historial
+- futuras plantillas de extracción (`extraction_templates`)
+- otras entidades de soporte del producto
+
+## 5. Contrato SSE
+
+El frontend depende de un contrato SSE estable para mostrar progreso en tiempo real.
+
+Eventos esperados, a nivel lógico:
+
+- `heartbeat`
+- `agent_message`
+- `complete`
+- `error`
+
+Reglas:
+
+- no romper nombres ni estructura sin coordinar backend y frontend
+- cualquier cambio de contrato exige actualización de tests y de esta arquitectura
+- QA debe validar el flujo si una tarea toca SSE o el proceso principal de análisis
+
+## 6. Plantillas dinámicas de extracción
+
+La iteración activa introduce una arquitectura de plantillas configurable.
+
+Flujo objetivo:
+
+```text
+Usuario selecciona plantilla opcional
+  └─ Frontend envía `templateId`
+       └─ JobService lo incluye en la petición
+            └─ analyze-with-agents consulta `extraction_templates`
+                 ├─ si hay plantilla válida: construye extracción dinámica
+                 └─ si no: fallback al esquema estático actual
 ```
 
-### Deploying Edge Functions
+Impacto técnico:
 
-```bash
-# Deploy new analysis function
-npx supabase functions deploy analyze-with-agents --no-verify-jwt
+- frontend: selector de plantilla y gestión CRUD
+- backend: persistencia de plantillas
+- IA: construcción dinámica de esquema
+- documentación: `SPEC.md` y este archivo
 
-# Set OpenAI API key (first time only)
-npx supabase secrets set OPENAI_API_KEY=sk-...
+## 7. Soporte multi-documento
 
-# Check deployment
-npx supabase functions list
+El soporte multi-documento es una evolución posterior y debe tratarse como una capacidad separada de la línea de plantillas.
+
+Flujo objetivo a futuro:
+
+```text
+Usuario selecciona varios documentos
+  └─ Frontend valida y lista archivos
+       └─ JobService envía entrada multiarchivo
+            └─ analyze-with-agents ingiere varios documentos
+                 └─ resultado único estructurado para la licitación
 ```
 
----
+Riesgos principales:
 
-## 🧪 Testing
+- crecimiento del contexto
+- comportamiento ambiguo entre documentos
+- complejidad de UX
+- necesidad de definir límites claros
 
-### Unit Tests
-```bash
-# Run all tests
-npm test
+## 8. Responsabilidades técnicas por rol
 
-# Run specific test
-npx vitest run src/agents/__tests__/agent.test.ts
+### PM
+- backlog y `SPEC.md`
+- no programa ni despliega
 
-# Coverage
-npm run test:coverage
-```
+### Tech Lead
+- UI, servicios tradicionales, tests y cambios no IA
+- actualiza arquitectura si toca flujo, UI principal o `JobService`
 
-### E2E Testing
-```bash
-# Start dev server
-npm run dev
+### AI Engineer
+- prompts, esquemas, transformación y `analyze-with-agents`
+- actualiza arquitectura si cambia contrato o pipeline real
 
-# Upload a PDF through UI
-# Check browser console for:
-# - [JobService] Iniciando análisis...
-# - [Agent]: Processing...
-# - [JobService] ✅ Análisis completado
+### QA
+- valida, actualiza estado del backlog y despliega si corresponde
+- no crea features nuevas
 
-# Verify:
-# - Streaming events received
-# - No errors in console
-# - UI renders data correctly
-```
+## 9. Reglas de calidad técnica
 
----
+- no trabajar sobre `main`
+- una sola tarea de desarrollo por noche
+- no mezclar plantillas y multi-documento en la misma noche salvo ticket explícito
+- no mover una tarea a QA sin tests y sin documentación mínima actualizada
 
-## 📖 API Reference
+## 10. Fuentes vigentes
 
-### JobService.analyzeWithAgents()
+Documentos operativos vigentes:
 
-```typescript
-async analyzeWithAgents(
-  pdfBase64: string,
-  guiaBase64: string | null,
-  filename: string,
-  onProgress?: (event: StreamEvent) => void
-): Promise<LicitacionContent>
-```
+- `README.md`
+- `SPEC.md`
+- `BACKLOG.md`
+- `AGENTS.md`
+- `DEPLOYMENT.md`
 
-**Parameters**:
-- `pdfBase64`: PDF file in base64 format
-- `guiaBase64`: Optional guide PDF (currently unused)
-- `filename`: Original filename
-- `onProgress`: Callback for streaming events
+Documento histórico no operativo:
 
-**Returns**: Validated `LicitacionContent` object
-
-**Events**:
-```typescript
-interface StreamEvent {
-  type: 'heartbeat' | 'agent_message' | 'complete' | 'error';
-  content?: string | any;
-  result?: any;
-  message?: string;
-  timestamp: number;
-}
-```
-
----
-
-## 📚 Migration Guide
-
-If upgrading from the old architecture:
-
-1. **Remove old code**: See `DEPRECATED.md`
-2. **Update frontend calls**: Replace `startJob()` with `analyzeWithAgents()`
-3. **Remove polling logic**: No longer needed with streaming
-4. **Update tests**: Adapt to new async patterns
-
-For full migration details, see:
-- `migration_progress_report.md`
-- `iter5_testing_guide.md`
-- `architecture_diagrams.md`
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**CORS Errors**
-- Check `supabase/functions/_shared/cors.ts` has `Access-Control-Allow-Origin: *`
-
-**Timeout on Large PDFs**
-- Supabase FREE tier: 150s limit
-- Consider Vercel (300s) or Supabase Pro
-- Or split PDFs into smaller chunks
-
-**Stream Not Receiving Events**
-- Check browser console for fetch errors
-- Verify Authorization header is set
-- Check Edge Function logs in Supabase Dashboard
-
-**Validation Errors**
-- Check transformer output matches `LicitacionContentSchema`
-- Verify all required fields are present
-- Check console for Zod error details
-
----
-
-## 📄 License
-
-MIT © Antigravity
+- `DEPRECATED.md`
