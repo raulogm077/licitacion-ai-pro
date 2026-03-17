@@ -29,43 +29,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 - [ ] [Tipo: QA] [Área: Analysis] Configurar Playwright para pruebas E2E del flujo SSE de análisis
   - Objetivo: disponer de una prueba E2E automatizada que cubra subida de PDF y recepción de eventos SSE en frontend.
-  - Alcance: configuración de Playwright, script `test:e2e` y caso base del flujo principal.
+  - Alcance: script `test:e2e` en package.json y asegurar que `e2e/critical-flows.spec.ts` corre adecuadamente.
   - Criterios de aceptación:
-    - existe test E2E ejecutable desde `npm run test:e2e`
-    - el test simula subida de PDF
-    - el test verifica que `JobService` procesa eventos SSE esperados
+    - existe script `"test:e2e": "playwright test"` en `package.json`
+    - el test E2E es ejecutable y comprueba el flujo principal SSE
   - Archivos probables:
     - `package.json`
-    - `playwright.config.*`
     - `e2e/**`
-    - helpers de test relacionados con análisis
   - Dependencias: ninguna
-
-- [ ] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
-  - Objetivo: disponer de una base persistente para plantillas de extracción.
-  - Alcance: tabla, RLS y políticas para usuarios autenticados según `SPEC.md`.
-  - Criterios de aceptación:
-    - existe tabla `extraction_templates`
-    - existen políticas compatibles con usuarios autenticados
-    - el modelo queda documentado en `ARCHITECTURE.md` y `SPEC.md`
-  - Archivos probables:
-    - `supabase/migrations/**`
-    - documentación asociada
-  - Dependencias: ninguna
-
-- [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
-  - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
-  - Alcance: UI y wiring frontend para CRUD de plantillas.
-  - Criterios de aceptación:
-    - existe listado de plantillas
-    - se puede crear, editar y eliminar
-    - el esquema visual permite definir campos y tipos
-  - Archivos probables:
-    - `src/pages/**`
-    - `src/components/**`
-    - `src/services/**`
-  - Dependencias: soporte persistente para `extraction_templates`
-
 - [ ] [Tipo: UI] [Área: Templates] Integrar selector de plantilla en el flujo principal de análisis
   - Objetivo: permitir elegir una plantilla antes de iniciar el análisis.
   - Alcance: wizard/dropzone principal y envío de `templateId` a `JobService.analyzeWithAgents()`.
@@ -119,6 +90,33 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
 
 ## Ready for QA
+
+- [ ] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
+  - Objetivo: disponer de una base persistente para plantillas de extracción.
+  - Alcance: tabla, RLS y políticas para usuarios autenticados según `SPEC.md`.
+  - Criterios de aceptación:
+    - existe tabla `extraction_templates`
+    - existen políticas compatibles con usuarios autenticados
+    - el modelo queda documentado en `ARCHITECTURE.md` y `SPEC.md`
+  - Archivos probables:
+    - `supabase/migrations/**`
+    - documentación asociada
+  - Dependencias: ninguna
+
+
+- [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
+  - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
+  - Alcance: UI y wiring frontend para CRUD de plantillas.
+  - Criterios de aceptación:
+    - existe listado de plantillas
+    - se puede crear, editar y eliminar
+    - el esquema visual permite definir campos y tipos
+  - Archivos probables:
+    - `src/pages/**`
+    - `src/components/**`
+    - `src/services/**`
+  - Dependencias: soporte persistente para `extraction_templates`
+
 
 ## Done
 
