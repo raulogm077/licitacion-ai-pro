@@ -85,7 +85,7 @@ Supabase se usa para:
 
 - autenticación
 - datos de historial
-- futuras plantillas de extracción (`extraction_templates`)
+- plantillas de extracción (`extraction_templates`): permite definir estructuras de extracción configurables por usuario autenticado. La tabla cuenta con políticas RLS (`Row Level Security`) para garantizar que cada usuario gestione exclusivamente sus plantillas, basadas en su `user_id`.
 - otras entidades de soporte del producto
 
 ## 5. Contrato SSE
@@ -107,7 +107,14 @@ Reglas:
 
 ## 6. Plantillas dinámicas de extracción
 
-La iteración activa introduce una arquitectura de plantillas configurable.
+La iteración activa introduce una arquitectura de plantillas configurable, respaldada por la tabla `extraction_templates`. Dicha tabla está protegida mediante Row Level Security (RLS), garantizando que los usuarios autenticados únicamente puedan gestionar (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) las plantillas que han creado.
+
+El modelo consta de:
+- `id` (UUID)
+- `user_id` (vinculado a `auth.users`)
+- `name` y `description`
+- `schema` (JSONB): listado de campos con su nombre, tipo, descripción y obligatoriedad.
+- `created_at` y `updated_at`
 
 Flujo objetivo:
 
@@ -123,7 +130,7 @@ Usuario selecciona plantilla opcional
 Impacto técnico:
 
 - frontend: selector de plantilla y gestión CRUD
-- backend: persistencia de plantillas
+- backend: persistencia de plantillas con modelo RLS
 - IA: construcción dinámica de esquema
 - documentación: `SPEC.md` y este archivo
 

@@ -26,7 +26,7 @@ Como usuario interno que analiza pliegos, quiero poder seleccionar una plantilla
 
 ### 3.3. Entregables esperados
 
-1. Soporte persistente para `extraction_templates`
+1. Soporte persistente para `extraction_templates` (✅ **Completado**)
 2. Pantalla de gestión CRUD de plantillas
 3. Selector de plantilla en el flujo principal de análisis
 4. Adaptación de `analyze-with-agents` para usar `templateId`

@@ -1,4 +1,5 @@
 -- Create extraction_templates table
+-- Initial creation of extraction templates table and policies
 CREATE TABLE IF NOT EXISTS public.extraction_templates (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,

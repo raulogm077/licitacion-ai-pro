@@ -27,18 +27,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do
 
-- [ ] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
-  - Objetivo: disponer de una base persistente para plantillas de extracción.
-  - Alcance: tabla, RLS y políticas para usuarios autenticados según `SPEC.md`.
-  - Criterios de aceptación:
-    - existe tabla `extraction_templates`
-    - existen políticas compatibles con usuarios autenticados
-    - el modelo queda documentado en `ARCHITECTURE.md` y `SPEC.md`
-  - Archivos probables:
-    - `supabase/migrations/**`
-    - documentación asociada
-  - Dependencias: ninguna
-
 - [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
   - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
   - Alcance: UI y wiring frontend para CRUD de plantillas.
@@ -104,6 +92,20 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/lib/schemas/**`
     - `src/agents/**`
   - Dependencias: soporte persistente para `extraction_templates`
+
+
+- [ ] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
+  - Objetivo: disponer de una base persistente para plantillas de extracción.
+  - Alcance: tabla, RLS y políticas para usuarios autenticados según `SPEC.md`.
+  - Criterios de aceptación:
+    - existe tabla `extraction_templates`
+    - existen políticas compatibles con usuarios autenticados
+    - el modelo queda documentado en `ARCHITECTURE.md` y `SPEC.md`
+  - Archivos probables:
+    - `supabase/migrations/**`
+    - documentación asociada
+  - Dependencias: ninguna
+
 
 
 ## Done
