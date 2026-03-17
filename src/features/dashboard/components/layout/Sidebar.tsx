@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   LayoutDashboard,
   FileText,
@@ -11,50 +12,54 @@ import {
   LogOut,
 } from "lucide-react";
 
-const navItems = [
+interface NavItem {
+  id: string;
+  label: string;
+  icon: any;
+  badge?: string | null;
+}
+
+const baseNavItems: NavItem[] = [
+  {
+    id: "plantilla",
+    label: "Extracción Personalizada",
+    icon: FileText,
+  },
   {
     id: "resumen",
     label: "Resumen Ejecutivo",
     icon: LayoutDashboard,
-    badge: null,
   },
   {
     id: "datos",
     label: "Datos Generales",
     icon: FileText,
-    badge: null,
   },
   {
     id: "criterios",
     label: "Criterios de Adjudicación",
     icon: Award,
-    badge: null,
   },
   {
     id: "solvencia",
     label: "Solvencia",
     icon: Shield,
-    badge: null,
   },
   {
     id: "tecnicos",
     label: "Requisitos Técnicos",
     icon: Wrench,
-    badge: null,
   },
   {
     id: "riesgos",
     label: "Análisis de Riesgos",
     icon: AlertTriangle,
-    badge: "3", // This will be dynamic
   },
   {
     id: "modelo",
     label: "Modelo de Servicio",
     icon: Settings,
-    badge: null,
-  },
-];
+  }];
 
 interface SidebarProps {
   activeSection: string;
@@ -62,7 +67,11 @@ interface SidebarProps {
   alertCount?: number;
 }
 
-export function Sidebar({ activeSection, onSectionChange, alertCount = 0 }: SidebarProps) {
+export function Sidebar({ activeSection, onSectionChange, alertCount = 0, availableSections = [] }: SidebarProps & { availableSections?: string[] }) {
+  const navItems = baseNavItems.filter(item => availableSections.length === 0 || availableSections.includes(item.id)).map(item => ({
+      ...item,
+      badge: item.id === 'riesgos' ? "3" : null
+  }));
   // Utility to conditionally join classes since we don't have cn utility in scope easily
   const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
 
