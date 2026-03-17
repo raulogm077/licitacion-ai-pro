@@ -108,6 +108,7 @@ Para cerrar una tarea de esta iteración deben pasar, según aplique:
 - `npm run type-check`
 - `npm test`
 - `npm run test:e2e` si el cambio toca UI, flujo principal o SSE
+- test:e2e configurado con Playwright para pruebas E2E automatizadas
 
 ## 5. Próxima iteración
 

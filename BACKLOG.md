@@ -106,22 +106,9 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [ ] [Tipo: QA] [Área: Analysis] Configurar Playwright para pruebas E2E del flujo SSE de análisis
-  - Objetivo: disponer de una prueba E2E automatizada que cubra subida de PDF y recepción de eventos SSE en frontend.
-  - Alcance: configuración de Playwright, script `test:e2e` y caso base del flujo principal.
-  - Criterios de aceptación:
-    - existe test E2E ejecutable desde `npm run test:e2e`
-    - el test simula subida de PDF
-    - el test verifica que `JobService` procesa eventos SSE esperados
-  - Archivos probables:
-    - `package.json`
-    - `playwright.config.*`
-    - `e2e/**`
-    - helpers de test relacionados con análisis
-  - Dependencias: ninguna
-
-
 ## Done
+
+- [x] [Tipo: QA] [Área: Analysis] Configurar Playwright para pruebas E2E del flujo SSE de análisis
 
 - [x] [Tipo: UI] [Área: History] Implementar módulo avanzado de historial de licitaciones
 - [x] [Tipo: Docs] [Área: Infra] Limpiar código legacy de colas y referencias obsoletas en servicios
