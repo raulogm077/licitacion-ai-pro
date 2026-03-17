@@ -18,9 +18,21 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Mock environment variables so zod validation in env.ts passes in tests
-import { env } from 'process';
-env.VITE_SUPABASE_URL = 'https://mock.supabase.co';
-env.VITE_SUPABASE_ANON_KEY = 'mock-anon-key';
+// Ensure this happens before env.ts is evaluated in tests.
+vi.mock('../config/env', () => ({
+    env: {
+        VITE_SUPABASE_URL: 'https://mock.supabase.co',
+        VITE_SUPABASE_ANON_KEY: 'mock-anon-key',
+    },
+    envConfig: {
+        isValid: true,
+        errors: null,
+        values: {
+            VITE_SUPABASE_URL: 'https://mock.supabase.co',
+            VITE_SUPABASE_ANON_KEY: 'mock-anon-key',
+        }
+    }
+}));
 
 // Mock i18next
 vi.mock('react-i18next', () => ({
