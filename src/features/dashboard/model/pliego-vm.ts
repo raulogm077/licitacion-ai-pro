@@ -113,7 +113,7 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         modeloServicio.sla.length === 0 &&
         modeloServicio.equipoMinimo.length === 0;
 
-    const isAnalysisEmpty = isEmptyGenerales && isEmptyCriterios && isEmptySolvencia && isEmptyTecnicos && isEmptyRiesgos && isEmptyServicio;
+    const isAnalysisEmpty = isEmptyGenerales && isEmptyCriterios && isEmptySolvencia && isEmptyTecnicos && isEmptyRiesgos && isEmptyServicio && !content.plantilla_personalizada;
 
     // 2. Normalización de defaults
     const formatCurrency = (amount: number, currency: string) => {
@@ -154,6 +154,11 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
 
     // 5. Chapters Configuration
     const chapters: ChapterStatus[] = [
+        ...(content.plantilla_personalizada ? [{
+            id: 'plantilla',
+            label: 'Extracción Personalizada',
+            status: 'COMPLETO' as const
+        }] : []),
         {
             id: 'resumen',
             label: 'Resumen',
