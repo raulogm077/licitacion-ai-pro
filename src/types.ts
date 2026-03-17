@@ -4,7 +4,9 @@ import {
     LicitacionData as ZodData,
     LicitacionContent as ZodContent, // Import new type
     WorkflowState as ZodWorkflow,
-    AnalysisVersion as ZodVersion
+    AnalysisVersion as ZodVersion,
+    ExtractionTemplate as ZodExtractionTemplate,
+    TemplateField as ZodTemplateField
 } from './lib/schemas';
 
 export type Note = ZodNote;
@@ -14,6 +16,8 @@ export type LicitacionContent = ZodContent; // Export new type
 export type WorkflowState = ZodWorkflow;
 export type AnalysisVersion = ZodVersion;
 
+export type ExtractionTemplate = ZodExtractionTemplate;
+export type TemplateField = ZodTemplateField;
 export type ProcessingStatus = 'IDLE' | 'READING_PDF' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
 
 export interface AnalysisState {

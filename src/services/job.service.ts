@@ -3,6 +3,7 @@ import { LicitacionContent } from '../types';
 import { transformAgentResponseToFrontend } from '../agents/utils/schema-transformer';
 import { LicitacionContentSchema } from '../lib/schemas';
 import type { LicitacionAgentResponse } from '../agents/schemas/licitacion-agent.schema';
+import type { ExtractionTemplate } from '../types';
 
 export interface JobStatus {
     id: string;
@@ -24,6 +25,7 @@ export class JobService {
         pdfBase64: string,
         guiaBase64: string | null,
         filename: string,
+        template: ExtractionTemplate | null = null,
         onProgress?: (event: StreamEvent) => void
     ): Promise<LicitacionContent> {
         const { data: { session } } = await supabase.auth.getSession();
@@ -51,7 +53,8 @@ export class JobService {
                 body: JSON.stringify({
                     pdfBase64,
                     guiaBase64,
-                    filename
+                    filename,
+                    template
                 })
             });
 

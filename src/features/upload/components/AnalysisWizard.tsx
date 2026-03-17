@@ -3,6 +3,8 @@ import { Upload, Loader2, Lock, X, ArrowRight, ChevronRight, FileType } from 'lu
 import { useTranslation, Trans } from 'react-i18next';
 import { useAuthStore } from '../../../stores/auth.store';
 import { useAnalysisStore } from '../../../stores/analysis.store';
+import { templateService } from '../../../services/template.service';
+import { ExtractionTemplate } from '../../../types';
 import { ProviderSelector } from '../../../components/domain/ProviderSelector';
 import { CancelButton } from '../../../components/domain/CancelButton';
 import { AuthModal } from '../../../components/ui/AuthModal';
@@ -21,6 +23,16 @@ export const AnalysisWizard: React.FC = () => {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [templates, setTemplates] = useState<ExtractionTemplate[]>([]);
+    const { selectedTemplateId, setTemplateId } = useAnalysisStore();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            templateService.getTemplates().then(result => {
+                if (result.ok) setTemplates(result.value);
+            });
+        }
+    }, [isAuthenticated]);
 
     // Sync wizard step with global store status
     useEffect(() => {
@@ -224,6 +236,23 @@ export const AnalysisWizard: React.FC = () => {
                                         </button>
                                     </div>
 
+                                    {templates.length > 0 && (
+                                        <div className="w-full text-left mb-6">
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                                Plantilla de Extracción (Opcional)
+                                            </label>
+                                            <select
+                                                value={selectedTemplateId || ''}
+                                                onChange={(e) => setTemplateId(e.target.value || null)}
+                                                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500"
+                                            >
+                                                <option value="">Por defecto (Completa)</option>
+                                                {templates.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                     <div className="mt-8 grid grid-cols-2 gap-3">
                                         <button
                                             onClick={handleClearFile}

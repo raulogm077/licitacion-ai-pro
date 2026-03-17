@@ -52,4 +52,15 @@ describe('Analysis Store (TC-UI)', () => {
     });
 
 
-});
+
+    it('should set template id', () => {
+        useAnalysisStore.getState().setTemplateId('123');
+        expect(useAnalysisStore.getState().selectedTemplateId).toBe('123');
+    });
+
+    it('should clear template id on reset', () => {
+        useAnalysisStore.getState().setTemplateId('123');
+        useAnalysisStore.getState().resetAnalysis();
+        expect(useAnalysisStore.getState().selectedTemplateId).toBe(null);
+    });
+    });

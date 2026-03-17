@@ -162,7 +162,7 @@ serve(async (req) => {
         console.log('[analyze-with-agents] Request received');
 
         // 1. Parse request
-        const { pdfBase64, guiaBase64, filename } = await req.json();
+        const { pdfBase64, guiaBase64, filename, template } = await req.json();
 
         if (!pdfBase64) {
             return new Response(
@@ -231,10 +231,99 @@ serve(async (req) => {
 
         // 5. Create Agent (SINGLETON PATTERN - created once here)
         console.log('[analyze-with-agents] Creating Agent...');
+
+
+        // Modify instructions if a template is provided
+        let currentInstructions = ANALISTA_INSTRUCTIONS;
+        let dynamicResponseFormat = undefined;
+
+        if (template && template.schema && template.schema.length > 0) {
+            const templateDetails = template.schema.map((f: Record<string, unknown>) =>
+                `- ${f.name} (${f.type}): ${f.description || 'Sin descripción'} [${f.required ? 'Obligatorio' : 'Opcional'}]`
+            ).join('\n');
+
+            const templateInstructions = `
+================================================================================
+ATENCIÓN: EL USUARIO HA DEFINIDO UNA PLANTILLA DE EXTRACCIÓN PERSONALIZADA.
+Nombre de la plantilla: ${template.name}
+Descripción: ${template.description || 'Sin descripción'}
+
+DEBES EXTRAER OBLIGATORIAMENTE LOS SIGUIENTES CAMPOS Y AJUSTAR TU ANÁLISIS A ESTAS NECESIDADES:
+${templateDetails}
+
+Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_personalizada" dentro de "result", que contenga las propiedades exactas definidas arriba.
+================================================================================
+`;
+            currentInstructions = templateInstructions + "\n" + currentInstructions;
+            console.log(`[analyze-with-agents] Applying custom template instructions: ${template.name}`);
+
+            // Build JSON Schema for structured output
+            const customProperties: Record<string, unknown> = {};
+            const customRequired: string[] = [];
+
+            template.schema.forEach((f: Record<string, unknown>) => {
+                let typeStr = "string";
+                if (f.type === "numero") typeStr = "number";
+                if (f.type === "booleano") typeStr = "boolean";
+                if (f.type === "lista") {
+                    customProperties[f.name] = {
+                        type: "array",
+                        items: { type: "string" },
+                        description: f.description || ""
+                    };
+                } else {
+                    customProperties[f.name] = {
+                        type: typeStr,
+                        description: f.description || ""
+                    };
+                }
+
+                if (f.required) {
+                    customRequired.push(f.name);
+                }
+            });
+
+            dynamicResponseFormat = {
+                type: "json_schema",
+                json_schema: {
+                    name: "licitacion_analysis",
+                    schema: {
+                        type: "object",
+                        properties: {
+                            result: {
+                                type: "object",
+                                properties: {
+                                    plantilla_personalizada: {
+                                        type: "object",
+                                        properties: customProperties,
+                                        required: customRequired,
+                                        additionalProperties: false
+                                    },
+                                    datosGenerales: { type: "object", additionalProperties: true },
+                                    criteriosAdjudicacion: { type: "object", additionalProperties: true },
+                                    requisitosSolvencia: { type: "object", additionalProperties: true },
+                                    requisitosTecnicos: { type: "object", additionalProperties: true },
+                                    restriccionesYRiesgos: { type: "object", additionalProperties: true },
+                                    modeloServicio: { type: "object", additionalProperties: true }
+                                },
+                                required: ["plantilla_personalizada"],
+                                additionalProperties: true
+                            },
+                            workflow: { type: "object", additionalProperties: true }
+                        },
+                        required: ["result", "workflow"],
+                        additionalProperties: false
+                    },
+                    strict: true
+                }
+            };
+        }
+
         const agent = new Agent({
             name: 'Analista de Pliegos',
             model: 'gpt-4o-2024-08-06',
-            instructions: ANALISTA_INSTRUCTIONS,
+            instructions: currentInstructions,
+            response_format: dynamicResponseFormat,
             tools: [
                 {
                     type: 'file_search' as const,

@@ -35,19 +35,16 @@
 **User Story:** Como analista técnico, quiero poder crear y guardar mis propias plantillas con los campos específicos que me interesan de un pliego, para que la IA extraiga solo la información relevante para mi caso de uso.
 
 **Requerimientos de Datos (Supabase):**
-- Nueva tabla `extraction_templates` con RLS.
-- Esquema base: `id` (UUID), `user_id` (UUID), `name` (String), `description` (String), `schema` (JSONB - Zod schema definition), `created_at`, `updated_at`.
-- Relación opcional con `licitaciones` para saber qué plantilla se usó en un análisis histórico.
+- Nueva tabla `extraction_templates` con RLS. Implementado: ID, User ID, Nombre, Descripción y Schema (JSONB).
+- Integrado un servicio CRUD `template.service.ts` para manejar consultas desde el frontend.
 
 **UX Esperada (v0 / Frontend):**
-- **Vista de Gestión (`/templates`):** Listado de plantillas guardadas con opciones para Crear, Editar, Eliminar y Duplicar.
-- **Creador de Plantillas:** Interfaz visual (drag and drop o formulario dinámico) para definir campos, tipos de datos (texto, número, fecha, lista), y obligatoriedad.
-- **Selector en Análisis:** En la pantalla principal de subida de pliegos, añadir un desplegable para seleccionar la "Plantilla a aplicar" antes de iniciar el análisis.
+- **Vista de Gestión (`/templates`):** Listado de plantillas guardadas implementado, con botones de Crear, Editar, Eliminar y Duplicar.
+- **Creador de Plantillas:** Formulario dinámico para añadir campos al schema.
+- **Selector en Análisis:** Añadido selector `<select>` en el `AnalysisWizard.tsx` para escoger plantilla antes de iniciar el análisis.
 
 **Métricas de IA / Backend:**
-- Modificar el Edge Function `analyze-with-agents` para que acepte un schema dinámico (transformar el JSONB de Supabase en un schema compatible con OpenAI `response_format`).
-- Ajustar las instrucciones del sistema en el Agente de OpenAI basándose en los campos de la plantilla seleccionada.
-- Mantener compatibilidad con el fallback schema por defecto si no se selecciona plantilla.
+- Modificado Edge Function `analyze-with-agents` para incluir instrucciones dinámicas inyectadas basadas en el template recibido.
 
 ## 5. Nueva Funcionalidad (Próxima Iteración): Soporte para Múltiples Documentos por Licitación
 **Problema:** Actualmente el sistema solo permite subir un único archivo PDF principal (y una guía opcional). Las licitaciones suelen estar compuestas por múltiples documentos (ej. Pliego de Cláusulas Administrativas, Pliego de Prescripciones Técnicas, Anexos). Los usuarios tienen que unir los PDFs manualmente antes de subirlos.

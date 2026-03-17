@@ -6,6 +6,7 @@ import { useLicitacionStore } from './licitacion.store';
 import { processFile } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
+import { templateService } from '../services/template.service';
 import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB } from '../config/constants';
 
 interface AnalysisStore {
@@ -16,6 +17,7 @@ interface AnalysisStore {
     persistenceWarning: string | null;
     abortController: AbortController | null;
     selectedProvider: string; // 'gemini' | 'openai'
+    selectedTemplateId: string | null;
     currentJobId: string | null;
 
     // Actions
@@ -23,6 +25,7 @@ interface AnalysisStore {
     cancelAnalysis: () => void;
     resetAnalysis: () => void;
     setProvider: (provider: string) => void;
+    setTemplateId: (id: string | null) => void;
 }
 
 const loadSelectedProvider = (): string => {
@@ -41,6 +44,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     persistenceWarning: null,
     abortController: null,
     selectedProvider: loadSelectedProvider(),
+    selectedTemplateId: null,
     currentJobId: null,
 
     analyzeFile: async (file: File) => {
@@ -88,7 +92,15 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             };
 
             // 3. Unified AI Execution Route
-            const { selectedProvider } = get();
+            const { selectedProvider, selectedTemplateId } = get();
+
+            let template = null;
+            if (selectedTemplateId) {
+                const templateResult = await templateService.getTemplate(selectedTemplateId);
+                if (templateResult.ok) {
+                    template = templateResult.value;
+                }
+            }
 
             set(state => ({
                 status: 'ANALYZING',
@@ -118,7 +130,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 newController.signal,
                 selectedProvider,
                 file.name, // Required for OpenAI
-                hash       // Required for OpenAI
+                hash,      // Required for OpenAI
+                template   // Pass the custom extraction template
             );
 
             // 4. Update State & Persist
@@ -196,7 +209,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
         if (abortController) {
             abortController.abort();
         }
-        set({ status: 'IDLE', progress: 0, thinkingOutput: '', error: null, persistenceWarning: null, abortController: null });
+        set({ status: 'IDLE', progress: 0, thinkingOutput: '', error: null, persistenceWarning: null, abortController: null, selectedTemplateId: null });
     },
 
     setProvider: (provider: string) => {
@@ -206,5 +219,9 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             console.warn('Failed to save provider to localStorage:', error);
         }
         set({ selectedProvider: provider });
+    },
+
+    setTemplateId: (id: string | null) => {
+        set({ selectedTemplateId: id });
     }
 }));
