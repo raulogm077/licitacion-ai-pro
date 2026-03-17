@@ -27,8 +27,8 @@ export const TemplatesPage: React.FC = () => {
             } else {
                 setError(result.error.message);
             }
-        } catch (err: any) {
-            setError(err.message || 'Error loading templates');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Error loading templates');
         } finally {
             setLoading(false);
         }
@@ -57,8 +57,8 @@ export const TemplatesPage: React.FC = () => {
             } else {
                 setError(result.error.message);
             }
-        } catch (err: any) {
-            setError(err.message || 'Error duplicating template');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Error duplicating template');
         } finally {
             setIsSubmitting(false);
         }
@@ -74,8 +74,8 @@ export const TemplatesPage: React.FC = () => {
             } else {
                 setError(result.error.message);
             }
-        } catch (err: any) {
-            setError(err.message || 'Error deleting template');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Error deleting template');
         } finally {
             setIsSubmitting(false);
         }
@@ -112,8 +112,8 @@ export const TemplatesPage: React.FC = () => {
                     setError(result.error.message);
                 }
             }
-        } catch (err: any) {
-            setError(err.message || 'Error saving template');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Error saving template');
         } finally {
             setIsSubmitting(false);
         }
@@ -262,7 +262,7 @@ export const TemplatesPage: React.FC = () => {
                                                     <div className="md:col-span-3">
                                                         <select
                                                             value={field.type}
-                                                            onChange={e => updateField(field.id, { type: e.target.value as any })}
+                                                            onChange={e => updateField(field.id, { type: e.target.value as TemplateField['type'] })}
                                                             className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                                                         >
                                                             <option value="texto">Texto</option>

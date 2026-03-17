@@ -13,7 +13,7 @@ describe('TemplateService', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        service = new TemplateService(mockSupabaseClient as any);
+        service = new TemplateService(mockSupabaseClient as unknown as import('@supabase/supabase-js').SupabaseClient);
 
         mockSupabaseClient.auth.getSession.mockResolvedValue({
             data: { session: { user: { id: 'test-user' } } },

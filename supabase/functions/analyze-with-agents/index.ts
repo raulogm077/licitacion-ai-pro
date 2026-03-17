@@ -238,7 +238,7 @@ serve(async (req) => {
         let dynamicResponseFormat = undefined;
 
         if (template && template.schema && template.schema.length > 0) {
-            const templateDetails = template.schema.map((f: any) =>
+            const templateDetails = template.schema.map((f: Record<string, unknown>) =>
                 `- ${f.name} (${f.type}): ${f.description || 'Sin descripción'} [${f.required ? 'Obligatorio' : 'Opcional'}]`
             ).join('\n');
 
@@ -258,10 +258,10 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             console.log(`[analyze-with-agents] Applying custom template instructions: ${template.name}`);
 
             // Build JSON Schema for structured output
-            const customProperties: Record<string, any> = {};
+            const customProperties: Record<string, unknown> = {};
             const customRequired: string[] = [];
 
-            template.schema.forEach((f: any) => {
+            template.schema.forEach((f: Record<string, unknown>) => {
                 let typeStr = "string";
                 if (f.type === "numero") typeStr = "number";
                 if (f.type === "booleano") typeStr = "boolean";

@@ -1,5 +1,5 @@
 
-import { LicitacionContent } from "../types";
+import { LicitacionContent, ExtractionTemplate } from "../types";
 import { logger } from "./logger";
 import { promptRegistry } from "../config/prompt-registry";
 import { llmFactory } from "../llm/llmFactory";
@@ -24,7 +24,7 @@ export class AIService {
         providerName?: string,
         filename?: string, // NEW: Required for OpenAI
         hash?: string,    // NEW: Required for OpenAI
-        template?: any    // NEW: Pass template to OpenAI
+        template?: ExtractionTemplate | null    // NEW: Pass template to OpenAI
     ): Promise<LicitacionContent> {
         // OpenAI Specific Route (Server-Side)
         if (providerName === 'openai') {

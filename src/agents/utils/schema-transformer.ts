@@ -17,11 +17,11 @@ export function transformAgentResponseToFrontend(
     const workflow = agentResponse?.workflow || {};
 
     // Helper to safely access arrays
-    const safeArray = (arr: any[]) => Array.isArray(arr) ? arr : [];
+    const safeArray = (arr: unknown[]) => Array.isArray(arr) ? arr : [];
     // Helper to safely access strings
-    const safeString = (str: any) => typeof str === 'string' ? str : '';
+    const safeString = (str: unknown) => typeof str === 'string' ? str : '';
     // Helper to safely access numbers
-    const safeNumber = (num: any) => typeof num === 'number' ? num : 0;
+    const safeNumber = (num: unknown) => typeof num === 'number' ? num : 0;
 
     // Defensive access to sections
     const datosGenerales = result.datosGenerales || {};
