@@ -23,7 +23,8 @@ export class AIService {
         signal?: AbortSignal,
         providerName?: string,
         filename?: string, // NEW: Required for OpenAI
-        hash?: string     // NEW: Required for OpenAI
+        hash?: string,    // NEW: Required for OpenAI
+        template?: any    // NEW: Pass template to OpenAI
     ): Promise<LicitacionContent> {
         // OpenAI Specific Route (Server-Side)
         if (providerName === 'openai') {
@@ -49,6 +50,7 @@ export class AIService {
                     base64Content,
                     null, // No guide PDF needed currently
                     filename,
+                    template || null,
                     (event) => {
                         if (signal?.aborted) {
                             // If aborted during stream, we can't easily kill the edge function

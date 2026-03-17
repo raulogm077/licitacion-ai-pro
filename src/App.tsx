@@ -18,6 +18,7 @@ const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default
 const HistoryPage = lazy(() => import('./pages/HistoryPage').then(module => ({ default: module.HistoryPage })));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
 const SearchPage = lazy(() => import('./pages/SearchPage').then(module => ({ default: module.SearchPage })));
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then(module => ({ default: module.TemplatesPage })));
 const PresentationPage = lazy(() => import('./pages/PresentationPage').then(module => ({ default: module.PresentationPage })));
 
 function App() {
@@ -89,6 +90,11 @@ function App() {
           <Route path="/search" element={
             <Suspense fallback={<PageLoader />}>
               <SearchPage />
+            </Suspense>
+          } />
+          <Route path="/templates" element={
+            <Suspense fallback={<PageLoader />}>
+              <TemplatesPage />
             </Suspense>
           } />
         </Route>

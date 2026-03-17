@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogIn } from 'lucide-react';
+import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogIn, Layers } from 'lucide-react';
 import { ProcessingStatus, LicitacionData } from '../../types';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
@@ -72,6 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
 
                     {navButton('/history', <History size={20} />, 'Historial')}
+                    {navButton('/templates', <Layers size={20} />, 'Plantillas')}
                     {navButton('/analytics', <BarChart3 size={20} />, 'Analytics')}
                     {navButton('/search', <Search size={20} />, 'Búsqueda')}
 
