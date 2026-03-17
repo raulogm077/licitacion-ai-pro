@@ -27,7 +27,7 @@ Como usuario interno que analiza pliegos, quiero poder seleccionar una plantilla
 ### 3.3. Entregables esperados
 
 1. Soporte persistente para `extraction_templates` (✅ **Completado**)
-2. Pantalla de gestión CRUD de plantillas
+2. Pantalla de gestión CRUD de plantillas (✅ **Completado**)
 3. Selector de plantilla en el flujo principal de análisis
 4. Adaptación de `analyze-with-agents` para usar `templateId`
 5. Fallback estático cuando no haya plantilla válida
@@ -168,3 +168,9 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 
 ### Próxima iteración
 - soporte multi-documento
+
+### Hallazgos técnicos de iteración (Gestión Plantillas UI)
+- La UI implementa una tabla intuitiva para el schema (nombre de campo, tipo y obligatoriedad).
+- Existe un servicio `/src/services/template.service.ts` encargado de intermediar la comunicación con Supabase mediante el `supabaseClient`. Las vistas acceden mediante los métodos `createTemplate`, `getTemplates`, `getTemplate`, `deleteTemplate`, `updateTemplate`.
+- Las plantillas se pueden duplicar para facilitar flujos de creación complejos basados en uno base.
+- Ya se introdujo la validación unitaria exhaustiva en `TemplatesPage.test.tsx` garantizando su correcto renderizado ante listas vacías y datos de base de datos mockeados.

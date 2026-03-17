@@ -109,6 +109,8 @@ Reglas:
 
 La iteración activa introduce una arquitectura de plantillas configurable, respaldada por la tabla `extraction_templates`. Dicha tabla está protegida mediante Row Level Security (RLS), garantizando que los usuarios autenticados únicamente puedan gestionar (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) las plantillas que han creado.
 
+En frontend se gestionan en la ruta `/templates` con operaciones de listar, crear, editar, eliminar y duplicar.
+
 El modelo consta de:
 - `id` (UUID)
 - `user_id` (vinculado a `auth.users`)
