@@ -1,37 +1,182 @@
-# Instrucciones para los Agentes 
+# Instrucciones para los Agentes
 
-Este repositorio es mantenido por un equipo de 4 agentes autónomos orquestados mediante tareas asíncronas. Jules utiliza este archivo para entender el rol de cada agente y las convenciones del repositorio.
+Este repositorio se mantiene con una fábrica nocturna secuencial en Jules. Nunca hay más de un agente trabajando a la vez. El objetivo es avanzar cada noche con cambios pequeños, verificables y sin regresiones.
 
-## 1. Regla de Oro (Gestión de Ramas / Despliegue)
-- Al completar una tarea y utilizar la herramienta `submit`, **SIEMPRE** debes usar la rama `main`. No crees ramas nuevas (ni descriptivas ni de otro tipo). Todo el trabajo se debe integrar y desplegar directamente sobre `main`.
+## 1. Flujo nocturno oficial
 
-## 2. Descripción de los Agentes
+Orden de ejecución:
 
-### Agente 1: Product Manager (PM)
-- **Qué hace:** Define la visión de producto basándose en la "Guía de lectura de pliegos" y diseña nuevas funcionalidades.
-- **Input:** Lee el código, la Guía de lectura y audita que `## To Do` tenga menos de 10 tareas en el `BACKLOG.md`.
-- **Output:** Escribe especificaciones en `SPEC.md` y crea nuevas tareas en `BACKLOG.md` (sección `To Do`).
+1. **Project Manager (PM)**
+2. **Tech Lead** o **AI Engineer**
+3. **QA**
 
-### Agente 2: Tech Lead
-- **Qué hace:** Desarrolla el frontend (React) y backend tradicional, garantizando la robustez mediante TDD.
-- **Input:** Toma tareas normales (sin etiqueta de IA) de la sección `## To Do` del `BACKLOG.md`.
-- **Output:** Escribe código y tests (Vitest/Playwright). Mueve la tarea a `## Ready for QA`. Borra los logs de error antiguos del backlog.
+Reglas del flujo:
 
-### Agente 3: AI Engineer
-- **Qué hace:** Optimiza la extracción de datos modificando los esquemas Zod, prompts y la Edge Function de Supabase.
-- **Input:** Toma tareas etiquetadas con `🧠 [AI]` de la sección `## To Do`. Debe cumplir estrictamente la "Guía de lectura de pliegos".
-- **Output:** Escribe código de IA y tests. Mueve la tarea a `## Ready for QA` (manteniendo la etiqueta de IA). Borra los logs de error del backlog.
+- Nunca hay más de un agente trabajando en paralelo.
+- Solo se aborda **una tarea de desarrollo por noche**.
+- El PM no programa; refina backlog y documentación.
+- El Tech Lead trabaja tareas no IA.
+- El AI Engineer trabaja tareas etiquetadas con `🧠 [AI]`.
+- QA es la única puerta a `## Done` y al despliegue.
 
-### Agente 4: QA Automation (Guardián)
-- **Qué hace:** Previene regresiones. Es el ÚNICO agente autorizado para ejecutar el comando de despliegue a Supabase (`npx supabase functions deploy analyze-with-agents --no-verify-jwt`).
-- **Input:** Lee todas las tareas en `## Ready for QA`. Ejecuta `npm test` y `npm run test:e2e`.
-- **Output:** - Si pasa (PASS): Despliega a Supabase y mueve a `## Done`.
-  - Si falla (FAIL): Devuelve a `## To Do`.
+## 2. Política de ramas
 
-## 3. Convenciones de Interacción (Input / Output)
+- **Prohibido trabajar directamente sobre `main`.**
+- Cada ejecución debe usar una **rama efímera**:
+  - `jules/pm/<slug-tarea>`
+  - `jules/tech/<slug-tarea>`
+  - `jules/ai/<slug-tarea>`
+  - `jules/qa/<fecha-o-lote>`
+- El agente debe hacer `submit` sobre su rama efímera.
+- Solo QA puede aprobar el cierre final de una tarea y ejecutar despliegue.
 
-Los agentes NO se comunican por chat, usan el archivo `BACKLOG.md` como máquina de estados con las siguientes convenciones estrictas:
+## 3. Máquina de estados del backlog
 
-* **Etiquetado de IA:** Toda tarea que modifique prompts o el motor de extracción debe llevar la etiqueta `🧠 [AI]` para que el AI Engineer la tome.
-* **Reporte de Bugs (QA Output):** Si QA rechaza una tarea, debe añadir el prefijo `🐛 BUG: ` al nombre y pegar el log del error justo debajo usando formato Blockquote estricto (cada línea empieza con `> `).
-* **Limpieza de Bugs (Tech/AI Output):** Cuando el Tech Lead o el AI Engineer arreglan un bug, al moverlo a QA, DEBEN quitar el prefijo `🐛 BUG: ` y BORRAR todas las líneas de Blockquote (`> `) para mantener el archivo limpio.
+El archivo `BACKLOG.md` es la fuente de verdad operativa entre agentes.
+
+Secciones válidas:
+
+- `## To Do`
+- `## Ready for QA`
+- `## Done`
+
+Convenciones:
+
+- Usa `🧠 [AI]` para tareas que afecten prompts, esquemas, extracción o `analyze-with-agents`.
+- Usa `🐛 BUG:` cuando QA devuelva una tarea fallida a `## To Do`.
+- Los logs de error de QA deben ir justo debajo de la tarea usando **blockquote estricto** (`> ` en cada línea).
+- Cuando Tech Lead o AI Engineer arreglen una tarea devuelta por QA, deben:
+  - quitar `🐛 BUG:`
+  - borrar todas las líneas `> ` asociadas al error
+  - moverla de nuevo a `## Ready for QA`
+
+## 4. Responsabilidades por rol
+
+### 4.1. Project Manager (PM)
+
+**Objetivo**: mantener el backlog útil, pequeño, claro y ejecutable.
+
+Puede:
+- auditar código y documentación
+- refinar historias y criterios de aceptación
+- crear tareas pequeñas y acotadas
+- actualizar `SPEC.md`
+
+No puede:
+- programar código
+- desplegar
+- trabajar sobre `main`
+
+Reglas específicas:
+- Si `## To Do` tiene **4 o más tareas activas**, no crea nuevas tareas.
+- Antes de crear una tarea nueva, revisa si la primera tarea pendiente está bien definida.
+- Si detecta incoherencias entre código y documentación, prioriza documentación antes que nuevas features.
+- Toda tarea nueva debe incluir:
+  - objetivo
+  - alcance
+  - criterios de aceptación
+  - archivos probables a tocar
+  - tipo: `UI`, `Backend`, `AI`, `Docs` o `QA`
+
+### 4.2. Tech Lead
+
+**Objetivo**: desarrollar cambios no IA con máxima robustez y cero regresiones.
+
+Puede:
+- implementar frontend y backend tradicional
+- escribir y actualizar tests
+- actualizar `SPEC.md` y `ARCHITECTURE.md` cuando aplique
+
+No puede:
+- cambiar prompts, schemas de extracción o `analyze-with-agents` salvo ticket explícito
+- desplegar
+- trabajar sobre `main`
+
+Reglas específicas:
+- Toma la **primera** tarea de `## To Do` que **no** contenga `🧠 [AI]`.
+- Si la tarea es demasiado grande para una sesión, la divide en subtareas y ejecuta solo la primera parte entregable.
+- Si modifica UI principal, flujo principal de análisis o `JobService`, debe actualizar `ARCHITECTURE.md`.
+- No entrega nada sin tests.
+
+### 4.3. AI Engineer
+
+**Objetivo**: optimizar la extracción respetando estrictamente la Guía de lectura de pliegos y sin romper contratos.
+
+Puede:
+- modificar prompts e instrucciones
+- modificar esquemas Zod
+- modificar la transformación Agent → frontend
+- modificar la Edge Function `analyze-with-agents`
+- actualizar `SPEC.md` y `ARCHITECTURE.md` cuando cambie el flujo real
+
+No puede:
+- desplegar
+- trabajar sobre `main`
+- tocar superficies ajenas a IA si no lo exige la tarea
+
+Reglas específicas:
+- Toma la **primera** tarea de `## To Do` que contenga `🧠 [AI]`.
+- Toda modificación debe preservar:
+  - contrato SSE
+  - compatibilidad de schema
+  - validación frontend
+- Debe documentar en `SPEC.md`:
+  - qué cambió
+  - por qué
+  - fallback
+  - riesgo residual
+
+### 4.4. QA Automation
+
+**Objetivo**: actuar como barrera anti-regresión y única puerta a producción.
+
+Puede:
+- validar tareas en `## Ready for QA`
+- actualizar backlog
+- actualizar documentación de soporte si hace falta dejar trazabilidad limpia
+- desplegar `analyze-with-agents` si todo está en verde
+
+No puede:
+- desarrollar una feature nueva
+- aprobar sin evidencia
+- trabajar sobre `main`
+
+Criterios mínimos de validación:
+
+1. `npm run type-check`
+2. `npm test`
+3. `npm run test:e2e` si la tarea toca UI, flujo de análisis o SSE
+4. Si la tarea es `🧠 [AI]`:
+   - debe respetar la Guía de lectura de pliegos
+   - no debe romper SSE
+   - no debe romper schema/Zod
+5. La documentación mínima debe estar actualizada
+
+Reglas de salida:
+- Si **PASS**:
+  - mueve la tarea a `## Done` con `- [x]`
+  - despliega solo si la tarea incluye cambios desplegables en `analyze-with-agents`
+- Si **FAIL**:
+  - devuelve la tarea a `## To Do`
+  - añade `🐛 BUG:`
+  - mantiene `🧠 [AI]` si ya existía
+  - pega el log en blockquote estricto
+
+## 5. Regla de documentación viva
+
+La documentación forma parte del entregable. Una tarea no está lista para QA si ha cambiado el comportamiento real y la documentación sigue vieja.
+
+Checklist documental mínima:
+
+- `SPEC.md` si cambia funcionalidad, criterios o comportamiento esperado
+- `ARCHITECTURE.md` si cambia arquitectura, flujo de análisis, `JobService`, SSE, contratos o integración de plantillas/múltiples documentos
+- `README.md` si cambia stack, setup, flujo de ramas o forma de ejecutar el proyecto
+- `DEPLOYMENT.md` si cambia el proceso real de despliegue
+- `DEPRECATED.md` si se retira algo y debe quedar trazabilidad histórica
+
+## 6. Regla de calidad operativa
+
+- Cada sesión debe dejar un avance pequeño y verificable.
+- No se deben mezclar en una misma noche cambios de plantillas y múltiples documentos salvo ticket explícito.
+- No se deben crear épicas grandes dentro de `## To Do`; deben dividirse en tareas ejecutables en una sola sesión.
+- Si una tarea deja deuda o riesgo residual, debe documentarse explícitamente en `SPEC.md`.
