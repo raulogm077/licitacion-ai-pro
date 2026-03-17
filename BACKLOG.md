@@ -65,20 +65,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/services/job.service.ts`
   - Dependencias: CRUD o servicio de lectura de plantillas disponible
 
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
-  - Objetivo: permitir que la Edge Function use una plantilla de extracción dinámica sin romper el flujo actual.
-  - Alcance: consulta de plantilla, generación dinámica de esquema y mantenimiento de fallback estático.
-  - Criterios de aceptación:
-    - la función acepta `templateId`
-    - si existe plantilla válida, se usa para construir la extracción
-    - si no existe plantilla, se mantiene fallback estático
-    - no se rompe SSE ni el contrato frontend
-  - Archivos probables:
-    - `supabase/functions/analyze-with-agents/**`
-    - `src/lib/schemas/**`
-    - `src/agents/**`
-  - Dependencias: soporte persistente para `extraction_templates`
-
 - [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
   - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
   - Alcance: experiencia de subida, validación, listado y estado en frontend.
@@ -105,6 +91,20 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
 
 ## Ready for QA
+- [ ] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
+  - Objetivo: permitir que la Edge Function use una plantilla de extracción dinámica sin romper el flujo actual.
+  - Alcance: consulta de plantilla, generación dinámica de esquema y mantenimiento de fallback estático.
+  - Criterios de aceptación:
+    - la función acepta `templateId`
+    - si existe plantilla válida, se usa para construir la extracción
+    - si no existe plantilla, se mantiene fallback estático
+    - no se rompe SSE ni el contrato frontend
+  - Archivos probables:
+    - `supabase/functions/analyze-with-agents/**`
+    - `src/lib/schemas/**`
+    - `src/agents/**`
+  - Dependencias: soporte persistente para `extraction_templates`
+
 
 ## Done
 

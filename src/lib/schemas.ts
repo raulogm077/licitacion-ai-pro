@@ -56,6 +56,8 @@ const RobustArray = <T extends z.ZodTypeAny>(schema: T) =>
     z.preprocess(val => (val === null || val === undefined) ? [] : val, z.array(schema).default([]));
 
 export const LicitacionContentSchema = z.object({
+    plantilla_personalizada: z.record(z.any()).optional(),
+
     datosGenerales: z.preprocess(val => val ?? {}, z.object({
         titulo: RobustString('Sin título'),
         presupuesto: RobustNumber(0),
