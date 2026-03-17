@@ -60,6 +60,7 @@ Puede:
 - auditar código y documentación
 - refinar historias y criterios de aceptación
 - crear tareas pequeñas y acotadas
+- definar reglas de priorización y dar contexto actual
 - actualizar `SPEC.md`
 
 No puede:
@@ -84,6 +85,8 @@ Reglas específicas:
 
 Puede:
 - implementar frontend y backend tradicional
+- revisar codigo para detectar correcciones o refactors
+- garantizar buenas practicas modernas de desarrollo de software.
 - escribir y actualizar tests
 - actualizar `SPEC.md` y `ARCHITECTURE.md` cuando aplique
 
@@ -96,6 +99,7 @@ Reglas específicas:
 - Toma la **primera** tarea de `## To Do` que **no** contenga `🧠 [AI]`.
 - Si la tarea es demasiado grande para una sesión, la divide en subtareas y ejecuta solo la primera parte entregable.
 - Si modifica UI principal, flujo principal de análisis o `JobService`, debe actualizar `ARCHITECTURE.md`.
+- Debe asegurar que la documentación tecnica sea coherente con lo que se va desarrollando.
 - No entrega nada sin tests.
 
 ### 4.3. AI Engineer
