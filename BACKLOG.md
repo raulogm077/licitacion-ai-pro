@@ -1,13 +1,14 @@
 # Analista de Pliegos - Backlog
 
 ## 🧠 Contexto y Estado Actual
-La migración de la arquitectura legacy a un sistema en tiempo real basado en Server-Sent Events (SSE) y OpenAI Agents SDK ha finalizado con éxito. El enfoque actual es habilitar la personalización del usuario, comenzando con la posibilidad de definir plantillas dinámicas de extracción en lugar de depender de esquemas estáticos.
+La migración de la arquitectura legacy a un sistema en tiempo real basado en Server-Sent Events (SSE) y OpenAI Agents SDK ha finalizado con éxito. El enfoque actual se divide en habilitar la personalización de la extracción mediante plantillas dinámicas y en mejorar la capacidad de ingesta permitiendo la subida de múltiples documentos simultáneos para el análisis de la licitación completa.
 
 ## To Do (Iteración Actual)
 - [ ] Implementar Gestión de Plantillas de Extracción según SPEC.md
 
+- [ ] Implementar UI de Múltiples Documentos por Licitación según SPEC.md
+- [ ] 🧠 [AI] Mejorar Edge Function para soportar múltiples archivos según SPEC.md
 ## Ideas de Producto
-- **Múltiples Documentos por Licitación:** Adaptar la UI y el Vector Store para subir más de 1 PDF principal (más allá de la guía opcional).
 
 ## Ready for QA
 
