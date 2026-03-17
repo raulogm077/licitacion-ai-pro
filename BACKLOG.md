@@ -14,6 +14,7 @@ La migración de la arquitectura legacy a un sistema en tiempo real basado en Se
 ## Ideas de Producto
 
 ## Ready for QA
+
 - [ ] Configurar Playwright para pruebas E2E automatizadas. El test debe simular la subida de un PDF y verificar que el JobService recibe los eventos SSE según lo descrito en ARCHITECTURE.md. Actualizar el script `test:e2e` en el package.json.
 
 ## Done
