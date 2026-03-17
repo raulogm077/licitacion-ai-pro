@@ -13,7 +13,6 @@ Orden de ejecución:
 Reglas del flujo:
 
 - Nunca hay más de un agente trabajando en paralelo.
-- Solo se aborda **una tarea de desarrollo por noche**.
 - El PM no programa; refina backlog y documentación.
 - El Tech Lead trabaja tareas no IA.
 - El AI Engineer trabaja tareas etiquetadas con `🧠 [AI]`.
