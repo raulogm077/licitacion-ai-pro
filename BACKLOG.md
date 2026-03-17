@@ -8,6 +8,7 @@ La migración de la arquitectura legacy a un sistema en tiempo real basado en Se
 
 - [ ] Implementar UI de Múltiples Documentos por Licitación según SPEC.md
 - [ ] 🧠 [AI] Mejorar Edge Function para soportar múltiples archivos según SPEC.md
+- [ ] Configurar Playwright para pruebas E2E automatizadas. El test debe simular la subida de un PDF y verificar que el JobService recibe los eventos SSE según lo descrito en ARCHITECTURE.md. Actualizar el script `test:e2e` en el package.json.
 ## Ideas de Producto
 
 ## Ready for QA
