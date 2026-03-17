@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from 'react';
 import { LicitacionData } from '../../types';
 import { buildPliegoVM } from './model/pliego-vm';
