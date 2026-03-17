@@ -5,7 +5,6 @@ La migración de la arquitectura legacy a un sistema en tiempo real basado en Se
 
 ## To Do (Iteración Actual)
 
-- [ ] Configurar Playwright para pruebas E2E automatizadas. El test debe simular la subida de un PDF y verificar que el JobService recibe los eventos SSE según lo descrito en ARCHITECTURE.md. Actualizar el script `test:e2e` en el package.json.
 - [ ] Crear tabla `extraction_templates` en Supabase con RLS y políticas para usuarios autenticados, según SPEC.md (Sección 4).
 - [ ] Desarrollar UI para Gestión de Plantillas (`/templates`) usando componentes de v0: Listado, Crear, Editar, Eliminar. El esquema visual debe permitir definir campos y tipos de datos, según SPEC.md.
 - [ ] Integrar un selector de "Plantilla" en el Dropzone principal de subida de pliegos y pasarlo como parámetro al `JobService.analyzeWithAgents()`.
@@ -15,6 +14,7 @@ La migración de la arquitectura legacy a un sistema en tiempo real basado en Se
 ## Ideas de Producto
 
 ## Ready for QA
+- [ ] Configurar Playwright para pruebas E2E automatizadas. El test debe simular la subida de un PDF y verificar que el JobService recibe los eventos SSE según lo descrito en ARCHITECTURE.md. Actualizar el script `test:e2e` en el package.json.
 
 ## Done
 - [x] Implementar Módulo Avanzado de Historial de Licitaciones según especificación en SPEC.md

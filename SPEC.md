@@ -63,3 +63,7 @@
 **Métricas de IA / Backend:**
 - Actualizar el Edge Function `analyze-with-agents` para recibir un array de documentos (Base64) en lugar de uno único.
 - Iterar sobre el array para subir todos los documentos a OpenAI usando el endpoint de Files, y luego asociarlos todos al mismo Vector Store para que el Agent tenga acceso al contexto completo.
+
+## 6. Realidad Técnica Implementada (Iteración Actual - Playwright E2E)
+- **Pruebas E2E (Playwright):** Se ha configurado correctamente el entorno de pruebas automatizadas con Playwright.
+- **Flujo de Análisis (SSE):** Se añadió el script `test:e2e` en `package.json` (`playwright test`). Se ha creado el test `e2e/upload-sse.spec.ts` que simula la subida de un PDF y comprueba el correcto funcionamiento de `JobService` simulando la recepción en tiempo real de eventos Server-Sent Events (SSE) (como `heartbeat`, `agent_message` y `complete`) originados en la Edge Function `analyze-with-agents` tal cual se define en `ARCHITECTURE.md`.
