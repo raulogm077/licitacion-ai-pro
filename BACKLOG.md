@@ -27,20 +27,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do
 
-- [ ] [Tipo: QA] [Área: Analysis] Configurar Playwright para pruebas E2E del flujo SSE de análisis
-  - Objetivo: disponer de una prueba E2E automatizada que cubra subida de PDF y recepción de eventos SSE en frontend.
-  - Alcance: configuración de Playwright, script `test:e2e` y caso base del flujo principal.
-  - Criterios de aceptación:
-    - existe test E2E ejecutable desde `npm run test:e2e`
-    - el test simula subida de PDF
-    - el test verifica que `JobService` procesa eventos SSE esperados
-  - Archivos probables:
-    - `package.json`
-    - `playwright.config.*`
-    - `e2e/**`
-    - helpers de test relacionados con análisis
-  - Dependencias: ninguna
-
 - [ ] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
   - Objetivo: disponer de una base persistente para plantillas de extracción.
   - Alcance: tabla, RLS y políticas para usuarios autenticados según `SPEC.md`.
@@ -120,7 +106,20 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [ ] Configurar Playwright para pruebas E2E automatizadas. El test debe simular la subida de un PDF y verificar que el JobService recibe los eventos SSE según lo descrito en ARCHITECTURE.md. Actualizar el script `test:e2e` en el package.json.
+- [ ] [Tipo: QA] [Área: Analysis] Configurar Playwright para pruebas E2E del flujo SSE de análisis
+  - Objetivo: disponer de una prueba E2E automatizada que cubra subida de PDF y recepción de eventos SSE en frontend.
+  - Alcance: configuración de Playwright, script `test:e2e` y caso base del flujo principal.
+  - Criterios de aceptación:
+    - existe test E2E ejecutable desde `npm run test:e2e`
+    - el test simula subida de PDF
+    - el test verifica que `JobService` procesa eventos SSE esperados
+  - Archivos probables:
+    - `package.json`
+    - `playwright.config.*`
+    - `e2e/**`
+    - helpers de test relacionados con análisis
+  - Dependencias: ninguna
+
 
 ## Done
 
