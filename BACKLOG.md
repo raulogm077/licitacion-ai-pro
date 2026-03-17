@@ -120,6 +120,8 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
+- [ ] Configurar Playwright para pruebas E2E automatizadas. El test debe simular la subida de un PDF y verificar que el JobService recibe los eventos SSE según lo descrito en ARCHITECTURE.md. Actualizar el script `test:e2e` en el package.json.
+
 ## Done
 
 - [x] [Tipo: UI] [Área: History] Implementar módulo avanzado de historial de licitaciones
