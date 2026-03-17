@@ -19,7 +19,7 @@ test.describe('Licitación AI Pro - E2E', () => {
 
         // Check for empty state or main title (depending on seeding)
         // Since it's clean slate:
-        await expect(page.getByText('No hay historial')).toBeVisible();
+        await expect(page.getByText(/Sin resultados/i).first()).toBeVisible();
     });
 
     test('should navigate to Analytics view', async ({ page }) => {

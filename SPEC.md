@@ -29,3 +29,5 @@
 - **Script `.env.local`:** Creado `scripts/init-env.sh` para inyectar variables dummy (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) y evitar warnings de Zod/Vitest.
 - **Tests de UI:** Resueltos warnings de Vitest en `Header.test.tsx` (usando `waitFor`), `TagManager.test.tsx` y `env.test.ts` (mock hoisting).
 - **Soporte Base64:** Backend usa `extractBase64Data` en `analyze-with-agents` para limpiar prefijos Data URL de forma robusta.
+- **Historial Avanzado:** Se implementó una vista `/history` renovada usando v0, con filtros funcionales (cliente, fecha, presupuesto) que interactúan con Supabase vía `dbService.advancedSearch`.
+- **Limpieza de Legado:** Se eliminaron las funciones de polling (`startJob`, `pollJob`) en favor de SSE y se validó la ausencia del Edge Function deprecado `openai-runner`.
