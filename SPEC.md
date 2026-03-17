@@ -1,69 +1,163 @@
-# Product Specification (SPEC)
+# SPEC - Analista de Pliegos
 
-## 1. Visión Core y Estado del Proyecto
-**Visión Core:** Hacer que la extracción, lectura y análisis de pliegos de licitaciones complejos sea rápida, precisa y con una UX inmejorable para analistas legales/técnicos, apoyándonos en IA.
-**Estado Actual:** Interfaz para que el usuario suba pliegos en formato PDF (y guía opcional) y los analice. El backend usa Supabase Edge Functions (`analyze-with-agents`) con OpenAI Assistants SDK y Vector Stores (streaming vía Server-Sent Events).
+## 1. Visión del producto
 
-## 2. Funcionalidad en Desarrollo: Historial de Análisis (Cloud Sync)
-**Problema:** Al recargar la página o perder la sesión, la información analizada se pierde. No hay forma de recuperar análisis sin volver a gastar tokens.
-**Solución:** Guardar automáticamente en Supabase los resultados y proveer una vista de "Historial" avanzada.
-**User Story:** Como analista, quiero que mis análisis se guarden automáticamente para buscar, filtrar y exportar mi histórico rápidamente sin tener que re-analizar.
+El producto debe permitir analizar pliegos de licitación de forma rápida, precisa y navegable, siguiendo la **Guía de lectura de pliegos** como referencia principal de negocio. La aplicación no sustituye la revisión humana; la acelera y la estructura.
 
-**Requerimientos de Datos (Supabase):**
-- Tabla `licitaciones` con RLS activado.
-- Esquema base (`DbLicitacion`): `id` (UUID), `user_id` (UUID), `hash`, `fileName`, `timestamp`, `data` (JSONB), `metadata` (JSONB).
-- Integrar o potenciar `advancedSearch` en `src/services/db.service.ts` para soportar filtrados complejos de JSONB.
+## 2. Estado actual confirmado
 
-**UX Esperada (v0 / Frontend):**
-- **Auto-Guardado:** Llamada silenciosa al backend al terminar (`status === 'COMPLETED'`) con toast de "Guardado en la nube".
-- **Vista `/history`:** Reemplazar el listado básico actual con una UI moderna generada por v0. 
-- **Componentes de la Vista:** Tabla avanzada, filtros rápidos (fechas, cliente, presupuesto), barra de búsqueda general y paginación.
-- **Acciones:** "Ver Análisis" (carga JSON en el store global `useLicitacionStore` y navega a `/`), "Eliminar".
+Estado funcional confirmado a fecha de esta especificación:
 
-**Criterios de Aceptación Técnicos:**
-- Auto-guardado solo si el usuario está autenticado.
-- Carga de datos paginada o limitada (ej. top 50).
-- Uso exclusivo de componentes UI existentes o generados por v0 alineados al diseño actual.
+- el análisis principal usa **OpenAI Agents SDK**
+- el flujo de ejecución usa **streaming por SSE**
+- existe historial de licitaciones y análisis ya implementado
+- el sistema soporta análisis de PDF principal y prepara la evolución a plantillas dinámicas y múltiples documentos
+- la arquitectura legacy de colas/polling quedó fuera del flujo operativo principal
 
-## 3. Realidad Técnica Implementada (Iteración Anterior)
-- **Historial Avanzado:** Se implementó una vista `/history` renovada usando v0, con filtros funcionales (cliente, fecha, presupuesto) que interactúan con Supabase vía `dbService.advancedSearch`.
-- **Limpieza de Legado:** Se eliminaron las funciones de polling (`startJob`, `pollJob`) en favor de SSE y se validó la ausencia del Edge Function deprecado `openai-runner`.
+## 3. Iteración activa
 
-## 4. Nueva Funcionalidad (Iteración Actual): Gestión de Plantillas de Extracción (Templates)
-**Problema:** Actualmente, la IA extrae siempre el mismo esquema de datos definido de forma estática en el código (schema de Zod). Los usuarios tienen diferentes necesidades (ej. algunos buscan cláusulas penales, otros solo criterios de solvencia técnica) y necesitan poder personalizar qué información extrae el Analista.
-**Solución:** Implementar un sistema de "Plantillas de Extracción" que permita a los usuarios definir esquemas personalizados y guardarlos para usarlos en futuros análisis.
-**User Story:** Como analista técnico, quiero poder crear y guardar mis propias plantillas con los campos específicos que me interesan de un pliego, para que la IA extraiga solo la información relevante para mi caso de uso.
+### 3.1. Objetivo
 
-**Requerimientos de Datos (Supabase):**
-- Nueva tabla `extraction_templates` con RLS. Implementado: ID, User ID, Nombre, Descripción y Schema (JSONB).
-- Integrado un servicio CRUD `template.service.ts` para manejar consultas desde el frontend.
+Cerrar la línea de **plantillas dinámicas de extracción** con una implementación segura, documentada y compatible con el flujo actual de análisis.
 
-**UX Esperada (v0 / Frontend):**
-- **Vista de Gestión (`/templates`):** Listado de plantillas guardadas implementado, con botones de Crear, Editar, Eliminar y Duplicar.
-- **Creador de Plantillas:** Formulario dinámico para añadir campos al schema.
-- **Selector en Análisis:** Añadido selector `<select>` en el `AnalysisWizard.tsx` para escoger plantilla antes de iniciar el análisis.
+### 3.2. Historia de usuario principal
 
-**Métricas de IA / Backend:**
-- Modificado Edge Function `analyze-with-agents` para incluir instrucciones dinámicas inyectadas basadas en el template recibido.
+Como usuario interno que analiza pliegos, quiero poder seleccionar una plantilla de extracción antes de iniciar el análisis para adaptar el resultado estructurado al tipo de licitación sin perder robustez ni compatibilidad con la interfaz actual.
 
-## 5. Nueva Funcionalidad (Próxima Iteración): Soporte para Múltiples Documentos por Licitación
-**Problema:** Actualmente el sistema solo permite subir un único archivo PDF principal (y una guía opcional). Las licitaciones suelen estar compuestas por múltiples documentos (ej. Pliego de Cláusulas Administrativas, Pliego de Prescripciones Técnicas, Anexos). Los usuarios tienen que unir los PDFs manualmente antes de subirlos.
-**Solución:** Permitir la subida múltiple de documentos y enviarlos en conjunto al Vector Store de OpenAI para su análisis unificado.
-**User Story:** Como analista técnico, quiero poder subir todos los documentos que componen una licitación a la vez, para que la IA analice el contexto completo sin que yo tenga que combinar los PDFs previamente.
+### 3.3. Entregables esperados
 
-**Requerimientos de Datos (Supabase):**
-- Modificar la tabla `licitaciones` para que `fileName` pueda representar múltiples archivos, o añadir una nueva columna `files` (array de JSON con nombre y path).
-- Ajustar el almacenamiento en Supabase Storage si es necesario para agrupar múltiples archivos bajo una misma licitación.
+1. Soporte persistente para `extraction_templates`
+2. Pantalla de gestión CRUD de plantillas
+3. Selector de plantilla en el flujo principal de análisis
+4. Adaptación de `analyze-with-agents` para usar `templateId`
+5. Fallback estático cuando no haya plantilla válida
+6. Validación automática con tests y cobertura mínima del flujo SSE/E2E
 
-**UX Esperada (v0 / Frontend):**
-- **Subida de Archivos:** Refactorizar el componente principal (Dropzone) para aceptar múltiples archivos simultáneos (e.g., `<input type="file" multiple />`).
-- **Lista de Archivos:** Mostrar los documentos subidos en forma de lista, con su peso y un botón para eliminar archivos individuales antes de lanzar el análisis.
-- **Feedback Visual:** Mantener un estado de carga claro mientras se procesan múltiples documentos.
+### 3.4. Criterios de aceptación globales
 
-**Métricas de IA / Backend:**
-- Actualizar el Edge Function `analyze-with-agents` para recibir un array de documentos (Base64) en lugar de uno único.
-- Iterar sobre el array para subir todos los documentos a OpenAI usando el endpoint de Files, y luego asociarlos todos al mismo Vector Store para que el Agent tenga acceso al contexto completo.
+- la creación y edición de plantillas es posible desde la UI
+- el usuario puede lanzar análisis con o sin plantilla
+- si se selecciona plantilla, el `templateId` llega a la Edge Function
+- la Edge Function usa la plantilla si existe y es válida
+- si no existe plantilla, se usa el comportamiento estático actual
+- no se rompe el contrato SSE
+- no se rompe la validación Zod ni el render del frontend
+- la documentación queda actualizada
 
-## 6. Realidad Técnica Implementada (Iteración Actual - Playwright E2E)
-- **Pruebas E2E (Playwright):** Se ha configurado correctamente el entorno de pruebas automatizadas con Playwright.
-- **Flujo de Análisis (SSE):** Se añadió el script `test:e2e` en `package.json` (`playwright test`). Se ha creado el test `e2e/upload-sse.spec.ts` que simula la subida de un PDF y comprueba el correcto funcionamiento de `JobService` simulando la recepción en tiempo real de eventos Server-Sent Events (SSE) (como `heartbeat`, `agent_message` y `complete`) originados en la Edge Function `analyze-with-agents` tal cual se define en `ARCHITECTURE.md`.
+### 3.5. Impacto técnico esperado
+
+Superficies afectadas en esta iteración:
+
+- migraciones y modelo persistente en Supabase
+- servicios frontend/backend para plantillas
+- wizard o flujo principal de subida/análisis
+- `JobService.analyzeWithAgents()`
+- Edge Function `analyze-with-agents`
+- esquemas o utilidades de extracción si aplica
+- tests unitarios y E2E relacionados
+
+## 4. Diseño funcional y técnico de la iteración activa
+
+### 4.1. Plantillas de extracción
+
+La entidad `extraction_templates` debe permitir definir una estructura de extracción configurable por usuario autenticado.
+
+Capacidades mínimas:
+
+- nombre de plantilla
+- descripción opcional
+- definición de campos
+- tipo de dato por campo
+- activación/uso en análisis
+
+### 4.2. Gestión de plantillas en UI
+
+Debe existir una pantalla `/templates` que permita:
+
+- listar plantillas
+- crear plantilla
+- editar plantilla
+- eliminar plantilla
+
+La pantalla debe estar pensada para que el usuario defina de forma clara qué campos quiere extraer y de qué tipo son.
+
+### 4.3. Selector de plantilla en análisis
+
+El flujo principal de análisis debe permitir seleccionar una plantilla antes de iniciar el procesamiento.
+
+Comportamiento requerido:
+
+- la selección es opcional
+- si no hay selección, el sistema sigue funcionando como ahora
+- si hay selección, el `templateId` debe viajar desde frontend hasta `analyze-with-agents`
+
+### 4.4. Extracción dinámica en la Edge Function
+
+La Edge Function debe:
+
+- aceptar `templateId`
+- consultar la plantilla en persistencia
+- construir el esquema dinámico si la plantilla es válida
+- aplicar fallback al esquema estático actual si no existe plantilla válida
+- mantener compatibilidad con el contrato SSE y el frontend
+
+### 4.5. Requisitos de validación
+
+Para cerrar una tarea de esta iteración deben pasar, según aplique:
+
+- `npm run type-check`
+- `npm test`
+- `npm run test:e2e` si el cambio toca UI, flujo principal o SSE
+
+## 5. Próxima iteración
+
+### 5.1. Objetivo
+
+Añadir soporte **multi-documento por licitación** sin comprometer la claridad de UX ni la robustez del pipeline actual.
+
+### 5.2. Alcance previsto
+
+- carga de varios documentos en frontend
+- validación de varios archivos
+- listado claro de documentos asociados al análisis
+- adaptación de `analyze-with-agents` para aceptar e ingerir múltiples archivos
+- documentación explícita de límites y comportamiento
+
+### 5.3. Regla importante
+
+La línea de plantillas y la línea multi-documento no deben mezclarse en la misma noche salvo ticket explícito.
+
+## 6. Decisiones abiertas
+
+- definición exacta del modelo de campos de `extraction_templates`
+- nivel de flexibilidad admitido en los tipos de dato de plantilla
+- estrategia de composición del contexto cuando entren múltiples documentos
+- límites operativos para número y tamaño de archivos multi-documento
+
+## 7. Riesgos y mitigaciones
+
+### Riesgo 1: romper el contrato SSE
+Mitigación: todo cambio en `analyze-with-agents` debe validar compatibilidad de eventos y consumo frontend.
+
+### Riesgo 2: documentación obsoleta
+Mitigación: ningún cambio pasa a QA sin actualizar documentación mínima afectada.
+
+### Riesgo 3: tareas demasiado grandes
+Mitigación: dividir cualquier épica en entregables de una sola sesión.
+
+### Riesgo 4: desalineación con la Guía de lectura
+Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la guía antes de entregar.
+
+## 8. Historial de implementación
+
+### Implementado previamente
+- migración a OpenAI Agents SDK
+- streaming por SSE
+- historial avanzado de licitaciones
+- limpieza principal de arquitectura legacy de colas
+
+### Iteración activa
+- pendiente de cierre completo según backlog
+
+### Próxima iteración
+- soporte multi-documento
