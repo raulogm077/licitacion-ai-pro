@@ -1,136 +1,70 @@
-> ⚠️ **AVISO DE DEPRECACIÓN**  (Enero 2026)
->
-> Este documento describe la **ARQUITECTURA ANTIGUA** usando pgmq + pg_cron + queue-processor.
-> 
-> **Para la NUEVA arquitectura con Agents SDK**, ver:
-> - [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitectura actual
-> - [DEPRECATED.md](./DEPRECATED.md) - Qué se eliminó y por qué
->
-> Este archivo se mantiene solo para referencia histórica.
+# Deployment actual
 
----
+Este documento describe el proceso vigente de despliegue. No describe la arquitectura legacy de colas.
 
-# Instrucciones de Despliegue
+## 1. Qué se despliega
 
-## 1. Aplicar Migraciones
+Superficies desplegables principales:
 
-```bash
-# Verificar migraciones pendientes
-npx supabase migration list
+- frontend de la aplicación
+- Edge Function `analyze-with-agents`
 
-# Aplicar migraciones local (para testing)
-npx supabase db reset
+## 2. Quién puede desplegar
 
-# Aplicar migraciones a producción
-npx supabase db push
-```
+- **Solo QA** puede ejecutar despliegues de la Edge Function dentro del flujo nocturno.
+- PM, Tech Lead y AI Engineer no despliegan.
 
-## 2. Configurar Variables de Entorno en Supabase
+## 3. Preconditions obligatorias
 
-Ve al Dashboard de Supabase → SQL Editor y ejecuta:
+Antes de desplegar una tarea, QA debe verificar:
 
-```sql
--- Reemplaza con tu PROJECT REF y SERVICE ROLE KEY
-ALTER DATABASE postgres SET app.settings.project_url = 'https://aehlrgvuqmzbzqufxayq.supabase.co';
-ALTER DATABASE postgres SET app.settings.service_role_key = 'YOUR_SERVICE_ROLE_KEY_HERE';
-```
+1. `npm run type-check`
+2. `npm test`
+3. `npm run test:e2e` si la tarea toca UI, flujo de análisis o SSE
+4. si la tarea es IA:
+   - compatibilidad con la Guía de lectura de pliegos
+   - compatibilidad con SSE
+   - compatibilidad con schema/Zod
+5. documentación mínima actualizada
 
-## 3. Desplegar Edge Functions
+## 4. Comando de despliegue de la Edge Function
 
 ```bash
-# Desplegar queue-processor
-npx supabase functions deploy queue-processor
+npx supabase functions deploy analyze-with-agents --no-verify-jwt
+```
 
-# Verificar deployment
+## 5. Secretos y configuración
+
+`OPENAI_API_KEY` debe estar configurada como secreto de Supabase para la Edge Function. No debe exponerse en el frontend.
+
+Ejemplo de configuración:
+
+```bash
+npx supabase secrets set OPENAI_API_KEY=sk-...
+```
+
+## 6. Validación posterior al despliegue
+
+Después del despliegue, QA debe comprobar al menos:
+
+- que la función figura en el listado de Supabase
+- que no hay errores inmediatos de ejecución
+- que el flujo principal sigue respondiendo como mínimo en un smoke test
+
+Comandos útiles:
+
+```bash
 npx supabase functions list
 ```
 
-## 4. Verificar pg_cron Jobs
+## 7. Rollback operativo
 
-En SQL Editor:
+Si el despliegue introduce una regresión:
 
-```sql
--- Ver cron jobs activos
-select jobid, jobname, schedule, active 
-from cron.job 
-where jobname in ('process-analysis-queue', 'sync-openai-runs');
+- la tarea debe volver a `## To Do` con `🐛 BUG:` y log asociado en `BACKLOG.md`
+- se debe preparar una nueva tarea correctiva
+- la documentación debe recoger el riesgo o incidencia si aplica
 
--- Ver logs de ejecución reciente
-select jobid, runid, job_pid, status, return_message, start_time 
-from cron.job_run_details 
-where jobid in (
-    select jobid from cron.job 
-    where jobname in ('process-analysis-queue', 'sync-openai-runs')
-)
-order by start_time desc 
-limit 20;
-```
+## 8. Regla documental
 
-## 5. Verificar Queue
-
-```sql
--- Ver mensajes en cola
-select * from pgmq_public.analysis_queue;
-
--- Ver mensajes archivados
-select * from pgmq_public.analysis_queue_archive
-order by archived_at desc
-limit 10;
-```
-
-## 6. Test Manual
-
-```bash
-# Test desde local
-npx tsx scripts/test-enqueue.ts
-```
-
-O desde Supabase Dashboard → Functions → queue-processor → Test:
-
-```json
-{
-  "action": "process"
-}
-```
-
-## 7. Monitoreo
-
-### Ver logs de Edge Functions
-- Dashboard → Functions → queue-processor → Logs
-- Dashboard → Functions → openai-runner → Logs
-
-### Ver estado de jobs
-```sql
-select 
-    id,
-    status,
-    metadata->>'step' as step,
-    metadata->>'message' as message,
-    created_at,
-    updated_at
-from analysis_jobs
-order by created_at desc
-limit 10;
-```
-
-## Troubleshooting
-
-### Si pg_cron no ejecuta:
-```sql
--- Verificar que pg_cron está habilitado
-select * from pg_extension where extname = 'pg_cron';
-
--- Reactivar job
-select cron.unschedule('process-analysis-queue');
-select cron.schedule(...); -- Ejecutar schedule de nuevo
-```
-
-### Si queue no funciona:
-```sql
--- Verificar permisos
-\dp pgmq_public.*
-
--- Recrear queue si es necesario
-select pgmq.drop_queue('analysis_queue');
-select pgmq.create('analysis_queue');
-```
+Si cambia el proceso real de despliegue, este archivo debe actualizarse antes de cerrar la tarea correspondiente.
