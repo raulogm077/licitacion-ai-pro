@@ -26,8 +26,25 @@
 - Uso exclusivo de componentes UI existentes o generados por v0 alineados al diseño actual.
 
 ## 3. Realidad Técnica Implementada (Iteración Anterior)
-- **Script `.env.local`:** Creado `scripts/init-env.sh` para inyectar variables dummy (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) y evitar warnings de Zod/Vitest.
-- **Tests de UI:** Resueltos warnings de Vitest en `Header.test.tsx` (usando `waitFor`), `TagManager.test.tsx` y `env.test.ts` (mock hoisting).
-- **Soporte Base64:** Backend usa `extractBase64Data` en `analyze-with-agents` para limpiar prefijos Data URL de forma robusta.
 - **Historial Avanzado:** Se implementó una vista `/history` renovada usando v0, con filtros funcionales (cliente, fecha, presupuesto) que interactúan con Supabase vía `dbService.advancedSearch`.
 - **Limpieza de Legado:** Se eliminaron las funciones de polling (`startJob`, `pollJob`) en favor de SSE y se validó la ausencia del Edge Function deprecado `openai-runner`.
+
+## 4. Nueva Funcionalidad (Iteración Actual): Gestión de Plantillas de Extracción (Templates)
+**Problema:** Actualmente, la IA extrae siempre el mismo esquema de datos definido de forma estática en el código (schema de Zod). Los usuarios tienen diferentes necesidades (ej. algunos buscan cláusulas penales, otros solo criterios de solvencia técnica) y necesitan poder personalizar qué información extrae el Analista.
+**Solución:** Implementar un sistema de "Plantillas de Extracción" que permita a los usuarios definir esquemas personalizados y guardarlos para usarlos en futuros análisis.
+**User Story:** Como analista técnico, quiero poder crear y guardar mis propias plantillas con los campos específicos que me interesan de un pliego, para que la IA extraiga solo la información relevante para mi caso de uso.
+
+**Requerimientos de Datos (Supabase):**
+- Nueva tabla `extraction_templates` con RLS.
+- Esquema base: `id` (UUID), `user_id` (UUID), `name` (String), `description` (String), `schema` (JSONB - Zod schema definition), `created_at`, `updated_at`.
+- Relación opcional con `licitaciones` para saber qué plantilla se usó en un análisis histórico.
+
+**UX Esperada (v0 / Frontend):**
+- **Vista de Gestión (`/templates`):** Listado de plantillas guardadas con opciones para Crear, Editar, Eliminar y Duplicar.
+- **Creador de Plantillas:** Interfaz visual (drag and drop o formulario dinámico) para definir campos, tipos de datos (texto, número, fecha, lista), y obligatoriedad.
+- **Selector en Análisis:** En la pantalla principal de subida de pliegos, añadir un desplegable para seleccionar la "Plantilla a aplicar" antes de iniciar el análisis.
+
+**Métricas de IA / Backend:**
+- Modificar el Edge Function `analyze-with-agents` para que acepte un schema dinámico (transformar el JSONB de Supabase en un schema compatible con OpenAI `response_format`).
+- Ajustar las instrucciones del sistema en el Agente de OpenAI basándose en los campos de la plantilla seleccionada.
+- Mantener compatibilidad con el fallback schema por defecto si no se selecciona plantilla.

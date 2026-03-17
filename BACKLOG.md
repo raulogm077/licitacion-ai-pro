@@ -1,11 +1,12 @@
 # Analista de Pliegos - Backlog
 
 ## 🧠 Contexto y Estado Actual
-Estamos en plena migración de una arquitectura legacy (pgmq + cron) a un sistema en tiempo real basado en Server-Sent Events (SSE) y el OpenAI Agents SDK.
+La migración de la arquitectura legacy a un sistema en tiempo real basado en Server-Sent Events (SSE) y OpenAI Agents SDK ha finalizado con éxito. El enfoque actual es habilitar la personalización del usuario, comenzando con la posibilidad de definir plantillas dinámicas de extracción en lugar de depender de esquemas estáticos.
 
 ## To Do (Iteración Actual)
+- [ ] Implementar Gestión de Plantillas de Extracción según SPEC.md
+
 ## Ideas de Producto
-- **Gestión de plantillas:** Poder configurar distintas guías de extracción a nivel UI.
 - **Múltiples Documentos por Licitación:** Adaptar la UI y el Vector Store para subir más de 1 PDF principal (más allá de la guía opcional).
 
 ## Ready for QA
