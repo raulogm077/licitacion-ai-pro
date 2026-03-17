@@ -110,6 +110,12 @@ Para cerrar una tarea de esta iteración deben pasar, según aplique:
 - `npm run test:e2e` si el cambio toca UI, flujo principal o SSE
 - test:e2e configurado con Playwright para pruebas E2E automatizadas
 
+
+### 4.6. Implementación IA - Extracción Dinámica
+- La Edge Function `analyze-with-agents` procesa un nuevo campo `template` en su request y genera un `response_format` dinámico para estructurar las respuestas combinando los campos por defecto y las propiedades extraídas mediante `plantilla_personalizada`.
+- Actualizamos los schemas Zod (Frontend & Agent) asegurando que el schema Agent maneje la nueva clave de forma opcional y que el `transformAgentResponseToFrontend` mueva la data correctamente a través de la tubería para evitar corromper la pantalla de análisis con variables nulas o tipos incompatibles (TS/Zod).
+- Se parcheo incompatibilidades de Zod con el JSON Schema estricto del OpenAI Agents SDK asegurando de usar `.nullable()` tras usar `.optional()`.
+
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo

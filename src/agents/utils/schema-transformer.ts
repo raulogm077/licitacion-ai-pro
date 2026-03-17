@@ -13,8 +13,8 @@ export function transformAgentResponseToFrontend(
 ): unknown {  // Retorna unknown porque será validado después por el Zod del frontend
 
     // Defensive check for top-level keys
-    const result = agentResponse?.result || {};
-    const workflow = agentResponse?.workflow || {};
+    const result = agentResponse?.result || {} as any;
+    const workflow = agentResponse?.workflow || {} as any;
 
     // Helper to safely access arrays
     const safeArray = (arr: unknown[]) => Array.isArray(arr) ? arr : [];
@@ -24,14 +24,15 @@ export function transformAgentResponseToFrontend(
     const safeNumber = (num: unknown) => typeof num === 'number' ? num : 0;
 
     // Defensive access to sections
-    const datosGenerales = result.datosGenerales || {};
-    const criterios = result.criteriosAdjudicacion || {};
-    const tecnicos = result.requisitosTecnicos || {};
-    const solvencia = result.requisitosSolvencia || {};
-    const riesgos = result.restriccionesYRiesgos || {};
-    const servicio = result.modeloServicio || {};
+    const datosGenerales = (result as any).datosGenerales || {};
+    const criterios = (result as any).criteriosAdjudicacion || {};
+    const tecnicos = (result as any).requisitosTecnicos || {};
+    const solvencia = (result as any).requisitosSolvencia || {};
+    const riesgos = (result as any).restriccionesYRiesgos || {};
+    const servicio = (result as any).modeloServicio || {};
 
     return {
+        plantilla_personalizada: (result as any).plantilla_personalizada || undefined,
         // Datos Generales - mapeo 1:1
         datosGenerales: {
             titulo: safeString(datosGenerales.titulo),

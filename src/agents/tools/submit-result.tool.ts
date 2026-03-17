@@ -17,8 +17,8 @@ export const submitResultTool = tool({
         const validated = LicitacionAgentResponseSchema.parse(result);
 
         console.log('[submit_analysis_result] Resultado validado correctamente');
-        console.log(`[submit_analysis_result] Quality: ${validated.workflow.quality.overall}`);
-        console.log(`[submit_analysis_result] Evidences: ${validated.workflow.evidences.length}`);
+        console.log(`[submit_analysis_result] Quality: ${validated.workflow?.quality?.overall}`);
+        console.log(`[submit_analysis_result] Evidences: ${validated.workflow?.evidences?.length}`);
 
         return {
             success: true,

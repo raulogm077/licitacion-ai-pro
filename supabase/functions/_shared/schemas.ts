@@ -56,6 +56,8 @@ const RobustArray = <T extends z.ZodTypeAny>(schema: T) =>
     z.preprocess(val => (val === null || val === undefined) ? [] : val, z.array(schema).default([]));
 
 export const LicitacionContentSchema = z.object({
+    plantilla_personalizada: z.record(z.any()).optional(),
+
     datosGenerales: z.preprocess(val => val ?? {}, z.object({
         titulo: RobustString('Sin título'),
         presupuesto: RobustNumber(0),
@@ -227,3 +229,26 @@ export const LicitacionSchema = LicitacionContentSchema.extend({
 });
 
 export type LicitacionData = z.infer<typeof LicitacionSchema>;
+
+// Template schemas
+export const TemplateFieldSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(['texto', 'numero', 'fecha', 'lista', 'booleano']),
+    description: z.string().optional(),
+    required: z.boolean().default(false),
+});
+
+export type TemplateField = z.infer<typeof TemplateFieldSchema>;
+
+export const ExtractionTemplateSchema = z.object({
+    id: z.string(),
+    user_id: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    schema: z.array(TemplateFieldSchema),
+    created_at: z.string(),
+    updated_at: z.string(),
+});
+
+export type ExtractionTemplate = z.infer<typeof ExtractionTemplateSchema>;
