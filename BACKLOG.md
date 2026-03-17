@@ -26,6 +26,12 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 ```
 
 ## To Do
+- [ ] 🧠 [AI] [Tipo: AI] [Área: Templates] Mejorar inyección del prompt dinámico para plantillas
+  - Objetivo: Reemplazar la concatenación de texto por la API estructurada de roles y mensajes.
+  - Alcance: `analyze-with-agents/index.ts` y utilidades de instrucciones.
+  - Criterios de aceptación:
+    - El template prompt se inyecta de forma declarativa o como mensaje de system/user en la llamada a OpenAI.
+    - El flujo sigue procesando la plantilla con éxito.
 
     - existe listado de plantillas
     - se puede crear, editar y eliminar
@@ -118,3 +124,21 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - [x] [Tipo: Docs] [Área: Infra] Crear script para inicialización de variables de entorno locales
 - [x] [Tipo: QA] [Área: Analysis] Revisar warnings en tests de UI
 - [x] [Tipo: AI] [Área: Analysis] Implementar soporte completo para PDFs sin anexos o guía
+
+## Deuda Técnica / Refactorización
+- [ ] [Tipo: UI] [Área: Templates] Refactorizar `TemplatesPage.tsx`
+  - Objetivo: Reducir la complejidad y tamaño del archivo separando la lógica y la UI.
+  - Alcance: Extraer componentes como `TemplateForm` y `TemplateList`.
+  - Criterios de aceptación:
+    - El archivo principal reduce significativamente su tamaño.
+    - Las pruebas unitarias continúan pasando.
+- [ ] [Tipo: Infra] [Área: Infra] Reparar linter (ESLint 9+)
+  - Objetivo: Solucionar el fallo del comando `pnpm run lint`.
+  - Alcance: Actualizar `.eslintrc.cjs` a `eslint.config.js` o configurar la compatibilidad adecuada para ESLint 9+.
+  - Criterios de aceptación:
+    - El comando `pnpm run lint` finaliza con éxito en CI/CD y localmente.
+- [ ] [Tipo: Backend] [Área: Infra] Cleanup persistente de OpenAI
+  - Objetivo: Evitar artefactos huérfanos (Vector Stores, Archivos) por conexiones cerradas abruptamente en `analyze-with-agents`.
+  - Alcance: Crear un cronjob en Supabase (o endpoint protegido) para limpiar recursos antiguos (ej. > 24h).
+  - Criterios de aceptación:
+    - Existe un proceso automático documentado que elimina artefactos temporales de OpenAI.
