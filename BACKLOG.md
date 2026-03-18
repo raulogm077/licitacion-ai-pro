@@ -33,7 +33,20 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
+
+(Vacío por el momento)
+
+## Deuda Técnica / Refactorización
+
+- (Vacío por el momento)
+
+## Ideas de Producto
+
+- (Vacío por el momento)
+
+## Done
+
+- [x] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
   - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
   - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
   - Criterios de aceptación:
@@ -58,7 +71,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/stores/analysis.store.ts`
   - Dependencias: ninguna
 
-- [ ] [Tipo: Backend] [Área: Infra] 🛡️ Sentinel: [CRITICAL] Remover credenciales expuestas y hardcodeadas
+- [x] [Tipo: Backend] [Área: Infra] 🛡️ Sentinel: [CRITICAL] Remover credenciales expuestas y hardcodeadas
   - Objetivo: Identificar y eliminar cualquier credencial hardcodeada (API keys de Gemini, Supabase, Vercel, etc.) del repositorio para garantizar la seguridad del código público.
   - Alcance: Revisión de `scripts/setup-vercel-env.sh`, `scripts/init-env.sh` y otros scripts susceptibles.
   - Criterios de aceptación:
@@ -70,16 +83,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias: Ninguna
 
 
-
-## Deuda Técnica / Refactorización
-
-- (Vacío por el momento)
-
-## Ideas de Producto
-
-- (Vacío por el momento)
-
-## Done
 
 - [x] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
 - [x] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
