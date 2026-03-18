@@ -73,9 +73,9 @@ Es el núcleo del pipeline de IA.
 Responsabilidades:
 
 - recibir la solicitud de análisis
-- cargar uno o múltiples archivos (mediante `pdfBase64` o el array `files`) a OpenAI cuando aplique
-- construir un contexto consolidado en el Vector Store con el expediente completo
-- ejecutar análisis con Agents SDK
+- cargar uno o múltiples archivos (mediante `pdfBase64` o el array `files`) a OpenAI. La carga de múltiples archivos se realiza de forma **secuencial** para evitar picos de consumo de memoria que rompan el límite del Edge Runtime.
+- construir un contexto consolidado en el Vector Store con el expediente completo (polling mediante exponential backoff)
+- ejecutar análisis con Agents SDK (inyectando mensaje con los nombres de los documentos del expediente)
 - emitir eventos SSE
 - devolver resultado estructurado compatible con frontend
 
@@ -140,21 +140,22 @@ Impacto técnico:
 
 El soporte multi-documento está disponible a nivel de back-end a través de `analyze-with-agents` y orquestación con `JobService`, listo para integrarse en la UI.
 
-Flujo objetivo parcial:
+Flujo objetivo:
 
 ```text
 Usuario selecciona varios documentos
-  └─ Frontend valida y lista archivos (WIP - Pendiente UI)
+  └─ Frontend valida y lista archivos (hasta 5, max 30MB)
        └─ JobService envía entrada multiarchivo a través del parámetro opcional `files`
-            └─ analyze-with-agents ingiere varios documentos y construye el Vector Store
-                 └─ resultado único estructurado para la licitación
+            └─ analyze-with-agents ingiere de manera secuencial los documentos y construye el Vector Store
+                 └─ resultado único estructurado para el expediente completo
 ```
 
 Riesgos principales mitigados por la estrategia actual:
 
+- crecimiento de memoria en Edge Functions (resuelto mediante carga secuencial de `files` usando `for...of`)
 - crecimiento del contexto (OpenAI Vector Stores es responsable de la partición/chunks y recuperación mediante embeddings)
-- comportamiento ambiguo entre documentos (Agent SDK orquesta la lectura priorizada según `instructions`)
-- complejidad de UX (Pendiente de cierre iterativo en UI)
+- comportamiento ambiguo entre documentos (Agent SDK orquesta la lectura priorizada según `instructions` donde se define que la IA analiza un expediente)
+- límites de Rate Limiting en API de OpenAI (resuelto mediante Exponential Backoff en el polling del Vector Store)
 
 ## 8. Responsabilidades técnicas por rol
 

@@ -119,6 +119,11 @@ El flujo de carga en `AnalysisWizard.tsx` debe modificarse de la siguiente maner
 - **Store:** `analyzeFile` se migró a `analyzeFiles`, procesando cada archivo secuencialmente para extracción de `base64` en `useAnalysisStore`.
 - **Servicios:** Se modificó la firma `analyzePdfContent` en `ai.service.ts` para aceptar la inyección del parámetro `files?: {name: string, base64: string}[]` que es pasado de forma íntegra a `JobService.analyzeWithAgents`.
 
+### 4.3. Refinamiento Multi-Documento (Backend AI) - Implementado
+- **Ingesta:** La Edge Function `analyze-with-agents` ingiere los documentos adicionales de forma *secuencial* para evitar picos de uso de memoria (Límite 256MB/512MB en Vercel/Supabase Edge Functions).
+- **Prompt Dinámico:** El contexto enviado a la IA declara explícitamente el documento principal y enumera los nombres de todos los archivos adicionales que configuran el "expediente".
+- **Polling:** El chequeo del estado del Vector Store de OpenAI usa ahora *Exponential Backoff* para minimizar solicitudes a la API durante la indexación.
+
 
 ## 9. Security & Secrets Management
 

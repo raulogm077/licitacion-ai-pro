@@ -33,6 +33,18 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
+- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
+  - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
+  - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
+  - Criterios de aceptación:
+    - la Edge Function acepta varios archivos
+    - el análisis mantiene salida válida
+    - se documenta el comportamiento y límites
+  - Archivos probables:
+    - `supabase/functions/analyze-with-agents/**`
+    - transformación de resultados y schemas asociados
+  - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
+
 - [x] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
   - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
   - Alcance: actualizar dropzone en `AnalysisWizard.tsx`, manejo de estado global con múltiples archivos en `useAnalysisStore`, permitir añadir/quitar de la lista, y validación de máximo 5 archivos según `SPEC.md`. Modificar `analyzeFile` para procesar el array de archivos con `processFile` obteniendo el hash y base64 de todos.
@@ -57,17 +69,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `scripts/init-env.sh`
   - Dependencias: Ninguna
 
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
-  - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
-  - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
-  - Criterios de aceptación:
-    - la Edge Function acepta varios archivos
-    - el análisis mantiene salida válida
-    - se documenta el comportamiento y límites
-  - Archivos probables:
-    - `supabase/functions/analyze-with-agents/**`
-    - transformación de resultados y schemas asociados
-  - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
+
 
 ## Deuda Técnica / Refactorización
 
