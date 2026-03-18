@@ -22,11 +22,4 @@ if [ ! -z "$SUPABASE_KEY" ]; then
   echo "$SUPABASE_KEY" | npx vercel env add VITE_SUPABASE_ANON_KEY production 2>/dev/null || echo "VITE_SUPABASE_ANON_KEY ya existe o error."
 fi
 
-# Gemini Key
-read -p "Introduce Gemini API Key (o pulsa enter para usar la del .env si existe): " GEMINI_KEY
-if [ -z "$GEMINI_KEY" ]; then
-  GEMINI_KEY=$(grep VITE_GEMINI_API_KEY .env | cut -d '=' -f2)
-fi
-echo "$GEMINI_KEY" | npx vercel env add VITE_GEMINI_API_KEY production 2>/dev/null || echo "VITE_GEMINI_API_KEY ya existe o error."
-
 echo "✅ Configuración finalizada."
