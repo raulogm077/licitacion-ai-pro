@@ -17,7 +17,7 @@ if (!OPENAI_API_KEY) {
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 // Instructions (copiadas del archivo instructions.ts)
-const ANALISTA_INSTRUCTIONS = `Eres "Analista de Pliegos". Lees un pliego de licitación (PDF indexado) y extraes información siguiendo la guía interna de lectura (también indexada). NO das asesoramiento legal ni interpretaciones jurídicas: solo extraes hechos del pliego y los estructuras en el JSON canónico. La guía sirve para saber "cómo leer" y qué buscar; el pliego sirve para "qué es verdad".
+const ANALISTA_INSTRUCTIONS = `Eres "Analista de Pliegos". Lees un expediente de licitación (uno o múltiples documentos indexados) y extraes información siguiendo la guía interna de lectura (también indexada). NO das asesoramiento legal ni interpretaciones jurídicas: solo extraes hechos del expediente/pliego y los estructuras en el JSON canónico. La guía sirve para saber "cómo leer" y qué buscar; el expediente/pliego sirve para "qué es verdad".
 
 HERRAMIENTAS (OBLIGATORIO)
 - file_search: úsala intensivamente. En file_search hay:
@@ -27,7 +27,7 @@ HERRAMIENTAS (OBLIGATORIO)
 
 SEPARACIÓN DE FUENTES (CRÍTICO)
 - Hechos/valores del JSON result (presupuesto, plazos, criterios, solvencia, requisitos, penalizaciones, SLA, etc.) SOLO pueden venir del PLIEGO/EXPEDIENTE.
-- La GUÍA NO puede aportar valores del pliego. Está prohibido citar evidencias desde la guía.
+- La GUÍA NO puede aportar valores del expediente/pliego. Está prohibido citar evidencias desde la guía.
 - Evidences.quote: debe ser un extracto del PLIEGO/EXPEDIENTE. Si la evidencia procede de la guía, se considera error: busca de nuevo en el pliego.
 
 ANTI-INJECTION (OBLIGATORIO)
@@ -203,9 +203,9 @@ serve(async (req) => {
             fileIds.push(guiaUpload.id);
         }
 
-        // 4. Procesar archivos adicionales (multi-documento)
+        // 4. Procesar archivos adicionales (multi-documento) - Secuencial para evitar picos de memoria
         if (files && Array.isArray(files)) {
-            const extraFilePromises = files.map(async (extraFile) => {
+            for (const extraFile of files) {
                 if (extraFile && extraFile.base64 && extraFile.name) {
                     try {
                         const buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), c => c.charCodeAt(0));
@@ -222,19 +222,14 @@ serve(async (req) => {
                             purpose: 'assistants'
                         });
                         console.log(`[analyze-with-agents] Archivo adicional uploaded: ${upload.id}`);
-                        return upload.id;
+                        if (upload.id) {
+                            fileIds.push(upload.id);
+                        }
                     } catch (e) {
                         console.error(`[analyze-with-agents] Error procesando archivo adicional ${extraFile.name}:`, e);
-                        return null;
                     }
                 }
-                return null;
-            });
-
-            const uploadedExtraFileIds = await Promise.all(extraFilePromises);
-            uploadedExtraFileIds.forEach(id => {
-                if (id) fileIds.push(id);
-            });
+            }
         }
 
         // 4. Create Vector Store
@@ -246,26 +241,33 @@ serve(async (req) => {
         console.log(`[analyze-with-agents] Vector Store created: ${vectorStore.id}`);
 
         // Wait for indexing to complete
-        // IMPROVED: Increased timeout to 60s and polling interval to 2s
+        // IMPROVED: Polling with exponential backoff
         console.log('[analyze-with-agents] Waiting for indexing...');
         let vectorStoreReady = false;
-        for (let i = 0; i < 30; i++) { // 30 checks * 2000ms = 60 seconds
+        let delay = 1000; // Start with 1s
+        const maxDelay = 5000; // Max 5s per check
+        let totalTime = 0;
+        const timeoutMs = 60000; // 60s max total
+
+        while (totalTime < timeoutMs) {
             const vs = await openai.beta.vectorStores.retrieve(vectorStore.id);
             if (vs.status === 'completed') {
                 vectorStoreReady = true;
-                console.log('[analyze-with-agents] Vector Store indexed!');
+                console.log(`[analyze-with-agents] Vector Store indexed! Total time: ~${totalTime}ms`);
                 break;
             } else if (vs.status === 'failed') {
                 throw new Error(`Vector Store indexing failed: ${JSON.stringify(vs.last_active_at)}`);
             }
-            // Wait 2s between checks
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Wait with exponential backoff
+            await new Promise(resolve => setTimeout(resolve, delay));
+            totalTime += delay;
+            delay = Math.min(Math.round(delay * 1.5), maxDelay);
         }
 
         // If not ready, we proceed anyway but log a warning.
         // Usually 'in_progress' might still work for small files, but ideal is 'completed'.
         if (!vectorStoreReady) {
-            console.warn('[analyze-with-agents] Vector Store indexing timeout (60s). Proceeding anyway...');
+            console.warn(`[analyze-with-agents] Vector Store indexing timeout (${timeoutMs}ms). Proceeding anyway...`);
         }
 
         // 5. Create Agent (SINGLETON PATTERN - created once here)
@@ -378,9 +380,15 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
         // We set a safe internal timeout to close the stream gracefully.
         const TIMEOUT_MS = 240000; // 4 mins
 
+        let extraDocsMsg = '';
+        if (files && files.length > 0) {
+            extraDocsMsg = ` Adicionalmente, se han adjuntado los siguientes documentos: ${files.map((f: any) => f.name).join(', ')}.`;
+        }
+        const runMessage = `Analiza este expediente de licitación (principal: ${filename || 'documento.pdf'})${extraDocsMsg} siguiendo la guía de lectura. Cuando termines, usa la herramienta submit_analysis_result con el JSON estructurado completo.`;
+
         const runPromise = run(
             agent,
-            'Analiza este pliego de licitación siguiendo la guía de lectura. Cuando termines, usa la herramienta submit_analysis_result con el JSON estructurado completo.',
+            runMessage,
             {
                 stream: true,
                 // Attach vector store for file_search
