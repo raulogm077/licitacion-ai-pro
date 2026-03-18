@@ -23,17 +23,20 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-
-
-
-## Ready for QA
-
-- [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
+> TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
+> Call log:
+>   - waiting for locator('input[type="file"]')
   - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function.
   - Alcance: Creación o actualización de pruebas Playwright para la subida concurrente de documentos.
   - Criterios de aceptación: Un test E2E sube múltiples documentos y verifica que el resultado se genera sin errores SSE.
   - Archivos probables: `e2e/multi-upload.spec.ts`
   - Dependencias: Implementar soporte UI de múltiples documentos por licitación.
+
+
+
+
+## Ready for QA
 
 ## Deuda Técnica / Refactorización
 
