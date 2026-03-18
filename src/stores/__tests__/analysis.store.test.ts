@@ -3,7 +3,7 @@ import { useAnalysisStore } from '../analysis.store';
 
 // Mock dependencies
 
-// Mock LicitacionStore if needed (it is used in analyzeFile)
+// Mock LicitacionStore if needed (it is used in analyzeFiles)
 vi.mock('../licitacion.store', () => ({
     useLicitacionStore: {
         getState: vi.fn(() => ({

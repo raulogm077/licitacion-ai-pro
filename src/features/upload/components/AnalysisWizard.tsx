@@ -15,14 +15,17 @@ type WizardStep = 'upload' | 'analyzing' | 'completed';
 export const AnalysisWizard: React.FC = () => {
     const { t } = useTranslation();
     const { isAuthenticated } = useAuthStore();
-    const { status, thinkingOutput, error, analyzeFile, cancelAnalysis, resetAnalysis, selectedProvider, setProvider } = useAnalysisStore();
+    const { status, thinkingOutput, error, analyzeFiles, cancelAnalysis, resetAnalysis, selectedProvider, setProvider } = useAnalysisStore();
 
     useKeyboardShortcut('Escape', cancelAnalysis, status === 'ANALYZING' || status === 'READING_PDF');
 
     const [isDragging, setIsDragging] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+        const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const MAX_FILES = 5;
+    const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
+    const [validationError, setValidationError] = useState<string | null>(null);
     const [templates, setTemplates] = useState<ExtractionTemplate[]>([]);
     const { selectedTemplateId, setTemplateId } = useAnalysisStore();
 
@@ -50,6 +53,28 @@ export const AnalysisWizard: React.FC = () => {
         setIsDragging(false);
     };
 
+    const handleFilesAdded = (newFiles: FileList | null) => {
+        if (!newFiles) return;
+        setValidationError(null);
+
+        const validPdfs = Array.from(newFiles).filter(f => f.type === 'application/pdf');
+
+        setSelectedFiles(prev => {
+            const combined = [...prev, ...validPdfs];
+            if (combined.length > MAX_FILES) {
+                setValidationError(`Solo se permiten hasta ${MAX_FILES} archivos.`);
+                return combined.slice(0, MAX_FILES);
+            }
+
+            const totalSize = combined.reduce((acc, f) => acc + f.size, 0);
+            if (totalSize > MAX_TOTAL_SIZE) {
+                setValidationError(`El tamaño total supera los ${MAX_TOTAL_SIZE / 1024 / 1024}MB permitidos.`);
+                return prev;
+            }
+            return combined;
+        });
+    };
+
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
@@ -59,10 +84,7 @@ export const AnalysisWizard: React.FC = () => {
             return;
         }
 
-        const file = e.dataTransfer.files[0];
-        if (file && file.type === 'application/pdf') {
-            setSelectedFile(file); // Step 1: Just select, don't analyze yet
-        }
+        handleFilesAdded(e.dataTransfer.files);
     };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,21 +93,25 @@ export const AnalysisWizard: React.FC = () => {
             return;
         }
 
-        const file = e.target.files?.[0];
-        if (file) {
-            setSelectedFile(file);
-        }
+        handleFilesAdded(e.target.files);
     };
 
     const handleStartAnalysis = async () => {
-        if (selectedFile) {
-            await analyzeFile(selectedFile);
+        if (selectedFiles.length > 0) {
+            await analyzeFiles(selectedFiles);
         }
     };
 
-    const handleClearFile = () => {
-        setSelectedFile(null);
+    const handleClearAllFiles = () => {
+        setSelectedFiles([]);
         resetAnalysis();
+    };
+
+    const handleRemoveFile = (indexToRemove: number) => {
+        setSelectedFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
+        if (selectedFiles.length === 1) {
+            resetAnalysis();
+        }
     };
 
     // --- RENDER HELPERS ---
@@ -146,7 +172,7 @@ export const AnalysisWizard: React.FC = () => {
 
                     <div className="p-10 min-h-[500px] flex flex-col justify-center items-center relative">
 
-                        {!selectedFile ? (
+                        {selectedFiles.length === 0 ? (
                             // --- STATE: NO FILE ---
                             <div
                                 className={`
@@ -176,6 +202,11 @@ export const AnalysisWizard: React.FC = () => {
                                     )}
                                 </div>
 
+                                {validationError && (
+                                    <div className="absolute top-4 w-11/12 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-200 dark:border-red-800 animate-in fade-in slide-in-from-top-2">
+                                        {validationError}
+                                    </div>
+                                )}
                                 <div className="space-y-2">
                                     <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
                                         {isAuthenticated ? t('wizard.upload_title', 'Sube tu documento PDF') : t('auth.required_title')}
@@ -192,6 +223,7 @@ export const AnalysisWizard: React.FC = () => {
                                         <input
                                             type="file"
                                             accept=".pdf"
+                                            multiple
                                             className="hidden"
                                             onChange={handleFileSelect}
                                         />
@@ -214,26 +246,36 @@ export const AnalysisWizard: React.FC = () => {
                                 <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
                                     <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-500" />
 
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center shrink-0">
-                                                <FileType className="w-8 h-8 text-red-500" strokeWidth={1.5} />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-semibold text-slate-900 dark:text-white text-lg truncate max-w-[200px]" title={selectedFile.name}>
-                                                    {selectedFile.name}
-                                                </h3>
-                                                <p className="text-sm text-slate-500 font-mono">
-                                                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                                                </p>
-                                            </div>
+                                    {validationError && (
+                                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-200 dark:border-red-800">
+                                            {validationError}
                                         </div>
-                                        <button
-                                            onClick={handleClearFile}
-                                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400 hover:text-red-500 transition-colors"
-                                        >
-                                            <X size={20} />
-                                        </button>
+                                    )}
+                                    <div className="flex flex-col gap-3 mb-6 max-h-[300px] overflow-y-auto pr-2">
+                                        {selectedFiles.map((file, idx) => (
+                                            <div key={`${file.name}-${idx}`} className="flex items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                                                <div className="flex items-center gap-4 min-w-0">
+                                                    <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center justify-center shrink-0">
+                                                        <FileType className="w-5 h-5 text-red-500" strokeWidth={1.5} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-medium text-slate-900 dark:text-white text-sm truncate" title={file.name}>
+                                                            {file.name}
+                                                        </h3>
+                                                        <p className="text-xs text-slate-500 font-mono">
+                                                            {(file.size / 1024 / 1024).toFixed(2)} MB {idx === 0 && <span className="ml-2 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Principal</span>}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleRemoveFile(idx)}
+                                                    className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                                                    title="Eliminar archivo"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
 
                                     {templates.length > 0 && (
@@ -255,7 +297,7 @@ export const AnalysisWizard: React.FC = () => {
                                     )}
                                     <div className="mt-8 grid grid-cols-2 gap-3">
                                         <button
-                                            onClick={handleClearFile}
+                                            onClick={handleClearAllFiles}
                                             className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                                         >
                                             Cambiar archivo
