@@ -23,15 +23,22 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
+- [ ] [Tipo: Docs] [Área: Analysis] Convertir "Guia Lectura de Pliegos .pdf" a formato Markdown ("Guía de lectura de pliegos.md")
+  - Objetivo: Disponer de las directrices de lectura de pliegos en un formato fácilmente analizable (Markdown) para los agentes AI.
+  - Alcance: Extracción del contenido de "Guia Lectura de Pliegos .pdf" y creación del archivo "Guía de lectura de pliegos.md" en el directorio raíz.
+  - Criterios de aceptación: El archivo "Guía de lectura de pliegos.md" se crea y contiene la transcripción fiel del PDF original.
+  - Archivos probables: `Guía de lectura de pliegos.md`
+  - Dependencias: Ninguna.
+
 - [ ] 🐛 BUG: [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
 > TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
 > Call log:
 >   - waiting for locator('input[type="file"]')
-  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function.
-  - Alcance: Creación o actualización de pruebas Playwright para la subida concurrente de documentos.
-  - Criterios de aceptación: Un test E2E sube múltiples documentos y verifica que el resultado se genera sin errores SSE.
-  - Archivos probables: `e2e/multi-upload.spec.ts`
-  - Dependencias: Implementar soporte UI de múltiples documentos por licitación.
+  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).
+  - Alcance: Actualización de pruebas Playwright (`e2e/multi-upload.spec.ts`) y posible ajuste en `AnalysisWizard.tsx` (exposición del input) para la subida concurrente de documentos en entorno aislado.
+  - Criterios de aceptación: Un test E2E sube múltiples documentos correctamente, resolviendo el timeout de `locator('input[type="file"]')`, y verifica que el resultado se genera sin errores SSE.
+  - Archivos probables: `e2e/multi-upload.spec.ts`, `src/features/upload/components/AnalysisWizard.tsx`
+  - Dependencias: Ninguna.
 
 
 
