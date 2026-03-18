@@ -54,8 +54,8 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/services/ai.service.ts`
   - Dependencias: soporte UI multi-documento para testeo end-to-end
 
-## Ready for QA
 
+## Ready for QA
 - [ ] [Tipo: UI] [Área: Templates] Integrar selector de plantilla en el flujo principal de análisis
   - Objetivo: permitir elegir una plantilla antes de iniciar el análisis.
   - Alcance: wizard/dropzone principal y envío de `templateId` a `JobService.analyzeWithAgents()`.
@@ -107,6 +107,31 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `supabase/migrations/**`
     - documentación asociada
   - Dependencias: ninguna
+
+- [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
+  - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
+  - Alcance: experiencia de subida, validación, listado y estado en frontend.
+  - Criterios de aceptación:
+    - se pueden seleccionar varios archivos
+    - el usuario ve el listado de documentos cargados
+    - el flujo mantiene claridad de UX y validaciones básicas
+  - Archivos probables:
+    - `src/features/**`
+    - `src/components/**`
+    - `src/services/job.service.ts`
+  - Dependencias: cierre de la línea de plantillas en la iteración actual
+
+- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
+  - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
+  - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
+  - Criterios de aceptación:
+    - la Edge Function acepta varios archivos
+    - el análisis mantiene salida válida
+    - se documenta el comportamiento y límites
+  - Archivos probables:
+    - `supabase/functions/analyze-with-agents/**`
+    - transformación de resultados y schemas asociados
+  - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
 
 
 
