@@ -28,9 +28,9 @@ Como usuario interno que analiza pliegos, quiero poder seleccionar una plantilla
 
 1. Soporte persistente para `extraction_templates` (✅ **Completado**)
 2. Pantalla de gestión CRUD de plantillas (✅ **Completado**)
-3. Selector de plantilla en el flujo principal de análisis
-4. Adaptación de `analyze-with-agents` para usar `templateId`
-5. Fallback estático cuando no haya plantilla válida
+3. Selector de plantilla en el flujo principal de análisis (✅ **Completado**)
+4. Adaptación de `analyze-with-agents` para usar `templateId` (✅ **Completado**)
+5. Fallback estático cuando no haya plantilla válida (✅ **Completado**)
 6. Validación automática con tests y cobertura mínima del flujo SSE/E2E
 
 ### 3.4. Criterios de aceptación globales
@@ -124,11 +124,18 @@ Añadir soporte **multi-documento por licitación** sin comprometer la claridad 
 
 ### 5.2. Alcance previsto
 
-- carga de varios documentos en frontend
-- validación de varios archivos
-- listado claro de documentos asociados al análisis
-- adaptación de `analyze-with-agents` para aceptar e ingerir múltiples archivos
-- documentación explícita de límites y comportamiento
+**Módulo UI (Frontend):**
+- **Carga de archivos:** Modificar `AnalysisWizard.tsx` (wizard/dropzone) para admitir la selección y drop de múltiples documentos PDF simultáneamente.
+- **Estado Global:** Adaptar `useAnalysisStore` y cualquier store relevante para manejar un array de `File` en lugar de un único archivo, gestionando el progreso y mensajes globales o por archivo según convenga.
+- **Listado y previsualización:** Mostrar de manera clara al usuario la lista de documentos que se van a procesar antes de enviarlos, permitiendo eliminar archivos de la cola.
+- **Validaciones:** Verificar en frontend los tamaños máximos acumulados y número de documentos permitidos (ej. máx 5 documentos).
+- **Servicio Job:** Actualizar `JobService.analyzeWithAgents` para soportar el envío de un array de strings base64 o de objetos con `{ filename, base64 }`.
+
+**Módulo Backend/AI:**
+- **Adaptación Edge Function:** Modificar `analyze-with-agents` para procesar múltiples archivos.
+- **Estrategia Ingestión Vector Store:** Asegurar que todos los archivos se suban y enlacen al `Vector Store` de la sesión del asistente en OpenAI.
+- **Límites documentados:** Explicitar y controlar en la API el límite de tokens/tamaño para prevenir abusos.
+
 
 ### 5.3. Regla importante
 
