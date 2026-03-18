@@ -73,8 +73,8 @@ Es el núcleo del pipeline de IA.
 Responsabilidades:
 
 - recibir la solicitud de análisis
-- cargar archivos a OpenAI cuando aplique
-- construir el contexto del agente
+- cargar uno o múltiples archivos (mediante `pdfBase64` o el array `files`) a OpenAI cuando aplique
+- construir un contexto consolidado en el Vector Store con el expediente completo
 - ejecutar análisis con Agents SDK
 - emitir eventos SSE
 - devolver resultado estructurado compatible con frontend
@@ -138,24 +138,23 @@ Impacto técnico:
 
 ## 7. Soporte multi-documento
 
-El soporte multi-documento es una evolución posterior y debe tratarse como una capacidad separada de la línea de plantillas.
+El soporte multi-documento está disponible a nivel de back-end a través de `analyze-with-agents` y orquestación con `JobService`, listo para integrarse en la UI.
 
-Flujo objetivo a futuro:
+Flujo objetivo parcial:
 
 ```text
 Usuario selecciona varios documentos
-  └─ Frontend valida y lista archivos
-       └─ JobService envía entrada multiarchivo
-            └─ analyze-with-agents ingiere varios documentos
+  └─ Frontend valida y lista archivos (WIP - Pendiente UI)
+       └─ JobService envía entrada multiarchivo a través del parámetro opcional `files`
+            └─ analyze-with-agents ingiere varios documentos y construye el Vector Store
                  └─ resultado único estructurado para la licitación
 ```
 
-Riesgos principales:
+Riesgos principales mitigados por la estrategia actual:
 
-- crecimiento del contexto
-- comportamiento ambiguo entre documentos
-- complejidad de UX
-- necesidad de definir límites claros
+- crecimiento del contexto (OpenAI Vector Stores es responsable de la partición/chunks y recuperación mediante embeddings)
+- comportamiento ambiguo entre documentos (Agent SDK orquesta la lectura priorizada según `instructions`)
+- complejidad de UX (Pendiente de cierre iterativo en UI)
 
 ## 8. Responsabilidades técnicas por rol
 

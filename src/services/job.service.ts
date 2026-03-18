@@ -26,7 +26,8 @@ export class JobService {
         guiaBase64: string | null,
         filename: string,
         template: ExtractionTemplate | null = null,
-        onProgress?: (event: StreamEvent) => void
+        onProgress?: (event: StreamEvent) => void,
+        files?: { name: string; base64: string }[]
     ): Promise<LicitacionContent> {
         const { data: { session } } = await supabase.auth.getSession();
 
@@ -54,7 +55,8 @@ export class JobService {
                     pdfBase64,
                     guiaBase64,
                     filename,
-                    template
+                    template,
+                    files
                 })
             });
 
