@@ -111,3 +111,14 @@ El flujo de carga en `AnalysisWizard.tsx` debe modificarse de la siguiente maner
     - Asegurarse que el backend (`analyze-with-agents`) está preparado para el array de `files` extra que recibe `JobService`.
 
 *Nota de implementación: Es crucial que el archivo principal se pase como `pdfBase64` y los adicionales en el array `files` para mantener retrocompatibilidad con la Edge Function, o refactorizar el backend para que todo entre por `files`.*
+
+## 9. Security & Secrets Management
+
+Dado que este repositorio es **público**, el manejo de secretos y variables de entorno es un área de nivel crítico.
+
+### Políticas de Seguridad
+- **Cero Secretos Hardcodeados:** Nunca incluir API keys reales (Google Gemini, OpenAI, Supabase, Vercel, Github, etc.) en texto plano dentro de código, scripts de inicialización (`.sh`, `.ts`, `.py`), archivos JSON, o documentación.
+- **Inyección Dinámica:** Todo token o secreto debe inyectarse estrictamente a través del sistema de variables de entorno de la infraestructura subyacente (ej. Variables de entorno de Vercel, Supabase Secrets, o GitHub Secrets para CI/CD).
+- **Uso de Entornos de Ejemplo:** Todo ejemplo o template (ej. `.env.example`) debe utilizar *placeholders* genéricos (`your-api-key-here`, `sk-XXXXX...`).
+- **Prevención proactiva:** Utilizar herramientas pre-commit o CI (como detect-secrets o hooks similares) para prevenir y alertar la inclusión accidental de material sensible en futuras modificaciones del repositorio.
+El incumplimiento de esta política expone infraestructura de producción de manera global y detendrá el pase a los entornos correspondientes.

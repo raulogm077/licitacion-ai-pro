@@ -23,6 +23,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
+- [ ] [Tipo: Backend] [Área: Infra] 🛡️ Sentinel: [CRITICAL] Remover credenciales expuestas y hardcodeadas
+  - Objetivo: Identificar y eliminar cualquier credencial hardcodeada (API keys de Gemini, Supabase, Vercel, etc.) del repositorio para garantizar la seguridad del código público.
+  - Alcance: Revisar scripts como `scripts/setup-vercel-env.sh` y cualquier otro archivo susceptible a contener secretos en texto plano.
+  - Criterios de aceptación:
+    - El repositorio no contiene secretos reales hardcodeados.
+    - Todas las credenciales se inyectan dinámicamente vía entorno.
+  - Archivos probables:
+    - `scripts/setup-vercel-env.sh`
+    - `scripts/init-env.sh`
+  - Dependencias: Ninguna
+
 - [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
   - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
   - Alcance: actualizar dropzone en `AnalysisWizard.tsx`, manejo de estado global con múltiples archivos en `useAnalysisStore`, permitir añadir/quitar de la lista, y validación de máximo 5 archivos según `SPEC.md`. Modificar `analyzeFile` para procesar el array de archivos con `processFile` obteniendo el hash y base64 de todos.
