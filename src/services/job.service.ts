@@ -49,7 +49,8 @@ export class JobService {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentSession?.access_token}`
+                    'Authorization': `Bearer ${currentSession?.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
                 },
                 body: JSON.stringify({
                     pdfBase64,
