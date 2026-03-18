@@ -122,3 +122,11 @@ Dado que este repositorio es **público**, el manejo de secretos y variables de 
 - **Uso de Entornos de Ejemplo:** Todo ejemplo o template (ej. `.env.example`) debe utilizar *placeholders* genéricos (`your-api-key-here`, `sk-XXXXX...`).
 - **Prevención proactiva:** Utilizar herramientas pre-commit o CI (como detect-secrets o hooks similares) para prevenir y alertar la inclusión accidental de material sensible en futuras modificaciones del repositorio.
 El incumplimiento de esta política expone infraestructura de producción de manera global y detendrá el pase a los entornos correspondientes.
+
+## 10. Hallazgos Técnicos y Mantenimiento
+
+### 10.1. Limpieza de Credenciales (Sentinel)
+Se realizó una auditoría y limpieza de credenciales expuestas en el repositorio:
+- Se eliminaron las referencias directas y prompts para solicitar `GEMINI_KEY` / `VITE_GEMINI_API_KEY` en `scripts/setup-vercel-env.sh`, ya que Gemini ha sido reemplazado por la arquitectura server-side de OpenAI y el código no debe incitar a configurar variables obsoletas o exponer claves.
+- Se verificó mediante scripts de escaneo (`grep`) que no existen claves reales hardcodeadas (ej. `sk-`, `AIza`, `eyJ`) en el código fuente, scripts ni documentación.
+- Se actualizó `scripts/test-agents-sdk.ts` para que el `wfId` de prueba utilice variables de entorno (`VITE_OPENAI_WORKFLOW_ID`) en lugar de un string hardcodeado, cumpliendo con la política de seguridad.

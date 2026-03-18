@@ -16,7 +16,7 @@ if (!apiKey) {
     process.exit(1);
 }
 
-const wfId = "wf_695297dea6188190868d94d03ec97d090bc32b21af43e09a";
+const wfId = process.env.VITE_OPENAI_WORKFLOW_ID || "wf_example_id_replace_me";
 
 async function main() {
     console.log('--- Testing Agents SDK with wf_ ID ---');
