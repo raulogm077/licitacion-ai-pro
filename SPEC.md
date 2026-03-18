@@ -28,7 +28,7 @@ Como usuario interno que analiza pliegos, quiero poder seleccionar una plantilla
 
 1. Soporte persistente para `extraction_templates` (✅ **Completado**)
 2. Pantalla de gestión CRUD de plantillas (✅ **Completado**)
-3. Selector de plantilla en el flujo principal de análisis
+3. Selector de plantilla en el flujo principal de análisis (✅ **Completado**)
 4. Adaptación de `analyze-with-agents` para usar `templateId`
 5. Fallback estático cuando no haya plantilla válida
 6. Validación automática con tests y cobertura mínima del flujo SSE/E2E

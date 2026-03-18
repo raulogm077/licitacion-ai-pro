@@ -36,19 +36,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/services/**`
   - Dependencias: soporte persistente para `extraction_templates`
 
-- [ ] [Tipo: UI] [Área: Templates] Integrar selector de plantilla en el flujo principal de análisis
-  - Objetivo: permitir elegir una plantilla antes de iniciar el análisis.
-  - Alcance: wizard/dropzone principal y envío de `templateId` a `JobService.analyzeWithAgents()`.
-  - Criterios de aceptación:
-    - el selector se muestra en el flujo principal
-    - el usuario puede continuar sin plantilla
-    - si selecciona plantilla, se envía `templateId`
-  - Archivos probables:
-    - `src/features/**`
-    - `src/components/**`
-    - `src/services/job.service.ts`
-  - Dependencias: CRUD o servicio de lectura de plantillas disponible
-
 - [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
   - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
   - Alcance: experiencia de subida, validación, listado y estado en frontend.
@@ -75,6 +62,19 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
 
 ## Ready for QA
+- [ ] [Tipo: UI] [Área: Templates] Integrar selector de plantilla en el flujo principal de análisis
+  - Objetivo: permitir elegir una plantilla antes de iniciar el análisis.
+  - Alcance: wizard/dropzone principal y envío de `templateId` a `JobService.analyzeWithAgents()`.
+  - Criterios de aceptación:
+    - el selector se muestra en el flujo principal
+    - el usuario puede continuar sin plantilla
+    - si selecciona plantilla, se envía `templateId`
+  - Archivos probables:
+    - `src/features/**`
+    - `src/components/**`
+    - `src/services/job.service.ts`
+  - Dependencias: CRUD o servicio de lectura de plantillas disponible
+
 - [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
   - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
   - Alcance: UI y wiring frontend para CRUD de plantillas.
