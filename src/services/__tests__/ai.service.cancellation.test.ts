@@ -1,32 +1,35 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AIService, LicitacionAIError } from '../ai.service';
+import { jobService } from '../job.service';
 
-// Mock Supabase Edge Function
-vi.mock('../../config/supabase', () => ({
-    supabase: {
-        functions: {
-            invoke: vi.fn().mockResolvedValue({
-                data: { text: '{"titulo":"Test"}' },
-                error: null
-            })
-        }
+vi.mock('../job.service', () => ({
+    jobService: {
+        analyzeWithAgents: vi.fn()
     }
 }));
 
 describe('AIService - AbortController', () => {
     let service: AIService;
+    const mockAnalyze = jobService.analyzeWithAgents as unknown as ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-        service = new AIService();
         vi.clearAllMocks();
+        service = new AIService();
+        vi.spyOn(console, 'error').mockImplementation(() => { });
+        vi.spyOn(console, 'warn').mockImplementation(() => { });
+        vi.spyOn(console, 'log').mockImplementation(() => { });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it('should abort analysis when signal is triggered before start', async () => {
         const controller = new AbortController();
-        controller.abort(); // Abort immediately
+        controller.abort();
 
         await expect(
-            service.analyzePdfContent('base64content', undefined, undefined, controller.signal)
+            service.analyzePdfContent('base64content', undefined, undefined, controller.signal, 'openai', 'file.pdf', 'hash123')
         ).rejects.toThrow('Análisis cancelado por el usuario');
     });
 
@@ -35,23 +38,20 @@ describe('AIService - AbortController', () => {
         controller.abort();
 
         try {
-            await service.analyzePdfContent('base64content', undefined, undefined, controller.signal);
-            expect.fail('Should have thrown');
+            await service.analyzePdfContent('base64content', undefined, undefined, controller.signal, 'openai', 'file.pdf', 'hash123');
+            expect.fail('Debería haber lanzado un error');
         } catch (error) {
             expect(error).toBeInstanceOf(LicitacionAIError);
             expect((error as LicitacionAIError).message).toContain('cancelado');
         }
     });
 
-    it('should accept AbortSignal parameter without throwing when not aborted', () => {
+    it('should accept AbortSignal parameter without throwing when not aborted', async () => {
         const controller = new AbortController();
 
-        // Just verify the signature accepts the parameter
-        // (Full integration test would timeout due to 10s wait between sections)
-        expect(() => {
-            const promise = service.analyzePdfContent('base64content', undefined, undefined, controller.signal);
-            controller.abort(); // Abort to prevent actual execution
-            return promise;
-        }).not.toThrow();
+        mockAnalyze.mockResolvedValue({});
+
+        const promise = service.analyzePdfContent('base64content', undefined, undefined, controller.signal, 'openai', 'file.pdf', 'hash123');
+        await expect(promise).resolves.not.toThrow();
     });
 });

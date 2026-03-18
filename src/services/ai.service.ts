@@ -28,7 +28,8 @@ export class AIService {
         files?: { name: string, base64: string }[] // NEW: Pass additional files to OpenAI
     ): Promise<LicitacionContent> {
         // OpenAI Specific Route (Server-Side)
-        if (providerName === 'openai') {
+        const resolvedProvider = providerName || 'openai';
+        if (resolvedProvider === 'openai') {
             try {
                 if (!filename || !hash) {
                     throw new LicitacionAIError("Filename and Hash are required for OpenAI analysis");
@@ -185,7 +186,7 @@ export class AIService {
         const sectionPrompt = plugin.getSectionPrompt(sectionKey);
 
         // Get the LLM provider (default to gemini if not specified)
-        const provider = llmFactory.getProvider((providerName || 'gemini') as 'gemini' | 'openai');
+        const provider = llmFactory.getProvider((providerName || 'openai') as 'openai');
 
         try {
             const result = await provider.analyzeSection({

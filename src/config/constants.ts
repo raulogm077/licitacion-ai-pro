@@ -13,7 +13,6 @@ export const ALLOWED_FILE_EXTENSIONS = ['.pdf'];
 
 /** LLM Provider Types */
 export const LLM_PROVIDERS = {
-    GEMINI: 'gemini',
     OPENAI: 'openai',
 } as const;
 

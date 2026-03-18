@@ -6,7 +6,6 @@
  */
 
 import { LLMProvider, LLMProviderMetadata } from './types';
-import { GeminiProvider } from './providers/gemini';
 import { OpenAIProvider } from './providers/openai';
 import { LLM_PROVIDERS } from '../config/constants';
 
@@ -18,9 +17,6 @@ class LLMFactory {
 
     constructor() {
         // Register default providers
-        this.registerProvider('gemini', new GeminiProvider());
-        this.registerMetadata('gemini', GeminiProvider.getMetadata());
-
         this.registerProvider('openai', new OpenAIProvider());
         this.registerMetadata('openai', OpenAIProvider.getMetadata());
     }
@@ -42,7 +38,7 @@ class LLMFactory {
     /**
      * Get a provider by name
      */
-    getProvider(name: ProviderType = LLM_PROVIDERS.GEMINI): LLMProvider {
+    getProvider(name: ProviderType = LLM_PROVIDERS.OPENAI): LLMProvider {
         const provider = this.providers.get(name);
 
         if (!provider) {
