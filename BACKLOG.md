@@ -43,6 +43,19 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `e2e/critical-flows.spec.ts`
   - Dependencias: Implementar soporte UI de múltiples documentos por licitación.
 
+
+- [ ] [Tipo: Backend] [Área: Analysis] Actualizar firmas de servicios para soporte multi-documento
+  - Objetivo: Permitir que `analysis.store.ts` envíe múltiples archivos a través de la capa de servicios hasta la Edge Function.
+  - Alcance: Modificar `ai.service.ts` (`analyzePdfContent`) para aceptar el array de archivos adicionales y pasarlos a `JobService.analyzeWithAgents`.
+  - Criterios de aceptación:
+    - `ai.service.ts` acepta un array de archivos (ej. `{ name: string, base64: string }[]`).
+    - Los archivos se transfieren correctamente a `JobService.analyzeWithAgents`.
+    - La compilación TypeScript (`pnpm typecheck`) pasa sin errores tras los cambios.
+  - Archivos probables:
+    - `src/services/ai.service.ts`
+    - `src/stores/analysis.store.ts` (llamada a `analyzePdfContent`)
+  - Dependencias: Soporte UI multi-documento
+
 ## Ready for QA
 
 - [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos

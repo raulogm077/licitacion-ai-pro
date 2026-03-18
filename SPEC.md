@@ -93,3 +93,20 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 
 ### Iteración activa
 - Soporte Multi-documento Frontend y QA
+
+### 4.2. Refinamiento Multi-Documento (Frontend)
+
+El flujo de carga en `AnalysisWizard.tsx` debe modificarse de la siguiente manera:
+1.  **Estado:** Reemplazar `selectedFile` (tipo `File | null`) por `selectedFiles` (tipo `File[]`).
+2.  **Límite:** Validar que `selectedFiles.length <= 5`. Mostrar mensaje de error claro si se excede.
+3.  **Tamaño total:** Sumar el tamaño de todos los archivos en `selectedFiles` y validar contra `MAX_PDF_SIZE_BYTES` (30MB).
+4.  **UI de Listado:** Reemplazar el bloque que muestra el único archivo seleccionado por un listado mapeando `selectedFiles`. Cada elemento debe tener su botón para eliminarlo del array.
+5.  **Store:**
+    - Modificar `analyzeFile` en `analysis.store.ts` para que reciba un array `files: File[]`.
+    - Actualizar llamadas a `processFile(file)` para que procese todos los archivos. El archivo principal (el más grande o el primero, idealmente el usuario debería poder marcar cuál es el pliego principal, pero para simplificar, el índice 0 se considerará el pliego y el resto los anexos).
+    - Enviar el array procesado al `services.ai.analyzePdfContent`.
+6.  **AI Service / Job Service:**
+    - `analyzePdfContent` en `ai.service.ts` debe recibir `files` y pasarlo a `JobService.analyzeWithAgents`.
+    - Asegurarse que el backend (`analyze-with-agents`) está preparado para el array de `files` extra que recibe `JobService`.
+
+*Nota de implementación: Es crucial que el archivo principal se pase como `pdfBase64` y los adicionales en el array `files` para mantener retrocompatibilidad con la Edge Function, o refactorizar el backend para que todo entre por `files`.*
