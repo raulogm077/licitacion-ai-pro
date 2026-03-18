@@ -62,6 +62,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/services/job.service.ts`
   - Dependencias: cierre de la línea de plantillas en la iteración actual
 
+## Ready for QA
 - [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
   - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
   - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
@@ -74,7 +75,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - transformación de resultados y schemas asociados
   - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
 
-## Ready for QA
 - [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
   - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
   - Alcance: UI y wiring frontend para CRUD de plantillas.

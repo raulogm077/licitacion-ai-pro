@@ -162,33 +162,38 @@ serve(async (req) => {
         console.log('[analyze-with-agents] Request received');
 
         // 1. Parse request
-        const { pdfBase64, guiaBase64, filename, template } = await req.json();
+        const { pdfBase64, guiaBase64, filename, template, files } = await req.json();
 
-        if (!pdfBase64) {
+        if (!pdfBase64 && (!files || files.length === 0)) {
             return new Response(
-                JSON.stringify({ error: 'pdfBase64 requerido' }),
+                JSON.stringify({ error: 'pdfBase64 o files requeridos' }),
                 { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
         }
 
         console.log(`[analyze-with-agents] Procesando: ${filename || 'documento.pdf'}`);
+        if (files && files.length > 0) {
+            console.log(`[analyze-with-agents] Documentos adicionales recibidos: ${files.length}`);
+        }
 
-        // 2. Convertir base64 a buffers
-        const pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
         const extractBase64Data = (str: string) => str.includes(',') ? str.split(',')[1] : str;
-        const guiaBuffer = guiaBase64 ? Uint8Array.from(atob(extractBase64Data(guiaBase64)), c => c.charCodeAt(0)) : null;
+        const fileIds: string[] = [];
 
-        // 3. Upload files a OpenAI
-        console.log('[analyze-with-agents] Uploading PDF to OpenAI Files API...');
-        const pdfUpload = await openai.files.create({
-            file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
-            purpose: 'assistants'
-        });
-        console.log(`[analyze-with-agents] PDF uploaded: ${pdfUpload.id}`);
+        // 2. Procesar documento principal (retrocompatibilidad)
+        if (pdfBase64) {
+            const pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), c => c.charCodeAt(0));
+            console.log('[analyze-with-agents] Uploading PDF principal to OpenAI Files API...');
+            const pdfUpload = await openai.files.create({
+                file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
+                purpose: 'assistants'
+            });
+            console.log(`[analyze-with-agents] PDF principal uploaded: ${pdfUpload.id}`);
+            fileIds.push(pdfUpload.id);
+        }
 
-        const fileIds = [pdfUpload.id];
-
-        if (guiaBuffer) {
+        // 3. Procesar guía si existe
+        if (guiaBase64) {
+            const guiaBuffer = Uint8Array.from(atob(extractBase64Data(guiaBase64)), c => c.charCodeAt(0));
             console.log('[analyze-with-agents] Uploading Guía...');
             const guiaUpload = await openai.files.create({
                 file: new File([guiaBuffer], 'guia.pdf', { type: 'application/pdf' }),
@@ -196,6 +201,40 @@ serve(async (req) => {
             });
             console.log(`[analyze-with-agents] Guía uploaded: ${guiaUpload.id}`);
             fileIds.push(guiaUpload.id);
+        }
+
+        // 4. Procesar archivos adicionales (multi-documento)
+        if (files && Array.isArray(files)) {
+            const extraFilePromises = files.map(async (extraFile) => {
+                if (extraFile && extraFile.base64 && extraFile.name) {
+                    try {
+                        const buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), c => c.charCodeAt(0));
+                        console.log(`[analyze-with-agents] Uploading archivo adicional: ${extraFile.name}...`);
+
+                        // Infer MIME type basic mapping
+                        let mimeType = 'application/pdf';
+                        const lowerName = extraFile.name.toLowerCase();
+                        if (lowerName.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        else if (lowerName.endsWith('.txt')) mimeType = 'text/plain';
+
+                        const upload = await openai.files.create({
+                            file: new File([buffer], extraFile.name, { type: mimeType }),
+                            purpose: 'assistants'
+                        });
+                        console.log(`[analyze-with-agents] Archivo adicional uploaded: ${upload.id}`);
+                        return upload.id;
+                    } catch (e) {
+                        console.error(`[analyze-with-agents] Error procesando archivo adicional ${extraFile.name}:`, e);
+                        return null;
+                    }
+                }
+                return null;
+            });
+
+            const uploadedExtraFileIds = await Promise.all(extraFilePromises);
+            uploadedExtraFileIds.forEach(id => {
+                if (id) fileIds.push(id);
+            });
         }
 
         // 4. Create Vector Store

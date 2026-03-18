@@ -116,6 +116,12 @@ Para cerrar una tarea de esta iteración deben pasar, según aplique:
 - Actualizamos los schemas Zod (Frontend & Agent) asegurando que el schema Agent maneje la nueva clave de forma opcional y que el `transformAgentResponseToFrontend` mueva la data correctamente a través de la tubería para evitar corromper la pantalla de análisis con variables nulas o tipos incompatibles (TS/Zod).
 - Se parcheo incompatibilidades de Zod con el JSON Schema estricto del OpenAI Agents SDK asegurando de usar `.nullable()` tras usar `.optional()`.
 
+### 4.7. Implementación IA - Soporte Multi-documento
+- La Edge Function `analyze-with-agents` se adaptó para procesar un nuevo campo `files` (array de objetos `{ name, base64 }`) además del `pdfBase64` principal.
+- Esto permite la ingestión concurrente de múltiples documentos (ej. anexos técnicos, pliegos complementarios) en el mismo Vector Store para un análisis holístico de todo el expediente de licitación.
+- Para no romper la compatibilidad de los contratos actuales, el campo `files` es opcional, y se mantiene activa la ruta de ingesta tradicional por `pdfBase64`.
+- A nivel del `JobService`, la función `analyzeWithAgents` expone un nuevo argumento opcional `files?: { name: string; base64: string }[]` listo para ser consumido por la futura iteración de UI.
+
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
