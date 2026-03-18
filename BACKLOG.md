@@ -27,14 +27,34 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do
 
-    - existe listado de plantillas
-    - se puede crear, editar y eliminar
-    - el esquema visual permite definir campos y tipos
+- [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
+  - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
+  - Alcance: actualizar dropzone en `AnalysisWizard.tsx`, manejo de estado global con múltiples archivos en `useAnalysisStore`, permitir añadir/quitar de la lista, y validación de máximo 5 archivos según `SPEC.md`.
+  - Criterios de aceptación:
+    - se pueden seleccionar y soltar varios archivos PDF
+    - el usuario ve el listado de documentos cargados en el frontend con opción a eliminar
+    - el flujo mantiene claridad de UX y emite errores si se supera el límite de archivos o tamaño
+    - la UI envía un array de documentos al Store
   - Archivos probables:
-    - `src/pages/**`
-    - `src/components/**`
-    - `src/services/**`
-  - Dependencias: soporte persistente para `extraction_templates`
+    - `src/features/upload/components/AnalysisWizard.tsx`
+    - `src/stores/analysis.store.ts`
+  - Dependencias: cierre de la línea de plantillas en la iteración actual
+
+- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
+  - Objetivo: soportar análisis conjunto de varios documentos en la API sin romper el contrato actual SSE.
+  - Alcance: `analyze-with-agents` debe aceptar un array de documentos, subirlos todos a OpenAI Files y adjuntarlos al Vector Store de la sesión.
+  - Criterios de aceptación:
+    - la Edge Function acepta y procesa un array de objetos `{ filename, base64 }`
+    - todos los documentos se indexan y consultan por el asistente de IA
+    - el análisis mantiene su salida estructurada válida y respeta los esquemas Zod
+    - se documentan los límites de tamaño en `ARCHITECTURE.md`
+  - Archivos probables:
+    - `supabase/functions/analyze-with-agents/index.ts`
+    - `src/services/job.service.ts`
+    - `src/services/ai.service.ts`
+  - Dependencias: soporte UI multi-documento para testeo end-to-end
+
+## Ready for QA
 
 - [ ] [Tipo: UI] [Área: Templates] Integrar selector de plantilla en el flujo principal de análisis
   - Objetivo: permitir elegir una plantilla antes de iniciar el análisis.
@@ -49,36 +69,18 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/services/job.service.ts`
   - Dependencias: CRUD o servicio de lectura de plantillas disponible
 
-- [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
-  - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
-  - Alcance: experiencia de subida, validación, listado y estado en frontend.
-  - Criterios de aceptación:
-    - se pueden seleccionar varios archivos
-    - el usuario ve el listado de documentos cargados
-    - el flujo mantiene claridad de UX y validaciones básicas
-  - Archivos probables:
-    - `src/features/**`
-    - `src/components/**`
-    - `src/services/job.service.ts`
-  - Dependencias: cierre de la línea de plantillas en la iteración actual
-
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
-  - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
-  - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
-  - Criterios de aceptación:
-    - la Edge Function acepta varios archivos
-    - el análisis mantiene salida válida
-    - se documenta el comportamiento y límites
-  - Archivos probables:
-    - `supabase/functions/analyze-with-agents/**`
-    - transformación de resultados y schemas asociados
-  - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
-
-## Ready for QA
 - [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
   - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
   - Alcance: UI y wiring frontend para CRUD de plantillas.
   - Criterios de aceptación:
+    - existe listado de plantillas
+    - se puede crear, editar y eliminar
+    - el esquema visual permite definir campos y tipos
+  - Archivos probables:
+    - `src/pages/**`
+    - `src/components/**`
+    - `src/services/**`
+  - Dependencias: soporte persistente para `extraction_templates`
 - [ ] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
   - Objetivo: permitir que la Edge Function use una plantilla de extracción dinámica sin romper el flujo actual.
   - Alcance: consulta de plantilla, generación dinámica de esquema y mantenimiento de fallback estático.
