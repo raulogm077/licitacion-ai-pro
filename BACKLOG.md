@@ -75,11 +75,15 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
 
 ## Ready for QA
-- [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
+
+## Done
+
+- [x] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
   - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
   - Alcance: UI y wiring frontend para CRUD de plantillas.
   - Criterios de aceptación:
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
+
+- [x] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
   - Objetivo: permitir que la Edge Function use una plantilla de extracción dinámica sin romper el flujo actual.
   - Alcance: consulta de plantilla, generación dinámica de esquema y mantenimiento de fallback estático.
   - Criterios de aceptación:
@@ -93,8 +97,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/agents/**`
   - Dependencias: soporte persistente para `extraction_templates`
 
-
-- [ ] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
+- [x] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
   - Objetivo: disponer de una base persistente para plantillas de extracción.
   - Alcance: tabla, RLS y políticas para usuarios autenticados según `SPEC.md`.
   - Criterios de aceptación:
@@ -106,9 +109,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - documentación asociada
   - Dependencias: ninguna
 
-
-
-## Done
 
 - [x] [Tipo: QA] [Área: Analysis] Configurar Playwright para pruebas E2E del flujo SSE de análisis
 
