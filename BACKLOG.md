@@ -1,18 +1,14 @@
 # Analista de Pliegos - Backlog
 
-## Contexto actual
+## 🧠 Contexto y Estado Actual
 
-La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está completada. La iteración activa se centra en dos líneas, pero **no deben mezclarse en la misma noche**:
-
-1. **Plantillas dinámicas de extracción**
-2. **Soporte multi-documento por licitación**
+La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está completada. La iteración de **Plantillas dinámicas de extracción** está terminada a nivel de desarrollo y documentación. La iteración activa se centra exclusivamente en **Soporte multi-documento por licitación**.
 
 ## Reglas de priorización
 
 1. Los **bugs** devueltos por QA tienen prioridad sobre cualquier feature.
-3. Primero se cierra la línea de **plantillas** antes de abordar **multi-documento**.
-4. Las tareas deben caber en una sola sesión.
-5. Si una tarea es demasiado grande, debe dividirse antes de desarrollarse.
+2. Las tareas deben caber en una sola sesión.
+3. Si una tarea es demasiado grande, debe dividirse antes de desarrollarse.
 
 ## Formato obligatorio de cada tarea
 
@@ -25,7 +21,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias:
 ```
 
-## To Do
+## To Do (Iteración Actual)
 
 - [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
   - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
@@ -38,24 +34,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables:
     - `src/features/upload/components/AnalysisWizard.tsx`
     - `src/stores/analysis.store.ts`
-  - Dependencias: cierre de la línea de plantillas en la iteración actual
+  - Dependencias: ninguna
 
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
-  - Objetivo: soportar análisis conjunto de varios documentos en la API sin romper el contrato actual SSE.
-  - Alcance: `analyze-with-agents` debe aceptar un array de documentos, subirlos todos a OpenAI Files y adjuntarlos al Vector Store de la sesión.
-  - Criterios de aceptación:
-    - la Edge Function acepta y procesa un array de objetos `{ filename, base64 }`
-    - todos los documentos se indexan y consultan por el asistente de IA
-    - el análisis mantiene su salida estructurada válida y respeta los esquemas Zod
-    - se documentan los límites de tamaño en `ARCHITECTURE.md`
-  - Archivos probables:
-    - `supabase/functions/analyze-with-agents/index.ts`
-    - `src/services/job.service.ts`
-    - `src/services/ai.service.ts`
-  - Dependencias: soporte UI multi-documento para testeo end-to-end
-
+- [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
+  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function.
+  - Alcance: Creación o actualización de pruebas Playwright para la subida concurrente de documentos.
+  - Criterios de aceptación: Un test E2E sube múltiples documentos y verifica que el resultado se genera sin errores SSE.
+  - Archivos probables: `e2e/critical-flows.spec.ts`
+  - Dependencias: Implementar soporte UI de múltiples documentos por licitación.
 
 ## Ready for QA
+
 - [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
   - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
   - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
@@ -68,108 +57,21 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - transformación de resultados y schemas asociados
   - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
 
+## Deuda Técnica / Refactorización
+
+- (Vacío por el momento)
+
+## Ideas de Producto
+
+- (Vacío por el momento)
 
 ## Done
 
 - [x] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
-  - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
-  - Alcance: UI y wiring frontend para CRUD de plantillas.
-  - Criterios de aceptación:
-
 - [x] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
-- [ ] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
-  - Objetivo: permitir listar, crear, editar y eliminar plantillas desde la aplicación.
-  - Alcance: UI y wiring frontend para CRUD de plantillas.
-  - Criterios de aceptación:
-    - existe listado de plantillas
-    - se puede crear, editar y eliminar
-    - el esquema visual permite definir campos y tipos
-  - Archivos probables:
-    - `src/pages/**`
-    - `src/components/**`
-    - `src/services/**`
-  - Dependencias: soporte persistente para `extraction_templates`
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
-  - Objetivo: permitir que la Edge Function use una plantilla de extracción dinámica sin romper el flujo actual.
-  - Alcance: consulta de plantilla, generación dinámica de esquema y mantenimiento de fallback estático.
-  - Criterios de aceptación:
-    - la función acepta `templateId`
-    - si existe plantilla válida, se usa para construir la extracción
-    - si no existe plantilla, se mantiene fallback estático
-    - no se rompe SSE ni el contrato frontend
-  - Archivos probables:
-    - `supabase/functions/analyze-with-agents/**`
-    - `src/lib/schemas/**`
-    - `src/agents/**`
-  - Dependencias: soporte persistente para `extraction_templates`
-
 - [x] [Tipo: Backend] [Área: Templates] Crear soporte persistente para `extraction_templates` en Supabase
-  - Objetivo: disponer de una base persistente para plantillas de extracción.
-  - Alcance: tabla, RLS y políticas para usuarios autenticados según `SPEC.md`.
-  - Criterios de aceptación:
-    - existe tabla `extraction_templates`
-    - existen políticas compatibles con usuarios autenticados
-    - el modelo queda documentado en `ARCHITECTURE.md` y `SPEC.md`
-  - Archivos probables:
-    - `supabase/migrations/**`
-    - documentación asociada
-  - Dependencias: ninguna
-
-- [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
-  - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
-  - Alcance: experiencia de subida, validación, listado y estado en frontend.
-  - Criterios de aceptación:
-    - se pueden seleccionar varios archivos
-    - el usuario ve el listado de documentos cargados
-    - el flujo mantiene claridad de UX y validaciones básicas
-  - Archivos probables:
-    - `src/features/**`
-    - `src/components/**`
-    - `src/services/job.service.ts`
-  - Dependencias: cierre de la línea de plantillas en la iteración actual
-
-- [ ] 🧠 [AI] [Tipo: AI] [Área: Upload] Adaptar `analyze-with-agents` para múltiples archivos
-  - Objetivo: soportar análisis conjunto de varios documentos sin romper el contrato actual.
-  - Alcance: entrada multiarchivo, estrategia de ingestión y transformación compatible con frontend.
-  - Criterios de aceptación:
-    - la Edge Function acepta varios archivos
-    - el análisis mantiene salida válida
-    - se documenta el comportamiento y límites
-  - Archivos probables:
-    - `supabase/functions/analyze-with-agents/**`
-    - transformación de resultados y schemas asociados
-  - Dependencias: soporte UI multi-documento y definición cerrada del contrato de entrada
-
-- [ ] [Tipo: UI] [Área: Templates] Integrar selector de plantilla en el flujo principal de análisis
-  - Objetivo: permitir elegir una plantilla antes de iniciar el análisis.
-  - Alcance: wizard/dropzone principal y envío de `templateId` a `JobService.analyzeWithAgents()`.
-  - Criterios de aceptación:
-    - el selector se muestra en el flujo principal
-    - el usuario puede continuar sin plantilla
-    - si selecciona plantilla, se envía `templateId`
-  - Archivos probables:
-    - `src/features/**`
-    - `src/components/**`
-    - `src/services/job.service.ts`
-  - Dependencias: CRUD o servicio de lectura de plantillas disponible
-
-- [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
-  - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
-  - Alcance: experiencia de subida, validación, listado y estado en frontend.
-  - Criterios de aceptación:
-    - se pueden seleccionar varios archivos
-    - el usuario ve el listado de documentos cargados
-    - el flujo mantiene claridad de UX y validaciones básicas
-  - Archivos probables:
-    - `src/features/**`
-    - `src/components/**`
-    - `src/services/job.service.ts`
-  - Dependencias: cierre de la línea de plantillas en la iteración actual
-
-
-
+- [x] [Tipo: UI] [Área: Templates] Integrar selector de plantilla en el flujo principal de análisis
 - [x] [Tipo: QA] [Área: Analysis] Configurar Playwright para pruebas E2E del flujo SSE de análisis
-
 - [x] [Tipo: UI] [Área: History] Implementar módulo avanzado de historial de licitaciones
 - [x] [Tipo: Docs] [Área: Infra] Limpiar código legacy de colas y referencias obsoletas en servicios
 - [x] [Tipo: QA] [Área: Infra] Refactor de tests para silenciar advertencias de configuración en Vitest
