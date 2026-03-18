@@ -103,8 +103,9 @@ El flujo de carga en `AnalysisWizard.tsx` debe modificarse de la siguiente maner
 4.  **UI de Listado:** Reemplazar el bloque que muestra el único archivo seleccionado por un listado mapeando `selectedFiles`. Cada elemento debe tener su botón para eliminarlo del array.
 5.  **Store:**
     - Modificar `analyzeFile` en `analysis.store.ts` para que reciba un array `files: File[]`.
-    - Actualizar llamadas a `processFile(file)` para que procese todos los archivos. El archivo principal (el más grande o el primero, idealmente el usuario debería poder marcar cuál es el pliego principal, pero para simplificar, el índice 0 se considerará el pliego y el resto los anexos).
-    - Enviar el array procesado al `services.ai.analyzePdfContent`.
+    - Actualizar llamadas a `processFile(file)` para iterar y extraer `{ name, base64 }` de todos los documentos, pasando el primero como principal y el resto en el array `files`.
+    - Enviar el objeto o parámetros correspondientes a `services.ai.analyzePdfContent`.
+
 6.  **AI Service / Job Service:**
     - `analyzePdfContent` en `ai.service.ts` debe recibir `files` y pasarlo a `JobService.analyzeWithAgents`.
     - Asegurarse que el backend (`analyze-with-agents`) está preparado para el array de `files` extra que recibe `JobService`.

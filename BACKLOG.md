@@ -25,12 +25,12 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 - [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
   - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
-  - Alcance: actualizar dropzone en `AnalysisWizard.tsx`, manejo de estado global con múltiples archivos en `useAnalysisStore`, permitir añadir/quitar de la lista, y validación de máximo 5 archivos según `SPEC.md`.
+  - Alcance: actualizar dropzone en `AnalysisWizard.tsx`, manejo de estado global con múltiples archivos en `useAnalysisStore`, permitir añadir/quitar de la lista, y validación de máximo 5 archivos según `SPEC.md`. Modificar `analyzeFile` para procesar el array de archivos con `processFile` obteniendo el hash y base64 de todos.
   - Criterios de aceptación:
     - se pueden seleccionar y soltar varios archivos PDF
     - el usuario ve el listado de documentos cargados en el frontend con opción a eliminar
     - el flujo mantiene claridad de UX y emite errores si se supera el límite de archivos o tamaño
-    - la UI envía un array de documentos al Store
+    - la UI envía un array de documentos (o el documento principal y el array de adicionales pre-procesados en base64) al store
   - Archivos probables:
     - `src/features/upload/components/AnalysisWizard.tsx`
     - `src/stores/analysis.store.ts`
@@ -46,9 +46,9 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 - [ ] [Tipo: Backend] [Área: Analysis] Actualizar firmas de servicios para soporte multi-documento
   - Objetivo: Permitir que `analysis.store.ts` envíe múltiples archivos a través de la capa de servicios hasta la Edge Function.
-  - Alcance: Modificar `ai.service.ts` (`analyzePdfContent`) para aceptar el array de archivos adicionales y pasarlos a `JobService.analyzeWithAgents`.
+  - Alcance: Modificar `ai.service.ts` (`analyzePdfContent`) para aceptar el array de archivos adicionales (ej. `files?: { name: string, base64: string }[]`) y pasarlos a `JobService.analyzeWithAgents`.
   - Criterios de aceptación:
-    - `ai.service.ts` acepta un array de archivos (ej. `{ name: string, base64: string }[]`).
+    - `ai.service.ts` acepta un array de archivos (ej. `{ name: string, base64: string }[]`) además del PDF principal.
     - Los archivos se transfieren correctamente a `JobService.analyzeWithAgents`.
     - La compilación TypeScript (`pnpm typecheck`) pasa sin errores tras los cambios.
   - Archivos probables:
