@@ -224,7 +224,7 @@ export const AnalysisWizard: React.FC = () => {
                                             type="file"
                                             accept=".pdf"
                                             multiple
-                                            className="hidden"
+                                            className="sr-only"
                                             onChange={handleFileSelect}
                                         />
                                         <span className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg">
@@ -263,14 +263,14 @@ export const AnalysisWizard: React.FC = () => {
                                                             {file.name}
                                                         </h3>
                                                         <p className="text-xs text-slate-500 font-mono">
-                                                            {(file.size / 1024 / 1024).toFixed(2)} MB {idx === 0 && <span className="ml-2 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Principal</span>}
+                                                            {(file.size / 1024 / 1024).toFixed(2)}&nbsp;MB {idx === 0 && <span className="ml-2 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Principal</span>}
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <button
                                                     onClick={() => handleRemoveFile(idx)}
-                                                    className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-red-500 transition-colors shrink-0"
-                                                    title="Eliminar archivo"
+                                                    className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-red-500 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                                    title="Eliminar archivo" aria-label={`Eliminar ${file.name}`}
                                                 >
                                                     <X size={16} />
                                                 </button>
@@ -280,13 +280,12 @@ export const AnalysisWizard: React.FC = () => {
 
                                     {templates.length > 0 && (
                                         <div className="w-full text-left mb-6">
-                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                            <label htmlFor="template-select" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                                 Plantilla de Extracción (Opcional)
                                             </label>
-                                            <select
-                                                value={selectedTemplateId || ''}
+                                            <select id="template-select" value={selectedTemplateId || ''}
                                                 onChange={(e) => setTemplateId(e.target.value || null)}
-                                                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500"
+                                                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                                             >
                                                 <option value="">Por defecto (Completa)</option>
                                                 {templates.map(t => (
@@ -298,7 +297,7 @@ export const AnalysisWizard: React.FC = () => {
                                     <div className="mt-8 grid grid-cols-2 gap-3">
                                         <button
                                             onClick={handleClearAllFiles}
-                                            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                                            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                                         >
                                             Cambiar archivo
                                         </button>
@@ -335,7 +334,7 @@ export const AnalysisWizard: React.FC = () => {
                             <p className="text-sm text-red-700 dark:text-red-300 mt-1 whitespace-pre-wrap font-mono text-xs">{error}</p>
                             <button
                                 onClick={resetAnalysis}
-                                className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 dark:hover:text-red-200 underline decoration-red-300 underline-offset-2"
+                                className="mt-3 text-sm font-medium text-red-700 hover:text-red-800 dark:hover:text-red-200 underline decoration-red-300 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-sm px-1 -ml-1"
                             >
                                 {t('common.retry')}
                             </button>
@@ -364,7 +363,7 @@ export const AnalysisWizard: React.FC = () => {
                             <div className="absolute inset-0 rounded-full border-4 border-blue-100 dark:border-blue-900/30 border-t-blue-600 dark:border-t-blue-500 animate-spin"></div>
                             <Loader2 className="text-blue-600 dark:text-blue-400" size={36} />
                         </div>
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('wizard.analyzing_title')}</h2>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('wizard.analyzing_title') + '…'}</h2>
                         <p className="text-slate-500 dark:text-slate-400">{t('wizard.analyzing_desc')}</p>
                     </div>
 
@@ -380,7 +379,7 @@ export const AnalysisWizard: React.FC = () => {
                         </div>
                         <div className="p-6 h-64 overflow-y-auto scroll-smooth text-emerald-400/90 font-light">
                             {lines.length === 0 && (
-                                <span className="opacity-40 italic">Iniciando contexto de ejecución...</span>
+                                <span className="opacity-40 italic">Iniciando contexto de ejecución…</span>
                             )}
                             {lines.map((line, i) => (
                                 <div key={i} className="mb-1.5 flex leading-relaxed">
