@@ -112,6 +112,14 @@ El flujo de carga en `AnalysisWizard.tsx` debe modificarse de la siguiente maner
 
 *Nota de implementación: Es crucial que el archivo principal se pase como `pdfBase64` y los adicionales en el array `files` para mantener retrocompatibilidad con la Edge Function, o refactorizar el backend para que todo entre por `files`.*
 
+### 4.2. Refinamiento Multi-Documento (Frontend) - Implementado
+- **Estado:** Se reemplazó `selectedFile` por `selectedFiles: File[]` en `AnalysisWizard.tsx`.
+- **Límite:** Se implementó límite de 5 archivos y validación de 30MB en total de archivos.
+- **UI de Listado:** Se lista ahora un div scrolleable mostrando los nombres, tamaños y un botón de borrar para cada archivo; el primer archivo se resalta como Principal.
+- **Store:** `analyzeFile` se migró a `analyzeFiles`, procesando cada archivo secuencialmente para extracción de `base64` en `useAnalysisStore`.
+- **Servicios:** Se modificó la firma `analyzePdfContent` en `ai.service.ts` para aceptar la inyección del parámetro `files?: {name: string, base64: string}[]` que es pasado de forma íntegra a `JobService.analyzeWithAgents`.
+
+
 ## 9. Security & Secrets Management
 
 Dado que este repositorio es **público**, el manejo de secretos y variables de entorno es un área de nivel crítico.

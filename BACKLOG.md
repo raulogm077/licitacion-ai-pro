@@ -24,7 +24,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 ## To Do (Iteración Actual)
 
 
-- [ ] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
+- [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
+  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function.
+  - Alcance: Creación o actualización de pruebas Playwright para la subida concurrente de documentos.
+  - Criterios de aceptación: Un test E2E sube múltiples documentos y verifica que el resultado se genera sin errores SSE.
+  - Archivos probables: `e2e/critical-flows.spec.ts`
+  - Dependencias: Implementar soporte UI de múltiples documentos por licitación.
+
+## Ready for QA
+
+- [x] [Tipo: UI] [Área: Upload] Implementar soporte UI de múltiples documentos por licitación
   - Objetivo: permitir cargar varios documentos relacionados dentro del mismo análisis.
   - Alcance: actualizar dropzone en `AnalysisWizard.tsx`, manejo de estado global con múltiples archivos en `useAnalysisStore`, permitir añadir/quitar de la lista, y validación de máximo 5 archivos según `SPEC.md`. Modificar `analyzeFile` para procesar el array de archivos con `processFile` obteniendo el hash y base64 de todos.
   - Criterios de aceptación:
@@ -36,28 +45,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `src/features/upload/components/AnalysisWizard.tsx`
     - `src/stores/analysis.store.ts`
   - Dependencias: ninguna
-
-- [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
-  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function.
-  - Alcance: Creación o actualización de pruebas Playwright para la subida concurrente de documentos.
-  - Criterios de aceptación: Un test E2E sube múltiples documentos y verifica que el resultado se genera sin errores SSE.
-  - Archivos probables: `e2e/critical-flows.spec.ts`
-  - Dependencias: Implementar soporte UI de múltiples documentos por licitación.
-
-
-- [ ] [Tipo: Backend] [Área: Analysis] Actualizar firmas de servicios para soporte multi-documento
-  - Objetivo: Permitir que `analysis.store.ts` envíe múltiples archivos a través de la capa de servicios hasta la Edge Function.
-  - Alcance: Modificar `ai.service.ts` (`analyzePdfContent`) para aceptar el array de archivos adicionales (ej. `files?: { name: string, base64: string }[]`) y pasarlos a `JobService.analyzeWithAgents`.
-  - Criterios de aceptación:
-    - `ai.service.ts` acepta un array de archivos (ej. `{ name: string, base64: string }[]`) además del PDF principal.
-    - Los archivos se transfieren correctamente a `JobService.analyzeWithAgents`.
-    - La compilación TypeScript (`pnpm typecheck`) pasa sin errores tras los cambios.
-  - Archivos probables:
-    - `src/services/ai.service.ts`
-    - `src/stores/analysis.store.ts` (llamada a `analyzePdfContent`)
-  - Dependencias: Soporte UI multi-documento
-
-## Ready for QA
 
 - [ ] [Tipo: Backend] [Área: Infra] 🛡️ Sentinel: [CRITICAL] Remover credenciales expuestas y hardcodeadas
   - Objetivo: Identificar y eliminar cualquier credencial hardcodeada (API keys de Gemini, Supabase, Vercel, etc.) del repositorio para garantizar la seguridad del código público.

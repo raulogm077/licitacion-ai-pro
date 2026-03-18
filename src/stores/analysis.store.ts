@@ -21,7 +21,7 @@ interface AnalysisStore {
     currentJobId: string | null;
 
     // Actions
-    analyzeFile: (file: File) => Promise<void>;
+    analyzeFiles: (files: File[]) => Promise<void>;
     cancelAnalysis: () => void;
     resetAnalysis: () => void;
     setProvider: (provider: string) => void;
@@ -47,7 +47,9 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     selectedTemplateId: null,
     currentJobId: null,
 
-    analyzeFile: async (file: File) => {
+    analyzeFiles: async (files: File[]) => {
+        if (!files || files.length === 0) return;
+        const file = files[0]; // Main file
         const { loadLicitacion, reset: resetLicitacion } = useLicitacionStore.getState();
         const newController = new AbortController();
 
@@ -74,10 +76,24 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             const { hash, base64, isValidPdf } = await processFile(file);
 
             if (!isValidPdf) {
-                throw new Error("El archivo no es un PDF válido.");
+                throw new Error("El archivo principal no es un PDF válido.");
             }
 
-            set({ status: 'ANALYZING', progress: 10, thinkingOutput: `Archivo verificado. Hash: ${hash}\nIniciando motor de IA...` });
+            // Process additional files
+            const additionalFiles: { name: string, base64: string }[] = [];
+            for (let i = 1; i < files.length; i++) {
+                const addFile = files[i];
+                if (addFile.size > MAX_PDF_SIZE_BYTES) {
+                    throw new Error(`El archivo ${addFile.name} supera el límite de tamaño.`);
+                }
+                const { base64: addBase64, isValidPdf: addIsValid } = await processFile(addFile);
+                if (!addIsValid) {
+                    throw new Error(`El archivo ${addFile.name} no es un PDF válido.`);
+                }
+                additionalFiles.push({ name: addFile.name, base64: addBase64 });
+            }
+
+            set({ status: 'ANALYZING', progress: 10, thinkingOutput: `Archivos verificados. Principal hash: ${hash}\nIniciando motor de IA...` });
 
             // Define onPartialSave for Gemini
             const onPartialSave = async (partialData: Partial<LicitacionData>) => {
@@ -131,7 +147,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 selectedProvider,
                 file.name, // Required for OpenAI
                 hash,      // Required for OpenAI
-                template   // Pass the custom extraction template
+                template,   // Pass the custom extraction template
+                additionalFiles.length > 0 ? additionalFiles : undefined
             );
 
             // 4. Update State & Persist

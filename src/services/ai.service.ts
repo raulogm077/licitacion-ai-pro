@@ -24,7 +24,8 @@ export class AIService {
         providerName?: string,
         filename?: string, // NEW: Required for OpenAI
         hash?: string,    // NEW: Required for OpenAI
-        template?: ExtractionTemplate | null    // NEW: Pass template to OpenAI
+        template?: ExtractionTemplate | null,    // NEW: Pass template to OpenAI
+        files?: { name: string, base64: string }[] // NEW: Pass additional files to OpenAI
     ): Promise<LicitacionContent> {
         // OpenAI Specific Route (Server-Side)
         if (providerName === 'openai') {
@@ -71,7 +72,8 @@ export class AIService {
                                 onProgress(rawProgress, 100, "Procesando documento...");
                             }
                         }
-                    }
+                    },
+                    files
                 );
 
                 if (onProgress) onProgress(100, 100, "✅ Resultado validado recibido del servidor");
