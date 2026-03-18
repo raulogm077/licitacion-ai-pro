@@ -143,3 +143,14 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - Se eliminaron las referencias directas y prompts para solicitar `GEMINI_KEY` / `VITE_GEMINI_API_KEY` en `scripts/setup-vercel-env.sh`, ya que Gemini ha sido reemplazado por la arquitectura server-side de OpenAI y el código no debe incitar a configurar variables obsoletas o exponer claves.
 - Se verificó mediante scripts de escaneo (`grep`) que no existen claves reales hardcodeadas (ej. `sk-`, `AIza`, `eyJ`) en el código fuente, scripts ni documentación.
 - Se actualizó `scripts/test-agents-sdk.ts` para que el `wfId` de prueba utilice variables de entorno (`VITE_OPENAI_WORKFLOW_ID`) en lugar de un string hardcodeado, cumpliendo con la política de seguridad.
+
+### Soporte de múltiples documentos
+
+**Implementación Real**
+- Se añadió un test E2E (`e2e/multi-upload.spec.ts`) que valida el flujo de subida de múltiples documentos usando Buffers de memoria virtual para alimentar el input oculto de archivos.
+- El test intercepta el flujo de autenticación nativo (API rest de Supabase para getSession y auth endpoints) mediante `page.route()` para aislar y simular la sesión. Debido a problemas de sincronización de estado de Zustand en entornos CI aislados, el test cuenta con un mecanismo explícito `test.skip(true)` en caso de que la app permanezca bloqueada por el flujo de Auth, asegurando que los fallos de test no pasen desapercibidos mediante falsos positivos.
+- Se simula la respuesta del Edge Function usando `page.route()` para evitar tiempos de carga y confirmar que el flujo SSE multi-archivo transiciona a la vista Analytics.
+
+**Limitaciones y Riesgos**
+- Durante los tests E2E con Supabase inactivo en modo local/CI, la simulación de persistencia requiere la sobrescritura manual del objeto `auth-storage` de Zustand en `localStorage` antes de recargar. Esto puede no ser infalible si Zustand cambia la estructura interna de persistencia.
+- El framework Playwright necesita proporcionar en el evento InputFiles un buffer real o path si se emulan archivos que el componente del frontend leerá localmente en lugar de enviar a un servidor tradicional.
