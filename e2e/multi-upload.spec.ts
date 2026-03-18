@@ -61,17 +61,29 @@ test.describe('Multi-document Upload and Analysis', () => {
             await expect(page.getByText(/Arrastra y suelta/i)).toBeVisible({ timeout: 5000 }).catch(() => null);
         }
 
-        // At this point we are authenticated and the dropzone should be visible.
         const fileInput = page.locator('input[type="file"]');
 
-        // Ensure input file is attached before interacting
+        // Use waitFor attached instead of just finding it since it might render late
         await fileInput.waitFor({ state: 'attached', timeout: 5000 }).catch(() => null);
 
         if (await fileInput.count() === 0) {
-             // In CI, auth mocking can be flaky. If the component isn't fully rendered we skip instead of failing silently
              test.skip(true, "CI environment auth mock isolation failure. Cannot proceed with file upload flow without auth.");
              return;
         }
+
+        // To fix the exact error: "TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded"
+        // that is generated because playwright struggles to interact with hidden input.
+        // We evaluate and modify the input's styles to make it visible
+        await fileInput.evaluate((el: HTMLInputElement) => {
+            el.style.display = 'block';
+            el.style.visibility = 'visible';
+            el.style.opacity = '1';
+            el.style.width = '10px';
+            el.style.height = '10px';
+            el.style.position = 'absolute';
+            el.style.top = '0';
+            el.style.left = '0';
+        });
 
         // Upload multiple files using Buffer approach
         await fileInput.setInputFiles([

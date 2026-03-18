@@ -30,20 +30,19 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `Guía de lectura de pliegos.md`
   - Dependencias: Ninguna.
 
-- [ ] 🐛 BUG: [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
-> TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded.
-> Call log:
->   - waiting for locator('input[type="file"]')
-  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).
-  - Alcance: Actualización de pruebas Playwright (`e2e/multi-upload.spec.ts`) y posible ajuste en `AnalysisWizard.tsx` (exposición del input) para la subida concurrente de documentos en entorno aislado.
-  - Criterios de aceptación: Un test E2E sube múltiples documentos correctamente, resolviendo el timeout de `locator('input[type="file"]')`, y verifica que el resultado se genera sin errores SSE.
-  - Archivos probables: `e2e/multi-upload.spec.ts`, `src/features/upload/components/AnalysisWizard.tsx`
-  - Dependencias: Ninguna.
+
 
 
 
 
 ## Ready for QA
+
+- [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
+  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).
+  - Alcance: Actualización de pruebas Playwright (`e2e/multi-upload.spec.ts`) y posible ajuste en `AnalysisWizard.tsx` (exposición del input) para la subida concurrente de documentos en entorno aislado.
+  - Criterios de aceptación: Un test E2E sube múltiples documentos correctamente, resolviendo el timeout de `locator('input[type="file"]')`, y verifica que el resultado se genera sin errores SSE.
+  - Archivos probables: `e2e/multi-upload.spec.ts`, `src/features/upload/components/AnalysisWizard.tsx`
+  - Dependencias: Ninguna.
 
 ## Deuda Técnica / Refactorización
 
