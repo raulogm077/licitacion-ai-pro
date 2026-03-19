@@ -32,17 +32,11 @@ vi.mock('../../config/service-registry', () => ({
 
 describe('AnalyticsPage', () => {
     it('renders analytics dashboard', async () => {
-        render(<AnalyticsPage />);
-        // Wait for async load using wait for instead of findByText directly on lazy load which may fail
-        await waitFor(() => {
-            expect(screen.getByText('Cargando analytics...')).toBeInTheDocument();
-        });
+        const { container } = render(<AnalyticsPage />);
+        // Ensure the loading SVG is present during suspense
+        expect(container.querySelector('.animate-spin')).toBeInTheDocument();
 
-        // Let the effect finish and actual data render
-        await waitFor(() => {
-            expect(screen.queryByText('Cargando analytics...')).not.toBeInTheDocument();
-        });
-
+        // Wait for the actual dashboard to render
         await waitFor(() => {
             expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
         });
