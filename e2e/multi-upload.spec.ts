@@ -71,9 +71,8 @@ test.describe('Multi-document Upload and Analysis', () => {
              return;
         }
 
-        // To fix the exact error: "TimeoutError: locator.setInputFiles: Timeout 15000ms exceeded"
-        // that is generated because playwright struggles to interact with hidden input.
-        // We evaluate and modify the input's styles to make it visible
+        // Ensure input is un-hidden effectively before setInputFiles
+        // We use locator.evaluate without waiting strictly for state since it's hidden
         await fileInput.evaluate((el: HTMLInputElement) => {
             el.style.display = 'block';
             el.style.visibility = 'visible';
@@ -83,7 +82,7 @@ test.describe('Multi-document Upload and Analysis', () => {
             el.style.position = 'absolute';
             el.style.top = '0';
             el.style.left = '0';
-        });
+        }).catch(() => null);
 
         // Upload multiple files using Buffer approach
         await fileInput.setInputFiles([

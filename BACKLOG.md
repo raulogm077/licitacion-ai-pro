@@ -23,12 +23,22 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
+  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).
+  - Alcance: Actualización de pruebas Playwright (`e2e/multi-upload.spec.ts`) y posible ajuste en `AnalysisWizard.tsx` (exposición del input) para la subida concurrente de documentos en entorno aislado.
+  - Criterios de aceptación: Un test E2E sube múltiples documentos correctamente, resolviendo el timeout de `locator('input[type="file"]')`, y verifica que el resultado se genera sin errores SSE.
+  - Archivos probables: `e2e/multi-upload.spec.ts`, `src/features/upload/components/AnalysisWizard.tsx`
+  - Dependencias: Ninguna.
+> Error: locator.evaluate: Timeout 15000ms exceeded.
+> Call log:
+>   - waiting for locator('input[type="file"]')
+>     at /app/e2e/multi-upload.spec.ts:77:25
+
 - [ ] [Tipo: Docs] [Área: Analysis] Convertir "Guia Lectura de Pliegos .pdf" a formato Markdown ("Guía de lectura de pliegos.md")
   - Objetivo: Disponer de las directrices de lectura de pliegos en un formato fácilmente analizable (Markdown) para los agentes AI.
   - Alcance: Extracción del contenido de "Guia Lectura de Pliegos .pdf" y creación del archivo "Guía de lectura de pliegos.md", alojándolo en el directorio de la Edge Function (`supabase/functions/analyze-with-agents/`) para que sea accesible en tiempo de ejecución.
   - Criterios de aceptación: El archivo "Guía de lectura de pliegos.md" se crea y contiene la transcripción fiel del PDF original en una ruta accesible por Deno.
   - Archivos probables: `supabase/functions/analyze-with-agents/Guía de lectura de pliegos.md`
-  - Dependencias: Ninguna.
 
 - [ ] 🧠 [AI] [Tipo: AI] [Área: Analysis] Inyectar "Guía de lectura de pliegos.md" en el Vector Store del análisis
   - Objetivo: Garantizar que el agente tenga acceso a las instrucciones metodológicas de la guía (cerrando el hueco funcional de inyección omitida).
@@ -37,19 +47,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `supabase/functions/analyze-with-agents/index.ts`
   - Dependencias: La conversión de la Guía de lectura a Markdown debe estar completada.
 
-
-
-
-
-
 ## Ready for QA
-
-- [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
-  - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).
-  - Alcance: Actualización de pruebas Playwright (`e2e/multi-upload.spec.ts`) y posible ajuste en `AnalysisWizard.tsx` (exposición del input) para la subida concurrente de documentos en entorno aislado.
-  - Criterios de aceptación: Un test E2E sube múltiples documentos correctamente, resolviendo el timeout de `locator('input[type="file"]')`, y verifica que el resultado se genera sin errores SSE.
-  - Archivos probables: `e2e/multi-upload.spec.ts`, `src/features/upload/components/AnalysisWizard.tsx`
-  - Dependencias: Ninguna.
 
 ## Deuda Técnica / Refactorización
 
@@ -96,8 +94,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `scripts/setup-vercel-env.sh`
     - `scripts/init-env.sh`
   - Dependencias: Ninguna
-
-
 
 - [x] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
 - [x] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
