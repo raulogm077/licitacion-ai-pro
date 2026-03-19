@@ -25,10 +25,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 - [ ] [Tipo: Docs] [Área: Analysis] Convertir "Guia Lectura de Pliegos .pdf" a formato Markdown ("Guía de lectura de pliegos.md")
   - Objetivo: Disponer de las directrices de lectura de pliegos en un formato fácilmente analizable (Markdown) para los agentes AI.
-  - Alcance: Extracción del contenido de "Guia Lectura de Pliegos .pdf" y creación del archivo "Guía de lectura de pliegos.md" en el directorio raíz.
-  - Criterios de aceptación: El archivo "Guía de lectura de pliegos.md" se crea y contiene la transcripción fiel del PDF original.
-  - Archivos probables: `Guía de lectura de pliegos.md`
+  - Alcance: Extracción del contenido de "Guia Lectura de Pliegos .pdf" y creación del archivo "Guía de lectura de pliegos.md", alojándolo en el directorio de la Edge Function (`supabase/functions/analyze-with-agents/`) para que sea accesible en tiempo de ejecución.
+  - Criterios de aceptación: El archivo "Guía de lectura de pliegos.md" se crea y contiene la transcripción fiel del PDF original en una ruta accesible por Deno.
+  - Archivos probables: `supabase/functions/analyze-with-agents/Guía de lectura de pliegos.md`
   - Dependencias: Ninguna.
+
+- [ ] 🧠 [AI] [Tipo: AI] [Área: Analysis] Inyectar "Guía de lectura de pliegos.md" en el Vector Store del análisis
+  - Objetivo: Garantizar que el agente tenga acceso a las instrucciones metodológicas de la guía (cerrando el hueco funcional de inyección omitida).
+  - Alcance: Modificar `analyze-with-agents/index.ts` para que lea el archivo local `Guía de lectura de pliegos.md` y lo suba al Vector Store de OpenAI (junto con los PDFs del expediente) antes de inicializar el streaming.
+  - Criterios de aceptación: El Vector Store generado incluye la guía. El agente puede usar file_search para extraer directrices de lectura.
+  - Archivos probables: `supabase/functions/analyze-with-agents/index.ts`
+  - Dependencias: La conversión de la Guía de lectura a Markdown debe estar completada.
 
 
 
