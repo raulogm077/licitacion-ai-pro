@@ -382,7 +382,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
 
         let extraDocsMsg = '';
         if (files && files.length > 0) {
-            extraDocsMsg = ` Adicionalmente, se han adjuntado los siguientes documentos: ${files.map((f: any) => f.name).join(', ')}.`;
+            extraDocsMsg = ` Adicionalmente, se han adjuntado los siguientes documentos: ${files.map((f: { name: string }) => f.name).join(', ')}.`;
         }
         const runMessage = `Analiza este expediente de licitación (principal: ${filename || 'documento.pdf'})${extraDocsMsg} siguiendo la guía de lectura. Cuando termines, usa la herramienta submit_analysis_result con el JSON estructurado completo.`;
 
