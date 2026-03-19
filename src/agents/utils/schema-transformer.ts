@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import type { LicitacionAgentResponse } from '../schemas/licitacion-agent.schema';
 
 /**
@@ -14,8 +14,8 @@ export function transformAgentResponseToFrontend(
 ): unknown {  // Retorna unknown porque será validado después por el Zod del frontend
 
     // Defensive check for top-level keys
-    const result = agentResponse?.result || {} as any;
-    const workflow = agentResponse?.workflow || {} as any;
+    const result = (agentResponse?.result || {}) as Record<string, unknown>;
+    const workflow = (agentResponse?.workflow || {}) as Record<string, unknown>;
 
     // Helper to safely access arrays
     const safeArray = (arr: unknown[]) => Array.isArray(arr) ? arr : [];
@@ -33,7 +33,7 @@ export function transformAgentResponseToFrontend(
     const servicio = (result as any).modeloServicio || {};
 
     return {
-        plantilla_personalizada: (result as any).plantilla_personalizada || undefined,
+        plantilla_personalizada: result.plantilla_personalizada as Record<string, unknown> || undefined,
         // Datos Generales - mapeo 1:1
         datosGenerales: {
             titulo: safeString(datosGenerales.titulo),
