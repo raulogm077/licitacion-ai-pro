@@ -23,17 +23,18 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
+
+
+
+
+
+## Ready for QA
+
 - [ ] [Tipo: Docs] [Área: Analysis] Convertir "Guia Lectura de Pliegos .pdf" a formato Markdown ("Guía de lectura de pliegos.md")
   - Objetivo: Disponer de las directrices de lectura de pliegos en un formato fácilmente analizable (Markdown) para los agentes AI.
   - Alcance: Extracción del contenido de "Guia Lectura de Pliegos .pdf" y creación del archivo "Guía de lectura de pliegos.md", alojándolo en el directorio de la Edge Function (`supabase/functions/analyze-with-agents/`) para que sea accesible en tiempo de ejecución.
   - Criterios de aceptación: El archivo "Guía de lectura de pliegos.md" se crea y contiene la transcripción fiel del PDF original en una ruta accesible por Deno.
   - Archivos probables: `supabase/functions/analyze-with-agents/Guía de lectura de pliegos.md`
-  - Dependencias: Ninguna.
-
-
-
-
-
 
 
 
@@ -52,6 +53,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Criterios de aceptación: Un test E2E sube múltiples documentos correctamente, resolviendo el timeout de `locator('input[type="file"]')`, y verifica que el resultado se genera sin errores SSE.
   - Archivos probables: `e2e/multi-upload.spec.ts`, `src/features/upload/components/AnalysisWizard.tsx`
   - Dependencias: Ninguna.
+
 
 ## Deuda Técnica / Refactorización
 
@@ -98,8 +100,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - `scripts/setup-vercel-env.sh`
     - `scripts/init-env.sh`
   - Dependencias: Ninguna
-
-
 
 - [x] [Tipo: UI] [Área: Templates] Desarrollar pantalla de gestión de plantillas (`/templates`)
 - [x] 🧠 [AI] [Tipo: AI] [Área: Templates] Hacer dinámica la extracción en `analyze-with-agents` a partir de `templateId`
