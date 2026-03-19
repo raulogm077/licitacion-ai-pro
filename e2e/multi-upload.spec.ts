@@ -4,42 +4,65 @@ test.describe('Multi-document Upload and Analysis', () => {
 
     test('Should allow uploading multiple PDF files if authenticated', async ({ page }) => {
 
-        // Intercept session calls. The app uses `supabase.auth.getSession()` on load
-        await page.route('**/auth/v1/user', route => {
-            route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    id: "mock-user-id",
-                    aud: "authenticated",
-                    role: "authenticated",
-                    email: "test@example.com"
-                })
-            });
-        });
+        // Catch all mock-supabase.supabase.co requests to avoid ERR_NAME_NOT_RESOLVED
+        await page.route('**/*', async route => {
+            const url = route.request().url();
 
-        await page.route('**/auth/v1/session', route => {
-             route.fulfill({
-                 status: 200,
-                 contentType: 'application/json',
-                 body: JSON.stringify({
-                     access_token: 'mock-token',
-                     refresh_token: 'mock-refresh',
-                     user: { id: "mock-user-id", email: "test@example.com" }
-                 })
-             });
-         });
+            // Only intercept supabase calls
+            if (!url.includes('mock-supabase.supabase.co')) {
+                return route.fallback();
+            }
 
-        await page.route('**/auth/v1/token?grant_type=password', route => {
-            route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    access_token: 'mock-token',
-                    refresh_token: 'mock-refresh',
-                    user: { id: 'mock-user-id', email: 'test@example.com' }
-                })
-            });
+            // Provide CORS headers for all mocked responses
+            const headers = {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': '*',
+                'Content-Type': 'application/json'
+            };
+
+            // Handle preflight requests
+            if (route.request().method() === 'OPTIONS') {
+                return route.fulfill({ status: 204, headers });
+            }
+
+            if (url.includes('/auth/v1/user') || url.includes('/auth/v1/session')) {
+                return route.fulfill({
+                    status: 200,
+                    headers,
+                    body: JSON.stringify({
+                        access_token: 'mock-token',
+                        refresh_token: 'mock-refresh',
+                        user: { id: "mock-user-id", aud: "authenticated", role: "authenticated", email: "test@example.com" }
+                    })
+                });
+            }
+            if (url.includes('/auth/v1/token')) {
+                return route.fulfill({
+                    status: 200,
+                    headers,
+                    body: JSON.stringify({
+                        access_token: 'mock-token',
+                        refresh_token: 'mock-refresh',
+                        user: { id: 'mock-user-id', email: 'test@example.com', aud: "authenticated", role: "authenticated" }
+                    })
+                });
+            }
+            if (url.includes('/functions/v1/analyze-with-agents')) {
+                 return route.fulfill({
+                     status: 200,
+                     headers: {
+                         'Cache-Control': 'no-cache',
+                         'Connection': 'keep-alive',
+                         'Access-Control-Allow-Origin': '*',
+                         'Content-Type': 'text/event-stream'
+                     },
+                     body: `data: {"type":"status","message":"Iniciando contexto de ejecución..."}\n\ndata: {"type":"status","message":"Analizando documentos (3 archivos)..."}\n\ndata: {"type":"result","data":{"metadata":{"title":"Licitación de Prueba Multiple","object":"Servicios","budget":1000},"riesgos":[],"requisitos":[]}}\n\n`
+                 });
+             }
+
+            // Default mock for other supabase requests
+            return route.fulfill({ status: 200, headers, body: '{}' });
         });
 
         await page.goto('/');
@@ -56,14 +79,14 @@ test.describe('Multi-document Upload and Analysis', () => {
             await page.getByPlaceholder(/tu@email.com/i).fill('test@example.com');
             await page.getByPlaceholder(/••••••••/i).fill('password123');
             await page.getByRole('button', { name: 'Iniciar Sesión' }).nth(1).click();
-
-            // Wait for modal to disappear or dropzone to appear
-            await expect(page.getByText(/Arrastra y suelta/i)).toBeVisible({ timeout: 5000 }).catch(() => null);
         }
+
+        // Wait for dropzone to appear instead of modal disappearing
+        await expect(page.getByText(/Arrastra y suelta/i)).toBeVisible({ timeout: 5000 }).catch(() => null);
 
         const fileInput = page.locator('input[type="file"]');
 
-        // Use waitFor attached instead of just finding it since it might render late
+        // Wait for input to be attached in the DOM
         await fileInput.waitFor({ state: 'attached', timeout: 5000 }).catch(() => null);
 
         if (await fileInput.count() === 0) {
@@ -71,18 +94,20 @@ test.describe('Multi-document Upload and Analysis', () => {
              return;
         }
 
-        // Ensure input is un-hidden effectively before setInputFiles
-        // We use locator.evaluate without waiting strictly for state since it's hidden
-        await fileInput.evaluate((el: HTMLInputElement) => {
-            el.style.display = 'block';
-            el.style.visibility = 'visible';
-            el.style.opacity = '1';
-            el.style.width = '10px';
-            el.style.height = '10px';
-            el.style.position = 'absolute';
-            el.style.top = '0';
-            el.style.left = '0';
-        }).catch(() => null);
+        // We use locator.evaluateAll to ensure it runs without strict actionability checks if standard evaluate fails
+        await page.evaluate(() => {
+            const el = document.querySelector('input[type="file"]') as HTMLInputElement;
+            if (el) {
+                el.style.display = 'block';
+                el.style.visibility = 'visible';
+                el.style.opacity = '1';
+                el.style.width = '10px';
+                el.style.height = '10px';
+                el.style.position = 'absolute';
+                el.style.top = '0';
+                el.style.left = '0';
+            }
+        });
 
         // Upload multiple files using Buffer approach
         await fileInput.setInputFiles([
@@ -99,20 +124,6 @@ test.describe('Multi-document Upload and Analysis', () => {
         // Start analysis
         const startButton = page.getByRole('button', { name: /Analizar con IA/i });
         await expect(startButton).toBeVisible();
-
-        // Also let's mock the actual function to test UI flow
-        await page.route('**/functions/v1/analyze-with-agents', async route => {
-            await route.fulfill({
-                status: 200,
-                contentType: 'text/event-stream',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Connection': 'keep-alive',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                body: `data: {"type":"status","message":"Iniciando contexto de ejecución..."}\n\ndata: {"type":"status","message":"Analizando documentos (3 archivos)..."}\n\ndata: {"type":"result","data":{"metadata":{"title":"Licitación de Prueba Multiple","object":"Servicios","budget":1000},"riesgos":[],"requisitos":[]}}\n\n`
-            });
-        });
 
         await startButton.click();
 
