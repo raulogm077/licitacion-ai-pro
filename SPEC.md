@@ -126,10 +126,10 @@ El flujo de carga en `AnalysisWizard.tsx` debe modificarse de la siguiente maner
 
 
 
-### 4.4. Refinamiento Guía de Lectura (Backend AI) - Pendiente
+### 4.4. Refinamiento Guía de Lectura (Backend AI) - Implementado
 Se ha detectado un hueco funcional en la inyección de la **Guía de lectura de pliegos**. Actualmente el modelo instruye al agente a buscar la "Guía" con `file_search`, pero ésta no forma parte del Vector Store que la Edge Function aprovisiona en runtime.
-- **Acción Doc:** Convertir la "Guia Lectura de Pliegos .pdf" a formato `.md` y depositarla directamente en `supabase/functions/analyze-with-agents/`.
-- **Acción AI:** Refactorizar `analyze-with-agents/index.ts` para que incluya de forma programática y explícita el archivo markdown local en la creación del Vector Store por cada análisis.
+- **Acción Doc:** Convertida la "Guia Lectura de Pliegos .pdf" a formato `.md` y depositada directamente en `supabase/functions/analyze-with-agents/`.
+- **Acción AI:** Se ha refactorizado `analyze-with-agents/index.ts` para que lea el archivo markdown local (`Guía de lectura de pliegos.md`) usando `Deno.readTextFile`, y se inyecte de forma programática y explícita subiéndolo al Vector Store de OpenAI (`purpose: 'assistants'`) durante la ejecución de la función por cada análisis. Esto garantiza que el Agente siempre tenga acceso a las directrices de negocio para el análisis de pliegos.
 
 
 ## 9. Security & Secrets Management
