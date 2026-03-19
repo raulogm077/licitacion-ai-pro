@@ -25,6 +25,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 - [ ] 🐛 BUG: 🧠 [AI] [Tipo: AI] [Área: Analysis] Inyectar "Guía de lectura de pliegos.md" en el Vector Store del análisis
 ## Deuda Técnica / Refactorización
+- [] [Tipo: Docs] [Área: Analysis] Quiero analises la estructura de proyectos de mi proyecto para eliminar las carpetas que no son necesarias , se han creado muchas carpetas para el uso de skills y debe tener una estructura mucho mas limpia , revisa en profundidad como dejar solo lo que es necesario para el uso de skills con jules , las carpetas que no sean necesarias eliminalas. ademas garantiza una arquitectura limpia y organizada que siga las buenas practicas del ingenieria de software. Al acaber dime que patron estas usando. 
 
 - (Vacío por el momento)
 
