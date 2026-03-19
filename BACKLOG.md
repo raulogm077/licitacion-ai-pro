@@ -21,11 +21,19 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias:
 ```
 
+## Ready for QA
+
+- [ ] [Tipo: Docs] [Área: Infra] Limpieza de estructura de proyectos y arquitectura de skills
+  - Objetivo: Eliminar carpetas innecesarias generadas por múltiples agentes IA y consolidar la arquitectura de skills con Jules.
+  - Alcance: Eliminar carpetas como `.adal`, `.agent`, `.claude`, `.roo`, etc. Mantener solo lo necesario (`.jules`, `.agents`, `skills/`). Documentar el patrón usado en `ARCHITECTURE.md`.
+  - Criterios de aceptación: Las carpetas redundantes se eliminan del directorio raíz y la arquitectura limpia queda documentada.
+  - Archivos probables: `ARCHITECTURE.md`, `SPEC.md`, `BACKLOG.md`
+  - Dependencias: Ninguna.
+
 ## To Do (Iteración Actual)
 
 - [ ] 🐛 BUG: 🧠 [AI] [Tipo: AI] [Área: Analysis] Inyectar "Guía de lectura de pliegos.md" en el Vector Store del análisis
 ## Deuda Técnica / Refactorización
-- [] [Tipo: Docs] [Área: Analysis] Quiero analises la estructura de proyectos de mi proyecto para eliminar las carpetas que no son necesarias , se han creado muchas carpetas para el uso de skills y debe tener una estructura mucho mas limpia , revisa en profundidad como dejar solo lo que es necesario para el uso de skills con jules , las carpetas que no sean necesarias eliminalas. ademas garantiza una arquitectura limpia y organizada que siga las buenas practicas del ingenieria de software. Al acaber dime que patron estas usando. 
 
 - (Vacío por el momento)
 

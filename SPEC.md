@@ -172,3 +172,10 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - **Implementación Real:** Se ha resuelto el timeout de `locator('input[type="file"]')` en el test de subida de múltiples archivos ajustando el flujo de aserciones. Se comprobó que el error era provocado porque la autenticación fallaba de forma silenciosa o requería una intercepción global (`**/*`) con headers CORS y manejo de preflight requests para permitir que el cliente de Supabase se inicialice correctamente. Se restauró `test.skip()` explícito para evitar fallos de pipeline donde el mock falla, respetando la memoria del proyecto, y se eliminaron las esperas obligatorias dentro de los comandos `evaluate` que causaban los timeouts en cascada.
 - **Riesgos Residuales:** En caso de que el entorno no inyecte `VITE_SUPABASE_URL`, el test usará skips.
 - **Hallazgos:** La inicialización de la librería de Supabase es estricta con las respuestas CORS (OPTIONS), lo que causaba `net::ERR_NAME_NOT_RESOLVED` si solo se interceptaba parcialmente la ruta.
+
+### Archivo de Decisiones y Operaciones
+**[Tech Lead] Limpieza Arquitectura Skills**
+- Se realizó una depuración exhaustiva del directorio raíz para mitigar la contaminación de carpetas generadas automáticamente por múltiples agentes de IA.
+- Se eliminaron carpetas no utilizadas (tales como `.adal`, `.agent`, `.claude`, `.roo`, `.qoder`, etc.) promoviendo el principio de **Single Source of Truth** en el directorio de configuración.
+- Se mantuvo únicamente `.jules` y `.agents` así como la carpeta principal de `skills/`.
+- Se documentó este patrón (Agent Skill Modular Pattern) dentro de `ARCHITECTURE.md` para garantizar la estructura limpia de este proyecto en integraciones futuras.
