@@ -186,3 +186,10 @@ Durante el ciclo de pruebas E2E y despliegues, se ha identificado un error comú
 `Failed to load resource: the server responded with a status of 401`
 - **Causa:** La Edge Function `analyze-with-agents` está siendo desplegada por defecto requiriendo verificación JWT (`--verify-jwt`). Dado que el frontend gestiona su propio mecanismo de validación o el flujo no requiere dicho token JWT de Supabase Auth para iniciar la función (SSE endpoint), el cliente recibe un 401.
 - **Acción PM/QA:** Todos los redespliegues de la función `analyze-with-agents` en producción y en staging deben incluir explícitamente el flag `--no-verify-jwt` para permitir la comunicación correcta de los eventos SSE (a menos que se implemente un flujo de headers Authorization explícito en `JobService` de frontend en el futuro).
+
+### Cambio IA: Desactivar JWT en analyze-with-agents
+- **Qué cambió:** Se configuró `verify_jwt = false` para la Edge Function `analyze-with-agents` en `supabase/config.toml`.
+- **Por qué:** La función estaba devolviendo error HTTP 401 Unauthorized al ser invocada por el frontend debido a que se esperaba un token JWT por defecto y no se estaba enviando (la función es de uso público para el flujo principal en el frontend).
+- **Impacto esperado:** El flujo SSE de la UI hacia la Edge Function de OpenAI Agents ya no fallará en el handshake inicial y procesará el análisis correctamente.
+- **Fallback:** N/A (resolución de bug crítico).
+- **Riesgos residuales:** Riesgo de abuso de endpoint al ser público. Se mitigará en el futuro asegurando auth si se requiere acceso restringido o rate-limiting.
