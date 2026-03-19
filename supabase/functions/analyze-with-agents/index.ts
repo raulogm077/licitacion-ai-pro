@@ -162,7 +162,7 @@ serve(async (req) => {
         console.log('[analyze-with-agents] Request received');
 
         // 1. Parse request
-        const { pdfBase64, guiaBase64, filename, template, files } = await req.json();
+        const { pdfBase64, filename, template, files } = await req.json();
 
         if (!pdfBase64 && (!files || files.length === 0)) {
             return new Response(
@@ -390,7 +390,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
 
         let extraDocsMsg = '';
         if (files && files.length > 0) {
-            extraDocsMsg = ` Adicionalmente, se han adjuntado los siguientes documentos: ${files.map((f: any) => f.name).join(', ')}.`;
+            extraDocsMsg = ` Adicionalmente, se han adjuntado los siguientes documentos: ${files.map((f: { name: string }) => f.name).join(', ')}.`;
         }
         const runMessage = `Analiza este expediente de licitación (principal: ${filename || 'documento.pdf'})${extraDocsMsg} siguiendo la guía de lectura. Cuando termines, usa la herramienta submit_analysis_result con el JSON estructurado completo.`;
 
