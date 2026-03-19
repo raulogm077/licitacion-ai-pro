@@ -36,6 +36,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
       - name: Audit Dependencies
         # audit-level=critical to avoid noise, continue-on-error just in case
         run: pnpm audit --audit-level=critical || true
