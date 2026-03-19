@@ -36,14 +36,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Criterios de aceptación: El archivo "Guía de lectura de pliegos.md" se crea y contiene la transcripción fiel del PDF original en una ruta accesible por Deno.
   - Archivos probables: `supabase/functions/analyze-with-agents/Guía de lectura de pliegos.md`
 
+
+
+## Ready for QA
+
 - [ ] 🧠 [AI] [Tipo: AI] [Área: Analysis] Inyectar "Guía de lectura de pliegos.md" en el Vector Store del análisis
   - Objetivo: Garantizar que el agente tenga acceso a las instrucciones metodológicas de la guía (cerrando el hueco funcional de inyección omitida).
   - Alcance: Modificar `analyze-with-agents/index.ts` para que lea el archivo local `Guía de lectura de pliegos.md` y lo suba al Vector Store de OpenAI (junto con los PDFs del expediente) antes de inicializar el streaming.
   - Criterios de aceptación: El Vector Store generado incluye la guía. El agente puede usar file_search para extraer directrices de lectura.
   - Archivos probables: `supabase/functions/analyze-with-agents/index.ts`
   - Dependencias: La conversión de la Guía de lectura a Markdown debe estar completada.
-
-## Ready for QA
 
 - [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
   - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).

@@ -191,6 +191,20 @@ serve(async (req) => {
             fileIds.push(pdfUpload.id);
         }
 
+        // 3. Procesar Guía Interna de Lectura
+        try {
+            console.log('[analyze-with-agents] Leyendo Guía de lectura de pliegos local...');
+            const guiaPath = new URL('./Guía de lectura de pliegos.md', import.meta.url);
+            const guiaContent = await Deno.readTextFile(guiaPath);
+            console.log('[analyze-with-agents] Uploading Guía interna...');
+            const guiaUpload = await openai.files.create({
+                file: new File([new TextEncoder().encode(guiaContent)], 'Guía de lectura de pliegos.md', { type: 'text/markdown' }),
+                purpose: 'assistants'
+            });
+            console.log(`[analyze-with-agents] Guía interna uploaded: ${guiaUpload.id}`);
+            fileIds.push(guiaUpload.id);
+        } catch (e) {
+            console.error('[analyze-with-agents] Error procesando Guía interna local:', e);
         // 3. Procesar guía metodológica (Inyección local)
         try {
             console.log('[analyze-with-agents] Leyendo Guía de lectura local...');
