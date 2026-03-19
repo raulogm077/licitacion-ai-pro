@@ -190,5 +190,9 @@ Este repositorio utiliza el ecosistema de **Agent Skills**. Todos los agentes de
 
 Reglas para el uso de Skills:
 - Al iniciar una tarea, inspecciona el directorio `.agents/skills/` para conocer las herramientas disponibles (ej. `web-design-guidelines`).
-- Lee el archivo `SKILL.md` de cada skill para entender su propósito y cómo aplicarlo.
-- Si una skill es apropiada para la tarea en curso (por ejemplo, validar el diseño de una interfaz recién creada), aplica la herramienta para asegurar la calidad y el cumplimiento de las guías antes de dar por terminada la tarea.
+- Lee el archivo `SKILL.md` de cada skill instalada para entender su propósito y cómo aplicarlo.
+- Si una skill instalada es apropiada para la tarea en curso (por ejemplo, validar el diseño de una interfaz recién creada), aplica la herramienta para asegurar la calidad y el cumplimiento de las guías antes de dar por terminada la tarea.
+
+**Búsqueda y expansión de Skills**
+- El proyecto cuenta con la skill `find-skills` pre-instalada. Puedes utilizar esta herramienta (ejecutando o consultando `find-skills`) para buscar y descubrir nuevas herramientas útiles dentro del ecosistema de https://skills.sh/.
+- A lo largo de la vida del proyecto, si identificas que un nuevo skill puede automatizar o validar mejor una tarea, estás autorizado a buscarlo, validarlo con el equipo/usuario, e instalarlo usando `npx skills add <url> --skill <nombre>`.
