@@ -183,3 +183,12 @@ Checklist documental mínima:
 - No se deben mezclar en una misma noche cambios de plantillas y múltiples documentos salvo ticket explícito.
 - No se deben crear épicas grandes dentro de `## To Do`; deben dividirse en tareas ejecutables en una sola sesión.
 - Si una tarea deja deuda o riesgo residual, debe documentarse explícitamente en `SPEC.md`.
+
+## 7. Uso de Skills
+
+Este repositorio utiliza el ecosistema de **Agent Skills**. Todos los agentes deben tener en cuenta las skills disponibles en el directorio `.agents/skills/` antes y durante el desarrollo.
+
+Reglas para el uso de Skills:
+- Al iniciar una tarea, inspecciona el directorio `.agents/skills/` para conocer las herramientas disponibles (ej. `web-design-guidelines`).
+- Lee el archivo `SKILL.md` de cada skill para entender su propósito y cómo aplicarlo.
+- Si una skill es apropiada para la tarea en curso (por ejemplo, validar el diseño de una interfaz recién creada), aplica la herramienta para asegurar la calidad y el cumplimiento de las guías antes de dar por terminada la tarea.
