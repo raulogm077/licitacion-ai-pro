@@ -87,7 +87,9 @@ export class AIService {
             }
         }
 
-        // Gemini Route (Client-Side Sequential)
+        // DEPRECATED: Gemini Route (Client-Side Sequential)
+        // This path is technically dead code as the client no longer uses Gemini,
+        // but kept for reference/fallback if sequential processing is ever needed again.
         const sections: { key: keyof LicitacionContent; label: string }[] = [
             { key: 'datosGenerales', label: 'Datos Generales' },
             { key: 'criteriosAdjudicacion', label: 'Criterios de Adjudicación' },
@@ -185,7 +187,8 @@ export class AIService {
         const systemPrompt = plugin.getSystemPrompt();
         const sectionPrompt = plugin.getSectionPrompt(sectionKey);
 
-        // Get the LLM provider (default to gemini if not specified)
+        // DEPRECATED: Gemini client-side route is no longer maintained.
+        // Get the LLM provider (now forced to openai due to gemini removal)
         const provider = llmFactory.getProvider((providerName || 'openai') as 'openai');
 
         try {

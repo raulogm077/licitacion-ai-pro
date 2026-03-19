@@ -36,19 +36,6 @@ export function bufferToBase64(buffer: ArrayBuffer): Promise<string> {
 /**
  * @deprecated Use processFile() if you also need hash/validation
  */
-export function readFileAsBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = reader.result as string;
-            // Remove data URL prefix (e.g., "data:application/pdf;base64,")
-            const base64 = result.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
 
 /**
  * Optimized file processor: reads file ONCE and generates all needed artifacts.

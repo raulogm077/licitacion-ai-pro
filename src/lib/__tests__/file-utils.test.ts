@@ -1,23 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { validateBufferMagicBytes, readFileAsBase64, bufferToBase64 } from '../file-utils';
+import { validateBufferMagicBytes, bufferToBase64 } from '../file-utils';
 
 describe('file-utils', () => {
 
 
     // readFileAsBase64 requires valid FileReader which is tricky in JSDOM sometimes, 
     // but usually supported.
-    describe('readFileAsBase64', () => {
-        it('reads file content', async () => {
-            const content = 'Hello';
-            const file = new File([content], 'test.txt', { type: 'text/plain' });
 
-            // FileReader behavior in JSDOM usually works for simple cases
-            // But readAsDataURL produces data:text/plain;base64,SGVsbG8=
-
-            const result = await readFileAsBase64(file);
-            expect(result).toBe(btoa(content));
-        });
-    });
     describe('validateBufferMagicBytes', () => {
         it('returns true for valid PDF header', () => {
             const buffer = new Uint8Array([0x25, 0x50, 0x44, 0x46]).buffer;

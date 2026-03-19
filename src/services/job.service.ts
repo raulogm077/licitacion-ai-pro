@@ -41,15 +41,14 @@ export class JobService {
 
             console.log('[JobService] Usando fetch API para streaming...');
 
-            const { data: { session: currentSession } } = await supabase.auth.getSession();
-            const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+                        const projectUrl = import.meta.env.VITE_SUPABASE_URL;
             const functionUrl = `${projectUrl}/functions/v1/analyze-with-agents`;
 
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentSession?.access_token}`,
+                    'Authorization': `Bearer ${session?.access_token}`,
                     'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
                 },
                 body: JSON.stringify({
@@ -76,6 +75,8 @@ export class JobService {
             let finalResult: unknown = null;
 
             let reading = true;
+            let streamError: Error | null = null;
+
             while (reading) {
                 const { done, value } = await reader.read();
 
@@ -93,37 +94,45 @@ export class JobService {
                         continue;
                     }
 
+                    let event: StreamEvent;
                     try {
-                        const event = JSON.parse(line.slice(6));
-
-                        // Notify progress
-                        if (onProgress) {
-                            onProgress(event);
-                        }
-
-                        // Log important events
-                        if (event.type === 'agent_message') {
-                            const preview = typeof event.content === 'string'
-                                ? event.content.substring(0, 80)
-                                : JSON.stringify(event.content).substring(0, 80);
-                            console.log(`[Agent]: ${preview}...`);
-                        }
-
-                        // Capture final result
-                        if (event.type === 'complete' && event.result) {
-                            finalResult = event.result;
-                            console.log('[JobService] Resultado final recibido del stream');
-                        }
-
-                        // Handle error
-                        if (event.type === 'error') {
-                            throw new Error(event.message || 'Error en streaming');
-                        }
-
+                        event = JSON.parse(line.slice(6));
                     } catch (parseError) {
-                        console.warn('[JobService] No se pudo parsear evento:', line);
+                        console.warn('[JobService] No se pudo parsear evento JSON:', line);
+                        continue;
+                    }
+
+                    // Notify progress
+                    if (onProgress) {
+                        onProgress(event);
+                    }
+
+                    // Log important events
+                    if (event.type === 'agent_message') {
+                        console.debug(`[Agent]: ${typeof event.content === 'string'
+                            ? event.content.substring(0, 80)
+                            : JSON.stringify(event.content).substring(0, 80)}...`);
+                        // Using debug level logic conceptually, keeping console.log for now as it's safe and expected
+                    }
+
+                    // Capture final result
+                    if (event.type === 'complete' && event.result) {
+                        finalResult = event.result;
+                    }
+
+                    // Handle application error (do not throw inside loop parsing try/catch)
+                    if (event.type === 'error') {
+                        streamError = new Error(event.message || 'Error en streaming');
+                        reading = false;
+                        break;
                     }
                 }
+
+                if (streamError) break;
+            }
+
+            if (streamError) {
+                throw streamError;
             }
 
             if (!finalResult) {

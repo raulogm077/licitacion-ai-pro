@@ -47,7 +47,7 @@ export class DBService {
                     version: nextVersionNumber,
                     status: 'succeeded' as const,
                     created_at: now,
-                    model: 'gemini-pro',
+                    model: 'ai-analysis',
                     schema_version: 'v1',
                     prompt_version: 'v1',
                     result: content,
@@ -83,7 +83,7 @@ export class DBService {
                         version: 1,
                         status: 'succeeded',
                         created_at: now,
-                        model: 'gemini-pro',
+                        model: 'ai-analysis',
                         schema_version: 'v1',
                         prompt_version: 'v1',
                         result: content

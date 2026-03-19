@@ -208,14 +208,14 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     // Aggregating citations (robust check for undefined)
     const collectCitations = (obj: unknown, sectionName: string) => {
         if (!obj) return;
-        if (typeof obj === 'object') {
+        if (Array.isArray(obj)) {
+            obj.forEach(item => collectCitations(item, sectionName));
+        } else if (typeof obj === 'object') {
             const typedObj = obj as { cita?: unknown };
             if (typedObj.cita && typeof typedObj.cita === 'string' && typedObj.cita.length > 5) {
                 citations.push({ text: typedObj.cita, section: sectionName });
             }
             Object.values(obj).forEach(val => collectCitations(val, sectionName));
-        } else if (Array.isArray(obj)) {
-            obj.forEach(item => collectCitations(item, sectionName));
         }
     };
 

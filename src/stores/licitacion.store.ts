@@ -86,7 +86,7 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
                     version: 1,
                     status: 'succeeded',
                     created_at: now,
-                    model: 'gemini-pro',
+                    model: 'ai-analysis',
                     schema_version: 'v1',
                     prompt_version: 'v1',
                     result: inputData
