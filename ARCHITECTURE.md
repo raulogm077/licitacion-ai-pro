@@ -74,7 +74,7 @@ Responsabilidades:
 
 - recibir la solicitud de análisis
 - cargar uno o múltiples archivos (mediante `pdfBase64` o el array `files`) a OpenAI. La carga de múltiples archivos se realiza de forma **secuencial** para evitar picos de consumo de memoria que rompan el límite del Edge Runtime.
-- construir un contexto consolidado en el Vector Store con el expediente completo (polling mediante exponential backoff) y la "Guía de lectura de pliegos" (inyección local de directrices metodológicas)
+- construir un contexto consolidado en el Vector Store con el expediente completo (polling mediante exponential backoff) y la "Guía de lectura de pliegos". Ésta última se incluye localmente usando `Deno.readTextFile(new URL('./Guía de lectura de pliegos.md', import.meta.url))` de manera que la IA siempre tenga la guía de negocio disponible por sistema y de forma automática como archivo `.md`.
 - ejecutar análisis con Agents SDK (inyectando mensaje con los nombres de los documentos del expediente)
 - emitir eventos SSE
 - devolver resultado estructurado compatible con frontend

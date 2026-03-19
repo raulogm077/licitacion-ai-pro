@@ -23,6 +23,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
+
+
+
+
+
+## Ready for QA
+
 - [ ] [Tipo: Docs] [Área: Analysis] Convertir "Guia Lectura de Pliegos .pdf" a formato Markdown ("Guía de lectura de pliegos.md")
   - Objetivo: Disponer de las directrices de lectura de pliegos en un formato fácilmente analizable (Markdown) para los agentes AI.
   - Alcance: Extracción del contenido de "Guia Lectura de Pliegos .pdf" y creación del archivo "Guía de lectura de pliegos.md", alojándolo en el directorio de la Edge Function (`supabase/functions/analyze-with-agents/`) para que sea accesible en tiempo de ejecución.
@@ -36,13 +43,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Criterios de aceptación: El Vector Store generado incluye la guía. El agente puede usar file_search para extraer directrices de lectura.
   - Archivos probables: `supabase/functions/analyze-with-agents/index.ts`
   - Dependencias: La conversión de la Guía de lectura a Markdown debe estar completada.
-
-
-
-
-
-
-## Ready for QA
 
 - [ ] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
   - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).
