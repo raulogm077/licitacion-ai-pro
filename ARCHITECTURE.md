@@ -195,3 +195,12 @@ Documentos operativos vigentes:
 Documento histórico no operativo:
 
 - `DEPRECATED.md`
+
+## Agent Skill Modular Pattern (Infraestructura AI)
+Para asegurar que la integración de *skills* en Jules siga principios de arquitectura limpia y evite la contaminación del proyecto raíz, el sistema adopta un modelo estricto de carpetas:
+
+1. **Directorio `.agents`:** Contiene configuraciones, plugins o recursos centrales que Jules u otros agentes core requieran a nivel de proyecto base, actuando como espacio aislado oculto.
+2. **Directorio `.jules`:** Espacio estricto de configuración exclusiva para la instancia actual de Jules, donde residen referencias propias, reglas y personalizaciones.
+3. **Directorio `skills`:** Todas las habilidades extendidas que actúan como plugins independientes quedan centralizadas aquí.
+
+> *Importante:* El repositorio no admite la proliferación de carpetas punto (`.`) por cada modelo/herramienta (ej. `.claude`, `.roo`, `.qoder`) para evitar desorden arquitectónico. Todo *skill* se inyecta o referencia bajo el entorno modularizado provisto por Jules.
