@@ -32,11 +32,14 @@ export function Header({ vm }: HeaderProps) {
                         {vm.display.titulo}
                     </h1>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                        {(vm.result.datosGenerales as Record<string, unknown>).numeroExpediente as string && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono tracking-wider border border-slate-200 text-slate-500 bg-slate-50">
-                                {(vm.result.datosGenerales as Record<string, unknown>).numeroExpediente as string}
-                            </span>
-                        )}
+                        {(() => {
+                            const expediente = (vm.result.datosGenerales as Record<string, unknown>)?.numeroExpediente;
+                            return typeof expediente === 'string' && expediente ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono tracking-wider border border-slate-200 text-slate-500 bg-slate-50">
+                                    {expediente}
+                                </span>
+                            ) : null;
+                        })()}
                         <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-semibold px-2 py-0.5">
                             <CheckCircle2 className="w-2.5 h-2.5" />
                             Analizado
@@ -50,18 +53,16 @@ export function Header({ vm }: HeaderProps) {
                 <Button
                     variant="outline"
                     className="h-8 text-xs font-semibold gap-2 hidden sm:flex border-slate-200"
-                    onClick={() => {
-                        alert("Export functionality placeholder");
-                    }}
+                    disabled
+                    title="Próximamente"
                 >
                     <FileText className="w-3.5 h-3.5" />
                     Ver Original
                 </Button>
                 <Button
                     className="h-8 gap-2 text-xs font-semibold bg-navy text-white hover:bg-navy-mid border-0 shadow-sm transition-all duration-150"
-                    onClick={() => {
-                        alert("Export Report functionality placeholder");
-                    }}
+                    disabled
+                    title="Próximamente"
                 >
                     <Download className="w-3.5 h-3.5" />
                     Exportar Reporte

@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { create } from 'zustand';
 import { ProcessingStatus, LicitacionData } from '../types';
 import { LicitacionContent } from '../lib/schemas';
@@ -16,7 +15,7 @@ interface AnalysisStore {
     error: string | null;
     persistenceWarning: string | null;
     abortController: AbortController | null;
-    selectedProvider: string; // 'gemini' | 'openai'
+    selectedProvider: string; // 'openai'
     selectedTemplateId: string | null;
     currentJobId: string | null;
 
@@ -30,9 +29,9 @@ interface AnalysisStore {
 
 const loadSelectedProvider = (): string => {
     try {
-        return localStorage.getItem('selectedProvider') || 'gemini';
+        return localStorage.getItem('selectedProvider') || 'openai';
     } catch {
-        return 'gemini';
+        return 'openai';
     }
 };
 
@@ -168,7 +167,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 set({ persistenceWarning: `Advertencia: ${saveResult.error.message}. Los datos no se sincronizaron con la nube.` });
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Critical Analysis Error:", error);
             let errorMessage = "Error inesperado en el motor de análisis";
 
@@ -177,27 +176,31 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             }
 
             // Handle Supabase/Edge Functions Errors specifically
-            if (error?.context?.status) {
-                errorMessage = `Error del Servidor (${error.context.status}): ${errorMessage}`;
-                // Try to extract body
-                try {
-                    // Check if context has .json() method (Response object)
-                    if (typeof error.context.json === 'function') {
-                        const body = await error.context.json();
-                        // If backend provides a specific error message, use it as the PRIMARY message, not just detail
-                        if (body.error) {
-                            errorMessage = body.error; // Use the specific Spanish message from backend
-                        } else if (body.message) {
-                            errorMessage = body.message;
-                        } else {
-                            // Fallback if formatting is weird
-                            if (body.error) errorMessage += `\nDetalle: ${body.error}`;
+            if (typeof error === 'object' && error !== null) {
+                const errObj = error as Record<string, unknown>;
+                const context = errObj.context as Record<string, unknown> | undefined;
+                if (context?.status) {
+                    errorMessage = `Error del Servidor (${context.status}): ${errorMessage}`;
+                    // Try to extract body
+                    try {
+                        // Check if context has .json() method (Response object)
+                        if (typeof context.json === 'function') {
+                            const body = await (context.json as () => Promise<Record<string, unknown>>)();
+                            // If backend provides a specific error message, use it as the PRIMARY message, not just detail
+                            if (typeof body.error === 'string') {
+                                errorMessage = body.error; // Use the specific Spanish message from backend
+                            } else if (typeof body.message === 'string') {
+                                errorMessage = body.message;
+                            } else {
+                                // Fallback if formatting is weird
+                                if (body.error) errorMessage += `\nDetalle: ${body.error}`;
+                            }
                         }
-                    }
-                } catch (e) { /* ignore body parse error */ }
-            } else if (error?.status && error?.statusText) {
-                // Fetch/Response error
-                errorMessage = `Error HTTP ${error.status}: ${error.statusText}`;
+                    } catch (e) { /* ignore body parse error */ }
+                } else if (errObj.status && errObj.statusText) {
+                    // Fetch/Response error
+                    errorMessage = `Error HTTP ${errObj.status}: ${errObj.statusText}`;
+                }
             }
 
             // Clean up message

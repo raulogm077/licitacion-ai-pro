@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogIn, Layers } from 'lucide-react';
 import { ProcessingStatus, LicitacionData } from '../../types';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
     const location = useLocation();
     const navigate = useNavigate();
 
-    const navButton = useMemo(() => (path: string, icon: React.ReactNode, label: string) => {
+    const navButton = useCallback((path: string, icon: React.ReactNode, label: string) => {
         const isActive = location.pathname === path;
         return (
             <button
@@ -46,6 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
         reset();
         navigate('/');
     };
+
+    const isAuthenticated = useAuthStore(state => state.isAuthenticated);
 
     return (
         <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50">
@@ -98,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
 
                     {/* Show UserMenu if authenticated, else show login button */}
-                    {useAuthStore(state => state.isAuthenticated) ? (
+                    {isAuthenticated ? (
                         <UserMenu />
                     ) : (
                         <button
