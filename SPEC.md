@@ -179,3 +179,10 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - Se eliminaron carpetas no utilizadas (tales como `.adal`, `.agent`, `.claude`, `.roo`, `.qoder`, etc.) promoviendo el principio de **Single Source of Truth** en el directorio de configuración.
 - Se mantuvo únicamente `.jules` y `.agents` así como la carpeta principal de `skills/`.
 - Se documentó este patrón (Agent Skill Modular Pattern) dentro de `ARCHITECTURE.md` para garantizar la estructura limpia de este proyecto en integraciones futuras.
+
+
+### 10.2. Resolución de Errores de Despliegue (Edge Functions)
+Durante el ciclo de pruebas E2E y despliegues, se ha identificado un error común en la inicialización del análisis:
+`Failed to load resource: the server responded with a status of 401`
+- **Causa:** La Edge Function `analyze-with-agents` está siendo desplegada por defecto requiriendo verificación JWT (`--verify-jwt`). Dado que el frontend gestiona su propio mecanismo de validación o el flujo no requiere dicho token JWT de Supabase Auth para iniciar la función (SSE endpoint), el cliente recibe un 401.
+- **Acción PM/QA:** Todos los redespliegues de la función `analyze-with-agents` en producción y en staging deben incluir explícitamente el flag `--no-verify-jwt` para permitir la comunicación correcta de los eventos SSE (a menos que se implemente un flujo de headers Authorization explícito en `JobService` de frontend en el futuro).
