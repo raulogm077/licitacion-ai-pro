@@ -84,6 +84,9 @@ Reglas específicas:
 
 Puede:
 - implementar frontend y backend tradicional
+- Para tareas de frontend o UI, priorizar v0 MCP.
+- Para tareas que dependan de documentación actual de librerías o APIs, priorizar Context7.
+- Para tareas que dependan del esquema o estado real del proyecto de datos, priorizar Supabase MCP en modo lectura.
 - revisar codigo para detectar correcciones o refactors
 - garantizar buenas practicas modernas de desarrollo de software.
 - escribir y actualizar tests
@@ -111,6 +114,8 @@ Puede:
 - modificar la transformación Agent → frontend
 - modificar la Edge Function `analyze-with-agents`
 - actualizar `SPEC.md` y `ARCHITECTURE.md` cuando cambie el flujo real
+- Para tareas que dependan de documentación actual de librerías o APIs, priorizar Context7.
+- Para tareas que dependan del esquema o estado real del proyecto de datos, priorizar Supabase MCP en modo lectura.
 
 No puede:
 - desplegar
