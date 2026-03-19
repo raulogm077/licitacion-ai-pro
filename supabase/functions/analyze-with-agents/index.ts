@@ -191,37 +191,22 @@ serve(async (req) => {
             fileIds.push(pdfUpload.id);
         }
 
-        // 3. Procesar Guía Interna de Lectura
+        // 3. Procesar Guía Interna de Lectura (Inyección local)
         try {
             console.log('[analyze-with-agents] Leyendo Guía de lectura de pliegos local...');
             const guiaPath = new URL('./Guía de lectura de pliegos.md', import.meta.url);
             const guiaContent = await Deno.readTextFile(guiaPath);
+            const encoder = new TextEncoder();
+            const guiaBuffer = encoder.encode(guiaContent);
             console.log('[analyze-with-agents] Uploading Guía interna...');
             const guiaUpload = await openai.files.create({
-                file: new File([new TextEncoder().encode(guiaContent)], 'Guía de lectura de pliegos.md', { type: 'text/markdown' }),
+                file: new File([guiaBuffer], 'Guía de lectura de pliegos.md', { type: 'text/markdown' }),
                 purpose: 'assistants'
             });
             console.log(`[analyze-with-agents] Guía interna uploaded: ${guiaUpload.id}`);
             fileIds.push(guiaUpload.id);
         } catch (e) {
             console.error('[analyze-with-agents] Error procesando Guía interna local:', e);
-        // 3. Procesar guía metodológica (Inyección local)
-        try {
-            console.log('[analyze-with-agents] Leyendo Guía de lectura local...');
-            const guiaUrl = new URL('./Guía de lectura de pliegos.md', import.meta.url);
-            const guiaContent = await Deno.readTextFile(guiaUrl);
-            const encoder = new TextEncoder();
-            const guiaBuffer = encoder.encode(guiaContent);
-
-            console.log('[analyze-with-agents] Uploading Guía metodológica a OpenAI...');
-            const guiaUpload = await openai.files.create({
-                file: new File([guiaBuffer], 'Guía de lectura de pliegos.md', { type: 'text/markdown' }),
-                purpose: 'assistants'
-            });
-            console.log(`[analyze-with-agents] Guía metodológica uploaded: ${guiaUpload.id}`);
-            fileIds.push(guiaUpload.id);
-        } catch (e) {
-            console.error('[analyze-with-agents] Error inyectando Guía local:', e);
             // Non-blocking error, but highly discouraged for the agent to proceed without the guide
         }
 
