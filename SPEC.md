@@ -60,7 +60,7 @@ Superficies afectadas en esta iteración:
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
-(Por definir)
+Mejorar la precisión y fiabilidad visible de los resultados de análisis mediante la visualización e integración de advertencias de calidad y consistencia semántica proporcionadas por `QualityService`.
 
 ## 6. Decisiones abiertas
 
