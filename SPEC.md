@@ -17,50 +17,51 @@ Estado funcional confirmado a fecha de esta especificación:
 
 ## 3. Iteración activa
 
+## 8. Historial de implementación
+
+### Iteración pasada
+- Soporte multi-documento por licitación
+
 ### 3.1. Objetivo
 
-Añadir soporte **multi-documento por licitación** sin comprometer la claridad de UX ni la robustez del pipeline actual.
+Mejorar la precisión y fiabilidad visible de los resultados de análisis mediante la visualización e integración de advertencias de calidad y consistencia semántica proporcionadas por `QualityService`.
 
 ### 3.2. Historia de usuario principal
 
-Como usuario interno que analiza pliegos, quiero poder seleccionar varios documentos complementarios al pliego base para que la IA disponga de todo el contexto necesario al generar el análisis.
+Como usuario interno, quiero ver advertencias claras en la interfaz si hay inconsistencias en los datos analizados (ej. si el presupuesto extraído no coincide con la solvencia requerida), para no fiarme ciegamente de la IA y poder revisar los documentos correspondientes.
 
 ### 3.3. Entregables esperados
 
-1. Adaptación UI de wizard para soltar varios documentos
-2. Ajuste de estado de `analysis.store`
-3. Refuerzo E2E (QA)
+1. Integración de `QualityService` en la UI (vista de resultados).
+2. Renderizado de `warnings` debajo o junto a las gráficas correspondientes.
+3. Asegurar que las alertas son visualmente distintivas.
 
 ### 3.4. Criterios de aceptación globales
 
-- el usuario puede subir de 1 a 5 documentos
-- la validación rechaza tamaños conjuntos por encima de lo estipulado (ej. 30MB)
-- se lista visualmente qué archivos están cargados y permite borrarlos individualmente antes de enviarlos
-- el backend y Vector Store procesan los documentos con éxito
-- la función de `analyze-with-agents` ya adaptada es capaz de recibir este input y procesarlo
+- si `QualityService` devuelve `warnings` en el análisis, estos se muestran en la pantalla de resultados.
+- el usuario puede identificar a qué sección pertenece la advertencia.
+- las advertencias no bloquean la visualización del resto de los datos válidos.
 
 ### 3.5. Impacto técnico esperado
 
 Superficies afectadas en esta iteración:
 
-- `src/features/upload/components/AnalysisWizard.tsx`
-- `src/stores/analysis.store.ts`
-- Tests E2E Playwright asociados
+- `src/features/analytics/components/ChartsSection.tsx`
+- `src/services/quality.service.ts`
+- `src/features/analytics/components/*`
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
 ### 4.1. Módulo UI (Frontend)
 
-- **Carga de archivos:** Modificar `AnalysisWizard.tsx` (wizard/dropzone) para admitir la selección y drop de múltiples documentos PDF simultáneamente.
-- **Estado Global:** Adaptar `useAnalysisStore` y cualquier store relevante para manejar un array de `File` en lugar de un único archivo, gestionando el progreso y mensajes globales o por archivo según convenga.
-- **Listado y previsualización:** Mostrar de manera clara al usuario la lista de documentos que se van a procesar antes de enviarlos, permitiendo eliminar archivos de la cola.
-- **Validaciones:** Verificar en frontend los tamaños máximos acumulados y número de documentos permitidos (ej. máx 5 documentos).
-- **Servicio Job:** Asegurarse que `JobService.analyzeWithAgents` reciba el array de strings base64 o de objetos con `{ filename, base64 }`.
+- **Advertencias de Calidad:** Modificar la vista de resultados (`src/features/analytics/components/ChartsSection.tsx` o similares) para que reciba y renderice el array de `warnings` generado por el análisis.
+- **Diseño Visual:** Utilizar componentes de Tailwind/React existentes para mostrar banners o badges para indicar al usuario las discrepancias.
+- **Inyección de Dependencias:** Asegurar que `QualityService` se ejecuta correctamente y que sus resultados se propagan al store o directamente a los componentes de visualización.
 
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
-Mejorar la precisión y fiabilidad visible de los resultados de análisis mediante la visualización e integración de advertencias de calidad y consistencia semántica proporcionadas por `QualityService`.
+(Definir próximo objetivo de producto tras validar las advertencias de calidad).
 
 ## 6. Decisiones abiertas
 
