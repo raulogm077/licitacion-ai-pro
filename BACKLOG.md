@@ -2,7 +2,7 @@
 
 ## 🧠 Contexto y Estado Actual
 
-La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está completada. La iteración de **Plantillas dinámicas de extracción** está terminada a nivel de desarrollo y documentación. La iteración activa se centra exclusivamente en **Soporte multi-documento por licitación**.
+La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está completada. La iteración de **Plantillas dinámicas de extracción** está terminada a nivel de desarrollo y documentación. La iteración activa se centra en la **Mejora del Análisis de Calidad y Consistencia** (Quality & Consistency Analysis Improvement).
 
 ## Reglas de priorización
 
@@ -26,6 +26,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 
 ## To Do (Iteración Actual)
+
+- [ ] [Tipo: UI] [Área: Analysis] Integrar advertencias de consistencia semántica en la interfaz
+  - Objetivo: Mostrar al usuario las advertencias de calidad (QualityService) generadas para el análisis.
+  - Alcance: Integrar en la vista de resultados (`src/features/analytics/components/`) el renderizado de `warnings` del análisis, mejorando la fiabilidad visible para el usuario.
+  - Criterios de aceptación: Las advertencias (ej. presupuesto vs solvencia) se visualizan claramente en la pantalla de resultados.
+  - Archivos probables: `src/features/analytics/components/ChartsSection.tsx` (u otros en este directorio), `src/services/quality.service.ts`
+  - Dependencias: Ninguna.
+
 
 
 ## Deuda Técnica / Refactorización
