@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import type { LicitacionAgentResponse } from '../schemas/licitacion-agent.schema';
 
 /**
@@ -15,26 +13,26 @@ export function transformAgentResponseToFrontend(
 ): unknown {  // Retorna unknown porque será validado después por el Zod del frontend
 
     // Defensive check for top-level keys
-    const result = (agentResponse?.result || {}) as Record<string, unknown>;
-    const workflow = (agentResponse?.workflow || {}) as Record<string, unknown>;
+    const result = agentResponse?.result || {} as NonNullable<LicitacionAgentResponse['result']>;
+    const workflow = agentResponse?.workflow || {} as NonNullable<LicitacionAgentResponse['workflow']>;
 
     // Helper to safely access arrays
-    const safeArray = (arr: unknown[]) => Array.isArray(arr) ? arr : [];
+    const safeArray = (arr: unknown) => Array.isArray(arr) ? arr : [];
     // Helper to safely access strings
     const safeString = (str: unknown) => typeof str === 'string' ? str : '';
     // Helper to safely access numbers
     const safeNumber = (num: unknown) => typeof num === 'number' ? num : 0;
 
     // Defensive access to sections
-    const datosGenerales = (result as Record<string, unknown>).datosGenerales || {};
-    const criterios = (result as Record<string, unknown>).criteriosAdjudicacion || {};
-    const tecnicos = (result as Record<string, unknown>).requisitosTecnicos || {};
-    const solvencia = (result as Record<string, unknown>).requisitosSolvencia || {};
-    const riesgos = (result as Record<string, unknown>).restriccionesYRiesgos || {};
-    const servicio = (result as Record<string, unknown>).modeloServicio || {};
+    const datosGenerales = result.datosGenerales || {} as Partial<NonNullable<typeof result.datosGenerales>>;
+    const criterios = result.criteriosAdjudicacion || {} as Partial<NonNullable<typeof result.criteriosAdjudicacion>>;
+    const tecnicos = result.requisitosTecnicos || {} as Partial<NonNullable<typeof result.requisitosTecnicos>>;
+    const solvencia = result.requisitosSolvencia || {} as Partial<NonNullable<typeof result.requisitosSolvencia>>;
+    const riesgos = result.restriccionesYRiesgos || {} as Partial<NonNullable<typeof result.restriccionesYRiesgos>>;
+    const servicio = result.modeloServicio || {} as Partial<NonNullable<typeof result.modeloServicio>>;
 
     return {
-        plantilla_personalizada: result.plantilla_personalizada as Record<string, unknown> || undefined,
+        plantilla_personalizada: result.plantilla_personalizada || undefined,
         // Datos Generales - mapeo 1:1
         datosGenerales: {
             titulo: safeString(datosGenerales.titulo),
