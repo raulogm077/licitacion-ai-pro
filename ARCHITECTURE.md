@@ -41,6 +41,7 @@ Responsabilidades principales:
 - interacción del usuario con el flujo de análisis
 - visualización del progreso en tiempo real
 - render del resultado estructurado
+- visualización de advertencias de calidad (QualityService)
 - gestión de historial de análisis
 - futura gestión de plantillas y multi-documento
 
