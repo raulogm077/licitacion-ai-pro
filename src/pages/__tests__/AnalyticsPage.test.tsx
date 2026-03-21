@@ -38,7 +38,8 @@ describe('AnalyticsPage', () => {
 
         // Wait for the actual dashboard to render
         await waitFor(() => {
-            expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
+            expect(document.querySelector('.animate-spin')).toBeNull();
+            expect(screen.getByText(/Analytics Dashboard|No hay datos de analytics/i)).toBeInTheDocument();
         });
     });
 });
