@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { env } from '../config/env';
 import { LicitacionContent } from '../types';
 import { transformAgentResponseToFrontend } from '../agents/utils/schema-transformer';
 import { LicitacionContentSchema } from '../lib/schemas';
@@ -41,7 +42,7 @@ export class JobService {
 
             console.log('[JobService] Usando fetch API para streaming...');
 
-                        const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+                        const projectUrl = env.VITE_SUPABASE_URL;
             const functionUrl = `${projectUrl}/functions/v1/analyze-with-agents`;
 
             const response = await fetch(functionUrl, {
@@ -49,7 +50,7 @@ export class JobService {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.access_token}`,
-                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+                    'apikey': env.VITE_SUPABASE_ANON_KEY
                 },
                 body: JSON.stringify({
                     pdfBase64,
