@@ -30,29 +30,15 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/features/dashboard/components/widgets/AlertsPanel.tsx (realmente vía pliego-vm.ts)` (u otros en este directorio), `src/services/quality.service.ts`
   - Dependencias: Ninguna.
 
-
-
 ## To Do (Iteración Actual)
-
-
-- [ ] [Tipo: UI] [Área: History] Implementar exportación a CSV/Excel
-  - Objetivo: Permitir al usuario descargar los resultados estructurados del análisis para trabajarlos offline.
-  - Alcance: Añadir botón de exportación en la vista de resultados que genere un archivo con las variables clave.
-  - Criterios de aceptación: Al hacer clic en "Exportar", se descarga un CSV con los datos de pliego, solvencia y presupuesto.
-  - Archivos probables: `src/features/analytics/AnalyticsDashboard.tsx`
-  - Dependencias: Ninguna.
-
-- [ ] [Tipo: UI] [Área: History] Implementar buscador avanzado y paginación en historial
-  - Objetivo: Mejorar la navegabilidad del historial de análisis de licitaciones.
-  - Alcance: Modificar la página de historial para soportar filtros (por fecha, título) y paginación.
-  - Criterios de aceptación: El usuario puede buscar un expediente específico y navegar entre páginas.
-  - Archivos probables: `src/features/history/HistoryView.tsx`
-  - Dependencias: Ninguna.
 
 - [ ] [Tipo: UI] [Área: Analysis] Feedback de extracción (Correcciones de usuario)
   - Objetivo: Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión.
-  - Alcance: Añadir botones de "✔️/❌" al lado de cada dato clave en la vista de resultados.
-  - Criterios de aceptación: El usuario puede marcar el resultado, y el estado se actualiza visualmente.
+  - Alcance: Añadir botones de "✔️/❌" al lado de cada dato clave en la vista de resultados (ej. en `KPICards` o `PliegoAnalysis`).
+  - Criterios de aceptación:
+    - El usuario visualiza un control (botones ✔️/❌) asociado a datos clave.
+    - El estado se actualiza visualmente al interactuar.
+    - Opcional: El evento se registra (incluso si es simulado por el momento) en una función que se podría enlazar al backend posteriormente.
   - Archivos probables: `src/features/analytics/AnalyticsDashboard.tsx`, `src/features/analytics/components/KPICards.tsx`
   - Dependencias: Ninguna.
 
@@ -93,15 +79,21 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `supabase/functions/analyze-with-agents/index.ts`
   - Dependencias: La conversión de la Guía de lectura a Markdown debe estar completada.
 
-## Deuda Técnica / Refactorización
 
-- (Vacío por el momento)
 
-## Ideas de Producto
+- [x] [Tipo: UI] [Área: History] Implementar exportación a CSV/Excel
+  - Objetivo: Permitir al usuario descargar los resultados estructurados del análisis para trabajarlos offline.
+  - Alcance: Añadir botón de exportación en la vista de resultados que genere un archivo con las variables clave.
+  - Criterios de aceptación: Al hacer clic en "Exportar", se descarga un CSV con los datos de pliego, solvencia y presupuesto.
+  - Archivos probables: `src/features/analytics/AnalyticsDashboard.tsx`
+  - Dependencias: Ninguna.
 
-- (Vacío por el momento)
-
-## Done
+- [x] [Tipo: UI] [Área: History] Implementar buscador avanzado y paginación en historial
+  - Objetivo: Mejorar la navegabilidad del historial de análisis de licitaciones.
+  - Alcance: Modificar la página de historial para soportar filtros (por fecha, título) y paginación.
+  - Criterios de aceptación: El usuario puede buscar un expediente específico y navegar entre páginas.
+  - Archivos probables: `src/features/history/HistoryView.tsx`
+  - Dependencias: Ninguna.
 
 - [x] [Tipo: QA] [Área: Upload] Validar E2E el soporte de múltiples documentos
   - Objetivo: Asegurar que el flujo completo de análisis con múltiples archivos funcione correctamente desde la UI hasta el Edge Function (solucionar timeout).

@@ -169,6 +169,13 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 
 ## Implementación Técnica y Decisiones
 
+
+### Corrección y Evaluación de Tareas de Historial
+- **Contexto:** Durante la auditoría inicial de PM se detectó que las tareas "Implementar exportación a CSV/Excel" y "Implementar buscador avanzado y paginación en historial" estaban registradas como tareas `To Do` en `BACKLOG.md`.
+- **Análisis:** Tras inspeccionar el código fuente (`src/features/analytics/AnalyticsDashboard.tsx` para la exportación y `src/features/history/HistoryView.tsx` para el buscador y la paginación) se confirmó que dichas funcionalidades **ya han sido implementadas** correctamente en versiones anteriores.
+- **Acción PM:** Las tareas han sido cerradas manualmente y movidas a la sección `Done` del backlog para reflejar con precisión el estado del producto y evitar el desarrollo duplicado. La tarea "Feedback de extracción (Correcciones de usuario)" ha sido refinada para el próximo agente de UI.
+
+
 ### Corrección E2E Multi-documento
 - **Implementación Real:** Se ha resuelto el timeout de `locator('input[type="file"]')` en el test de subida de múltiples archivos ajustando el flujo de aserciones. Se comprobó que el error era provocado porque la autenticación fallaba de forma silenciosa o requería una intercepción global (`**/*`) con headers CORS y manejo de preflight requests para permitir que el cliente de Supabase se inicialice correctamente. Se restauró `test.skip()` explícito para evitar fallos de pipeline donde el mock falla, respetando la memoria del proyecto, y se eliminaron las esperas obligatorias dentro de los comandos `evaluate` que causaban los timeouts en cascada.
 - **Riesgos Residuales:** En caso de que el entorno no inyecte `VITE_SUPABASE_URL`, el test usará skips.
