@@ -23,18 +23,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-
-
-## To Do (Iteración Actual)
-
 - [ ] [Tipo: UI] [Área: Analysis] Integrar advertencias de consistencia semántica en la interfaz
   - Objetivo: Mostrar al usuario las advertencias de calidad (QualityService) generadas para el análisis.
   - Alcance: Integrar en la vista de resultados (`src/features/analytics/components/`) el renderizado de `warnings` del análisis, mejorando la fiabilidad visible para el usuario.
   - Criterios de aceptación: Las advertencias (ej. presupuesto vs solvencia) se visualizan claramente en la pantalla de resultados.
-  - Archivos probables: `src/features/analytics/components/ChartsSection.tsx` (u otros en este directorio), `src/services/quality.service.ts`
+  - Archivos probables: `src/features/dashboard/components/widgets/AlertsPanel.tsx (realmente vía pliego-vm.ts)` (u otros en este directorio), `src/services/quality.service.ts`
   - Dependencias: Ninguna.
 
 
+
+## To Do (Iteración Actual)
 
 
 - [ ] [Tipo: UI] [Área: History] Implementar exportación a CSV/Excel
