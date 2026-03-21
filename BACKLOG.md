@@ -23,6 +23,9 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
+
+
+
 ## To Do (Iteración Actual)
 
 - [ ] [Tipo: UI] [Área: History] Implementar exportación a CSV/Excel

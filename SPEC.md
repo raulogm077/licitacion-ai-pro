@@ -94,6 +94,7 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 
 ### Iteración activa
 - Soporte Multi-documento Frontend y QA
+- Integrar advertencias de consistencia semántica en la interfaz (`AlertsPanel`, `pliego-vm.ts`)
 
 ### 4.2. Refinamiento Multi-Documento (Frontend)
 

@@ -43,7 +43,7 @@ export interface PliegoVM {
     };
 
     // Warnings for "Avisos" tab
-    warnings: Array<{ message: string; severity: 'CRITICO' | 'NORMAL' }>;
+    warnings: Array<{ title?: string; message: string; severity: 'CRITICO' | 'NORMAL' }>;
 
     // Sections Metadata for Nav
     chapters: ChapterStatus[];
@@ -140,21 +140,21 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     const qualityReport = qualityService.evaluateQuality(content);
 
     // 4. Warnings Generation
-    const warnings: Array<{ message: string; severity: 'CRITICO' | 'NORMAL' }> = [];
+    const warnings: Array<{ title?: string; message: string; severity: 'CRITICO' | 'NORMAL' }> = [];
 
-    if (display.presupuesto === "No detectado") warnings.push({ message: "No se detectó presupuesto.", severity: 'CRITICO' });
-    if (display.plazo === "No detectado") warnings.push({ message: "No se detectó plazo de ejecución.", severity: 'CRITICO' });
-    if (display.cpv === "No detectado") warnings.push({ message: "No se detectó ningún código CPV.", severity: 'CRITICO' });
-    if (display.titulo === "No detectado") warnings.push({ message: "No se detectó el título de la licitación.", severity: 'CRITICO' });
-    if (display.organo === "No detectado") warnings.push({ message: "El órgano de contratación no está identificado.", severity: 'CRITICO' });
+    if (display.presupuesto === "No detectado") warnings.push({ title: 'Dato faltante', message: 'No se detectó presupuesto.', severity: 'CRITICO' });
+    if (display.plazo === "No detectado") warnings.push({ title: 'Dato faltante', message: 'No se detectó plazo de ejecución.', severity: 'CRITICO' });
+    if (display.cpv === "No detectado") warnings.push({ title: 'Dato faltante', message: 'No se detectó ningún código CPV.', severity: 'CRITICO' });
+    if (display.titulo === "No detectado") warnings.push({ title: 'Dato faltante', message: 'No se detectó el título de la licitación.', severity: 'CRITICO' });
+    if (display.organo === "No detectado") warnings.push({ title: 'Dato faltante', message: 'El órgano de contratación no está identificado.', severity: 'CRITICO' });
 
-    if (isEmptyCriterios) warnings.push({ message: "No se detectaron criterios de adjudicación.", severity: 'NORMAL' });
-    if (isEmptyTecnicos) warnings.push({ message: "No se detectaron requisitos técnicos.", severity: 'NORMAL' });
-    if (isEmptyRiesgos) warnings.push({ message: "No se detectaron riesgos, penalizaciones ni criterios excluyentes.", severity: 'NORMAL' });
+    if (isEmptyCriterios) warnings.push({ title: 'Aviso de extracción', message: 'No se detectaron criterios de adjudicación.', severity: 'NORMAL' });
+    if (isEmptyTecnicos) warnings.push({ title: 'Aviso de extracción', message: 'No se detectaron requisitos técnicos.', severity: 'NORMAL' });
+    if (isEmptyRiesgos) warnings.push({ title: 'Aviso de extracción', message: 'No se detectaron riesgos, penalizaciones ni criterios excluyentes.', severity: 'NORMAL' });
 
     if (qualityReport.consistencyWarnings && qualityReport.consistencyWarnings.length > 0) {
         qualityReport.consistencyWarnings.forEach(warning => {
-            warnings.push({ message: warning, severity: 'NORMAL' });
+            warnings.push({ title: 'Inconsistencia Semántica', message: warning, severity: 'NORMAL' });
         });
     }
 

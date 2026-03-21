@@ -59,7 +59,7 @@ export function AlertsPanel({ vm, onNavigate }: { vm: PliegoVM, onNavigate: (sec
     const alerts: Alert[] = vm.warnings.map((w, idx) => ({
         id: `w-${idx}`,
         severity: w.severity === 'CRITICO' ? 'error' : 'warning',
-        title: "Alerta extraída",
+        title: w.title || "Alerta extraída",
         description: w.message,
         section: "resumen", // Simplification
         isNew: true
