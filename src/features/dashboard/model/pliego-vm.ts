@@ -152,6 +152,21 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     if (isEmptyTecnicos) warnings.push({ message: "No se detectaron requisitos técnicos.", severity: 'NORMAL' });
     if (isEmptyRiesgos) warnings.push({ message: "No se detectaron riesgos, penalizaciones ni criterios excluyentes.", severity: 'NORMAL' });
 
+    if (qualityReport.consistencyWarnings) {
+        qualityReport.consistencyWarnings.forEach(msg => {
+            if (!warnings.find(w => w.message === msg)) {
+                warnings.push({ message: msg, severity: 'NORMAL' });
+            }
+        });
+    }
+    if (qualityReport.warnings) {
+        qualityReport.warnings.forEach(msg => {
+            if (!warnings.find(w => w.message === msg)) {
+                warnings.push({ message: msg, severity: 'NORMAL' });
+            }
+        });
+    }
+
     // 5. Chapters Configuration
     const chapters: ChapterStatus[] = [
         ...(content.plantilla_personalizada ? [{

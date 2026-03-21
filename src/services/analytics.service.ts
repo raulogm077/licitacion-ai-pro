@@ -1,4 +1,5 @@
 import { LicitacionData, AnalyticsData } from '../types';
+import { qualityService } from './quality.service';
 
 interface LicitacionHistoryItem {
     hash: string;
@@ -18,6 +19,7 @@ export class AnalyticsService {
                 tiempoAnalisisPromedio: 0,
                 distribucionEstados: {},
                 distribucionRiesgos: {},
+                distribucionAdvertencias: {},
                 topClientes: [],
                 topTags: [],
                 promedioCriterios: { subjetivos: 0, objetivos: 0 },
@@ -35,6 +37,7 @@ export class AnalyticsService {
         let maxTimestamp = -Infinity;
         const distribucionEstados: Record<string, number> = {};
         const distribucionRiesgos: Record<string, number> = {};
+        const distribucionAdvertencias: Record<string, number> = {};
         const clienteMap = new Map<string, { count: number; total: number }>();
         const tagMap = new Map<string, number>();
 
@@ -59,6 +62,19 @@ export class AnalyticsService {
             // Riesgos
             for (const riesgo of item.data.restriccionesYRiesgos.riesgos) {
                 distribucionRiesgos[riesgo.impacto] = (distribucionRiesgos[riesgo.impacto] || 0) + 1;
+            }
+
+            // Advertencias
+            const quality = qualityService.evaluateQuality(item.data.result || item.data);
+            if (quality.consistencyWarnings) {
+                for (const w of quality.consistencyWarnings) {
+                    distribucionAdvertencias[w] = (distribucionAdvertencias[w] || 0) + 1;
+                }
+            }
+            if (quality.warnings) {
+                for (const w of quality.warnings) {
+                    distribucionAdvertencias[w] = (distribucionAdvertencias[w] || 0) + 1;
+                }
             }
 
             // Clientes
@@ -109,6 +125,7 @@ export class AnalyticsService {
             tiempoAnalisisPromedio,
             distribucionEstados,
             distribucionRiesgos,
+            distribucionAdvertencias,
             topClientes,
             topTags,
             promedioCriterios,

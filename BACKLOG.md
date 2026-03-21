@@ -23,10 +23,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-
-
-## To Do (Iteración Actual)
-
 - [ ] [Tipo: UI] [Área: Analysis] Integrar advertencias de consistencia semántica en la interfaz
   - Objetivo: Mostrar al usuario las advertencias de calidad (QualityService) generadas para el análisis.
   - Alcance: Integrar en la vista de resultados (`src/features/analytics/components/`) el renderizado de `warnings` del análisis, mejorando la fiabilidad visible para el usuario.
@@ -36,6 +32,10 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 
 
+
+
+
+## To Do (Iteración Actual)
 
 - [ ] [Tipo: UI] [Área: History] Implementar exportación a CSV/Excel
   - Objetivo: Permitir al usuario descargar los resultados estructurados del análisis para trabajarlos offline.

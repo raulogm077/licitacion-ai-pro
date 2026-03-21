@@ -58,6 +58,7 @@ export interface AnalyticsData {
     tiempoAnalisisPromedio: number;
     distribucionEstados: Record<string, number>;
     distribucionRiesgos: Record<string, number>;
+    distribucionAdvertencias: Record<string, number>;
     topClientes: Array<{ cliente: string; count: number; total: number }>;
     topTags: Array<{ tag: string; count: number }>;
     promedioCriterios: { subjetivos: number; objetivos: number };

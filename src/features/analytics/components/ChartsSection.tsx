@@ -11,7 +11,7 @@ interface ChartsSectionProps {
 
 export const ChartsSection: React.FC<ChartsSectionProps> = ({ analytics }) => {
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Estados Distribution */}
             <Card>
                 <CardHeader>
@@ -51,6 +51,35 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ analytics }) => {
                                 </div>
                             );
                         })}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Advertencias Distribution */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <AlertTriangle size={18} className="text-amber-500" />
+                        Advertencias de Consistencia
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3">
+                        {Object.keys(analytics.distribucionAdvertencias || {}).length === 0 ? (
+                            <p className="text-sm text-slate-500 text-center py-4">No hay advertencias registradas</p>
+                        ) : (
+                            Object.entries(analytics.distribucionAdvertencias)
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 5) // top 5
+                                .map(([advertencia, count]) => (
+                                    <div key={advertencia} className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" title={advertencia}>
+                                            {advertencia}
+                                        </span>
+                                        <Badge variant="outline" className="shrink-0">{count}</Badge>
+                                    </div>
+                                ))
+                        )}
                     </div>
                 </CardContent>
             </Card>
