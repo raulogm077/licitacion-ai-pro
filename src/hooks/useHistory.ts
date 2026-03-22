@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { services } from '../config/service-registry';
 import { LicitacionData, SearchFilters } from '../types';
+import { logger } from '../services/logger';
 
 export interface HistoryItem {
     hash: string;
@@ -33,7 +34,7 @@ export function useHistory() {
             setItems(sorted);
             setError(null);
         } else {
-            console.error("Failed to load history:", result.error);
+            logger.error("Failed to load history:", result.error);
             setError("Error al cargar el historial. Por favor intente nuevamente.");
         }
         setLoading(false);

@@ -4,6 +4,7 @@ import { AnalyticsService } from '../../services/analytics.service';
 import { services } from '../../config/service-registry';
 import { TrendingUp, BarChart3, Download } from 'lucide-react';
 import { exportAnalyticsToExcel } from '../../lib/export-utils';
+import { logger } from '../../services/logger';
 
 // Sub-components
 import { KPICards } from './components/KPICards';
@@ -24,7 +25,7 @@ export const AnalyticsDashboard: React.FC = () => {
                     setAnalytics(data);
                 }
             } catch (error) {
-                console.error('Failed to load analytics:', error);
+                logger.error('Failed to load analytics:', error);
             } finally {
                 setIsLoading(false);
             }

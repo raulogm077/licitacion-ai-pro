@@ -1,6 +1,7 @@
 // Deno imports
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rate-limiter.ts";
 
 // OpenAI SDK for Files and Vector Store management
 import OpenAI from "npm:openai@^4.77.0";
@@ -15,6 +16,7 @@ if (!OPENAI_API_KEY) {
 }
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+const MAX_REQUESTS_MSG = '10 análisis/hora';
 
 // Instructions (copiadas del archivo instructions.ts)
 const ANALISTA_INSTRUCTIONS = `Eres "Analista de Pliegos". Lees un expediente de licitación (uno o múltiples documentos indexados) y extraes información siguiendo la guía interna de lectura (también indexada). NO das asesoramiento legal ni interpretaciones jurídicas: solo extraes hechos del expediente/pliego y los estructuras en el JSON canónico. La guía sirve para saber "cómo leer" y qué buscar; el expediente/pliego sirve para "qué es verdad".
@@ -155,19 +157,47 @@ HEURÍSTICAS DE BÚSQUEDA (file_search)
 serve(async (req) => {
     // Handle CORS
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
+        return new Response('ok', { headers: getCorsHeaders(req) });
     }
 
     try {
         console.log('[analyze-with-agents] Request received');
 
-        // 1. Parse request
+        // 0. Rate limiting based on Authorization header (JWT sub claim)
+        const authHeader = req.headers.get('authorization') || '';
+        const token = authHeader.replace('Bearer ', '');
+        let userId = 'anonymous';
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userId = payload.sub || 'anonymous';
+        } catch { /* use anonymous if token parse fails */ }
+
+        const rateCheck = checkRateLimit(userId);
+        if (!rateCheck.allowed) {
+            const retryAfterSec = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
+            return new Response(
+                JSON.stringify({ error: `Límite de análisis excedido (${MAX_REQUESTS_MSG}). Reintente en ${retryAfterSec}s.` }),
+                { status: 429, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json', 'Retry-After': String(retryAfterSec) } }
+            );
+        }
+
+        // 1. Validate payload size (50MB max)
+        const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
+        const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+        if (contentLength > MAX_PAYLOAD_BYTES) {
+            return new Response(
+                JSON.stringify({ error: `Payload demasiado grande (${Math.round(contentLength / 1024 / 1024)}MB). Máximo: 50MB.` }),
+                { status: 413, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
+            );
+        }
+
+        // 2. Parse request
         const { pdfBase64, filename, template, files } = await req.json();
 
         if (!pdfBase64 && (!files || files.length === 0)) {
             return new Response(
                 JSON.stringify({ error: 'pdfBase64 o files requeridos' }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
             );
         }
 
@@ -561,7 +591,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
         // 9. Return streaming response
         return new Response(cleanupStream, {
             headers: {
-                ...corsHeaders,
+                ...getCorsHeaders(req),
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive'
@@ -592,7 +622,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             }),
             {
                 status: 500,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
             }
         );
     }

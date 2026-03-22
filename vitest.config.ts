@@ -12,6 +12,12 @@ export default defineConfig({
         exclude: ['src/test/e2e/**', 'node_modules/**'],
         coverage: {
             reporter: ['text', 'json', 'html'],
+            thresholds: {
+                statements: 60,
+                branches: 50,
+                functions: 55,
+                lines: 60,
+            },
         },
     },
 });
