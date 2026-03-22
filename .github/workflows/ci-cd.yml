@@ -36,7 +36,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
       - name: Audit Dependencies
         # audit-level=critical to avoid noise, continue-on-error just in case
         run: pnpm audit --audit-level=critical || true
@@ -199,8 +198,7 @@ jobs:
           # supabase db push --password "$SUPABASE_DB_PASSWORD"
           
           # Deploy only active functions (not deprecated analyze-licitacion)
-          supabase functions deploy openai-runner --project-ref $SUPABASE_PROJECT_ID
-          supabase functions deploy analyze-with-agents --project-ref $SUPABASE_PROJECT_ID
+          supabase functions deploy analyze-with-agents --project-ref $SUPABASE_PROJECT_ID --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
