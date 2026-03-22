@@ -83,7 +83,12 @@ export class JobService {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                let serverMessage = '';
+                try {
+                    const errorBody = await response.json();
+                    serverMessage = errorBody.error || errorBody.message || '';
+                } catch { /* ignore parse error */ }
+                throw new Error(serverMessage || `Error del servidor (HTTP ${response.status})`);
             }
 
             if (!response.body) {
