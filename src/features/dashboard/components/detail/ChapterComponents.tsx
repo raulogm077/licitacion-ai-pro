@@ -4,6 +4,7 @@ import { Card } from '../../../../components/ui/Card';
 import { Badge } from '../../../../components/ui/Badge';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { EvidenceToggle } from './EvidenceToggle';
+import { FeedbackToggle } from './FeedbackToggle';
 
 interface ChapterProps {
     vm: PliegoVM;
@@ -81,13 +82,13 @@ export function ChapterDatos({ vm }: ChapterProps) {
 
             <Card className="rounded-2xl border-neutral-200/60 shadow-sm overflow-hidden">
                 <div className="divide-y divide-neutral-100">
-                    <Row label="Título" value={vm.display.titulo} evidence={vm.getEvidence('result.datosGenerales.titulo')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.titulo')} />
-                    <Row label="Órgano de Contratación" value={vm.display.organo} evidence={vm.getEvidence('result.datosGenerales.organoContratacion')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.organoContratacion')} />
-                    <Row label="Presupuesto Base" value={vm.display.presupuesto} evidence={vm.getEvidence('result.datosGenerales.presupuesto')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.presupuesto')} />
-                    <Row label="Plazo de Ejecución" value={vm.display.plazo} evidence={vm.getEvidence('result.datosGenerales.plazoEjecucionMeses')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.plazoEjecucionMeses')} />
-                    <Row label="CPV" value={vm.display.cpv} evidence={vm.getEvidence('result.datosGenerales.cpv')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.cpv')} />
+                    <Row label="Título" value={vm.display.titulo} evidence={vm.getEvidence('result.datosGenerales.titulo')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.titulo')} fieldPath="result.datosGenerales.titulo" />
+                    <Row label="Órgano de Contratación" value={vm.display.organo} evidence={vm.getEvidence('result.datosGenerales.organoContratacion')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.organoContratacion')} fieldPath="result.datosGenerales.organoContratacion" />
+                    <Row label="Presupuesto Base" value={vm.display.presupuesto} evidence={vm.getEvidence('result.datosGenerales.presupuesto')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.presupuesto')} fieldPath="result.datosGenerales.presupuesto" />
+                    <Row label="Plazo de Ejecución" value={vm.display.plazo} evidence={vm.getEvidence('result.datosGenerales.plazoEjecucionMeses')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.plazoEjecucionMeses')} fieldPath="result.datosGenerales.plazoEjecucionMeses" />
+                    <Row label="CPV" value={vm.display.cpv} evidence={vm.getEvidence('result.datosGenerales.cpv')} isAmbiguous={vm.isAmbiguous('result.datosGenerales.cpv')} fieldPath="result.datosGenerales.cpv" />
                     {general.fechaLimitePresentacion && (
-                        <Row label="Fecha Límite" value={general.fechaLimitePresentacion} />
+                        <Row label="Fecha Límite" value={general.fechaLimitePresentacion} fieldPath="result.datosGenerales.fechaLimitePresentacion" />
                     )}
                 </div>
             </Card>
@@ -95,7 +96,7 @@ export function ChapterDatos({ vm }: ChapterProps) {
     );
 }
 
-function Row({ label, value, evidence, isAmbiguous }: { label: string; value: string; evidence?: { quote: string; pageHint?: string }, isAmbiguous?: boolean }) {
+function Row({ label, value, evidence, isAmbiguous, fieldPath }: { label: string; value: string; evidence?: { quote: string; pageHint?: string }, isAmbiguous?: boolean, fieldPath?: string }) {
     const isNotDetected = value === 'No detectado';
     return (
         <div className={`flex flex-col sm:flex-row sm:items-baseline justify-between p-5 hover:bg-slate-50/50 transition-colors gap-2 group relative ${isAmbiguous ? 'bg-orange-50/50' : ''}`}>
@@ -107,6 +108,7 @@ function Row({ label, value, evidence, isAmbiguous }: { label: string; value: st
                     </div>
                 )}
                 <EvidenceToggle evidence={evidence} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                {fieldPath && <FeedbackToggle fieldPath={fieldPath} value={value} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
             </div>
             <span className={`text-sm font-medium text-slate-900 sm:text-right flex-1 ${isNotDetected ? 'italic text-slate-400' : ''}`}>
                 {value}
@@ -144,6 +146,7 @@ export function ChapterCriterios({ vm }: ChapterProps) {
                                 <div key={i} className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm relative group">
                                     <div className="absolute top-4 right-4">
                                         <EvidenceToggle evidence={vm.getEvidence(`result.criteriosAdjudicacion.objetivos[${i}]`)} />
+                                        <FeedbackToggle fieldPath={`result.criteriosAdjudicacion.objetivos[${i}]`} value={c.descripcion} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                     <div className="flex justify-between items-start gap-4 pr-8">
                                         <div>
@@ -169,6 +172,7 @@ export function ChapterCriterios({ vm }: ChapterProps) {
                                 <div key={i} className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm relative group">
                                     <div className="absolute top-4 right-4">
                                         <EvidenceToggle evidence={vm.getEvidence(`result.criteriosAdjudicacion.subjetivos[${i}]`)} />
+                                        <FeedbackToggle fieldPath={`result.criteriosAdjudicacion.subjetivos[${i}]`} value={c.descripcion} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                     <div className="flex justify-between items-start gap-4 pr-8">
                                         <div>
@@ -204,6 +208,7 @@ export function ChapterSolvencia({ vm }: ChapterProps) {
                     <div className="bg-white p-6 rounded-2xl border border-neutral-200/60 shadow-sm relative group">
                         <div className="absolute top-6 right-6">
                             <EvidenceToggle evidence={vm.getEvidence('result.requisitosSolvencia.economica.cifraNegocioAnualMinima')} />
+                            <FeedbackToggle fieldPath="result.requisitosSolvencia.economica.cifraNegocioAnualMinima" value={economica.cifraNegocioAnualMinima.toString()} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <h3 className="font-semibold text-slate-900 mb-4">Solvencia Económica</h3>
                         <div className="space-y-4 pr-8">
@@ -233,6 +238,7 @@ export function ChapterSolvencia({ vm }: ChapterProps) {
                                         <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
                                         <span className="flex-1">{desc as React.ReactNode}</span>
                                         <EvidenceToggle evidence={vm.getEvidence(`result.requisitosSolvencia.tecnica[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <FeedbackToggle fieldPath={`result.requisitosSolvencia.tecnica[${i}]`} value={desc as string} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </li>
                                 );
                             })}
