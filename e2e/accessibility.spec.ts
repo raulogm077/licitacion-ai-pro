@@ -13,7 +13,6 @@ test.describe('Accessibility - WCAG Compliance', () => {
 
         const results = await new AxeBuilder({ page })
             .withTags(['wcag2a', 'wcag2aa'])
-            .disableRules(['color-contrast']) // Known: brand-600 needs darkening for WCAG AA
             .analyze();
 
         const critical = results.violations.filter(v => v.impact === 'critical' || v.impact === 'serious');
@@ -29,7 +28,6 @@ test.describe('Accessibility - WCAG Compliance', () => {
 
         const results = await new AxeBuilder({ page })
             .withTags(['wcag2a', 'wcag2aa'])
-            .disableRules(['color-contrast'])
             .analyze();
 
         const critical = results.violations.filter(v => v.impact === 'critical' || v.impact === 'serious');
@@ -42,7 +40,6 @@ test.describe('Accessibility - WCAG Compliance', () => {
 
         const results = await new AxeBuilder({ page })
             .withTags(['wcag2a', 'wcag2aa'])
-            .disableRules(['color-contrast'])
             .analyze();
 
         const critical = results.violations.filter(v => v.impact === 'critical' || v.impact === 'serious');

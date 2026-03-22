@@ -33,7 +33,7 @@ export function StatCard({
                 <p
                     className={cn(
                         "text-xs font-medium",
-                        accent ? "text-brand-100" : "text-slate-500 dark:text-slate-400"
+                        accent ? "text-white/90" : "text-slate-500 dark:text-slate-400"
                     )}
                 >
                     {label}
