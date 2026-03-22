@@ -4,10 +4,10 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limiter.ts";
 
 // OpenAI SDK for Files and Vector Store management
-import OpenAI from "npm:openai@^4.77.0";
+import OpenAI from "npm:openai@4.77.0";
 
 // Agents SDK
-import { Agent, run } from "npm:@openai/agents@^0.3.7";
+import { Agent, run } from "npm:@openai/agents@0.3.7";
 
 // Configuración
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -224,7 +224,7 @@ serve(async (req) => {
         // 3. Procesar Guía Interna de Lectura (Inyección local)
         try {
             console.log('[analyze-with-agents] Leyendo Guía de lectura de pliegos local...');
-            const guiaPath = new URL('./Guía de lectura de pliegos.md', import.meta.url);
+            const guiaPath = new URL('./guia-lectura-pliegos.md', import.meta.url);
             const guiaContent = await Deno.readTextFile(guiaPath);
             const encoder = new TextEncoder();
             const guiaBuffer = encoder.encode(guiaContent);
