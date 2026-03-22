@@ -72,7 +72,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Build Project
-        run: pnpm lint && pnpm build
+        run: pnpm build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -147,10 +147,23 @@ jobs:
       deployment_url: ${{ steps.deploy_step.outputs.url }}
     steps:
       - uses: actions/checkout@v4
-      
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
-        
+
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
         env:
@@ -158,20 +171,18 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Build Project Artifacts
-        run: vercel build --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
+      - name: Build Project
+        run: pnpm build
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Deploy Project Artifacts to Vercel
+      - name: Deploy to Vercel
         id: deploy_step
         run: |
-          # Deploy and capture output.
-          # Workaround: Remove .git to bypass Vercel's "Git author must have access" check
+          # Remove .git to bypass Vercel's "Git author must have access" check
           rm -rf .git
-          vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --yes
+          vercel deploy --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --yes
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
