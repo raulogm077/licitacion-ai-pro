@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, Check, FileJson, Copy, XCircle } from 'luci
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../../components/ui/Dialog';
 import { Button } from '../../../../components/ui/Button';
 import { EvidenceToggle } from './EvidenceToggle';
+import { FeedbackToggle } from './FeedbackToggle';
 
 // Reusing helper
 function EmptyChapter({ title, text }: { title: string; text: string }) {
@@ -48,6 +49,7 @@ export function ChapterTecnicos({ vm }: { vm: PliegoVM }) {
                                             {vm.isAmbiguous(`result.requisitosTecnicos.funcionales[${i}]`) && <AlertTriangle className="inline w-3 h-3 text-orange-500 ml-2" />}
                                         </span>
                                         <EvidenceToggle evidence={vm.getEvidence(`result.requisitosTecnicos.funcionales[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <FeedbackToggle fieldPath={`result.requisitosTecnicos.funcionales[${i}]`} value={text as string} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </li>
                                 );
                             })}
@@ -69,6 +71,7 @@ export function ChapterTecnicos({ vm }: { vm: PliegoVM }) {
                                             {vm.isAmbiguous(`result.requisitosTecnicos.normativa[${i}]`) && <AlertTriangle className="inline w-3 h-3 text-orange-500 ml-2" />}
                                         </span>
                                         <EvidenceToggle evidence={vm.getEvidence(`result.requisitosTecnicos.normativa[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <FeedbackToggle fieldPath={`result.requisitosTecnicos.normativa[${i}]`} value={text as string} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </li>
                                 );
                             })}
@@ -110,6 +113,7 @@ export function ChapterRiesgos({ vm }: { vm: PliegoVM }) {
                                     <li key={i} className="text-red-800 text-sm group relative pr-8">
                                         <div className="absolute top-0 right-0">
                                             <EvidenceToggle evidence={vm.getEvidence(`result.restriccionesYRiesgos.killCriteria[${i}]`)} />
+                                            <FeedbackToggle fieldPath={`result.restriccionesYRiesgos.killCriteria[${i}]`} value={text as string} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </div>
                                         <p className="font-semibold">{text}</p>
                                         {just && <p className="mt-1 opacity-90">{just}</p>}
@@ -129,6 +133,7 @@ export function ChapterRiesgos({ vm }: { vm: PliegoVM }) {
                                         <div title="Dato ambiguo o contradictorio" className="text-orange-500"><AlertTriangle size={16} /></div>
                                     )}
                                     <EvidenceToggle evidence={vm.getEvidence(`result.restriccionesYRiesgos.riesgos[${i}]`)} />
+                                    <FeedbackToggle fieldPath={`result.restriccionesYRiesgos.riesgos[${i}]`} value={r.descripcion} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
                             </div>
                             <div className={`p-2 rounded-lg shrink-0 ${r.impacto === 'CRITICO' ? 'bg-red-100 text-red-600' :
@@ -184,6 +189,7 @@ export function ChapterServicio({ vm }: { vm: PliegoVM }) {
                                     <li key={i} className="text-sm border-b border-slate-50 pb-2 last:border-0 last:pb-0 group relative">
                                         <div className="absolute top-0 right-0">
                                             <EvidenceToggle evidence={vm.getEvidence(`result.modeloServicio.sla[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <FeedbackToggle fieldPath={`result.modeloServicio.sla[${i}]`} value={metric as string} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </div>
                                         <p className="font-medium text-slate-700 pr-6">{metric}</p>
                                         {target && <p className="text-slate-500 text-xs">Objetivo: {target}</p>}
@@ -206,6 +212,7 @@ export function ChapterServicio({ vm }: { vm: PliegoVM }) {
                                         <div className="flex items-center gap-2">
                                             {exp && <Badge variant="secondary" className="text-xs">{exp}</Badge>}
                                             <EvidenceToggle evidence={vm.getEvidence(`result.modeloServicio.equipoMinimo[${i}]`)} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <FeedbackToggle fieldPath={`result.modeloServicio.equipoMinimo[${i}]`} value={role as string} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </div>
                                     </li>
                                 );

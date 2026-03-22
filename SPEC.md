@@ -93,6 +93,7 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 ### Implementado previamente
 - Soporte Multi-documento Frontend y QA
 - Integrar advertencias de consistencia semántica en la interfaz (`AlertsPanel`, `pliego-vm.ts`)
+- Implementar UI de feedback de extracción de usuario (`FeedbackToggle` en componentes de resultados)
 
 ### Iteración activa
 - Feedback de extracción (Correcciones de usuario)

@@ -23,11 +23,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-
-
-## To Do (Iteración Actual)
-
-- [ ] [Tipo: UI] [Área: Analysis] Feedback de extracción (Correcciones de usuario)
+- [x] [Tipo: UI] [Área: Analysis] Feedback de extracción (Correcciones de usuario)
   - Objetivo: Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión.
   - Alcance: Añadir botones de "correcto/incorrecto" al lado de cada dato clave en la vista de resultados (ej. en `KPICards` o `PliegoAnalysis`).
   - Criterios de aceptación:
@@ -36,6 +32,8 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Opcional: El evento se registra (incluso si es simulado por el momento) en una función que se podría enlazar al backend posteriormente.
   - Archivos probables: `src/features/analytics/AnalyticsDashboard.tsx`, `src/features/analytics/components/KPICards.tsx`
   - Dependencias: Ninguna.
+
+## To Do (Iteración Actual)
 
 ## Deuda Técnica / Refactorización
 
