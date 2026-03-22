@@ -24,44 +24,42 @@ Estado funcional confirmado a fecha de esta especificación:
 
 ### 3.1. Objetivo
 
-Mejorar la precisión y fiabilidad visible de los resultados de análisis mediante la visualización e integración de advertencias de calidad y consistencia semántica proporcionadas por `QualityService`.
+Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión de la IA y brindar confianza en la plataforma.
 
 ### 3.2. Historia de usuario principal
 
-Como usuario interno, quiero ver advertencias claras en la interfaz si hay inconsistencias en los datos analizados (ej. si el presupuesto extraído no coincide con la solvencia requerida), para no fiarme ciegamente de la IA y poder revisar los documentos correspondientes.
+Como usuario interno, quiero poder indicar si un dato extraído por la IA es incorrecto directamente en la vista de resultados, para que quede registro de los fallos y se pueda medir la precisión del modelo a lo largo del tiempo.
 
 ### 3.3. Entregables esperados
 
-1. Integración de `QualityService` en la UI (vista de resultados).
-2. Renderizado de `warnings` debajo o junto a las gráficas correspondientes.
-3. Asegurar que las alertas son visualmente distintivas.
+1. Botones de feedback (correcto/incorrecto) integrados en la UI de resultados de análisis.
+2. Funcionalidad simulada de registro del evento de feedback (preparación para el backend real).
+3. Feedback visual interactivo al hacer click en los botones.
 
 ### 3.4. Criterios de aceptación globales
 
-- si `QualityService` devuelve `warnings` en el análisis, estos se muestran en la pantalla de resultados.
-- el usuario puede identificar a qué sección pertenece la advertencia.
-- las advertencias no bloquean la visualización del resto de los datos válidos.
+- El usuario visualiza un control (botones) asociado a datos clave (e.g. `KPICards`).
+- El estado se actualiza visualmente al interactuar.
+- El evento se registra (incluso si es simulado por el momento) en una función que se podría enlazar al backend posteriormente.
 
 ### 3.5. Impacto técnico esperado
 
 Superficies afectadas en esta iteración:
 
-- `src/features/analytics/components/ChartsSection.tsx`
-- `src/services/quality.service.ts`
-- `src/features/analytics/components/*`
+- `src/features/analytics/components/KPICards.tsx`
+- `src/features/analytics/AnalyticsDashboard.tsx`
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
 ### 4.1. Módulo UI (Frontend)
 
-- **Advertencias de Calidad:** Modificar la vista de resultados (`src/features/analytics/components/ChartsSection.tsx` o similares) para que reciba y renderice el array de `warnings` generado por el análisis.
-- **Diseño Visual:** Utilizar componentes de Tailwind/React existentes para mostrar banners o badges para indicar al usuario las discrepancias.
-- **Inyección de Dependencias:** Asegurar que `QualityService` se ejecuta correctamente y que sus resultados se propagan al store o directamente a los componentes de visualización.
+- **Feedback de Extracción:** Modificar la vista de resultados (e.g. `src/features/analytics/components/KPICards.tsx`) para incluir pequeños botones de Check/Cross al lado de valores clave.
+- **Diseño Visual:** Utilizar íconos existentes de `lucide-react` para mantener la coherencia. Almacenar el estado (simulado) de la corrección a nivel local del componente o mock service.
 
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
-(Definir próximo objetivo de producto tras validar las advertencias de calidad).
+Conectar feedback de extracción real a la base de datos de auditoría de agentes.
 
 ## 6. Decisiones abiertas
 
@@ -92,9 +90,12 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 - Plantillas Dinámicas de Extracción (Back, Front, CRUD, AI Integrations)
 - Soporte Multi-documento Backend (Edge Function adaptada para recibir Array de files)
 
-### Iteración activa
+### Implementado previamente
 - Soporte Multi-documento Frontend y QA
 - Integrar advertencias de consistencia semántica en la interfaz (`AlertsPanel`, `pliego-vm.ts`)
+
+### Iteración activa
+- Feedback de extracción (Correcciones de usuario)
 
 ### 4.2. Refinamiento Multi-Documento (Frontend)
 
