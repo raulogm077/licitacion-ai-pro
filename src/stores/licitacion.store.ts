@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { LicitacionData } from '../types';
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
+import { logger } from '../services/logger';
 
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -42,7 +43,7 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
             const updateResult = await services.db.updateLicitacion(hash, newData);
 
             if (isErr(updateResult)) {
-                console.error('Failed to update data:', updateResult.error);
+                logger.error('Failed to update data:', updateResult.error);
                 // 3. Rollback on Error
                 set({
                     data: previousData,
@@ -57,7 +58,7 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
             return true;
 
         } catch (error) {
-            console.error('Unexpected error updating data:', error);
+            logger.error('Unexpected error updating data:', error);
             // 3. Rollback on Exception
             set({
                 data: previousData,

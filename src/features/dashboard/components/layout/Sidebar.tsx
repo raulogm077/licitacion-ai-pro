@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   LayoutDashboard,
   FileText,
@@ -10,12 +9,13 @@ import {
   ChevronRight,
   Building2,
   LogOut,
+  type LucideIcon,
 } from "lucide-react";
 
 interface NavItem {
   id: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   badge?: string | null;
 }
 

@@ -158,7 +158,32 @@ Riesgos principales mitigados por la estrategia actual:
 - comportamiento ambiguo entre documentos (Agent SDK orquesta la lectura priorizada según `instructions` donde se define que la IA analiza un expediente)
 - límites de Rate Limiting en API de OpenAI (resuelto mediante Exponential Backoff en el polling del Vector Store)
 
-## 8. Responsabilidades técnicas por rol
+## 8. Decisiones técnicas documentadas
+
+### 8.1 Base64 vs FormData para envío de PDFs (Decisión: mantener base64)
+
+**Contexto:** Los PDFs se envían como base64 dentro de un JSON body, lo que implica ~33% de overhead en tamaño de red.
+
+**Alternativa evaluada:** Enviar PDFs como `FormData` con `multipart/form-data`.
+
+**Decisión: NO migrar.** Razones:
+- Supabase Edge Functions (Deno) tienen soporte limitado para streaming multipart con SSE.
+- El contrato actual JSON es compatible con la validación Zod del request body.
+- El cuello de botella real de latencia es OpenAI Files API + Vector Store indexing (~20-60s), no la transferencia.
+- La validación de payload size (50MB máx.) ya limita el riesgo de abuso.
+- La complejidad de migración (frontend + backend + tests) no justifica el beneficio marginal.
+
+**Fecha:** 2026-03-22
+
+### 8.2 CORS restrictivo (Implementado)
+
+**Contexto:** CORS wildcard (`*`) permitía cualquier origen invocar la Edge Function.
+
+**Decisión:** Restringir a orígenes autorizados (`licitacion-ai-pro.vercel.app`, `localhost:5173`, `localhost:3000`). Se usa `Vary: Origin` para compatibilidad con caches.
+
+**Fecha:** 2026-03-22
+
+## 9. Responsabilidades técnicas por rol
 
 ### PM
 - backlog y `SPEC.md`
@@ -176,14 +201,14 @@ Riesgos principales mitigados por la estrategia actual:
 - valida, actualiza estado del backlog y despliega si corresponde
 - no crea features nuevas
 
-## 9. Reglas de calidad técnica
+## 10. Reglas de calidad técnica
 
 - no trabajar sobre `main`
 - una sola tarea de desarrollo por noche
 - no mezclar plantillas y multi-documento en la misma noche salvo ticket explícito
 - no mover una tarea a QA sin tests y sin documentación mínima actualizada
 
-## 10. Fuentes vigentes
+## 11. Fuentes vigentes
 
 Documentos operativos vigentes:
 

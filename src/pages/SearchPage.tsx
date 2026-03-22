@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLicitacionStore } from '../stores/licitacion.store';
 import { services } from '../config/service-registry';
+import { logger } from '../services/logger';
 
 const SearchPanel = lazy(() => import('../features/search/SearchPanel').then(m => ({ default: m.SearchPanel })));
 
@@ -23,7 +24,7 @@ export const SearchPage: React.FC = () => {
         if (result.ok) {
             setSearchResults(result.value);
         } else {
-            console.error('Search failed:', result.error);
+            logger.error('Search failed:', result.error);
             setSearchResults([]);
             // Could add a toast here in the future
         }

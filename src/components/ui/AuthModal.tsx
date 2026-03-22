@@ -102,7 +102,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                             <h2 className="text-2xl font-bold">
                                 {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
                             </h2>
-                            <p className="text-brand-100 text-sm mt-1">
+                            <p className="text-white/90 text-sm mt-1">
                                 {mode === 'login'
                                     ? 'Accede a tu cuenta de analista'
                                     : 'Regístrate para comenzar a analizar pliegos'}

@@ -7,6 +7,7 @@ import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
 import { templateService } from '../services/template.service';
 import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB } from '../config/constants';
+import { logger } from '../services/logger';
 
 interface AnalysisStore {
     status: ProcessingStatus;
@@ -163,12 +164,12 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             // Final Persistence
             const saveResult = await services.db.saveLicitacion(hash, file.name, result);
             if (isErr(saveResult)) {
-                console.warn("⚠️ Fallo en persistencia remota:", saveResult.error);
+                logger.warn("Fallo en persistencia remota:", saveResult.error);
                 set({ persistenceWarning: `Advertencia: ${saveResult.error.message}. Los datos no se sincronizaron con la nube.` });
             }
 
         } catch (error: unknown) {
-            console.error("Critical Analysis Error:", error);
+            logger.error("Critical Analysis Error:", error);
             let errorMessage = "Error inesperado en el motor de análisis";
 
             if (error instanceof Error) {
@@ -236,7 +237,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
         try {
             localStorage.setItem('selectedProvider', provider);
         } catch (error) {
-            console.warn('Failed to save provider to localStorage:', error);
+            logger.warn('Failed to save provider to localStorage:', error);
         }
         set({ selectedProvider: provider });
     },

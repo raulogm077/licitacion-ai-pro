@@ -4,6 +4,7 @@ import { transformAgentResponseToFrontend } from '../agents/utils/schema-transfo
 import { LicitacionContentSchema } from '../lib/schemas';
 import type { LicitacionAgentResponse } from '../agents/schemas/licitacion-agent.schema';
 import type { ExtractionTemplate } from '../types';
+import { logger } from './logger';
 
 export interface JobStatus {
     id: string;
@@ -39,7 +40,7 @@ export class JobService {
             // 1. Note: We'll use fetch API directly for streaming
             // supabase.functions.invoke doesn't support streaming properly
 
-            console.log('[JobService] Usando fetch API para streaming...');
+            logger.debug('[JobService] Usando fetch API para streaming...');
 
                         const projectUrl = import.meta.env.VITE_SUPABASE_URL;
             const functionUrl = `${projectUrl}/functions/v1/analyze-with-agents`;
@@ -98,7 +99,7 @@ export class JobService {
                     try {
                         event = JSON.parse(line.slice(6));
                     } catch (parseError) {
-                        console.warn('[JobService] No se pudo parsear evento JSON:', line);
+                        logger.warn('[JobService] No se pudo parsear evento JSON:', line);
                         continue;
                     }
 
@@ -109,10 +110,9 @@ export class JobService {
 
                     // Log important events
                     if (event.type === 'agent_message') {
-                        console.debug(`[Agent]: ${typeof event.content === 'string'
+                        logger.debug(`[Agent]: ${typeof event.content === 'string'
                             ? event.content.substring(0, 80)
                             : JSON.stringify(event.content).substring(0, 80)}...`);
-                        // Using debug level logic conceptually, keeping console.log for now as it's safe and expected
                     }
 
                     // Capture final result
@@ -139,7 +139,7 @@ export class JobService {
                 throw new Error('No se recibió resultado final del stream');
             }
 
-            console.log('[JobService] Resultado recibido, aplicando transformación...');
+            logger.debug('[JobService] Resultado recibido, aplicando transformación...');
 
             // 4. Transform from Agent schema to Frontend schema
             // Type assertion: we expect finalResult to match LicitacionAgentResponse
@@ -148,16 +148,16 @@ export class JobService {
             // 5. Validate with frontend schema
             const validated = LicitacionContentSchema.parse(transformed);
 
-            console.log('[JobService] ✅ Análisis completado y validado');
+            logger.info('[JobService] Análisis completado y validado');
             const typedResult = finalResult as LicitacionAgentResponse;
             if (typedResult.workflow) {
-                console.log(`[JobService] Quality: ${typedResult.workflow.quality?.overall || 'N/A'}`);
+                logger.info(`[JobService] Quality: ${typedResult.workflow.quality?.overall || 'N/A'}`);
             }
 
             return validated;
 
         } catch (error: unknown) {
-            console.error('[JobService] Error en análisis:', error);
+            logger.error('[JobService] Error en análisis:', error);
             throw error;
         }
     }

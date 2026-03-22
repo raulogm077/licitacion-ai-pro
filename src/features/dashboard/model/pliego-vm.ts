@@ -62,18 +62,18 @@ export interface PliegoVM {
 export function buildPliegoVM(data: LicitacionData): PliegoVM {
     const content = data.result || data; // Fallback
 
-    // Index evidences for fast lookup (explicit any for robustness)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const evidencesRaw = data.workflow?.evidences || (content as any).workflow?.evidences || [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ambiguousRaw = data.workflow?.quality?.ambiguous_fields || (content as any).workflow?.quality?.ambiguous_fields || [];
+    // Index evidences for fast lookup
+    const contentAsRecord = content as Record<string, unknown>;
+    const workflowFallback = (contentAsRecord.workflow as LicitacionData['workflow']) || undefined;
+    const evidencesRaw = data.workflow?.evidences || workflowFallback?.evidences || [];
+    const ambiguousRaw = data.workflow?.quality?.ambiguous_fields || workflowFallback?.quality?.ambiguous_fields || [];
 
+    interface EvidenceEntry { fieldPath: string; quote: string; pageHint?: string | null }
     const evidenceMap = new Map<string, { quote: string; pageHint?: string }>();
     if (Array.isArray(evidencesRaw)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        evidencesRaw.forEach((ev: any) => {
+        evidencesRaw.forEach((ev: EvidenceEntry) => {
             if (ev.fieldPath && ev.quote) {
-                evidenceMap.set(ev.fieldPath, { quote: ev.quote, pageHint: ev.pageHint });
+                evidenceMap.set(ev.fieldPath, { quote: ev.quote, pageHint: ev.pageHint || undefined });
             }
         });
     }
