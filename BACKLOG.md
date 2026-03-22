@@ -71,6 +71,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Done
 
+- [x] [Tipo: Infra] [Área: Infra] Fix CI/CD Pipeline Deployment Failures
+  - Objetivo: Ensure code changes are actually deployed to Vercel and Supabase successfully.
+  - Alcance: Remove invalid pnpm cache from security-audit step and remove obsolete openai-runner Edge Function from Supabase deploy step in `.github/workflows/ci-cd.yml`. Also add `--no-verify-jwt` to `analyze-with-agents` deploy step.
+  - Criterios de aceptación: GitHub Actions pipeline completes successfully without cache validation errors and deploys correctly to Supabase.
+  - Archivos probables: `.github/workflows/ci-cd.yml`
+
+
 - [x] [Tipo: UI] [Área: Analysis] Integrar advertencias de consistencia semántica en la interfaz
   - Objetivo: Mostrar al usuario las advertencias de calidad (QualityService) generadas para el análisis.
   - Alcance: Integrar en la vista de resultados (`src/features/analytics/components/`) el renderizado de `warnings` del análisis, mejorando la fiabilidad visible para el usuario.
