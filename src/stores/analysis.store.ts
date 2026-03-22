@@ -174,6 +174,19 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
 
             if (error instanceof Error) {
                 errorMessage = error.message;
+
+                // Detect CORS / network errors
+                if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Error de conexión con el servidor de análisis. ' +
+                        'Esto puede deberse a un problema de red o a que este dominio no está autorizado (CORS). ' +
+                        'Intente de nuevo o contacte soporte si el problema persiste.';
+                }
+
+                // Detect inactivity timeout
+                if (error.message.includes('Tiempo de espera agotado')) {
+                    errorMessage = 'El servidor no respondió a tiempo. ' +
+                        'Intente de nuevo con un documento más pequeño o contacte soporte.';
+                }
             }
 
             // Handle Supabase/Edge Functions Errors specifically
@@ -205,7 +218,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             }
 
             // Clean up message
-            if (errorMessage.includes('cancelado') || errorMessage.includes('Cancelado')) {
+            if (errorMessage.includes('cancelado') || errorMessage.includes('Cancelado') ||
+                (error instanceof Error && error.name === 'AbortError')) {
                 set({ status: 'IDLE', error: null, thinkingOutput: 'Análisis cancelado por el usuario', abortController: null });
             } else {
                 set({ status: 'ERROR', error: errorMessage, abortController: null });
