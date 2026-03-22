@@ -61,7 +61,8 @@ export class AIService {
                         }
                     }
                 },
-                files
+                files,
+                signal
             );
 
             if (onProgress) onProgress(100, 100, "Resultado validado recibido del servidor");

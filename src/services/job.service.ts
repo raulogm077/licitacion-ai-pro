@@ -16,6 +16,25 @@ export interface JobStatus {
     error?: string;
 }
 
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+function readWithTimeout(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    timeoutMs: number
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reader.cancel('Inactivity timeout');
+            reject(new Error('Tiempo de espera agotado: no se recibieron datos del servidor en 5 minutos.'));
+        }, timeoutMs);
+
+        reader.read().then(
+            (result) => { clearTimeout(timer); resolve(result); },
+            (err) => { clearTimeout(timer); reject(err); }
+        );
+    });
+}
+
 export class JobService {
     /**
      * NEW: Analyze with Agents SDK (streaming)
@@ -28,7 +47,8 @@ export class JobService {
         filename: string,
         template: ExtractionTemplate | null = null,
         onProgress?: (event: StreamEvent) => void,
-        files?: { name: string; base64: string }[]
+        files?: { name: string; base64: string }[],
+        signal?: AbortSignal
     ): Promise<LicitacionContent> {
         const { data: { session } } = await supabase.auth.getSession();
 
@@ -58,7 +78,8 @@ export class JobService {
                     filename,
                     template,
                     files
-                })
+                }),
+                signal
             });
 
             if (!response.ok) {
@@ -79,7 +100,7 @@ export class JobService {
             let streamError: Error | null = null;
 
             while (reading) {
-                const { done, value } = await reader.read();
+                const { done, value } = await readWithTimeout(reader, INACTIVITY_TIMEOUT_MS);
 
                 if (done) {
                     reading = false;
