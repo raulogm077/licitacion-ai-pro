@@ -25,23 +25,81 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: UI] [Área: Analysis] Integrar controles de feedback en KpiCards del Dashboard
-  - Objetivo: Extender la funcionalidad de feedback de extracción a los KpiCards principales del Dashboard para que los usuarios puedan validar el presupuesto, plazo y valor estimado.
-  - Alcance: Modificar `src/features/dashboard/components/widgets/KpiCards.tsx` para importar y renderizar el componente `FeedbackToggle` al lado de los valores de presupuesto y plazos. Adaptar el array estático de `kpis` con las rutas `fieldPath` necesarias.
-  - Criterios de aceptación: Las tarjetas de KPI (Presupuesto, Fecha, Duración, Valor) muestran botones para validar o rechazar el dato extraído. El click en estos botones no interfiere con otros enlaces o clicks. El diseño (layout) se mantiene coherente.
-  - Archivos probables: `src/features/dashboard/components/widgets/KpiCards.tsx`
-  - Dependencias: `src/features/dashboard/components/detail/FeedbackToggle.tsx`
-
+(Vacío — ver sección Deuda Técnica para próximas iteraciones)
 
 ## Deuda Técnica / Refactorización
 
-- (Vacío por el momento)
+- [ ] [Tipo: UI] [Área: Templates] Refactorizar TemplatesPage.tsx (417 líneas)
+  - Objetivo: Separar lógica CRUD en custom hook y dividir componentes de UI.
+  - Alcance: Extraer `useTemplates()` hook, crear `TemplateForm`, `TemplateList`, `TemplateCard`.
+  - Criterios de aceptación: TemplatesPage < 100 líneas, cada sub-componente < 150 líneas, tests pasan.
+  - Archivos probables: `src/pages/TemplatesPage.tsx`, `src/features/templates/`
+  - Dependencias: Ninguna
+
+- [ ] [Tipo: UI] [Área: Upload] Refactorizar AnalysisWizard.tsx (406 líneas)
+  - Objetivo: Separar en componentes por paso del wizard (upload, analyzing, completed).
+  - Alcance: Crear `UploadStep`, `AnalyzingStep`, `CompletedStep`, extraer validación en hook.
+  - Criterios de aceptación: AnalysisWizard < 80 líneas, cada step < 150 líneas.
+  - Archivos probables: `src/features/upload/components/AnalysisWizard.tsx`, `src/features/upload/components/steps/`
+  - Dependencias: Ninguna
+
+- [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
+  - Objetivo: Incrementar cobertura de 60% a 80% en statements/lines.
+  - Alcance: Añadir unit tests para servicios, stores y utilidades sin cobertura.
+  - Criterios de aceptación: `vitest --coverage` ≥80% statements, ≥70% branches.
+  - Archivos probables: `vitest.config.ts`, `src/services/__tests__/`, `src/stores/__tests__/`
+  - Dependencias: Ninguna
+
+- [ ] [Tipo: Infra] [Área: Infra] Endurecer reglas de ESLint (no-explicit-any → error)
+  - Objetivo: Cambiar `@typescript-eslint/no-explicit-any` de "warn" a "error".
+  - Alcance: Auditar y corregir todos los `any` explícitos, actualizar `.eslintrc.cjs`.
+  - Criterios de aceptación: `pnpm lint` pasa con 0 warnings de `no-explicit-any`.
+  - Archivos probables: `.eslintrc.cjs`, múltiples archivos
+  - Dependencias: Ninguna
+
+- [ ] [Tipo: UI] [Área: Analysis] Refactorizar ChapterComponents en data-driven rendering
+  - Objetivo: Unificar ChapterComponents.tsx + ChapterComponentsPart2.tsx en sistema configurable.
+  - Alcance: Crear mapa de configuración de capítulos y componente genérico `ChapterRenderer`.
+  - Criterios de aceptación: Un archivo de config define capítulos, renderizador < 100 líneas.
+  - Archivos probables: `src/features/dashboard/components/detail/ChapterComponents*.tsx`
+  - Dependencias: Ninguna
+
+- [ ] [Tipo: QA] [Área: Upload] Estabilizar E2E tests de multi-documento
+  - Objetivo: Eliminar `test.skip(true)` en multi-upload.spec.ts.
+  - Alcance: Mejorar mocking de auth en Playwright.
+  - Criterios de aceptación: `e2e/multi-upload.spec.ts` pasa en CI sin skips.
+  - Archivos probables: `e2e/multi-upload.spec.ts`, `e2e/test-utils.ts`
+  - Dependencias: Ninguna
 
 ## Ideas de Producto
 
-- (Vacío por el momento)
+- Conectar feedback de extracción real a base de datos de auditoría de agentes
+- Implementar i18n multi-idioma (inglés)
+- Configurar Docker Compose para desarrollo local
+- Configurar Dependabot para actualizaciones automáticas de dependencias
 
 ## Done
+
+- [x] [Tipo: UI] [Área: Analysis] Integrar controles de feedback en KpiCards del Dashboard
+  - Objetivo: Extender FeedbackToggle a los KpiCards principales (presupuesto, fecha, duración, valor estimado).
+  - Alcance: Importar FeedbackToggle en KpiCards.tsx, añadir fieldPath a cada KPI, renderizar en esquina superior derecha.
+  - Criterios de aceptación: Botones de validación visibles en cada KPI, sin interferir con layout.
+  - Archivos modificados: `src/features/dashboard/components/widgets/KpiCards.tsx`
+
+- [x] [Tipo: Backend] [Área: Infra] Habilitar verificación JWT en Edge Function analyze-with-agents
+  - Objetivo: Proteger endpoint público que no verificaba JWT.
+  - Alcance: Cambiar verify_jwt a true en config.toml, reemplazar parseo manual inseguro, quitar --no-verify-jwt del CI.
+  - Archivos modificados: `supabase/config.toml`, `supabase/functions/analyze-with-agents/index.ts`, `.github/workflows/ci-cd.yml`
+
+- [x] [Tipo: Infra] [Área: Infra] Implementar detección pre-commit de secretos + lint-staged
+  - Objetivo: Prevenir inclusión accidental de credenciales y garantizar calidad antes de commit.
+  - Alcance: Crear .husky/pre-commit con grep de patrones de secretos + lint-staged.
+  - Archivos creados/modificados: `.husky/pre-commit`, `package.json`
+
+- [x] [Tipo: Infra] [Área: Infra] Configurar Content Security Policy (CSP) y headers de seguridad
+  - Objetivo: Añadir CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy.
+  - Alcance: Configurar headers en vercel.json.
+  - Archivos modificados: `vercel.json`
 
 - [x] [Tipo: UI] [Área: Analysis] Feedback de extracción (Correcciones de usuario)
   - Objetivo: Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión.

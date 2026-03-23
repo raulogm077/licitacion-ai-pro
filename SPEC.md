@@ -17,49 +17,34 @@ Estado funcional confirmado a fecha de esta especificación:
 
 ## 3. Iteración activa
 
-## 8. Historial de implementación
-
-### Iteración pasada
-- Soporte multi-documento por licitación
-
 ### 3.1. Objetivo
 
-Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión de la IA y brindar confianza en la plataforma.
+Consolidación de calidad de código y testing (Iteración B del AUDIT.md).
 
-### 3.2. Historia de usuario principal
+### 3.2. Entregables esperados
 
-Como usuario interno, quiero poder indicar si un dato extraído por la IA es incorrecto directamente en la vista de resultados, para que quede registro de los fallos y se pueda medir la precisión del modelo a lo largo del tiempo.
+1. Refactorización de TemplatesPage.tsx (417 → <100 líneas + sub-componentes).
+2. Refactorización de AnalysisWizard.tsx (406 → <80 líneas orquestador + steps).
+3. Cobertura de tests al 80%.
+4. ESLint con `no-explicit-any` como error.
+5. E2E tests de multi-documento estabilizados (sin test.skip).
 
-### 3.3. Entregables esperados
+### 3.3. Criterios de aceptación globales
 
-1. Botones de feedback (correcto/incorrecto) integrados en la UI de resultados de análisis.
-2. Funcionalidad simulada de registro del evento de feedback (preparación para el backend real).
-3. Feedback visual interactivo al hacer click en los botones.
-
-### 3.4. Criterios de aceptación globales
-
-- El usuario visualiza un control (botones) asociado a datos clave (e.g. `KPICards`).
-- El estado se actualiza visualmente al interactuar.
-- El evento se registra (incluso si es simulado por el momento) en una función que se podría enlazar al backend posteriormente.
-
-### 3.5. Impacto técnico esperado
-
-Superficies afectadas en esta iteración:
-
-- `src/features/analytics/components/KPICards.tsx`
-- `src/features/analytics/AnalyticsDashboard.tsx`
+- Todos los componentes refactorizados < 150 líneas cada uno.
+- `vitest --coverage` ≥80% statements.
+- `pnpm lint` pasa con 0 warnings de `no-explicit-any`.
+- `e2e/multi-upload.spec.ts` pasa en CI sin skips.
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
-### 4.1. Módulo UI (Frontend)
-
-- **Feedback de Extracción:** Modificar la vista de resultados (e.g. `src/features/analytics/components/KPICards.tsx`) para incluir pequeños botones de Check/Cross al lado de valores clave.
-- **Diseño Visual:** Utilizar íconos existentes de `lucide-react` para mantener la coherencia. Almacenar el estado (simulado) de la corrección a nivel local del componente o mock service.
+(Por definir al inicio de la iteración B)
 
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
-Conectar feedback de extracción real a la base de datos de auditoría de agentes.
+Rendimiento y DX: ChapterComponents data-driven, caching, Docker Compose, documentación.
+En paralelo: conectar feedback de extracción real a base de datos de auditoría.
 
 ## 6. Decisiones abiertas
 
@@ -95,8 +80,14 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 - Integrar advertencias de consistencia semántica en la interfaz (`AlertsPanel`, `pliego-vm.ts`)
 - Implementar UI de feedback de extracción de usuario (`FeedbackToggle` en componentes de resultados)
 
-### Iteración activa
-- Feedback de extracción (Correcciones de usuario)
+### Iteración completada: Consolidación de Seguridad (Iteración A - Auditoría)
+- Habilitar verificación JWT en Edge Function `analyze-with-agents`
+- Implementar detección pre-commit de secretos
+- Pre-commit hook con lint-staged
+- Configurar CSP headers y security headers en Vercel
+- Integrar FeedbackToggle en KpiCards del Dashboard
+- Limpieza de código muerto (config `analyze-licitacion` eliminada)
+- Actualización de documentación (BACKLOG, SPEC, ARCHITECTURE, AUDIT)
 
 ### 4.2. Refinamiento Multi-Documento (Frontend)
 
@@ -193,17 +184,13 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 
 
 ### 10.2. Resolución de Errores de Despliegue (Edge Functions)
-Durante el ciclo de pruebas E2E y despliegues, se ha identificado un error común en la inicialización del análisis:
-`Failed to load resource: the server responded with a status of 401`
-- **Causa:** La Edge Function `analyze-with-agents` está siendo desplegada por defecto requiriendo verificación JWT (`--verify-jwt`). Dado que el frontend gestiona su propio mecanismo de validación o el flujo no requiere dicho token JWT de Supabase Auth para iniciar la función (SSE endpoint), el cliente recibe un 401.
-- **Acción PM/QA:** Todos los redespliegues de la función `analyze-with-agents` en producción y en staging deben incluir explícitamente el flag `--no-verify-jwt` para permitir la comunicación correcta de los eventos SSE (a menos que se implemente un flujo de headers Authorization explícito en `JobService` de frontend en el futuro).
+Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `analyze-with-agents`. Se resolvió temporalmente con `--no-verify-jwt`.
 
-### Cambio IA: Desactivar JWT en analyze-with-agents
-- **Qué cambió:** Se configuró `verify_jwt = false` para la Edge Function `analyze-with-agents` en `supabase/config.toml`.
-- **Por qué:** La función estaba devolviendo error HTTP 401 Unauthorized al ser invocada por el frontend debido a que se esperaba un token JWT por defecto y no se estaba enviando (la función es de uso público para el flujo principal en el frontend).
-- **Impacto esperado:** El flujo SSE de la UI hacia la Edge Function de OpenAI Agents ya no fallará en el handshake inicial y procesará el análisis correctamente.
-- **Fallback:** N/A (resolución de bug crítico).
-- **Riesgos residuales:** Riesgo de abuso de endpoint al ser público. Se mitigará en el futuro asegurando auth si se requiere acceso restringido o rate-limiting.
+### Cambio IA: Reactivar JWT en analyze-with-agents (Iteración A - Auditoría)
+- **Qué cambió:** Se configuró `verify_jwt = true` para la Edge Function `analyze-with-agents`. Se eliminó `--no-verify-jwt` del CI/CD. Se reemplazó el parseo manual inseguro del JWT por validación server-side.
+- **Por qué:** El frontend ya enviaba `Authorization: Bearer ${session.access_token}` desde `JobService`, pero el backend no verificaba la firma del token. Esto exponía el endpoint a abuso y spoofing de user ID.
+- **Impacto:** El endpoint ahora requiere autenticación válida. Solo usuarios autenticados pueden invocar análisis.
+- **Riesgos residuales:** Ninguno conocido. Rate-limiting sigue usando user ID verificado.
 
 ### Integración de controles de feedback en KpiCards del Dashboard Principal
 - **Contexto:** Actualmente, el componente `FeedbackToggle` está integrado exitosamente en los `ChapterComponents` (ej. Criterios y Solvencia), pero los valores críticos mostrados en las tarjetas principales del Dashboard (`KpiCards.tsx`) como Presupuesto Base de Licitación, Fecha Límite de Presentación, y Duración del Contrato carecen de este mecanismo de validación por el usuario.

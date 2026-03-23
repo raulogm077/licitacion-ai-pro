@@ -175,14 +175,14 @@ GLOBAL                       ███████░░░  7.1/10
 
 ### CRÍTICAS — Bloquean seguridad o estabilidad
 
-- [ ] **T-01** `[Tipo: Backend] [Área: Infra]` Implementar autenticación en Edge Function `analyze-with-agents`
+- [x] **T-01** `[Tipo: Backend] [Área: Infra]` Implementar autenticación en Edge Function `analyze-with-agents`
   - Objetivo: Proteger el endpoint público que actualmente no verifica JWT.
   - Alcance: Implementar envío de Authorization header desde `JobService` y habilitar `--verify-jwt` en la Edge Function, o implementar rate-limiting robusto server-side por IP.
   - Criterios de aceptación: El endpoint rechaza requests sin token válido o tiene rate-limiting efectivo por IP/usuario. Tests E2E actualizados.
   - Archivos probables: `src/services/job.service.ts`, `supabase/functions/analyze-with-agents/index.ts`, `supabase/config.toml`
   - Dependencias: Ninguna
 
-- [ ] **T-02** `[Tipo: Infra] [Área: Infra]` Implementar detección pre-commit de secretos
+- [x] **T-02** `[Tipo: Infra] [Área: Infra]` Implementar detección pre-commit de secretos
   - Objetivo: Prevenir la inclusión accidental de credenciales (política documentada en SPEC.md §9 pero no implementada).
   - Alcance: Configurar `gitleaks` o `detect-secrets` como pre-commit hook via Husky.
   - Criterios de aceptación: Un commit con patrón `sk-`, `AIza`, `eyJ` es bloqueado automáticamente. Hook documentado.
@@ -212,7 +212,7 @@ GLOBAL                       ███████░░░  7.1/10
   - Archivos probables: `vitest.config.ts`, nuevos tests en `src/services/__tests__/`, `src/stores/__tests__/`
   - Dependencias: Ninguna
 
-- [ ] **T-06** `[Tipo: Infra] [Área: Infra]` Añadir pre-commit hook con lint-staged
+- [x] **T-06** `[Tipo: Infra] [Área: Infra]` Añadir pre-commit hook con lint-staged
   - Objetivo: Garantizar calidad antes de cada commit (actualmente solo pre-push).
   - Alcance: Configurar Husky pre-commit + lint-staged para ejecutar ESLint y Prettier solo en archivos staged.
   - Criterios de aceptación: Archivos con errores de lint son bloqueados antes del commit.
@@ -235,7 +235,7 @@ GLOBAL                       ███████░░░  7.1/10
   - Archivos probables: `src/features/dashboard/components/detail/ChapterComponents.tsx`, `src/features/dashboard/components/detail/ChapterComponentsPart2.tsx`
   - Dependencias: Ninguna
 
-- [ ] **T-09** `[Tipo: Infra] [Área: Infra]` Configurar Content Security Policy (CSP)
+- [x] **T-09** `[Tipo: Infra] [Área: Infra]` Configurar Content Security Policy (CSP)
   - Objetivo: Añadir headers CSP para prevenir XSS y data exfiltration.
   - Alcance: Configurar CSP headers en `vercel.json` o middleware de Vercel.
   - Criterios de aceptación: Headers CSP presentes en respuestas de producción, app funciona sin violaciones.

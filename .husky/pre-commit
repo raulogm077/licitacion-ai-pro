@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# =============================================================================
+# Pre-commit hook: Secret detection + lint-staged
+# =============================================================================
+
+# --- 1. Secret detection ---
+# Scan staged files for common secret patterns (SPEC.md §9 policy enforcement)
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM || true)
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# Exclude documentation files that mention patterns as examples
+EXCLUDE_PATTERN="\.env\.example|SPEC\.md|AUDIT\.md|DEPRECATED\.md|CHANGELOG\.md"
+
+# Secret patterns to detect
+SECRET_PATTERNS='sk-[a-zA-Z0-9]{20,}|AIza[a-zA-Z0-9]{30,}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AKIA[A-Z0-9]{16}'
+
+SECRETS_FOUND=0
+for FILE in $STAGED_FILES; do
+  # Skip excluded files
+  if echo "$FILE" | grep -qE "$EXCLUDE_PATTERN"; then
+    continue
+  fi
+  # Skip binary/missing files
+  if [ ! -f "$FILE" ]; then
+    continue
+  fi
+
+  MATCHES=$(git diff --cached -- "$FILE" | grep '^+' | grep -vE '^\+\+\+' | grep -oE "$SECRET_PATTERNS" || true)
+  if [ -n "$MATCHES" ]; then
+    echo "ERROR: Posible secreto detectado en $FILE:"
+    echo "$MATCHES"
+    SECRETS_FOUND=1
+  fi
+done
+
+if [ "$SECRETS_FOUND" -eq 1 ]; then
+  echo ""
+  echo "COMMIT BLOQUEADO: Se detectaron patrones de secretos en archivos staged."
+  echo "Revisa los archivos listados y elimina las credenciales antes de hacer commit."
+  echo "Si es un falso positivo, usa: git commit --no-verify"
+  exit 1
+fi
+
+# --- 2. Lint-staged ---
+npx lint-staged

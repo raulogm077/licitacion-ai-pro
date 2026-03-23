@@ -69,10 +69,11 @@ Cualquier cambio relevante en este servicio obliga a revisar este documento.
 
 ### 4.3. Edge Function `analyze-with-agents`
 
-Es el núcleo del pipeline de IA.
+Es el núcleo del pipeline de IA. La función requiere autenticación JWT (`verify_jwt = true` en `supabase/config.toml`). El frontend envía el token de sesión en el header `Authorization: Bearer <token>` desde `JobService`.
 
 Responsabilidades:
 
+- verificar la autenticación del usuario (JWT validado por Supabase runtime)
 - recibir la solicitud de análisis
 - cargar uno o múltiples archivos (mediante `pdfBase64` o el array `files`) a OpenAI. La carga de múltiples archivos se realiza de forma **secuencial** para evitar picos de consumo de memoria que rompan el límite del Edge Runtime.
 - construir un contexto consolidado en el Vector Store con el expediente completo (polling mediante exponential backoff) y la "Guía de lectura de pliegos". Ésta última se incluye localmente usando `Deno.readTextFile(new URL('./Guía de lectura de pliegos.md', import.meta.url))` de manera que la IA siempre tenga la guía de negocio disponible por sistema y de forma automática como archivo `.md`.
