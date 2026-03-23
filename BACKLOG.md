@@ -29,34 +29,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Deuda Técnica / Refactorización
 
-- [ ] [Tipo: UI] [Área: Templates] Refactorizar TemplatesPage.tsx (417 líneas)
-  - Objetivo: Separar lógica CRUD en custom hook y dividir componentes de UI.
-  - Alcance: Extraer `useTemplates()` hook, crear `TemplateForm`, `TemplateList`, `TemplateCard`.
-  - Criterios de aceptación: TemplatesPage < 100 líneas, cada sub-componente < 150 líneas, tests pasan.
-  - Archivos probables: `src/pages/TemplatesPage.tsx`, `src/features/templates/`
-  - Dependencias: Ninguna
-
-- [ ] [Tipo: UI] [Área: Upload] Refactorizar AnalysisWizard.tsx (406 líneas)
-  - Objetivo: Separar en componentes por paso del wizard (upload, analyzing, completed).
-  - Alcance: Crear `UploadStep`, `AnalyzingStep`, `CompletedStep`, extraer validación en hook.
-  - Criterios de aceptación: AnalysisWizard < 80 líneas, cada step < 150 líneas.
-  - Archivos probables: `src/features/upload/components/AnalysisWizard.tsx`, `src/features/upload/components/steps/`
-  - Dependencias: Ninguna
-
-- [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
-  - Objetivo: Incrementar cobertura de 60% a 80% en statements/lines.
-  - Alcance: Añadir unit tests para servicios, stores y utilidades sin cobertura.
-  - Criterios de aceptación: `vitest --coverage` ≥80% statements, ≥70% branches.
-  - Archivos probables: `vitest.config.ts`, `src/services/__tests__/`, `src/stores/__tests__/`
-  - Dependencias: Ninguna
-
-- [ ] [Tipo: Infra] [Área: Infra] Endurecer reglas de ESLint (no-explicit-any → error)
-  - Objetivo: Cambiar `@typescript-eslint/no-explicit-any` de "warn" a "error".
-  - Alcance: Auditar y corregir todos los `any` explícitos, actualizar `.eslintrc.cjs`.
-  - Criterios de aceptación: `pnpm lint` pasa con 0 warnings de `no-explicit-any`.
-  - Archivos probables: `.eslintrc.cjs`, múltiples archivos
-  - Dependencias: Ninguna
-
 - [ ] [Tipo: UI] [Área: Analysis] Refactorizar ChapterComponents en data-driven rendering
   - Objetivo: Unificar ChapterComponents.tsx + ChapterComponentsPart2.tsx en sistema configurable.
   - Alcance: Crear mapa de configuración de capítulos y componente genérico `ChapterRenderer`.
@@ -64,11 +36,11 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/features/dashboard/components/detail/ChapterComponents*.tsx`
   - Dependencias: Ninguna
 
-- [ ] [Tipo: QA] [Área: Upload] Estabilizar E2E tests de multi-documento
-  - Objetivo: Eliminar `test.skip(true)` en multi-upload.spec.ts.
-  - Alcance: Mejorar mocking de auth en Playwright.
-  - Criterios de aceptación: `e2e/multi-upload.spec.ts` pasa en CI sin skips.
-  - Archivos probables: `e2e/multi-upload.spec.ts`, `e2e/test-utils.ts`
+- [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
+  - Objetivo: Incrementar cobertura de 67% a 80% en statements/lines.
+  - Alcance: Añadir unit tests para componentes de UI, dashboard y servicios pendientes.
+  - Criterios de aceptación: `vitest --coverage` ≥80% statements, ≥70% branches.
+  - Archivos probables: `src/features/dashboard/__tests__/`, `src/services/__tests__/`
   - Dependencias: Ninguna
 
 ## Ideas de Producto
@@ -79,6 +51,22 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Configurar Dependabot para actualizaciones automáticas de dependencias
 
 ## Done
+
+- [x] [Tipo: Infra] [Área: Infra] Endurecer reglas de ESLint (no-explicit-any → error)
+  - Archivos modificados: `.eslintrc.cjs`, `src/features/dashboard/Dashboard.tsx`, 5 test files
+
+- [x] [Tipo: UI] [Área: Templates] Refactorizar TemplatesPage.tsx (417 → 80 líneas)
+  - Archivos creados: `src/features/templates/hooks/useTemplates.ts`, `src/features/templates/components/TemplateForm.tsx`, `TemplateList.tsx`, `TemplateFieldEditor.tsx`
+
+- [x] [Tipo: UI] [Área: Upload] Refactorizar AnalysisWizard.tsx (406 → 80 líneas)
+  - Archivos creados: `src/features/upload/hooks/useFileValidation.ts`, `src/features/upload/components/UploadStep.tsx`, `AnalyzingStep.tsx`, `StepIndicator.tsx`
+
+- [x] [Tipo: QA] [Área: Upload] Estabilizar E2E tests de multi-documento
+  - Archivos modificados: `e2e/multi-upload.spec.ts` — eliminado test.skip, mejorado auth mocking
+
+- [x] [Tipo: QA] [Área: Infra] Incrementar cobertura de tests (56% → 67% statements)
+  - Tests añadidos: useFileValidation, useTemplates, auth.store, licitacion.store, analysis.store (extendido), useKeyboardShortcut, Result, file-utils, llmFactory, logger, perfTracker
+  - Thresholds actualizados: 65/50/58/65 en vitest.config.ts
 
 - [x] [Tipo: UI] [Área: Analysis] Integrar controles de feedback en KpiCards del Dashboard
   - Objetivo: Extender FeedbackToggle a los KpiCards principales (presupuesto, fecha, duración, valor estimado).

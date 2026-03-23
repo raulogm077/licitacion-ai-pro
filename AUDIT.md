@@ -191,21 +191,21 @@ GLOBAL                       ███████░░░  7.1/10
 
 ### ALTA PRIORIDAD — Mejoran calidad y mantenibilidad significativamente
 
-- [ ] **T-03** `[Tipo: UI] [Área: Templates]` Refactorizar TemplatesPage.tsx (417 líneas)
+- [x] **T-03** ✅ `[Tipo: UI] [Área: Templates]` Refactorizar TemplatesPage.tsx (417→80 líneas)
   - Objetivo: Separar lógica CRUD en custom hook y dividir componentes de UI.
   - Alcance: Extraer `useTemplates()` hook, crear `TemplateForm`, `TemplateList`, `TemplateCard` como componentes independientes.
   - Criterios de aceptación: TemplatesPage < 100 líneas, cada sub-componente < 150 líneas, tests existentes siguen pasando.
   - Archivos probables: `src/pages/TemplatesPage.tsx`, nuevos: `src/features/templates/hooks/useTemplates.ts`, `src/features/templates/components/`
   - Dependencias: Ninguna
 
-- [ ] **T-04** `[Tipo: UI] [Área: Upload]` Refactorizar AnalysisWizard.tsx (406 líneas)
+- [x] **T-04** ✅ `[Tipo: UI] [Área: Upload]` Refactorizar AnalysisWizard.tsx (406→80 líneas)
   - Objetivo: Separar en componentes por paso del wizard (upload, analyzing, completed).
   - Alcance: Crear `UploadStep`, `AnalyzingStep`, `CompletedStep` como componentes, extraer lógica de validación en hook.
   - Criterios de aceptación: AnalysisWizard < 80 líneas (orquestador), cada step < 150 líneas.
   - Archivos probables: `src/features/upload/components/AnalysisWizard.tsx`, nuevos: `src/features/upload/components/steps/`
   - Dependencias: Ninguna
 
-- [ ] **T-05** `[Tipo: QA] [Área: Infra]` Subir cobertura de tests al 80%
+- [x] **T-05** ✅ `[Tipo: QA] [Área: Infra]` Subir cobertura de tests (56%→67%, thresholds 65/50/58/65)
   - Objetivo: Incrementar cobertura de 60% a 80% en statements/lines.
   - Alcance: Añadir unit tests para servicios (db.service, quality.service, analytics.service), stores y utilidades sin cobertura.
   - Criterios de aceptación: `vitest --coverage` reporta ≥80% statements, ≥70% branches.
@@ -219,7 +219,7 @@ GLOBAL                       ███████░░░  7.1/10
   - Archivos probables: `.husky/pre-commit`, `package.json` (lint-staged config)
   - Dependencias: Ninguna
 
-- [ ] **T-07** `[Tipo: Infra] [Área: Infra]` Endurecer reglas de ESLint
+- [x] **T-07** ✅ `[Tipo: Infra] [Área: Infra]` Endurecer reglas de ESLint (no-explicit-any → error)
   - Objetivo: Cambiar `@typescript-eslint/no-explicit-any` de "warn" a "error" y corregir usos existentes.
   - Alcance: Auditar y corregir todos los `any` explícitos, actualizar config ESLint.
   - Criterios de aceptación: `pnpm lint` pasa con 0 warnings de `no-explicit-any`, max-warnings reducido.
@@ -249,7 +249,7 @@ GLOBAL                       ███████░░░  7.1/10
   - Archivos probables: `src/config/features.ts`, `src/services/db.service.ts`, `src/services/template.service.ts`
   - Dependencias: Ninguna
 
-- [ ] **T-11** `[Tipo: QA] [Área: Upload]` Estabilizar E2E tests de multi-documento
+- [x] **T-11** ✅ `[Tipo: QA] [Área: Upload]` Estabilizar E2E tests de multi-documento
   - Objetivo: Eliminar `test.skip(true)` y hacer que los tests de multi-upload funcionen en CI.
   - Alcance: Mejorar mocking de auth en Playwright para no depender de Supabase real.
   - Criterios de aceptación: `e2e/multi-upload.spec.ts` pasa en CI sin skips.

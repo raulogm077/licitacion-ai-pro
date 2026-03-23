@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
@@ -13,10 +12,10 @@ export default defineConfig({
         coverage: {
             reporter: ['text', 'json', 'html'],
             thresholds: {
-                statements: 60,
+                statements: 65,
                 branches: 50,
-                functions: 55,
-                lines: 60,
+                functions: 58,
+                lines: 65,
             },
         },
     },

@@ -5,10 +5,10 @@ import { SupabaseClient } from '@supabase/supabase-js';
 // Mock Supabase Client
 const mockSupabase = {
     auth: {
-        getSession: vi.fn()
+        getSession: vi.fn(),
     },
     from: vi.fn(),
-    channel: vi.fn()
+    channel: vi.fn(),
 } as unknown as SupabaseClient;
 
 describe('DBService', () => {
@@ -27,18 +27,19 @@ describe('DBService', () => {
                 updated_at: '2023-01-01T00:00:00Z',
                 data: {
                     metadata: { tags: ['test'] },
-                    datosGenerales: {}
-                }
+                    datosGenerales: {},
+                },
             };
 
             const mockBuilder = {
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
-                single: vi.fn().mockResolvedValue({ data: mockData, error: null })
+                single: vi.fn().mockResolvedValue({ data: mockData, error: null }),
             };
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (mockSupabase.from as any).mockReturnValue(mockBuilder);
+            vi.mocked(mockSupabase.from).mockReturnValue(
+                mockBuilder as unknown as ReturnType<typeof mockSupabase.from>
+            );
 
             const result = await service.getLicitacion('123');
 
@@ -54,11 +55,12 @@ describe('DBService', () => {
             const mockBuilder = {
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
-                single: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } })
+                single: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB Error' } }),
             };
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (mockSupabase.from as any).mockReturnValue(mockBuilder);
+            vi.mocked(mockSupabase.from).mockReturnValue(
+                mockBuilder as unknown as ReturnType<typeof mockSupabase.from>
+            );
             const result = await service.getLicitacion('123');
             expect(result.ok).toBe(false);
             if (!result.ok) {
@@ -74,14 +76,14 @@ describe('DBService', () => {
                     hash: '1',
                     file_name: 'match.pdf',
                     updated_at: '2023-01-01T00:00:00Z',
-                    data: { metadata: { tags: ['a', 'b'] } }
+                    data: { metadata: { tags: ['a', 'b'] } },
                 },
                 {
                     hash: '2',
                     file_name: 'no-match.pdf',
                     updated_at: '2023-01-01T00:00:00Z',
-                    data: { metadata: { tags: ['c'] } }
-                }
+                    data: { metadata: { tags: ['c'] } },
+                },
             ];
 
             const mockBuilder = {
@@ -90,12 +92,13 @@ describe('DBService', () => {
                 ilike: vi.fn().mockReturnThis(),
                 gte: vi.fn().mockReturnThis(),
                 lte: vi.fn().mockReturnThis(),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                then: (cb: any) => cb({ data: mockData, error: null })
+                then: (cb: (result: { data: typeof mockData; error: null }) => void) =>
+                    cb({ data: mockData, error: null }),
             };
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (mockSupabase.from as any).mockReturnValue(mockBuilder);
+            vi.mocked(mockSupabase.from).mockReturnValue(
+                mockBuilder as unknown as ReturnType<typeof mockSupabase.from>
+            );
 
             // Filter by tag 'a'
             const result = await service.advancedSearch({ tags: ['a'] });
