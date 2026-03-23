@@ -23,16 +23,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [x] [Tipo: UI] [Área: Analysis] Feedback de extracción (Correcciones de usuario)
-  - Objetivo: Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión.
-  - Alcance: Añadir botones de "correcto/incorrecto" al lado de cada dato clave en la vista de resultados (ej. en `KPICards` o `PliegoAnalysis`).
-  - Criterios de aceptación:
-    - El usuario visualiza un control (botones) asociado a datos clave.
-    - El estado se actualiza visualmente al interactuar.
-    - Opcional: El evento se registra (incluso si es simulado por el momento) en una función que se podría enlazar al backend posteriormente.
-  - Archivos probables: `src/features/analytics/AnalyticsDashboard.tsx`, `src/features/analytics/components/KPICards.tsx`
-  - Dependencias: Ninguna.
-
 ## To Do (Iteración Actual)
 
 ## Deuda Técnica / Refactorización
@@ -44,6 +34,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - (Vacío por el momento)
 
 ## Done
+
+- [x] [Tipo: UI] [Área: Analysis] Feedback de extracción (Correcciones de usuario)
+  - Objetivo: Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión.
+  - Alcance: Añadir botones de "correcto/incorrecto" al lado de cada dato clave en la vista de resultados (ej. en `KPICards` o `PliegoAnalysis`).
+  - Criterios de aceptación:
+    - El usuario visualiza un control (botones) asociado a datos clave.
+    - El estado se actualiza visualmente al interactuar.
+    - Opcional: El evento se registra (incluso si es simulado por el momento) en una función que se podría enlazar al backend posteriormente.
+  - Archivos probables: `src/features/analytics/AnalyticsDashboard.tsx`, `src/features/analytics/components/KPICards.tsx`
+  - Dependencias: Ninguna.
 
 - [x] [Tipo: Infra] [Área: Infra] Fix CI/CD Pipeline Deployment Failures
   - Objetivo: Ensure code changes are actually deployed to Vercel and Supabase successfully.
