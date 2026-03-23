@@ -35,6 +35,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
+- [ ] [Tipo: UI] [Área: Analysis] Integrar controles de feedback en KpiCards del Dashboard
+  - Objetivo: Extender la funcionalidad de feedback de extracción a los KpiCards principales del Dashboard para que los usuarios puedan validar el presupuesto, plazo y valor estimado.
+  - Alcance: Modificar `src/features/dashboard/components/widgets/KpiCards.tsx` para importar y renderizar el componente `FeedbackToggle` al lado de los valores de presupuesto y plazos.
+  - Criterios de aceptación: Las tarjetas de KPI muestran opciones para validar o rechazar el dato extraído, registrando el evento correctamente.
+  - Archivos probables: `src/features/dashboard/components/widgets/KpiCards.tsx`
+  - Dependencias: El componente `FeedbackToggle` ya debe existir en la base de código.
+
+
 ## Deuda Técnica / Refactorización
 
 - (Vacío por el momento)

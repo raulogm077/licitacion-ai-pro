@@ -204,3 +204,8 @@ Durante el ciclo de pruebas E2E y despliegues, se ha identificado un error comú
 - **Impacto esperado:** El flujo SSE de la UI hacia la Edge Function de OpenAI Agents ya no fallará en el handshake inicial y procesará el análisis correctamente.
 - **Fallback:** N/A (resolución de bug crítico).
 - **Riesgos residuales:** Riesgo de abuso de endpoint al ser público. Se mitigará en el futuro asegurando auth si se requiere acceso restringido o rate-limiting.
+
+### Integración de controles de feedback en KpiCards del Dashboard Principal
+- **Contexto:** Actualmente, el componente `FeedbackToggle` está integrado exitosamente en los `ChapterComponents` (ej. Criterios y Solvencia), pero los valores críticos mostrados en las tarjetas principales del Dashboard (`KpiCards.tsx`) como Presupuesto Base de Licitación, Fecha Límite de Presentación, y Duración del Contrato carecen de este mecanismo de validación por el usuario.
+- **Objetivo:** Uniformizar la interfaz para que el usuario pueda aportar feedback (Correcto/Incorrecto) directamente desde el resumen ejecutivo de la licitación.
+- **Implementación Esperada:** El agente deberá importar `FeedbackToggle` y colocarlo estratégicamente en cada KPI renderizado, cuidando la alineación vertical y la limpieza visual. Debe asegurar que el `fieldPath` referencie los campos adecuados de `result.datosGenerales`.
