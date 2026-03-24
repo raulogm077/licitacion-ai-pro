@@ -1,0 +1,20 @@
+name: Docs-only CI (no-op)
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.md'
+
+jobs:
+  quality-checks:
+    name: ⚡ Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Documentation-only change — no code checks needed."
+
+  e2e-tests:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Documentation-only change — no E2E tests needed."

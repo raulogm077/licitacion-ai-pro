@@ -1,4 +1,3 @@
-
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
@@ -10,7 +9,7 @@ export default defineConfig({
     reporter: 'list',
     timeout: 600000, // 60s -> 60s (fixed typo in thought, explicit 60s globally)
     expect: {
-        timeout: 10000
+        timeout: 10000,
     },
     use: {
         baseURL: 'http://localhost:4173',
@@ -25,7 +24,7 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'npm run preview',
+        command: 'pnpm preview',
         url: 'http://localhost:4173',
         reuseExistingServer: !process.env.CI,
         timeout: 120000,
