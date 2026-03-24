@@ -61,6 +61,12 @@ Superficies afectadas en esta iteración:
 ### 5.1. Objetivo
 Conectar feedback de extracción real a la base de datos de auditoría de agentes.
 
+### 5.2. Módulo Backend (Feedback de Extracción)
+
+- **Auditoría:** Crear una tabla en Supabase (e.g. `extraction_feedback`) para almacenar el feedback de los usuarios sobre los datos extraídos (id de análisis, campo, valor original, si fue marcado como correcto o incorrecto, usuario, timestamp).
+- **Endpoint:** Exponer una función (vía Edge Function o RPC) que reciba el evento de feedback desde el cliente.
+
+
 ## 6. Decisiones abiertas
 
 - estrategia de composición del contexto cuando entren múltiples documentos (AI Prompting/Vector Store vs Assistants v2 limitations)

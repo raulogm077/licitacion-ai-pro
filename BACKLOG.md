@@ -32,6 +32,15 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/features/dashboard/components/widgets/KpiCards.tsx`
   - Dependencias: `src/features/dashboard/components/detail/FeedbackToggle.tsx`
 
+- [ ] [Tipo: Backend] [Área: Analysis] Conectar feedback de extracción real a base de datos de auditoría
+  - Objetivo: Implementar el endpoint y la lógica de base de datos para registrar el feedback (correcto/incorrecto) de los usuarios sobre los datos extraídos por la IA.
+  - Alcance: Crear tabla en Supabase, crear Edge Function o endpoint de backend para recibir el evento de feedback desde el frontend, y guardar el registro asociado al análisis.
+  - Criterios de aceptación: Al hacer click en el botón de feedback en la UI, se envía una petición al backend que registra el evento en la base de datos de auditoría.
+  - Archivos probables: `supabase/migrations/...`, `supabase/functions/...`, `src/services/...`
+  - Dependencias: El componente UI `FeedbackToggle` debe estar operativo.
+
+
+
 
 ## Deuda Técnica / Refactorización
 
