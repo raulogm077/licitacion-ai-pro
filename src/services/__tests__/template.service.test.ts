@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TemplateService } from '../template.service';
+import { appCache } from '../../lib/cache';
 
 const mockSupabaseClient = {
     auth: {
@@ -13,6 +14,7 @@ describe('TemplateService', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        appCache.clear();
         service = new TemplateService(mockSupabaseClient as unknown as import('@supabase/supabase-js').SupabaseClient);
 
         mockSupabaseClient.auth.getSession.mockResolvedValue({

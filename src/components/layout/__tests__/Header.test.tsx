@@ -9,16 +9,17 @@ vi.mock('../../../stores/auth.store', () => ({
     useAuthStore: vi.fn(),
 }));
 
+function mockAuthState(overrides: Record<string, unknown>) {
+    vi.mocked(useAuthStore).mockImplementation(((selector?: (s: unknown) => unknown) => {
+        return selector ? selector(overrides) : overrides;
+    }) as typeof useAuthStore);
+}
+
 describe('Header', () => {
     const mockOnLogout = vi.fn();
 
     it('renders logo and navigation', () => {
-        // Mock unauthenticated state
-        vi.mocked(useAuthStore).mockImplementation((selector) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const state = { isAuthenticated: false } as any;
-            return selector ? selector(state) : state;
-        });
+        mockAuthState({ isAuthenticated: false });
 
         render(
             <MemoryRouter>
@@ -40,15 +41,10 @@ describe('Header', () => {
     it('calls logout when clicked', async () => {
         const mockSignOut = vi.fn();
 
-        // Mock authenticated state with signOut function
-        vi.mocked(useAuthStore).mockImplementation((selector) => {
-            const state = {
-                isAuthenticated: true,
-                user: { email: 'test@example.com' },
-                signOut: mockSignOut,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any;
-            return selector ? selector(state) : state;
+        mockAuthState({
+            isAuthenticated: true,
+            user: { email: 'test@example.com' },
+            signOut: mockSignOut,
         });
 
         render(

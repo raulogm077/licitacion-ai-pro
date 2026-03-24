@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Dashboard } from '../Dashboard';
@@ -6,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LicitacionData } from '../../../types';
 
 // Mock Lucide icons
-vi.mock("lucide-react", () => ({
+vi.mock('lucide-react', () => ({
     Menu: () => <span data-testid="icon-menu" />,
     X: () => <span data-testid="icon-x" />,
     Search: () => <span data-testid="icon-search" />,
@@ -47,7 +46,9 @@ vi.mock("lucide-react", () => ({
     Info: () => <span data-testid="icon-info" />,
     CheckCircle2: () => <span data-testid="icon-check2" />,
     Bell: () => <span data-testid="icon-bell" />,
-    ArrowRight: () => <span data-testid="icon-arrow" />
+    ArrowRight: () => <span data-testid="icon-arrow" />,
+    ThumbsUp: () => <span data-testid="icon-thumbs-up" />,
+    ThumbsDown: () => <span data-testid="icon-thumbs-down" />,
 }));
 
 const mockData: LicitacionData = {
@@ -58,36 +59,35 @@ const mockData: LicitacionData = {
         moneda: 'EUR',
         plazoEjecucionMeses: 12,
         cpv: ['72000000-5'],
-
     },
     criteriosAdjudicacion: {
         objetivos: [],
-        subjetivos: []
+        subjetivos: [],
     },
     requisitosTecnicos: {
         funcionales: [],
-        normativa: []
+        normativa: [],
     },
     requisitosSolvencia: {
         economica: { cifraNegocioAnualMinima: 0, descripcion: '' },
-        tecnica: []
+        tecnica: [],
     },
     restriccionesYRiesgos: {
         killCriteria: [],
         riesgos: [],
-        penalizaciones: []
+        penalizaciones: [],
     },
     modeloServicio: {
         sla: [],
-        equipoMinimo: []
-    }
+        equipoMinimo: [],
+    },
 };
 
 describe('Dashboard Smoke Test', () => {
     it('renders without crashing', () => {
         render(
             <MemoryRouter>
-                <Dashboard data={mockData} onUpdate={() => { }} />
+                <Dashboard data={mockData} onUpdate={() => {}} />
             </MemoryRouter>
         );
 

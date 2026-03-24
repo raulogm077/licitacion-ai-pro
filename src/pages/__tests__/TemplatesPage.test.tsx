@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TemplatesPage } from '../TemplatesPage';
@@ -10,14 +9,14 @@ vi.mock('../../services/template.service', () => ({
         getTemplates: vi.fn(),
         createTemplate: vi.fn(),
         updateTemplate: vi.fn(),
-        deleteTemplate: vi.fn()
-    }
+        deleteTemplate: vi.fn(),
+    },
 }));
 
 describe('TemplatesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        (templateService.getTemplates as any).mockResolvedValue({ ok: true, value: [] });
+        vi.mocked(templateService.getTemplates).mockResolvedValue({ ok: true, value: [] });
     });
 
     it('renders templates list', async () => {

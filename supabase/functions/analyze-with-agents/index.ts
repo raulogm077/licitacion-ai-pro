@@ -1,13 +1,13 @@
 // Deno imports
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit } from "../_shared/rate-limiter.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { checkRateLimit } from '../_shared/rate-limiter.ts';
 
 // OpenAI SDK for Files and Vector Store management
-import OpenAI from "npm:openai@4.77.0";
+import OpenAI from 'npm:openai@4.77.0';
 
 // Agents SDK
-import { Agent, run } from "npm:@openai/agents@0.3.7";
+import { Agent, run } from 'npm:@openai/agents@0.3.7';
 
 // Configuración
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -163,21 +163,44 @@ serve(async (req) => {
     try {
         console.log('[analyze-with-agents] Request received');
 
-        // 0. Rate limiting based on Authorization header (JWT sub claim)
+        // 0. Authenticate user via Supabase JWT (verify_jwt = true ensures valid token)
         const authHeader = req.headers.get('authorization') || '';
         const token = authHeader.replace('Bearer ', '');
-        let userId = 'anonymous';
+        if (!token) {
+            return new Response(JSON.stringify({ error: 'Token de autenticación requerido' }), {
+                status: 401,
+                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Extract verified user ID from JWT claims (signature already validated by Supabase runtime)
+        let userId: string;
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            userId = payload.sub || 'anonymous';
-        } catch { /* use anonymous if token parse fails */ }
+            userId = payload.sub;
+            if (!userId) throw new Error('Missing sub claim');
+        } catch {
+            return new Response(JSON.stringify({ error: 'Token inválido' }), {
+                status: 401,
+                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+            });
+        }
 
         const rateCheck = checkRateLimit(userId);
         if (!rateCheck.allowed) {
             const retryAfterSec = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
             return new Response(
-                JSON.stringify({ error: `Límite de análisis excedido (${MAX_REQUESTS_MSG}). Reintente en ${retryAfterSec}s.` }),
-                { status: 429, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json', 'Retry-After': String(retryAfterSec) } }
+                JSON.stringify({
+                    error: `Límite de análisis excedido (${MAX_REQUESTS_MSG}). Reintente en ${retryAfterSec}s.`,
+                }),
+                {
+                    status: 429,
+                    headers: {
+                        ...getCorsHeaders(req),
+                        'Content-Type': 'application/json',
+                        'Retry-After': String(retryAfterSec),
+                    },
+                }
             );
         }
 
@@ -186,7 +209,9 @@ serve(async (req) => {
         const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
         if (contentLength > MAX_PAYLOAD_BYTES) {
             return new Response(
-                JSON.stringify({ error: `Payload demasiado grande (${Math.round(contentLength / 1024 / 1024)}MB). Máximo: 50MB.` }),
+                JSON.stringify({
+                    error: `Payload demasiado grande (${Math.round(contentLength / 1024 / 1024)}MB). Máximo: 50MB.`,
+                }),
                 { status: 413, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
             );
         }
@@ -195,10 +220,10 @@ serve(async (req) => {
         const { pdfBase64, filename, template, files } = await req.json();
 
         if (!pdfBase64 && (!files || files.length === 0)) {
-            return new Response(
-                JSON.stringify({ error: 'pdfBase64 o files requeridos' }),
-                { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
-            );
+            return new Response(JSON.stringify({ error: 'pdfBase64 o files requeridos' }), {
+                status: 400,
+                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+            });
         }
 
         console.log(`[analyze-with-agents] Procesando: ${filename || 'documento.pdf'}`);
@@ -206,16 +231,16 @@ serve(async (req) => {
             console.log(`[analyze-with-agents] Documentos adicionales recibidos: ${files.length}`);
         }
 
-        const extractBase64Data = (str: string) => str.includes(',') ? str.split(',')[1] : str;
+        const extractBase64Data = (str: string) => (str.includes(',') ? str.split(',')[1] : str);
         const fileIds: string[] = [];
 
         // 2. Procesar documento principal (retrocompatibilidad)
         if (pdfBase64) {
-            const pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), c => c.charCodeAt(0));
+            const pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), (c) => c.charCodeAt(0));
             console.log('[analyze-with-agents] Uploading PDF principal to OpenAI Files API...');
             const pdfUpload = await openai.files.create({
                 file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
-                purpose: 'assistants'
+                purpose: 'assistants',
             });
             console.log(`[analyze-with-agents] PDF principal uploaded: ${pdfUpload.id}`);
             fileIds.push(pdfUpload.id);
@@ -231,7 +256,7 @@ serve(async (req) => {
             console.log('[analyze-with-agents] Uploading Guía interna...');
             const guiaUpload = await openai.files.create({
                 file: new File([guiaBuffer], 'Guía de lectura de pliegos.md', { type: 'text/markdown' }),
-                purpose: 'assistants'
+                purpose: 'assistants',
             });
             console.log(`[analyze-with-agents] Guía interna uploaded: ${guiaUpload.id}`);
             fileIds.push(guiaUpload.id);
@@ -245,18 +270,21 @@ serve(async (req) => {
             for (const extraFile of files) {
                 if (extraFile && extraFile.base64 && extraFile.name) {
                     try {
-                        const buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), c => c.charCodeAt(0));
+                        const buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), (c) =>
+                            c.charCodeAt(0)
+                        );
                         console.log(`[analyze-with-agents] Uploading archivo adicional: ${extraFile.name}...`);
 
                         // Infer MIME type basic mapping
                         let mimeType = 'application/pdf';
                         const lowerName = extraFile.name.toLowerCase();
-                        if (lowerName.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        if (lowerName.endsWith('.docx'))
+                            mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
                         else if (lowerName.endsWith('.txt')) mimeType = 'text/plain';
 
                         const upload = await openai.files.create({
                             file: new File([buffer], extraFile.name, { type: mimeType }),
-                            purpose: 'assistants'
+                            purpose: 'assistants',
                         });
                         console.log(`[analyze-with-agents] Archivo adicional uploaded: ${upload.id}`);
                         if (upload.id) {
@@ -273,7 +301,7 @@ serve(async (req) => {
         console.log('[analyze-with-agents] Creating Vector Store...');
         const vectorStore = await openai.beta.vectorStores.create({
             name: `Análisis ${filename || 'documento'} - ${new Date().toISOString()}`,
-            file_ids: fileIds
+            file_ids: fileIds,
         });
         console.log(`[analyze-with-agents] Vector Store created: ${vectorStore.id}`);
 
@@ -296,7 +324,7 @@ serve(async (req) => {
                 throw new Error(`Vector Store indexing failed: ${JSON.stringify(vs.last_active_at)}`);
             }
             // Wait with exponential backoff
-            await new Promise(resolve => setTimeout(resolve, delay));
+            await new Promise((resolve) => setTimeout(resolve, delay));
             totalTime += delay;
             delay = Math.min(Math.round(delay * 1.5), maxDelay);
         }
@@ -310,15 +338,17 @@ serve(async (req) => {
         // 5. Create Agent (SINGLETON PATTERN - created once here)
         console.log('[analyze-with-agents] Creating Agent...');
 
-
         // Modify instructions if a template is provided
         let currentInstructions = ANALISTA_INSTRUCTIONS;
         let dynamicResponseFormat = undefined;
 
         if (template && template.schema && template.schema.length > 0) {
-            const templateDetails = template.schema.map((f: Record<string, unknown>) =>
-                `- ${f.name} (${f.type}): ${f.description || 'Sin descripción'} [${f.required ? 'Obligatorio' : 'Opcional'}]`
-            ).join('\n');
+            const templateDetails = template.schema
+                .map(
+                    (f: Record<string, unknown>) =>
+                        `- ${f.name} (${f.type}): ${f.description || 'Sin descripción'} [${f.required ? 'Obligatorio' : 'Opcional'}]`
+                )
+                .join('\n');
 
             const templateInstructions = `
 ================================================================================
@@ -332,7 +362,7 @@ ${templateDetails}
 Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_personalizada" dentro de "result", que contenga las propiedades exactas definidas arriba.
 ================================================================================
 `;
-            currentInstructions = templateInstructions + "\n" + currentInstructions;
+            currentInstructions = templateInstructions + '\n' + currentInstructions;
             console.log(`[analyze-with-agents] Applying custom template instructions: ${template.name}`);
 
             // Build JSON Schema for structured output
@@ -340,19 +370,19 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             const customRequired: string[] = [];
 
             template.schema.forEach((f: Record<string, unknown>) => {
-                let typeStr = "string";
-                if (f.type === "numero") typeStr = "number";
-                if (f.type === "booleano") typeStr = "boolean";
-                if (f.type === "lista") {
+                let typeStr = 'string';
+                if (f.type === 'numero') typeStr = 'number';
+                if (f.type === 'booleano') typeStr = 'boolean';
+                if (f.type === 'lista') {
                     customProperties[f.name] = {
-                        type: "array",
-                        items: { type: "string" },
-                        description: f.description || ""
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: f.description || '',
                     };
                 } else {
                     customProperties[f.name] = {
                         type: typeStr,
-                        description: f.description || ""
+                        description: f.description || '',
                     };
                 }
 
@@ -362,38 +392,38 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             });
 
             dynamicResponseFormat = {
-                type: "json_schema",
+                type: 'json_schema',
                 json_schema: {
-                    name: "licitacion_analysis",
+                    name: 'licitacion_analysis',
                     schema: {
-                        type: "object",
+                        type: 'object',
                         properties: {
                             result: {
-                                type: "object",
+                                type: 'object',
                                 properties: {
                                     plantilla_personalizada: {
-                                        type: "object",
+                                        type: 'object',
                                         properties: customProperties,
                                         required: customRequired,
-                                        additionalProperties: false
+                                        additionalProperties: false,
                                     },
-                                    datosGenerales: { type: "object", additionalProperties: true },
-                                    criteriosAdjudicacion: { type: "object", additionalProperties: true },
-                                    requisitosSolvencia: { type: "object", additionalProperties: true },
-                                    requisitosTecnicos: { type: "object", additionalProperties: true },
-                                    restriccionesYRiesgos: { type: "object", additionalProperties: true },
-                                    modeloServicio: { type: "object", additionalProperties: true }
+                                    datosGenerales: { type: 'object', additionalProperties: true },
+                                    criteriosAdjudicacion: { type: 'object', additionalProperties: true },
+                                    requisitosSolvencia: { type: 'object', additionalProperties: true },
+                                    requisitosTecnicos: { type: 'object', additionalProperties: true },
+                                    restriccionesYRiesgos: { type: 'object', additionalProperties: true },
+                                    modeloServicio: { type: 'object', additionalProperties: true },
                                 },
-                                required: ["plantilla_personalizada"],
-                                additionalProperties: true
+                                required: ['plantilla_personalizada'],
+                                additionalProperties: true,
                             },
-                            workflow: { type: "object", additionalProperties: true }
+                            workflow: { type: 'object', additionalProperties: true },
                         },
-                        required: ["result", "workflow"],
-                        additionalProperties: false
+                        required: ['result', 'workflow'],
+                        additionalProperties: false,
                     },
-                    strict: true
-                }
+                    strict: true,
+                },
             };
         }
 
@@ -405,8 +435,8 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             tools: [
                 {
                     type: 'file_search' as const,
-                }
-            ]
+                },
+            ],
         });
 
         // 6. Execute Agent with streaming (CORRECTED PATTERN)
@@ -423,19 +453,15 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
         }
         const runMessage = `Analiza este expediente de licitación (principal: ${filename || 'documento.pdf'})${extraDocsMsg} siguiendo la guía de lectura. Cuando termines, usa la herramienta submit_analysis_result con el JSON estructurado completo.`;
 
-        const runPromise = run(
-            agent,
-            runMessage,
-            {
-                stream: true,
-                // Attach vector store for file_search
-                toolResources: {
-                    file_search: {
-                        vector_store_ids: [vectorStore.id]
-                    }
-                }
-            }
-        );
+        const runPromise = run(agent, runMessage, {
+            stream: true,
+            // Attach vector store for file_search
+            toolResources: {
+                file_search: {
+                    vector_store_ids: [vectorStore.id],
+                },
+            },
+        });
 
         console.log('[analyze-with-agents] Stream created, starting response...');
 
@@ -454,10 +480,14 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                                 clearInterval(keepAlive);
                                 return;
                             }
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                                type: 'heartbeat',
-                                timestamp: Date.now()
-                            })}\n\n`));
+                            controller.enqueue(
+                                encoder.encode(
+                                    `data: ${JSON.stringify({
+                                        type: 'heartbeat',
+                                        timestamp: Date.now(),
+                                    })}\n\n`
+                                )
+                            );
                         } catch (e) {
                             clearInterval(keepAlive);
                         }
@@ -467,12 +497,15 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                     const timeoutId = setTimeout(() => {
                         if (!completed) {
                             console.error('[analyze-with-agents] Execution Timeout');
-                            controller.enqueue(encoder.encode(
-                                `data: ${JSON.stringify({
-                                    type: 'error',
-                                    message: 'Tiempo de ejecución excedido (4 min). Intente con un PDF más pequeño.'
-                                })}\n\n`
-                            ));
+                            controller.enqueue(
+                                encoder.encode(
+                                    `data: ${JSON.stringify({
+                                        type: 'error',
+                                        message:
+                                            'Tiempo de ejecución excedido (4 min). Intente con un PDF más pequeño.',
+                                    })}\n\n`
+                                )
+                            );
                             // Close gently
                             controller.close();
                             completed = true;
@@ -490,7 +523,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                         const data = JSON.stringify({
                             type: event.type || 'agent_message',
                             content: event.content,
-                            timestamp: Date.now()
+                            timestamp: Date.now(),
                         });
 
                         controller.enqueue(encoder.encode(`data: ${data}\n\n`));
@@ -511,33 +544,36 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                         console.log(`[analyze-with-agents] Final output received (${eventCount} eventos procesados)`);
 
                         // Send complete event with final result
-                        controller.enqueue(encoder.encode(
-                            `data: ${JSON.stringify({
-                                type: 'complete',
-                                result: finalOutput,
-                                eventsProcessed: eventCount
-                            })}\n\n`
-                        ));
+                        controller.enqueue(
+                            encoder.encode(
+                                `data: ${JSON.stringify({
+                                    type: 'complete',
+                                    result: finalOutput,
+                                    eventsProcessed: eventCount,
+                                })}\n\n`
+                            )
+                        );
 
                         controller.close();
                         completed = true;
                     }
-
                 } catch (error) {
                     console.error('[Stream Error]:', error);
                     try {
-                        controller.enqueue(encoder.encode(
-                            `data: ${JSON.stringify({
-                                type: 'error',
-                                message: error.message || 'Unknown error'
-                            })}\n\n`
-                        ));
+                        controller.enqueue(
+                            encoder.encode(
+                                `data: ${JSON.stringify({
+                                    type: 'error',
+                                    message: error.message || 'Unknown error',
+                                })}\n\n`
+                            )
+                        );
                         controller.close(); // Don't error() to allow client to read the error message
                     } catch (e) {
                         // ignore if controller closed
                     }
                 }
-            }
+            },
         });
 
         // Helper function to cleanup OpenAI resources
@@ -565,27 +601,30 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                 const reader = readable.getReader();
 
                 function pump() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
+                    reader
+                        .read()
+                        .then(({ done, value }) => {
+                            if (done) {
+                                cleanupResources().finally(() => {
+                                    controller.close();
+                                });
+                                return;
+                            }
+                            controller.enqueue(value);
+                            pump();
+                        })
+                        .catch((err) => {
                             cleanupResources().finally(() => {
-                                controller.close();
+                                controller.error(err);
                             });
-                            return;
-                        }
-                        controller.enqueue(value);
-                        pump();
-                    }).catch((err) => {
-                        cleanupResources().finally(() => {
-                            controller.error(err);
                         });
-                    });
                 }
                 pump();
             },
             cancel(reason) {
                 console.log('[analyze-with-agents] Stream cancelado, limpiando recursos...', reason);
                 cleanupResources();
-            }
+            },
         });
 
         // 9. Return streaming response
@@ -594,35 +633,34 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                 ...getCorsHeaders(req),
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive'
-            }
+                Connection: 'keep-alive',
+            },
         });
-
     } catch (error) {
         console.error('[Error]:', error);
 
         // Clean up immediately if error occurs before stream
         if (typeof vectorStore !== 'undefined' || typeof fileIds !== 'undefined') {
-             try {
+            try {
                 if (vectorStore?.id) await openai.beta.vectorStores.del(vectorStore.id);
                 if (fileIds) {
                     for (const id of fileIds) {
                         if (id) await openai.files.del(id);
                     }
                 }
-             } catch (e) {
-                 console.error('[analyze-with-agents] Error al limpiar tras fallo inicial', e);
-             }
+            } catch (e) {
+                console.error('[analyze-with-agents] Error al limpiar tras fallo inicial', e);
+            }
         }
 
         return new Response(
             JSON.stringify({
                 error: error.message || 'Internal server error',
-                stack: error.stack
+                stack: error.stack,
             }),
             {
                 status: 500,
-                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
             }
         );
     }

@@ -25,23 +25,81 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: UI] [Área: Analysis] Integrar controles de feedback en KpiCards del Dashboard
-  - Objetivo: Extender la funcionalidad de feedback de extracción a los KpiCards principales del Dashboard para que los usuarios puedan validar el presupuesto, plazo y valor estimado.
-  - Alcance: Modificar `src/features/dashboard/components/widgets/KpiCards.tsx` para importar y renderizar el componente `FeedbackToggle` al lado de los valores de presupuesto y plazos. Adaptar el array estático de `kpis` con las rutas `fieldPath` necesarias.
-  - Criterios de aceptación: Las tarjetas de KPI (Presupuesto, Fecha, Duración, Valor) muestran botones para validar o rechazar el dato extraído. El click en estos botones no interfiere con otros enlaces o clicks. El diseño (layout) se mantiene coherente.
-  - Archivos probables: `src/features/dashboard/components/widgets/KpiCards.tsx`
-  - Dependencias: `src/features/dashboard/components/detail/FeedbackToggle.tsx`
-
+(Vacío — ver sección Deuda Técnica para próximas iteraciones)
 
 ## Deuda Técnica / Refactorización
 
-- (Vacío por el momento)
+- [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
+  - Objetivo: Incrementar cobertura de ~67% a 80% en statements/lines.
+  - Alcance: Añadir unit tests para componentes de UI, dashboard y servicios pendientes.
+  - Criterios de aceptación: `vitest --coverage` ≥80% statements, ≥70% branches.
+  - Archivos probables: `src/features/dashboard/__tests__/`, `src/services/__tests__/`
+  - Dependencias: Ninguna
 
 ## Ideas de Producto
 
-- (Vacío por el momento)
+- Implementar i18n multi-idioma (inglés)
+- Configurar Dependabot para actualizaciones automáticas de dependencias
+- Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
+- Visual regression testing con Playwright screenshots
 
 ## Done
+
+- [x] [Tipo: UI] [Área: Analysis] Refactorizar ChapterComponents en data-driven rendering
+  - Archivos creados: `src/features/dashboard/components/detail/chapter-config.ts`, `ChapterRenderer.tsx`
+  - ChapterComponents.tsx limpiado (265→80 líneas), ChapterComponentsPart2.tsx (261→50 líneas)
+
+- [x] [Tipo: UI] [Área: Analysis] Implementar estrategia de caching
+  - Archivos creados: `src/lib/cache.ts` (SimpleCache + CACHE_KEYS + TTL)
+  - Integrado en: `db.service.ts`, `template.service.ts` con invalidación por mutaciones
+  - Feature flag `enableCaching` activado por defecto
+
+- [x] [Tipo: Infra] [Área: Infra] Configurar Docker Compose para desarrollo local
+  - Archivos creados: `docker-compose.yml`, `Dockerfile`
+
+- [x] [Tipo: Backend] [Área: Analysis] Conectar feedback de extracción a base de datos
+  - Archivos creados: `supabase/migrations/20260323000000_extraction_feedback.sql`, `src/services/feedback.service.ts`
+  - FeedbackToggle actualizado para persistir en Supabase cuando hay `licitacionHash`
+
+- [x] [Tipo: Docs] [Área: Infra] Enriquecer BACKLOG.md y resolver decisiones abiertas SPEC.md
+  - Decisiones §6 cerradas: composición multi-doc y límites operativos
+
+- [x] [Tipo: Infra] [Área: Infra] Endurecer reglas de ESLint (no-explicit-any → error)
+  - Archivos modificados: `.eslintrc.cjs`, `src/features/dashboard/Dashboard.tsx`, 5 test files
+
+- [x] [Tipo: UI] [Área: Templates] Refactorizar TemplatesPage.tsx (417 → 80 líneas)
+  - Archivos creados: `src/features/templates/hooks/useTemplates.ts`, `src/features/templates/components/TemplateForm.tsx`, `TemplateList.tsx`, `TemplateFieldEditor.tsx`
+
+- [x] [Tipo: UI] [Área: Upload] Refactorizar AnalysisWizard.tsx (406 → 80 líneas)
+  - Archivos creados: `src/features/upload/hooks/useFileValidation.ts`, `src/features/upload/components/UploadStep.tsx`, `AnalyzingStep.tsx`, `StepIndicator.tsx`
+
+- [x] [Tipo: QA] [Área: Upload] Estabilizar E2E tests de multi-documento
+  - Archivos modificados: `e2e/multi-upload.spec.ts` — eliminado test.skip, mejorado auth mocking
+
+- [x] [Tipo: QA] [Área: Infra] Incrementar cobertura de tests (56% → 67% statements)
+  - Tests añadidos: useFileValidation, useTemplates, auth.store, licitacion.store, analysis.store (extendido), useKeyboardShortcut, Result, file-utils, llmFactory, logger, perfTracker
+  - Thresholds actualizados: 65/50/58/65 en vitest.config.ts
+
+- [x] [Tipo: UI] [Área: Analysis] Integrar controles de feedback en KpiCards del Dashboard
+  - Objetivo: Extender FeedbackToggle a los KpiCards principales (presupuesto, fecha, duración, valor estimado).
+  - Alcance: Importar FeedbackToggle en KpiCards.tsx, añadir fieldPath a cada KPI, renderizar en esquina superior derecha.
+  - Criterios de aceptación: Botones de validación visibles en cada KPI, sin interferir con layout.
+  - Archivos modificados: `src/features/dashboard/components/widgets/KpiCards.tsx`
+
+- [x] [Tipo: Backend] [Área: Infra] Habilitar verificación JWT en Edge Function analyze-with-agents
+  - Objetivo: Proteger endpoint público que no verificaba JWT.
+  - Alcance: Cambiar verify_jwt a true en config.toml, reemplazar parseo manual inseguro, quitar --no-verify-jwt del CI.
+  - Archivos modificados: `supabase/config.toml`, `supabase/functions/analyze-with-agents/index.ts`, `.github/workflows/ci-cd.yml`
+
+- [x] [Tipo: Infra] [Área: Infra] Implementar detección pre-commit de secretos + lint-staged
+  - Objetivo: Prevenir inclusión accidental de credenciales y garantizar calidad antes de commit.
+  - Alcance: Crear .husky/pre-commit con grep de patrones de secretos + lint-staged.
+  - Archivos creados/modificados: `.husky/pre-commit`, `package.json`
+
+- [x] [Tipo: Infra] [Área: Infra] Configurar Content Security Policy (CSP) y headers de seguridad
+  - Objetivo: Añadir CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy.
+  - Alcance: Configurar headers en vercel.json.
+  - Archivos modificados: `vercel.json`
 
 - [x] [Tipo: UI] [Área: Analysis] Feedback de extracción (Correcciones de usuario)
   - Objetivo: Permitir que el usuario marque si un campo extraído es incorrecto, para guardar estadísticas de precisión.

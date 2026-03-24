@@ -2,6 +2,8 @@ import { supabase as defaultClient } from '../config/supabase';
 import { ExtractionTemplate, TemplateField } from '../types';
 import { Result, ok, err } from '../lib/Result';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { appCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
+import { features } from '../config/features';
 
 export class TemplateService {
     private client: SupabaseClient;
@@ -12,9 +14,16 @@ export class TemplateService {
 
     async getTemplates(): Promise<Result<ExtractionTemplate[]>> {
         try {
-            const { data: { session } } = await this.client.auth.getSession();
+            if (features.enableCaching) {
+                const cached = appCache.get<ExtractionTemplate[]>(CACHE_KEYS.ALL_TEMPLATES);
+                if (cached) return ok(cached);
+            }
+
+            const {
+                data: { session },
+            } = await this.client.auth.getSession();
             if (!session) {
-                return err(new Error("Usuario no autenticado"));
+                return err(new Error('Usuario no autenticado'));
             }
 
             const { data, error } = await this.client
@@ -24,7 +33,11 @@ export class TemplateService {
 
             if (error) return err(new Error(error.message));
 
-            return ok(data as ExtractionTemplate[]);
+            const templates = data as ExtractionTemplate[];
+            if (features.enableCaching) {
+                appCache.set(CACHE_KEYS.ALL_TEMPLATES, templates, CACHE_TTL.TEMPLATES);
+            }
+            return ok(templates);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
         }
@@ -32,16 +45,14 @@ export class TemplateService {
 
     async getTemplate(id: string): Promise<Result<ExtractionTemplate>> {
         try {
-            const { data: { session } } = await this.client.auth.getSession();
+            const {
+                data: { session },
+            } = await this.client.auth.getSession();
             if (!session) {
-                return err(new Error("Usuario no autenticado"));
+                return err(new Error('Usuario no autenticado'));
             }
 
-            const { data, error } = await this.client
-                .from('extraction_templates')
-                .select('*')
-                .eq('id', id)
-                .single();
+            const { data, error } = await this.client.from('extraction_templates').select('*').eq('id', id).single();
 
             if (error) return err(new Error(error.message));
 
@@ -57,9 +68,11 @@ export class TemplateService {
         schema: TemplateField[]
     ): Promise<Result<ExtractionTemplate>> {
         try {
-            const { data: { session } } = await this.client.auth.getSession();
+            const {
+                data: { session },
+            } = await this.client.auth.getSession();
             if (!session) {
-                return err(new Error("Usuario no autenticado"));
+                return err(new Error('Usuario no autenticado'));
             }
 
             const newTemplate = {
@@ -77,6 +90,7 @@ export class TemplateService {
 
             if (error) return err(new Error(error.message));
 
+            this.invalidateCache();
             return ok(data as ExtractionTemplate);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
@@ -88,9 +102,11 @@ export class TemplateService {
         updates: { name?: string; description?: string; schema?: TemplateField[] }
     ): Promise<Result<ExtractionTemplate>> {
         try {
-            const { data: { session } } = await this.client.auth.getSession();
+            const {
+                data: { session },
+            } = await this.client.auth.getSession();
             if (!session) {
-                return err(new Error("Usuario no autenticado"));
+                return err(new Error('Usuario no autenticado'));
             }
 
             const { data, error } = await this.client
@@ -102,6 +118,7 @@ export class TemplateService {
 
             if (error) return err(new Error(error.message));
 
+            this.invalidateCache();
             return ok(data as ExtractionTemplate);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
@@ -110,22 +127,26 @@ export class TemplateService {
 
     async deleteTemplate(id: string): Promise<Result<void>> {
         try {
-            const { data: { session } } = await this.client.auth.getSession();
+            const {
+                data: { session },
+            } = await this.client.auth.getSession();
             if (!session) {
-                return err(new Error("Usuario no autenticado"));
+                return err(new Error('Usuario no autenticado'));
             }
 
-            const { error } = await this.client
-                .from('extraction_templates')
-                .delete()
-                .eq('id', id);
+            const { error } = await this.client.from('extraction_templates').delete().eq('id', id);
 
             if (error) return err(new Error(error.message));
 
+            this.invalidateCache();
             return ok(undefined);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
         }
+    }
+
+    private invalidateCache(): void {
+        appCache.invalidateByPrefix('tpl:');
     }
 }
 

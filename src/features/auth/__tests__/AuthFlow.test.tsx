@@ -13,7 +13,7 @@ vi.mock('../../../hooks/useLicitacionProcessor', () => ({
         processFile: vi.fn(),
         reset: vi.fn(),
         handleDataUpdate: vi.fn(),
-    })
+    }),
 }));
 
 // Mock child components that might cause issues
@@ -36,12 +36,13 @@ describe('Auth Validation Flow', () => {
             signInWithPassword: mockSignInWithPassword,
             signUp: mockSignUp,
             signOut: mockSignOut,
-            signInWithMagicLink: vi.fn().mockResolvedValue({ success: true })
+            signInWithMagicLink: vi.fn().mockResolvedValue({ success: true }),
         };
 
         // Mock the hook implementation
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        vi.mocked(AuthStore.useAuthStore).mockReturnValue(mockStore as unknown as any);
+        vi.mocked(AuthStore.useAuthStore).mockReturnValue(
+            mockStore as unknown as ReturnType<typeof AuthStore.useAuthStore>
+        );
 
         // Mock the static getState method which is now used in AuthModal
         AuthStore.useAuthStore.getState = vi.fn().mockReturnValue(mockStore);
@@ -69,7 +70,9 @@ describe('Auth Validation Flow', () => {
 
         await waitFor(async () => {
             fireEvent.click(loginButton);
-            expect(await screen.findByRole('heading', { name: 'Iniciar Sesión' }, { timeout: 3000 })).toBeInTheDocument();
+            expect(
+                await screen.findByRole('heading', { name: 'Iniciar Sesión' }, { timeout: 3000 })
+            ).toBeInTheDocument();
         });
 
         expect(screen.getByPlaceholderText(/••••••••/)).toBeInTheDocument(); // Password field check

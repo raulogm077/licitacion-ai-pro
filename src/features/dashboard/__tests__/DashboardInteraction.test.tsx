@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LicitacionData } from '../../../types';
 
 // Mock Lucide icons
-vi.mock("lucide-react", () => ({
+vi.mock('lucide-react', () => ({
     Menu: () => <span data-testid="icon-menu" />,
     X: () => <span data-testid="icon-x" />,
     Search: () => <span data-testid="icon-search" />,
@@ -46,7 +46,9 @@ vi.mock("lucide-react", () => ({
     Info: () => <span data-testid="icon-info" />,
     CheckCircle2: () => <span data-testid="icon-check2" />,
     Bell: () => <span data-testid="icon-bell" />,
-    ArrowRight: () => <span data-testid="icon-arrow" />
+    ArrowRight: () => <span data-testid="icon-arrow" />,
+    ThumbsUp: () => <span data-testid="icon-thumbs-up" />,
+    ThumbsDown: () => <span data-testid="icon-thumbs-down" />,
 }));
 
 describe('Dashboard Interaction', () => {
@@ -58,13 +60,13 @@ describe('Dashboard Interaction', () => {
             organoContratacion: 'Test Org',
             plazoEjecucionMeses: 6,
             cpv: ['12345678'],
-            moneda: 'EUR'
+            moneda: 'EUR',
         },
         criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
         requisitosTecnicos: { funcionales: [], normativa: [] },
         requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 1000 }, tecnica: [] },
         restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },
-        modeloServicio: { sla: [], equipoMinimo: [] }
+        modeloServicio: { sla: [], equipoMinimo: [] },
     };
 
     it('renders header and sidebar nav', () => {
@@ -83,7 +85,7 @@ describe('Dashboard Interaction', () => {
         expect(screen.getAllByText('Solvencia')[0]).toBeInTheDocument();
     });
 
-    // Note: Drawer interaction is hard to test if purely controlled by state without aria-expanded or similar, 
+    // Note: Drawer interaction is hard to test if purely controlled by state without aria-expanded or similar,
     // but we can check if the button to toggle it exists or if we can find the drawer content when "pinned" or "open".
     // Since we mocked Lucide icons, we can look for "icon-more" which opens the actions menu.
 

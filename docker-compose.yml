@@ -1,0 +1,50 @@
+version: "3.8"
+
+# Docker Compose para desarrollo local de Analista de Pliegos
+# Uso: docker compose up
+#
+# Prerequisitos:
+#   - Copia .env.example a .env y configura las variables necesarias
+#   - Para funciones Edge (análisis con IA), necesitas supabase CLI: npx supabase start
+#
+# Este compose levanta:
+#   1. PostgreSQL (base de datos local)
+#   2. Frontend (Vite dev server con hot-reload)
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-http://localhost:54321}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-your-anon-key-here}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
