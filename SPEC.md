@@ -19,35 +19,33 @@ Estado funcional confirmado a fecha de esta especificación:
 
 ### 3.1. Objetivo
 
-Rendimiento y DX (Iteración C del AUDIT.md).
+Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento y observabilidad).
 
 ### 3.2. Entregables esperados
 
-1. ChapterComponents data-driven rendering.
-2. Caching strategy y performance optimizations.
-3. Docker Compose para desarrollo local.
-4. Conectar feedback de extracción real a base de datos de auditoría.
+1. Subir cobertura de tests al 80% statements / 70% branches.
+2. Implementar i18n multi-idioma (inglés).
+3. Configurar Dependabot para actualizaciones automáticas.
 
 ### 3.3. Criterios de aceptación globales
 
-- ChapterRenderer genérico < 100 líneas, config-driven.
-- Métricas de rendimiento documentadas (Lighthouse, bundle size).
-- Docker Compose funcional con `docker compose up`.
+- `vitest --coverage` ≥80% statements, ≥70% branches.
+- La app puede cambiar entre ES y EN.
+- Dependabot crea PRs semanales.
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
-(Por definir al inicio de la iteración C)
+(Por definir al inicio de la iteración D)
 
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
-Rendimiento y DX: ChapterComponents data-driven, caching, Docker Compose, documentación.
-En paralelo: conectar feedback de extracción real a base de datos de auditoría.
+Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanzados, optimización de bundle.
 
-## 6. Decisiones abiertas
+## 6. Decisiones cerradas
 
-- estrategia de composición del contexto cuando entren múltiples documentos (AI Prompting/Vector Store vs Assistants v2 limitations)
-- límites operativos para número y tamaño de archivos multi-documento (si el cliente pide más de 5 en el futuro)
+- **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. La Guía de lectura se inyecta como archivo markdown local vía `Deno.readTextFile`. Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
+- **Límites multi-documento:** Máximo 5 archivos, 30MB total. Validación en frontend (`useFileValidation.ts`) y backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
 
 ## 7. Riesgos y mitigaciones
 
@@ -86,6 +84,17 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 - Integrar FeedbackToggle en KpiCards del Dashboard
 - Limpieza de código muerto (config `analyze-licitacion` eliminada)
 - Actualización de documentación (BACKLOG, SPEC, ARCHITECTURE, AUDIT)
+
+### Iteración completada: Rendimiento y DX (Iteración C - Auditoría)
+- ChapterComponents refactorizados: data-driven rendering con `chapter-config.ts` + `ChapterRenderer.tsx` (~90 líneas)
+- ChapterComponents.tsx limpiado de 265→80 líneas (solo ChapterSummary), ChapterComponentsPart2.tsx de 261→50 líneas (solo TechnicalJsonModal)
+- Caching implementado: `SimpleCache` en `src/lib/cache.ts`, integrado en `db.service.ts` y `template.service.ts` con invalidación por mutaciones
+- Feature flag `enableCaching` activado por defecto
+- Docker Compose configurado: `docker-compose.yml` + `Dockerfile` para desarrollo local (PostgreSQL + Vite dev)
+- Feedback de extracción conectado a base de datos: tabla `extraction_feedback` con RLS, `FeedbackService`, `FeedbackToggle` actualizado
+- Decisiones abiertas de SPEC.md §6 resueltas (composición multi-doc, límites)
+- Tests: 251 tests en 48 suites (cache, ChapterRenderer, feedback.service)
+- Documentación actualizada: AUDIT.md, BACKLOG.md, SPEC.md
 
 ### Iteración completada: Calidad de Código y Testing (Iteración B - Auditoría)
 - ESLint `no-explicit-any` escalado de "warn" a "error", 11 violaciones corregidas

@@ -3,6 +3,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { LicitacionData, LicitacionContent, SearchFilters, DbLicitacion } from '../types';
 import { qualityService } from './quality.service';
 import { Result, ok, err } from '../lib/Result';
+import { appCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
+import { features } from '../config/features';
 
 export class DBService {
     private client: SupabaseClient;
@@ -17,16 +19,18 @@ export class DBService {
             fileName: item.file_name as string,
             timestamp: new Date(item.updated_at as string).getTime(),
             data: item.data as LicitacionData,
-            metadata: (item.data as LicitacionData).metadata || { tags: [] }
+            metadata: (item.data as LicitacionData).metadata || { tags: [] },
         };
     }
 
     async saveLicitacion(hash: string, fileName: string, content: LicitacionContent): Promise<Result<void>> {
         try {
             // 0. Explicit Auth Check
-            const { data: { session } } = await this.client.auth.getSession();
+            const {
+                data: { session },
+            } = await this.client.auth.getSession();
             if (!session) {
-                return err(new Error("Persistencia Bloqueada: No hay sesión activa."));
+                return err(new Error('Persistencia Bloqueada: No hay sesión activa.'));
             }
 
             const now = new Date().toISOString();
@@ -53,8 +57,8 @@ export class DBService {
                     result: content,
                     workflow: {
                         steps: [],
-                        status: 'succeeded'
-                    }
+                        status: 'succeeded',
+                    },
                 };
 
                 envelope.versions = [...(envelope.versions || []), newVersion];
@@ -68,26 +72,27 @@ export class DBService {
                     steps: envelope.workflow?.steps || [],
                     updated_at: now,
                     evidences: envelope.workflow?.evidences || [],
-                    quality: qualityReport
+                    quality: qualityReport,
                 };
 
                 // Sync legacy root fields
                 envelope = { ...envelope, ...content };
-
             } else {
                 // Create new envelope
                 envelope = {
                     ...content, // Legacy sync
                     result: content,
-                    versions: [{
-                        version: 1,
-                        status: 'succeeded',
-                        created_at: now,
-                        model: 'ai-analysis',
-                        schema_version: 'v1',
-                        prompt_version: 'v1',
-                        result: content
-                    }],
+                    versions: [
+                        {
+                            version: 1,
+                            status: 'succeeded',
+                            created_at: now,
+                            model: 'ai-analysis',
+                            schema_version: 'v1',
+                            prompt_version: 'v1',
+                            result: content,
+                        },
+                    ],
                     workflow: {
                         current_version: 1,
                         status: 'succeeded',
@@ -95,30 +100,32 @@ export class DBService {
                         updated_at: now,
                         steps: [],
                         evidences: [],
-                        quality: qualityReport
+                        quality: qualityReport,
                     },
                     metadata: {
                         tags: [],
-                    }
+                    },
                 };
             }
 
-            const { error } = await this.client
-                .from('licitaciones')
-                .upsert({
+            const { error } = await this.client.from('licitaciones').upsert(
+                {
                     hash,
                     file_name: fileName,
                     data: envelope,
-                    updated_at: now
-                }, { onConflict: 'user_id, hash' });
+                    updated_at: now,
+                },
+                { onConflict: 'user_id, hash' }
+            );
 
             if (error) {
                 if (error.code === '42501') {
-                    return err(new Error("Persistencia Bloqueada: Falta iniciar sesión o configurar permisos (RLS)."));
+                    return err(new Error('Persistencia Bloqueada: Falta iniciar sesión o configurar permisos (RLS).'));
                 }
                 return err(new Error(error.message));
             }
 
+            this.invalidateCache(hash);
             return ok(undefined);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
@@ -128,9 +135,11 @@ export class DBService {
     async updateLicitacion(hash: string, data: LicitacionData): Promise<Result<void>> {
         try {
             // Explicit Auth Check for security consistency
-            const { data: { session } } = await this.client.auth.getSession();
+            const {
+                data: { session },
+            } = await this.client.auth.getSession();
             if (!session) {
-                return err(new Error("Actualización Bloqueada: No hay sesión activa."));
+                return err(new Error('Actualización Bloqueada: No hay sesión activa.'));
             }
 
             const now = new Date().toISOString();
@@ -139,11 +148,12 @@ export class DBService {
                 .from('licitaciones')
                 .update({
                     data: data,
-                    updated_at: now
+                    updated_at: now,
                 })
                 .eq('hash', hash);
 
             if (error) return err(new Error(error.message));
+            this.invalidateCache(hash);
             return ok(undefined);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
@@ -152,15 +162,20 @@ export class DBService {
 
     async getLicitacion(hash: string): Promise<Result<DbLicitacion>> {
         try {
-            const { data, error } = await this.client
-                .from('licitaciones')
-                .select('*')
-                .eq('hash', hash)
-                .single();
+            if (features.enableCaching) {
+                const cached = appCache.get<DbLicitacion>(CACHE_KEYS.LICITACION(hash));
+                if (cached) return ok(cached);
+            }
+
+            const { data, error } = await this.client.from('licitaciones').select('*').eq('hash', hash).single();
 
             if (error) return err(new Error(error.message));
 
-            return ok(this.mapToDbLicitacion(data));
+            const result = this.mapToDbLicitacion(data);
+            if (features.enableCaching) {
+                appCache.set(CACHE_KEYS.LICITACION(hash), result, CACHE_TTL.SINGLE_ITEM);
+            }
+            return ok(result);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
         }
@@ -168,6 +183,11 @@ export class DBService {
 
     async getAllLicitaciones(): Promise<Result<DbLicitacion[]>> {
         try {
+            if (features.enableCaching) {
+                const cached = appCache.get<DbLicitacion[]>(CACHE_KEYS.ALL_LICITACIONES);
+                if (cached) return ok(cached);
+            }
+
             const { data, error } = await this.client
                 .from('licitaciones')
                 .select('*')
@@ -175,8 +195,11 @@ export class DBService {
 
             if (error) return err(new Error(error.message));
 
-            const results: DbLicitacion[] = (data || []).map(item => this.mapToDbLicitacion(item));
+            const results: DbLicitacion[] = (data || []).map((item) => this.mapToDbLicitacion(item));
 
+            if (features.enableCaching) {
+                appCache.set(CACHE_KEYS.ALL_LICITACIONES, results, CACHE_TTL.LICITACIONES);
+            }
             return ok(results);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
@@ -185,16 +208,19 @@ export class DBService {
 
     async deleteLicitacion(hash: string): Promise<Result<void>> {
         try {
-            const { error } = await this.client
-                .from('licitaciones')
-                .delete()
-                .eq('hash', hash);
+            const { error } = await this.client.from('licitaciones').delete().eq('hash', hash);
 
             if (error) return err(new Error(error.message));
+            this.invalidateCache(hash);
             return ok(undefined);
         } catch (error) {
             return err(error instanceof Error ? error : new Error(String(error)));
         }
+    }
+
+    private invalidateCache(hash?: string): void {
+        appCache.invalidate(CACHE_KEYS.ALL_LICITACIONES);
+        if (hash) appCache.invalidate(CACHE_KEYS.LICITACION(hash));
     }
 
     async advancedSearch(filters: SearchFilters): Promise<Result<DbLicitacion[]>> {
@@ -214,7 +240,7 @@ export class DBService {
             }
 
             if (filters.cliente) {
-                // Use JSONB text search or simple ilike if possible. 
+                // Use JSONB text search or simple ilike if possible.
                 // data->metadata->>cliente stores the string.
                 query = query.ilike('data->metadata->>cliente', `%${filters.cliente}%`);
             }
@@ -239,11 +265,11 @@ export class DBService {
             const { data, error } = await query;
             if (error) return err(new Error(error.message));
 
-            let results: DbLicitacion[] = (data || []).map(item => this.mapToDbLicitacion(item));
+            let results: DbLicitacion[] = (data || []).map((item) => this.mapToDbLicitacion(item));
 
             if (filters.tags && filters.tags.length > 0) {
-                results = results.filter(item =>
-                    item.data.metadata?.tags?.some(tag => filters.tags!.includes(tag))
+                results = results.filter((item) =>
+                    item.data.metadata?.tags?.some((tag) => filters.tags!.includes(tag))
                 );
             }
 
@@ -262,7 +288,7 @@ export class DBService {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'licitaciones',
-                    filter: `hash=eq.${hash}`
+                    filter: `hash=eq.${hash}`,
                 },
                 (payload) => {
                     if (payload.new && payload.new.data) {

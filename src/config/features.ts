@@ -33,11 +33,11 @@ const isDev = () => getEnv() === 'development';
 
 /**
  * Feature flags configuration
- * 
+ *
  * To modify a flag:
  * 1. Update the value here for environment-based changes
  * 2. Or set VITE_FEATURE_* environment variable in Vercel
- * 
+ *
  * Priority: ENV VAR > hardcoded value
  */
 export const features: FeatureFlags = {
@@ -58,9 +58,9 @@ export const features: FeatureFlags = {
     enableSentry: getEnvFlag('VITE_FEATURE_SENTRY', isProd() || isStaging()),
     enableAnalytics: getEnvFlag('VITE_FEATURE_ANALYTICS', true),
 
-    // Performance - implement when dataset grows
+    // Performance
     enableServerSideFiltering: getEnvFlag('VITE_FEATURE_SERVER_FILTER', false),
-    enableCaching: getEnvFlag('VITE_FEATURE_CACHING', false),
+    enableCaching: getEnvFlag('VITE_FEATURE_CACHING', true),
 
     // Development helpers
     enableDevTools: getEnvFlag('VITE_FEATURE_DEV_TOOLS', isDev()),
@@ -96,9 +96,7 @@ export function isEnabled(flag: keyof FeatureFlags): boolean {
 /**
  * Get feature value (for numbers/strings)
  */
-export function getFeature<K extends keyof FeatureFlags>(
-    flag: K
-): FeatureFlags[K] {
+export function getFeature<K extends keyof FeatureFlags>(flag: K): FeatureFlags[K] {
     return features[flag];
 }
 
@@ -109,9 +107,7 @@ export function logFeatureFlags(): void {
     if (isDev()) {
         console.group('🎭 Feature Flags');
         Object.entries(features).forEach(([key, value]) => {
-            const emoji = typeof value === 'boolean'
-                ? (value ? '✅' : '❌')
-                : '⚙️';
+            const emoji = typeof value === 'boolean' ? (value ? '✅' : '❌') : '⚙️';
             console.log(`${emoji} ${key}:`, value);
         });
         console.groupEnd();

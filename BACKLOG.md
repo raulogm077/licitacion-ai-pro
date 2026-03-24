@@ -29,15 +29,8 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Deuda Técnica / Refactorización
 
-- [ ] [Tipo: UI] [Área: Analysis] Refactorizar ChapterComponents en data-driven rendering
-  - Objetivo: Unificar ChapterComponents.tsx + ChapterComponentsPart2.tsx en sistema configurable.
-  - Alcance: Crear mapa de configuración de capítulos y componente genérico `ChapterRenderer`.
-  - Criterios de aceptación: Un archivo de config define capítulos, renderizador < 100 líneas.
-  - Archivos probables: `src/features/dashboard/components/detail/ChapterComponents*.tsx`
-  - Dependencias: Ninguna
-
 - [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
-  - Objetivo: Incrementar cobertura de 67% a 80% en statements/lines.
+  - Objetivo: Incrementar cobertura de ~67% a 80% en statements/lines.
   - Alcance: Añadir unit tests para componentes de UI, dashboard y servicios pendientes.
   - Criterios de aceptación: `vitest --coverage` ≥80% statements, ≥70% branches.
   - Archivos probables: `src/features/dashboard/__tests__/`, `src/services/__tests__/`
@@ -45,12 +38,31 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ideas de Producto
 
-- Conectar feedback de extracción real a base de datos de auditoría de agentes
 - Implementar i18n multi-idioma (inglés)
-- Configurar Docker Compose para desarrollo local
 - Configurar Dependabot para actualizaciones automáticas de dependencias
+- Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
+- Visual regression testing con Playwright screenshots
 
 ## Done
+
+- [x] [Tipo: UI] [Área: Analysis] Refactorizar ChapterComponents en data-driven rendering
+  - Archivos creados: `src/features/dashboard/components/detail/chapter-config.ts`, `ChapterRenderer.tsx`
+  - ChapterComponents.tsx limpiado (265→80 líneas), ChapterComponentsPart2.tsx (261→50 líneas)
+
+- [x] [Tipo: UI] [Área: Analysis] Implementar estrategia de caching
+  - Archivos creados: `src/lib/cache.ts` (SimpleCache + CACHE_KEYS + TTL)
+  - Integrado en: `db.service.ts`, `template.service.ts` con invalidación por mutaciones
+  - Feature flag `enableCaching` activado por defecto
+
+- [x] [Tipo: Infra] [Área: Infra] Configurar Docker Compose para desarrollo local
+  - Archivos creados: `docker-compose.yml`, `Dockerfile`
+
+- [x] [Tipo: Backend] [Área: Analysis] Conectar feedback de extracción a base de datos
+  - Archivos creados: `supabase/migrations/20260323000000_extraction_feedback.sql`, `src/services/feedback.service.ts`
+  - FeedbackToggle actualizado para persistir en Supabase cuando hay `licitacionHash`
+
+- [x] [Tipo: Docs] [Área: Infra] Enriquecer BACKLOG.md y resolver decisiones abiertas SPEC.md
+  - Decisiones §6 cerradas: composición multi-doc y límites operativos
 
 - [x] [Tipo: Infra] [Área: Infra] Endurecer reglas de ESLint (no-explicit-any → error)
   - Archivos modificados: `.eslintrc.cjs`, `src/features/dashboard/Dashboard.tsx`, 5 test files

@@ -3,13 +3,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FeedbackToggle } from '../FeedbackToggle';
 import { logger } from '../../../../../services/logger';
 
-// Mock logger
 vi.mock('../../../../../services/logger', () => ({
     logger: {
         info: vi.fn(),
         error: vi.fn(),
         warn: vi.fn(),
-    }
+    },
+}));
+
+vi.mock('../../../../../services/feedback.service', () => ({
+    feedbackService: {
+        saveFeedback: vi.fn().mockResolvedValue({ ok: true, value: {} }),
+        removeFeedback: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    },
 }));
 
 describe('FeedbackToggle Component', () => {
@@ -29,20 +35,14 @@ describe('FeedbackToggle Component', () => {
 
         const upBtn = screen.getByRole('button', { name: 'Marcar como correcto' });
 
-        // Initial state
         expect(upBtn.className).toContain('text-slate-400');
 
-        // Click UP
         fireEvent.click(upBtn);
 
-        // Active state
         expect(upBtn.className).toContain('text-green-700');
         expect(logger.info).toHaveBeenCalledWith('Feedback for test.field: Correcto. Value: Test Value');
 
-        // Click UP again to untoggle
         fireEvent.click(upBtn);
-
-        // Back to idle
         expect(upBtn.className).toContain('text-slate-400');
     });
 
@@ -52,17 +52,26 @@ describe('FeedbackToggle Component', () => {
         const downBtn = screen.getByRole('button', { name: 'Marcar como incorrecto' });
         const upBtn = screen.getByRole('button', { name: 'Marcar como correcto' });
 
-        // Click DOWN
         fireEvent.click(downBtn);
 
-        // Active state
         expect(downBtn.className).toContain('text-red-700');
         expect(logger.info).toHaveBeenCalledWith('Feedback for test.field: Incorrecto. Value: Test Value');
 
-        // Click UP (should switch from DOWN to UP)
         fireEvent.click(upBtn);
         expect(upBtn.className).toContain('text-green-700');
         expect(downBtn.className).not.toContain('text-red-700');
         expect(logger.info).toHaveBeenCalledWith('Feedback for test.field: Correcto. Value: Test Value');
+    });
+
+    it('does not call DB when licitacionHash is not provided', async () => {
+        const fbModule = await import('../../../../../services/feedback.service');
+        const saveSpy = vi.mocked(fbModule.feedbackService.saveFeedback);
+        saveSpy.mockClear();
+
+        render(<FeedbackToggle fieldPath="test.field" value="Test Value" />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Marcar como correcto' }));
+
+        expect(saveSpy).not.toHaveBeenCalled();
     });
 });

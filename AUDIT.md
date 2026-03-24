@@ -228,7 +228,7 @@ GLOBAL                       ███████░░░  7.1/10
 
 ### PRIORIDAD MEDIA — Mejoran rendimiento y DX
 
-- [ ] **T-08** `[Tipo: UI] [Área: Analysis]` Refactorizar ChapterComponents en componentes data-driven
+- [x] **T-08** ✅ `[Tipo: UI] [Área: Analysis]` Refactorizar ChapterComponents en componentes data-driven
   - Objetivo: Unificar ChapterComponents.tsx (265 líneas) y ChapterComponentsPart2.tsx (261 líneas) en un sistema renderizable por configuración.
   - Alcance: Crear un mapa de configuración de capítulos y un componente genérico `ChapterRenderer`.
   - Criterios de aceptación: Un solo archivo de configuración define los capítulos, renderizador genérico < 100 líneas.
@@ -242,7 +242,7 @@ GLOBAL                       ███████░░░  7.1/10
   - Archivos probables: `vercel.json` o nuevo `middleware.ts`
   - Dependencias: Ninguna
 
-- [ ] **T-10** `[Tipo: UI] [Área: Analysis]` Activar y configurar estrategia de caching
+- [x] **T-10** ✅ `[Tipo: UI] [Área: Analysis]` Activar y configurar estrategia de caching
   - Objetivo: Habilitar el feature flag `enableCaching` con implementación real.
   - Alcance: Implementar cache en memoria (o localStorage) para llamadas frecuentes a `getAllLicitaciones()` y `getTemplates()` con invalidación.
   - Criterios de aceptación: Navegación entre páginas no re-fetcha datos innecesariamente, cache se invalida tras mutaciones.
@@ -256,7 +256,7 @@ GLOBAL                       ███████░░░  7.1/10
   - Archivos probables: `e2e/multi-upload.spec.ts`, `e2e/test-utils.ts`
   - Dependencias: Ninguna
 
-- [ ] **T-12** `[Tipo: Infra] [Área: Infra]` Configurar Docker Compose para desarrollo local
+- [x] **T-12** ✅ `[Tipo: Infra] [Área: Infra]` Configurar Docker Compose para desarrollo local
   - Objetivo: Permitir levantar el stack completo (frontend + Supabase local) con un solo comando.
   - Alcance: Crear `docker-compose.yml` con servicios de Supabase local y frontend dev.
   - Criterios de aceptación: `docker compose up` levanta la app funcional en localhost.
@@ -265,14 +265,14 @@ GLOBAL                       ███████░░░  7.1/10
 
 ### BAJA PRIORIDAD — Nice-to-have, mejoran DX a largo plazo
 
-- [ ] **T-13** `[Tipo: Docs] [Área: Infra]` Enriquecer BACKLOG.md con deuda técnica detectada
+- [x] **T-13** ✅ `[Tipo: Docs] [Área: Infra]` Enriquecer BACKLOG.md con deuda técnica detectada
   - Objetivo: Poblar las secciones vacías "Deuda Técnica" e "Ideas de Producto" del backlog.
   - Alcance: Transcribir las tareas T-03 a T-12 como deuda técnica en formato BACKLOG.md.
   - Criterios de aceptación: BACKLOG.md tiene secciones de deuda técnica e ideas no vacías.
   - Archivos probables: `BACKLOG.md`
   - Dependencias: Ninguna
 
-- [ ] **T-14** `[Tipo: Docs] [Área: Infra]` Resolver decisiones abiertas en SPEC.md
+- [x] **T-14** ✅ `[Tipo: Docs] [Área: Infra]` Resolver decisiones abiertas en SPEC.md
   - Objetivo: Cerrar las decisiones abiertas documentadas (estrategia multi-doc context, límites de archivos).
   - Alcance: Investigar y documentar decisiones sobre composición de contexto multi-documento y límites operativos.
   - Criterios de aceptación: Sección "Decisiones abiertas" de SPEC.md se vacía o se mueve a "Decisiones cerradas".

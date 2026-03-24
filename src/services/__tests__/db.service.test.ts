@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DBService } from '../db.service';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { appCache } from '../../lib/cache';
 
 // Mock Supabase Client
 const mockSupabase = {
@@ -16,6 +17,7 @@ describe('DBService', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        appCache.clear();
         service = new DBService(mockSupabase);
     });
 
