@@ -47,7 +47,9 @@ vi.mock("lucide-react", () => ({
     Info: () => <span data-testid="icon-info" />,
     CheckCircle2: () => <span data-testid="icon-check2" />,
     Bell: () => <span data-testid="icon-bell" />,
-    ArrowRight: () => <span data-testid="icon-arrow" />
+    ArrowRight: () => <span data-testid="icon-arrow" />,
+    ThumbsUp: () => <span data-testid="icon-thumbsup" />,
+    ThumbsDown: () => <span data-testid="icon-thumbsdown" />
 }));
 
 const mockData: LicitacionData = {

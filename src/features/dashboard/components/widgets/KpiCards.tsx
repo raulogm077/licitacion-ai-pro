@@ -1,5 +1,6 @@
 import { Euro, CalendarClock, Timer, TrendingUp } from "lucide-react";
 import { PliegoVM } from "../../model/pliego-vm";
+import { FeedbackToggle } from "../detail/FeedbackToggle";
 
 // Helper type and component
 interface KpiCardProps {
@@ -23,6 +24,7 @@ export function KpiCards({ vm }: KpiCardProps) {
     const kpis = [
         {
             id: "presupuesto",
+            fieldPath: "datosGenerales.presupuesto",
             label: "Presupuesto Base de Licitación",
             value: budget,
             sub: "IVA no incluido",
@@ -35,6 +37,7 @@ export function KpiCards({ vm }: KpiCardProps) {
         },
         {
             id: "fecha",
+            fieldPath: "datosGenerales.fechaLimitePresentacion",
             label: "Fecha Límite de Presentación",
             value: dateLimit,
             sub: "Verificar en portal oficial",
@@ -48,6 +51,7 @@ export function KpiCards({ vm }: KpiCardProps) {
         },
         {
             id: "duracion",
+            fieldPath: "datosGenerales.duracionContrato",
             label: "Duración del Contrato",
             value: duration,
             sub: "Prorrogable",
@@ -60,6 +64,7 @@ export function KpiCards({ vm }: KpiCardProps) {
         },
         {
             id: "valor",
+            fieldPath: "datosGenerales.valorEstimado",
             label: "Valor Estimado Total",
             value: formattedEstimated,
             sub: "Aproximación con prórrogas",
@@ -94,12 +99,20 @@ export function KpiCards({ vm }: KpiCardProps) {
                             <Icon className={clx("w-4 h-4", kpi.iconColor)} />
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="text-xs text-slate-500 font-medium leading-tight mb-1 text-pretty">
-                                {kpi.label}
-                            </p>
-                            <p className={clx("text-lg font-bold leading-tight truncate", kpi.color)}>
-                                {kpi.value}
-                            </p>
+                            <div className="flex justify-between items-start gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs text-slate-500 font-medium leading-tight mb-1 text-pretty">
+                                        {kpi.label}
+                                    </p>
+                                    <p className={clx("text-lg font-bold leading-tight truncate", kpi.color)}>
+                                        {kpi.value}
+                                    </p>
+                                </div>
+                                <FeedbackToggle
+                                    fieldPath={kpi.fieldPath}
+                                    value={String(kpi.value)}
+                                />
+                            </div>
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                 <span className="text-[11px] text-slate-500">
                                     {kpi.sub}
