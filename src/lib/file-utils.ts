@@ -1,21 +1,14 @@
-
-
 export async function generateBufferHash(buffer: ArrayBuffer): Promise<string> {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new Uint8Array(buffer));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
 }
 
 export function validateBufferMagicBytes(buffer: ArrayBuffer): boolean {
     const bytes = new Uint8Array(buffer.slice(0, 4));
     // PDF Magic Bytes: %PDF (0x25 0x50 0x44 0x46)
-    return (
-        bytes[0] === 0x25 &&
-        bytes[1] === 0x50 &&
-        bytes[2] === 0x44 &&
-        bytes[3] === 0x46
-    );
+    return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
 }
 
 export function bufferToBase64(buffer: ArrayBuffer): Promise<string> {
