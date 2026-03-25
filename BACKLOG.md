@@ -27,6 +27,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 (Vacío — ver sección Deuda Técnica para próximas iteraciones)
 
+- [ ] [Tipo: QA] [Área: Analysis] Implementar tests unitarios para KpiCards y FeedbackToggle
+  - Objetivo: Asegurar que los componentes de feedback de extracción introducidos en el dashboard principal funcionen correctamente y no presenten regresiones.
+  - Alcance: Crear archivos de test `KpiCards.test.tsx` y `FeedbackToggle.test.tsx` verificando la renderización y la interacción del usuario.
+  - Criterios de aceptación:
+    - Los tests comprueban que los `FeedbackToggle` se renderizan para los datos clave.
+    - Los tests simulan clicks (up/down) y verifican que el estado visual cambie.
+    - Los tests de `KpiCards` verifican que se muestren los KPIs correctos a partir del `PliegoVM`.
+  - Archivos probables: `src/features/dashboard/components/widgets/__tests__/KpiCards.test.tsx`, `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`
+  - Dependencias: Ninguna.
+
+
 ## Deuda Técnica / Refactorización
 
 - [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
