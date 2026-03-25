@@ -180,7 +180,21 @@ jobs:
         run: |
           # Remove .git to bypass Vercel's "Git author must have access" check
           rm -rf .git
-          vercel deploy --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --yes
+          # Retry up to 4 times with exponential backoff for transient network errors
+          for attempt in 1 2 3 4; do
+            echo "Attempt $attempt..."
+            if vercel deploy --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --yes; then
+              echo "Deploy succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ $attempt -lt 4 ]; then
+              sleep_time=$((2 ** attempt))
+              echo "Deploy failed, retrying in ${sleep_time}s..."
+              sleep $sleep_time
+            fi
+          done
+          echo "Deploy failed after 4 attempts"
+          exit 1
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
