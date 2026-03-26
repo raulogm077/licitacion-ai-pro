@@ -23,18 +23,25 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
+- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios para KpiCards
+  - Objetivo: Asegurar que los componentes principales del dashboard funcionen y no presenten regresiones.
+  - Alcance: Crear el archivo de test `KpiCards.test.tsx`.
+  - Criterios de aceptación:
+    - Los tests de `KpiCards` verifican que se muestren los KPIs correctos a partir del `PliegoVM`.
+  - Archivos probables: `src/features/dashboard/components/widgets/__tests__/KpiCards.test.tsx`
+  - Dependencias: Ninguna.
+
 ## To Do (Iteración Actual)
 
 (Vacío — ver sección Deuda Técnica para próximas iteraciones)
 
-- [ ] [Tipo: QA] [Área: Analysis] Implementar tests unitarios para KpiCards y FeedbackToggle
-  - Objetivo: Asegurar que los componentes de feedback de extracción introducidos en el dashboard principal funcionen correctamente y no presenten regresiones.
-  - Alcance: Crear archivos de test `KpiCards.test.tsx` y `FeedbackToggle.test.tsx` verificando la renderización y la interacción del usuario.
+- [ ] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
+  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
+  - Alcance: Completar/revisar el archivo de test `FeedbackToggle.test.tsx`.
   - Criterios de aceptación:
-    - Los tests comprueban que los `FeedbackToggle` se renderizan para los datos clave.
+    - Los tests comprueban que los `FeedbackToggle` se renderizan.
     - Los tests simulan clicks (up/down) y verifican que el estado visual cambie.
-    - Los tests de `KpiCards` verifican que se muestren los KPIs correctos a partir del `PliegoVM`.
-  - Archivos probables: `src/features/dashboard/components/widgets/__tests__/KpiCards.test.tsx`, `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`
+  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`
   - Dependencias: Ninguna.
 
 
