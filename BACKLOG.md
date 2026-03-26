@@ -23,14 +23,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios para KpiCards
-  - Objetivo: Asegurar que los componentes principales del dashboard funcionen y no presenten regresiones.
-  - Alcance: Crear el archivo de test `KpiCards.test.tsx`.
-  - Criterios de aceptación:
-    - Los tests de `KpiCards` verifican que se muestren los KPIs correctos a partir del `PliegoVM`.
-  - Archivos probables: `src/features/dashboard/components/widgets/__tests__/KpiCards.test.tsx`
-  - Dependencias: Ninguna.
-
 ## To Do (Iteración Actual)
 
 (Vacío — ver sección Deuda Técnica para próximas iteraciones)
@@ -43,8 +35,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Los tests simulan clicks (up/down) y verifican que el estado visual cambie.
   - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`
   - Dependencias: Ninguna.
-
-
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
   - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
@@ -82,6 +72,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Visual regression testing con Playwright screenshots
 
 ## Done
+
+- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios para KpiCards
+  - Objetivo: Asegurar que los componentes principales del dashboard funcionen y no presenten regresiones.
+  - Alcance: Crear el archivo de test `KpiCards.test.tsx`.
+  - Criterios de aceptación:
+    - Los tests de `KpiCards` verifican que se muestren los KPIs correctos a partir del `PliegoVM`.
+  - Archivos probables: `src/features/dashboard/components/widgets/__tests__/KpiCards.test.tsx`
+  - Dependencias: Ninguna.
 
 - [x] [Tipo: UI] [Área: Analysis] Refactorizar ChapterComponents en data-driven rendering
   - Archivos creados: `src/features/dashboard/components/detail/chapter-config.ts`, `ChapterRenderer.tsx`
