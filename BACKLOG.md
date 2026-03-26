@@ -38,6 +38,26 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Dependencias: Ninguna.
 
 
+
+- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
+  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
+  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
+  - Criterios de aceptación:
+    - El archivo `.github/dependabot.yml` existe y es válido.
+    - Dependabot ejecuta chequeos semanales.
+  - Archivos probables: `.github/dependabot.yml`
+  - Dependencias: Ninguna.
+
+- [ ] [Tipo: UI] [Área: Infra] Configurar infraestructura base para i18n (ES/EN)
+  - Objetivo: Preparar la aplicación para soportar múltiples idiomas, empezando por español e inglés.
+  - Alcance: Instalar e inicializar librería de internacionalización (ej. `react-i18next`), crear archivos de traducción base (`es.json`, `en.json`) y configurar el proveedor en la raíz de la app.
+  - Criterios de aceptación:
+    - La librería de i18n está configurada y lista para usarse en componentes.
+    - Existe un mecanismo (ej. hook) para cambiar de idioma.
+    - El idioma por defecto es español.
+  - Archivos probables: `src/main.tsx`, `src/App.tsx`, `package.json`
+  - Dependencias: Ninguna.
+
 ## Deuda Técnica / Refactorización
 
 - [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%

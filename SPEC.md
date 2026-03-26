@@ -35,7 +35,12 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
-(Por definir al inicio de la iteración D)
+**Iteración D (Mantenimiento y Observabilidad)**
+
+- **Testing (QA):** Incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard (`KpiCards`, `FeedbackToggle`), hasta alcanzar el 80% global.
+- **i18n (UI/Infra):** Integrar `react-i18next` u otra librería estándar. Inicializar diccionarios básicos (`es`, `en`) e implementar un selector de idioma en la interfaz. Extraer progresivamente textos hardcodeados.
+- **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
+
 
 ## 5. Próxima iteración
 
