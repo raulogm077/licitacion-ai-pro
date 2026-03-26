@@ -217,3 +217,9 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 ### Auditoría PM: Tests de UI para Feedback
 - **Contexto:** Se implementó exitosamente el control de feedback de extracción en los KpiCards del Dashboard.
 - **Acción PM:** Se agregó al Backlog (## To Do) una tarea explícita de QA para incrementar la cobertura unitaria de los componentes `KpiCards.tsx` y `FeedbackToggle.tsx`. Esto mitiga riesgos de regresión antes de añadir mayores funcionalidades interactivas.
+
+
+### QA: Tests Unitarios para KpiCards
+- **Implementación**: Se creó el archivo `KpiCards.test.tsx` garantizando la cobertura del componente `KpiCards.tsx`.
+- **Detalles**: Se verificó la renderización de KPIs, casos base (valores por defecto) y la correcta integración de `FeedbackToggle` pasándole los `fieldPath` requeridos según la estructura de `PliegoVM`.
+- **MCP/Skills**: No se requirió el uso de MCP (Supabase/Vercel) ya que la tarea fue exclusivamente unit testing de frontend puro.
