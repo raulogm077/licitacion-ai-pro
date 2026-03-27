@@ -228,3 +228,8 @@ Durante el ciclo de pruebas E2E y despliegues, se identific√≥ un error 401 en `a
 - **Implementaci√≥n**: Se cre√≥ el archivo `KpiCards.test.tsx` garantizando la cobertura del componente `KpiCards.tsx`.
 - **Detalles**: Se verific√≥ la renderizaci√≥n de KPIs, casos base (valores por defecto) y la correcta integraci√≥n de `FeedbackToggle` pas√°ndole los `fieldPath` requeridos seg√∫n la estructura de `PliegoVM`.
 - **MCP/Skills**: No se requiri√≥ el uso de MCP (Supabase/Vercel) ya que la tarea fue exclusivamente unit testing de frontend puro.
+ECHO est† activado.
+### [2026-03-27] Hallazgo y Correcci¢n de Error 401 (JWT)  
+- **Problema:** Kong API Gateway en Supabase bloqueaba (401 Invalid JWT) peticiones v†lidas al endpoint analyze-with-agents.  
+- **Soluci¢n:** Se deshabilit¢ la validaci¢n estricta de Kong (verify_jwt = false) y se implement¢ validaci¢n robusta y manual del JWT usando el SDK JS de Supabase dentro de index.ts.  
+- **Beneficio:** Evita fallos de CORS Options y permite manejo granular de errores de autenticaci¢n manteniendo la estricta seguridad. 

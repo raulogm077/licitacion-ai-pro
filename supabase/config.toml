@@ -382,4 +382,4 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.analyze-with-agents]
-verify_jwt = true
+verify_jwt = false
