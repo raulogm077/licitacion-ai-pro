@@ -23,11 +23,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [x] [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
-  - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
-  - Implementación: Se desactivó `verify_jwt = false` en `config.toml` y explícitamente en el despliegue CI. Se implementó verificación robusta desde cero dentro de `index.ts` usando `@supabase/supabase-js`, garantizando seguridad sin afectar el paso preflight de Kong.
-  - Criterios: Peticiones legítimas son aceptadas, tokens inválidos o expirados son rechazados (401).
-
 ## To Do (Iteración Actual)
 
 - [ ] 🐛 BUG: [Tipo: AI|QA] [Área: Analysis] Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
@@ -112,6 +107,11 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Visual regression testing con Playwright screenshots
 
 ## Done
+
+- [x] [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
+  - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
+  - Implementación: Se desactivó `verify_jwt = false` en `config.toml` y explícitamente en el despliegue CI. Se implementó verificación robusta desde cero dentro de `index.ts` usando `@supabase/supabase-js`, garantizando seguridad sin afectar el paso preflight de Kong.
+  - Criterios: Peticiones legítimas son aceptadas, tokens inválidos o expirados son rechazados (401).
 
 - [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios para KpiCards
   - Objetivo: Asegurar que los componentes principales del dashboard funcionen y no presenten regresiones.
