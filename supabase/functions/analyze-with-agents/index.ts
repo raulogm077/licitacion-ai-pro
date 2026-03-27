@@ -154,18 +154,22 @@ HEURÍSTICAS DE BÚSQUEDA (file_search)
 - Penalizaciones/exclusión: "penalidad", "incumplimiento", "resolución", "causa de exclusión", "sobre"`;
 
 // Main handler
-serve(async (req) => {
+serve(async (req: Request) => {
     // Handle CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: getCorsHeaders(req) });
     }
 
+    let vectorStoreId: string | undefined;
+    const uploadedFileIds: string[] = [];
+
     try {
         console.log('[analyze-with-agents] Request received');
 
-        // 0. Authenticate user via Supabase JWT (verify_jwt = true ensures valid token)
+        // 0. Authenticate user via Supabase JS Client (securely verifies token against Auth service)
         const authHeader = req.headers.get('authorization') || '';
         const token = authHeader.replace('Bearer ', '');
+        
         if (!token) {
             return new Response(JSON.stringify({ error: 'Token de autenticación requerido' }), {
                 status: 401,
@@ -173,18 +177,26 @@ serve(async (req) => {
             });
         }
 
-        // Extract verified user ID from JWT claims (signature already validated by Supabase runtime)
-        let userId: string;
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            userId = payload.sub;
-            if (!userId) throw new Error('Missing sub claim');
-        } catch {
-            return new Response(JSON.stringify({ error: 'Token inválido' }), {
+        // Import Supabase SDK dynamically
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.39.3');
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+
+        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+            global: { headers: { Authorization: `Bearer ${token}` } }
+        });
+
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+
+        if (authError || !user) {
+            console.error('[analyze-with-agents] Auth error:', authError);
+            return new Response(JSON.stringify({ error: 'Token inválido o expirado' }), {
                 status: 401,
                 headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
             });
         }
+
+        const userId = user.id;
 
         const rateCheck = checkRateLimit(userId);
         if (!rateCheck.allowed) {
@@ -232,7 +244,6 @@ serve(async (req) => {
         }
 
         const extractBase64Data = (str: string) => (str.includes(',') ? str.split(',')[1] : str);
-        const fileIds: string[] = [];
 
         // 2. Procesar documento principal (retrocompatibilidad)
         if (pdfBase64) {
@@ -243,7 +254,7 @@ serve(async (req) => {
                 purpose: 'assistants',
             });
             console.log(`[analyze-with-agents] PDF principal uploaded: ${pdfUpload.id}`);
-            fileIds.push(pdfUpload.id);
+            uploadedFileIds.push(pdfUpload.id);
         }
 
         // 3. Procesar Guía Interna de Lectura (Inyección local)
@@ -259,7 +270,7 @@ serve(async (req) => {
                 purpose: 'assistants',
             });
             console.log(`[analyze-with-agents] Guía interna uploaded: ${guiaUpload.id}`);
-            fileIds.push(guiaUpload.id);
+            uploadedFileIds.push(guiaUpload.id);
         } catch (e) {
             console.error('[analyze-with-agents] Error procesando Guía interna local:', e);
             // Non-blocking error, but highly discouraged for the agent to proceed without the guide
@@ -288,7 +299,7 @@ serve(async (req) => {
                         });
                         console.log(`[analyze-with-agents] Archivo adicional uploaded: ${upload.id}`);
                         if (upload.id) {
-                            fileIds.push(upload.id);
+                            uploadedFileIds.push(upload.id);
                         }
                     } catch (e) {
                         console.error(`[analyze-with-agents] Error procesando archivo adicional ${extraFile.name}:`, e);
@@ -301,9 +312,10 @@ serve(async (req) => {
         console.log('[analyze-with-agents] Creating Vector Store...');
         const vectorStore = await openai.beta.vectorStores.create({
             name: `Análisis ${filename || 'documento'} - ${new Date().toISOString()}`,
-            file_ids: fileIds,
+            file_ids: uploadedFileIds,
         });
-        console.log(`[analyze-with-agents] Vector Store created: ${vectorStore.id}`);
+        vectorStoreId = vectorStore.id;
+        console.log(`[analyze-with-agents] Vector Store created: ${vectorStoreId}`);
 
         // Wait for indexing to complete
         // IMPROVED: Polling with exponential backoff
@@ -315,13 +327,14 @@ serve(async (req) => {
         const timeoutMs = 60000; // 60s max total
 
         while (totalTime < timeoutMs) {
-            const vs = await openai.beta.vectorStores.retrieve(vectorStore.id);
+            const vs = await openai.beta.vectorStores.retrieve(vectorStoreId);
             if (vs.status === 'completed') {
                 vectorStoreReady = true;
                 console.log(`[analyze-with-agents] Vector Store indexed! Total time: ~${totalTime}ms`);
                 break;
             } else if (vs.status === 'failed') {
-                throw new Error(`Vector Store indexing failed: ${JSON.stringify(vs.last_active_at)}`);
+                const lastActive = (vs as any).last_active_at || 'unknown';
+                throw new Error(`Vector Store indexing failed: ${JSON.stringify(lastActive)}`);
             }
             // Wait with exponential backoff
             await new Promise((resolve) => setTimeout(resolve, delay));
@@ -458,7 +471,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             // Attach vector store for file_search
             toolResources: {
                 file_search: {
-                    vector_store_ids: [vectorStore.id],
+                    vector_store_ids: [vectorStoreId],
                 },
             },
         });
@@ -557,7 +570,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                         controller.close();
                         completed = true;
                     }
-                } catch (error) {
+                } catch (error: any) {
                     console.error('[Stream Error]:', error);
                     try {
                         controller.enqueue(
@@ -569,7 +582,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                             )
                         );
                         controller.close(); // Don't error() to allow client to read the error message
-                    } catch (e) {
+                    } catch (e: any) {
                         // ignore if controller closed
                     }
                 }
@@ -580,11 +593,11 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
         const cleanupResources = async () => {
             console.log('[analyze-with-agents] Iniciando limpieza de recursos OpenAI...');
             try {
-                if (vectorStore?.id) {
-                    await openai.beta.vectorStores.del(vectorStore.id);
-                    console.log(`[analyze-with-agents] Vector Store eliminado: ${vectorStore.id}`);
+                if (vectorStoreId) {
+                    await openai.beta.vectorStores.del(vectorStoreId);
+                    console.log(`[analyze-with-agents] Vector Store eliminado: ${vectorStoreId}`);
                 }
-                for (const fileId of fileIds) {
+                for (const fileId of uploadedFileIds) {
                     if (fileId) {
                         await openai.files.del(fileId);
                         console.log(`[analyze-with-agents] Archivo eliminado: ${fileId}`);
@@ -636,19 +649,17 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
                 Connection: 'keep-alive',
             },
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Error]:', error);
 
         // Clean up immediately if error occurs before stream
-        if (typeof vectorStore !== 'undefined' || typeof fileIds !== 'undefined') {
+        if (vectorStoreId || uploadedFileIds.length > 0) {
             try {
-                if (vectorStore?.id) await openai.beta.vectorStores.del(vectorStore.id);
-                if (fileIds) {
-                    for (const id of fileIds) {
-                        if (id) await openai.files.del(id);
-                    }
+                if (vectorStoreId) await openai.beta.vectorStores.del(vectorStoreId);
+                for (const id of uploadedFileIds) {
+                    if (id) await openai.files.del(id);
                 }
-            } catch (e) {
+            } catch (e: any) {
                 console.error('[analyze-with-agents] Error al limpiar tras fallo inicial', e);
             }
         }
@@ -660,7 +671,7 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             }),
             {
                 status: 500,
-                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+                headers: { ...getCorsHeaders(req as Request), 'Content-Type': 'application/json' },
             }
         );
     }
