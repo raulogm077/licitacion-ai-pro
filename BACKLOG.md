@@ -25,7 +25,42 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-(Vacío — ver sección Deuda Técnica para próximas iteraciones)
+- [ ] 🐛 BUG: [Tipo: AI|QA] [Área: Analysis] Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
+  - Objetivo: Resolver el error JWT al llamar a la Edge Function desde el frontend. La funcionalidad principal (motor de análisis PDF) está rota en producción real.
+  - Alcance: La Edge Function requiere un JWT verificado, pero las peticiones fallan con `Invalid JWT`. Posible desalineación de permisos al requerir validación de e-mail o sesión vencida.
+  - Criterios de aceptación: Un usuario real en `licitacion-ai-pro.vercel.app` puede subir un documento y recibir el streaming SSE sin errores 401.
+  - Archivos probables: `src/services/job.service.ts`, configuración de Auth en Supabase.
+  - Evidencia (Logs E2E real en navegador):
+    > [ERROR] [JobService] Error en análisis: Error: Invalid JWT
+    > Failed to load resource: the server responded with a status of 401 ()
+
+- [ ] 🐛 BUG: [Tipo: Infra] [Área: Infra] Fallo de despliegue principal por Drift de Migraciones
+  - Objetivo: Arreglar el pipeline CI/CD en `main` que falla en el paso `supabase db push`.
+  - Alcance: El runner no detecta una migración que existe en el host remoto.
+  - Criterios de aceptación: GitHub Actions pipeline runs successfully en main.
+  - Archivos probables: `.github/workflows/ci-cd.yml`, `supabase/migrations/`
+  - Evidencia:
+    > Remote migration versions not found in local migrations directory.
+    > Make sure your local git repo is up-to-date. If the error persists, try repairing the migration history table:
+    > supabase migration repair --status reverted 20260318192404
+
+- [ ] 🐛 BUG: [Tipo: Backend] [Área: Infra] Fallo de Autenticación de Postgres en CI/CD
+  - Objetivo: Reparar los errores de credenciales en los entornos de Actions conectados al Pooler de Supabase.
+  - Alcance: Ocurre un `SQLSTATE 28P01` cuando se ejecuta `supabase db push`.
+  - Criterios de aceptación: No hay errores FATAL auth en los tests de CI.
+  - Archivos probables: Variables de entorno SSH/Supabase en GitHub Secrets.
+  - Evidencia:
+    > failed to connect to postgres: failed to connect to `host=aws-1-eu-west-1.pooler.supabase.com user=postgres.*** database=postgres`: failed SASL auth (FATAL: password authentication failed for user "postgres" (SQLSTATE 28P01))
+
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Fallo en test unitario `AnalyticsDashboard.test.tsx`
+  - Objetivo: Fijar el suite de Vitest que actualmente está en rojo.
+  - Alcance: El componente aparentemente no renderiza "Analytics Dashboard" a tiempo.
+  - Criterios de aceptación: `vitest` completa con 0 fallos.
+  - Archivos probables: `src/features/dashboard/__tests__/AnalyticsDashboard.test.tsx`
+  - Evidencia:
+    > Test Files 1 failed | 48 passed (49)
+    > Tests 1 failed | 253 passed (254)
+    > ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
 
 - [ ] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
   - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
