@@ -74,4 +74,34 @@ describe('FeedbackToggle Component', () => {
 
         expect(saveSpy).not.toHaveBeenCalled();
     });
+
+    it('calls saveFeedback when a thumb is clicked and licitacionHash is provided', async () => {
+        const fbModule = await import('../../../../../services/feedback.service');
+        const saveSpy = vi.mocked(fbModule.feedbackService.saveFeedback);
+        saveSpy.mockClear();
+
+        render(<FeedbackToggle fieldPath="test.field" value="Test Value" licitacionHash="hash123" />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Marcar como correcto' }));
+
+        expect(saveSpy).toHaveBeenCalledWith('hash123', 'test.field', 'Test Value', 'up');
+    });
+
+    it('calls removeFeedback when feedback is untoggled to idle state', async () => {
+        const fbModule = await import('../../../../../services/feedback.service');
+        const removeSpy = vi.mocked(fbModule.feedbackService.removeFeedback);
+        removeSpy.mockClear();
+
+        render(<FeedbackToggle fieldPath="test.field" value="Test Value" licitacionHash="hash123" />);
+
+        const upBtn = screen.getByRole('button', { name: 'Marcar como correcto' });
+        
+        // Click to toggle "up"
+        fireEvent.click(upBtn);
+        // Click again to return to "idle"
+        fireEvent.click(upBtn);
+
+        expect(removeSpy).toHaveBeenCalledWith('hash123', 'test.field');
+    });
 });
+

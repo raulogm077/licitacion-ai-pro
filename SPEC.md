@@ -233,3 +233,9 @@ ECHO est† activado.
 - **Problema:** Kong API Gateway en Supabase bloqueaba (401 Invalid JWT) peticiones v†lidas al endpoint analyze-with-agents.  
 - **Soluci¢n:** Se deshabilit¢ la validaci¢n estricta de Kong (verify_jwt = false) y se implement¢ validaci¢n robusta y manual del JWT usando el SDK JS de Supabase dentro de index.ts.  
 - **Beneficio:** Evita fallos de CORS Options y permite manejo granular de errores de autenticaci¢n manteniendo la estricta seguridad. 
+
+### [2026-03-27] Hallazgo T√©cnico: Bloqueo Global de la Suite de Tests (Vitest)
+- **Problema:** Tras intentar ejecutar `npm test` para validar `FeedbackToggle.test.tsx`, se detect√≥ un fallo cr√≠tico a nivel global: las 49 suites fallaron en la fase de inicializaci√≥n (`TypeError: Cannot read properties of undefined (reading 'config')`).
+- **An√°lisis:** El error no es atribuible a los tests recientemente escritos, ni a mocks de aplicaci√≥n. Se produce internamente en la resoluci√≥n ESM de `vite/vitest` al evaluar cualquier m√≥dulo de `node_modules` (como `react` o `zod`). Esto sugiere un estado corrupto del package-lock en combinaci√≥n con Node.js 24 y Vitest v4.0.15 usando el environment `jsdom` o `node`.
+- **Acci√≥n:** Se han escrito los tests de validaci√≥n interactiva para `FeedbackToggle` verificando expl√≠citamente el uso de `feedbackService` y se ha comprobado v√≠a `type-check`. Sin embargo, la suite completa es inoperativa localmente.
+- **Next Steps (DevOps/QA):** Se requiere investigar la instalaci√≥n global y el lockfile de dependencias. Se recomienda hacer un `pnpm install` limpio o purgar `.vite` / cach√© de desarrollo para restablecer el entorno Vitest a un estado funcional.
