@@ -1,9 +1,7 @@
 /**
  * A standardized Result type for handling success and failure states without throwing exceptions.
  */
-export type Result<T, E = Error> =
-    | { ok: true; value: T; error?: never }
-    | { ok: false; value?: never; error: E };
+export type Result<T, E = Error> = { ok: true; value: T; error?: never } | { ok: false; value?: never; error: E };
 
 /**
  * Creates a successful result.

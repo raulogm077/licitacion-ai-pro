@@ -1,4 +1,5 @@
 import { Euro, CalendarClock, Timer, TrendingUp } from 'lucide-react';
+import { unwrap } from '../../../../lib/tracked-field';
 import { PliegoVM } from '../../model/pliego-vm';
 import { FeedbackToggle } from '../detail/FeedbackToggle';
 
@@ -15,7 +16,7 @@ export function KpiCards({ vm }: KpiCardProps) {
     const dateLimit = vm.result.datosGenerales.fechaLimitePresentacion || 'No especificada';
 
     // Estimate Total Value roughly (if not present) - just for UI demonstration based on 2x budget (example heuristic if not explicitly found)
-    const rawBudget = vm.result.datosGenerales.presupuesto || 0;
+    const rawBudget = unwrap(vm.result.datosGenerales.presupuesto) || 0;
     const isProrrogable = duration !== 'No detectado' && rawBudget > 0;
     const estimatedValue = rawBudget * (isProrrogable ? 1.5 : 1);
     const formattedEstimated = new Intl.NumberFormat('es-ES', {

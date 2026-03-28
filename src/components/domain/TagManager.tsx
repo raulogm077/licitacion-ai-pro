@@ -17,9 +17,8 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
 
     useEffect(() => {
         if (inputValue.trim()) {
-            const filtered = suggestions.filter(s =>
-                s.toLowerCase().includes(inputValue.toLowerCase()) &&
-                !tags.includes(s)
+            const filtered = suggestions.filter(
+                (s) => s.toLowerCase().includes(inputValue.toLowerCase()) && !tags.includes(s)
             );
             setFilteredSuggestions(filtered);
             setShowSuggestions(filtered.length > 0);
@@ -38,7 +37,7 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
     };
 
     const removeTag = (tagToRemove: string) => {
-        onChange(tags.filter(t => t !== tagToRemove));
+        onChange(tags.filter((t) => t !== tagToRemove));
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -105,4 +104,3 @@ export function TagManager({ tags, onChange, suggestions = DEFAULT_SUGGESTIONS }
 }
 
 // End of component
-

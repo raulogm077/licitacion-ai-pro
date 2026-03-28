@@ -43,15 +43,9 @@ describe('Analysis Store', () => {
             error: null,
             persistenceWarning: null,
             abortController: null,
-            selectedProvider: 'openai',
             selectedTemplateId: null,
-            currentJobId: null,
+            currentPhase: null,
         });
-    });
-
-    it('should persist provider selection (TC-UI-01)', () => {
-        useAnalysisStore.getState().setProvider('gemini');
-        expect(useAnalysisStore.getState().selectedProvider).toBe('gemini');
     });
 
     it('should update state immediately on cancellation (TC-UI-02)', () => {
@@ -112,7 +106,6 @@ describe('Analysis Store', () => {
     it('should not abort if no controller on cancel', () => {
         useAnalysisStore.setState({ abortController: null, status: 'ANALYZING' });
 
-        // Should not throw
         useAnalysisStore.getState().cancelAnalysis();
         expect(useAnalysisStore.getState().status).toBe('ANALYZING'); // unchanged since no controller
     });
@@ -126,7 +119,6 @@ describe('Analysis Store', () => {
         const { processFile } = await import('../../lib/file-utils');
         vi.mocked(processFile).mockResolvedValue({ hash: 'h1', base64: 'b64', isValidPdf: true });
 
-        // Create a large file (over MAX_PDF_SIZE_BYTES)
         const largeFile = new File([new ArrayBuffer(100)], 'large.pdf', { type: 'application/pdf' });
         Object.defineProperty(largeFile, 'size', { value: 200 * 1024 * 1024 }); // 200MB
 
@@ -169,7 +161,6 @@ describe('Analysis Store', () => {
         const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
         await useAnalysisStore.getState().analyzeFiles([file]);
 
-        // AbortError should set IDLE, not ERROR
         expect(useAnalysisStore.getState().status).toBe('IDLE');
         expect(useAnalysisStore.getState().error).toBeNull();
     });
@@ -194,11 +185,5 @@ describe('Analysis Store', () => {
 
         expect(useAnalysisStore.getState().status).toBe('ERROR');
         expect(useAnalysisStore.getState().error).toContain('no respondió');
-    });
-
-    it('should set provider and persist to localStorage', () => {
-        useAnalysisStore.getState().setProvider('gemini');
-        expect(useAnalysisStore.getState().selectedProvider).toBe('gemini');
-        expect(localStorage.setItem).toHaveBeenCalledWith('selectedProvider', 'gemini');
     });
 });

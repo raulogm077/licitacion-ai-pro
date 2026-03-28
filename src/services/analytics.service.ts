@@ -41,7 +41,12 @@ export class AnalyticsService {
         // ⚡ Bolt Optimization: Single O(n) traversal replacing multiple array methods
         for (const item of items) {
             // Presupuestos & Importes
-            presupuestoTotal += item.data.datosGenerales.presupuesto;
+            const rawPresupuesto = item.data.datosGenerales.presupuesto;
+            const presupuestoValue =
+                typeof rawPresupuesto === 'object' && rawPresupuesto !== null && 'value' in rawPresupuesto
+                    ? (rawPresupuesto as { value: number }).value
+                    : (rawPresupuesto as number);
+            presupuestoTotal += presupuestoValue;
             importeAdjudicadoTotal += item.data.metadata?.importeAdjudicado || 0;
 
             // Criterios
@@ -67,7 +72,7 @@ export class AnalyticsService {
                 const existing = clienteMap.get(cliente) || { count: 0, total: 0 };
                 clienteMap.set(cliente, {
                     count: existing.count + 1,
-                    total: existing.total + item.data.datosGenerales.presupuesto,
+                    total: existing.total + presupuestoValue,
                 });
             }
 
@@ -82,9 +87,10 @@ export class AnalyticsService {
         const presupuestoPromedio = presupuestoTotal / totalLicitaciones;
 
         // Tiempo promedio (estimado desde primera a última licitación)
-        const tiempoAnalisisPromedio = totalLicitaciones > 1 && maxTimestamp >= minTimestamp
-            ? (maxTimestamp - minTimestamp) / totalLicitaciones
-            : 0;
+        const tiempoAnalisisPromedio =
+            totalLicitaciones > 1 && maxTimestamp >= minTimestamp
+                ? (maxTimestamp - minTimestamp) / totalLicitaciones
+                : 0;
 
         const topClientes = Array.from(clienteMap.entries())
             .map(([cliente, stats]) => ({ cliente, ...stats }))
@@ -98,7 +104,7 @@ export class AnalyticsService {
 
         const promedioCriterios = {
             subjetivos: totalSubjetivos / totalLicitaciones,
-            objetivos: totalObjetivos / totalLicitaciones
+            objetivos: totalObjetivos / totalLicitaciones,
         };
 
         return {
@@ -118,7 +124,7 @@ export class AnalyticsService {
     static formatCurrency(amount: number, currency = 'EUR'): string {
         return new Intl.NumberFormat('es-ES', {
             style: 'currency',
-            currency
+            currency,
         }).format(amount);
     }
 

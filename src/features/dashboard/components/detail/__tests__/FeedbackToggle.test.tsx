@@ -95,7 +95,7 @@ describe('FeedbackToggle Component', () => {
         render(<FeedbackToggle fieldPath="test.field" value="Test Value" licitacionHash="hash123" />);
 
         const upBtn = screen.getByRole('button', { name: 'Marcar como correcto' });
-        
+
         // Click to toggle "up"
         fireEvent.click(upBtn);
         // Click again to return to "idle"
@@ -104,4 +104,3 @@ describe('FeedbackToggle Component', () => {
         expect(removeSpy).toHaveBeenCalledWith('hash123', 'test.field');
     });
 });
-

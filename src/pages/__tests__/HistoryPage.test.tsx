@@ -4,21 +4,21 @@ import { HistoryPage } from '../HistoryPage';
 import { MemoryRouter } from 'react-router-dom';
 
 const { mockGetAll } = vi.hoisted(() => ({
-    mockGetAll: vi.fn().mockResolvedValue({ ok: true, value: [] })
+    mockGetAll: vi.fn().mockResolvedValue({ ok: true, value: [] }),
 }));
 
 vi.mock('../../config/service-registry', () => ({
     services: {
         db: {
-            getAllLicitaciones: mockGetAll
-        }
-    }
+            getAllLicitaciones: mockGetAll,
+        },
+    },
 }));
 
 // We must mock the lazy import because it's asynchronous
 vi.mock('../../features/history/HistoryView', () => {
     return {
-        HistoryView: () => <div data-testid="mock-history-view">Mock History View</div>
+        HistoryView: () => <div data-testid="mock-history-view">Mock History View</div>,
     };
 });
 

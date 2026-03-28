@@ -15,7 +15,7 @@ interface LicitacionStore {
 
     // Actions
     updateData: (newData: LicitacionData) => Promise<boolean>;
-    loadLicitacion: (data: LicitacionData, hash?: string) => void;
+    loadLicitacion: (data: LicitacionData, hash?: string, workflow?: unknown) => void;
     reset: () => void;
 }
 
@@ -48,7 +48,7 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
                 set({
                     data: previousData,
                     isSaving: false,
-                    saveError: `Error guardando cambios: ${updateResult.error.message}`
+                    saveError: `Error guardando cambios: ${updateResult.error.message}`,
                 });
                 return false;
             }
@@ -56,20 +56,19 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
             // Success: Just clear saving flag
             set({ isSaving: false });
             return true;
-
         } catch (error) {
             logger.error('Unexpected error updating data:', error);
             // 3. Rollback on Exception
             set({
                 data: previousData,
                 isSaving: false,
-                saveError: 'Error inesperado al guardar.'
+                saveError: 'Error inesperado al guardar.',
             });
             return false;
         }
     },
 
-    loadLicitacion: (inputData: LicitacionData, hash?: string) => {
+    loadLicitacion: (inputData: LicitacionData, hash?: string, workflow?: unknown) => {
         const { activeChannel } = get();
         if (activeChannel) activeChannel.unsubscribe();
 
@@ -80,26 +79,30 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
         // If it doesn't have 'result' but has 'datosGenerales', it's likely just Content
         if (!inputData.result && 'datosGenerales' in inputData) {
             const now = new Date().toISOString();
+            const workflowData = workflow as LicitacionData['workflow'] | undefined;
             data = {
                 ...inputData, // Includes sections for legacy compat
                 result: inputData, // Canonical result
-                versions: [{
-                    version: 1,
-                    status: 'succeeded',
-                    created_at: now,
-                    model: 'ai-analysis',
-                    schema_version: 'v1',
-                    prompt_version: 'v1',
-                    result: inputData
-                }],
-                workflow: {
+                versions: [
+                    {
+                        version: 1,
+                        status: 'succeeded',
+                        created_at: now,
+                        model: 'ai-analysis',
+                        schema_version: 'v1',
+                        prompt_version: 'v1',
+                        result: inputData,
+                    },
+                ],
+                workflow: workflowData || {
                     current_version: 1,
                     status: 'succeeded',
                     steps: [],
                     evidences: [],
-                    updated_at: now
+                    phases: {},
+                    updated_at: now,
                 },
-                metadata: inputData.metadata || { tags: [] }
+                metadata: inputData.metadata || { tags: [] },
             };
         }
 
@@ -117,7 +120,7 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
             data,
             hash,
             saveError: null,
-            activeChannel: newChannel
+            activeChannel: newChannel,
         });
     },
 
@@ -125,5 +128,5 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
         const { activeChannel } = get();
         if (activeChannel) activeChannel.unsubscribe();
         set({ data: null, hash: undefined, isSaving: false, saveError: null, activeChannel: null });
-    }
+    },
 }));

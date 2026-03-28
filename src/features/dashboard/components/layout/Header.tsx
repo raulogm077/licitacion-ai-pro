@@ -1,6 +1,7 @@
-import { Download, CheckCircle2, ChevronRight, FileText } from "lucide-react";
-import { Button } from "../../../../components/ui/Button";
-import { PliegoVM } from "../../model/pliego-vm";
+import { Download, CheckCircle2, ChevronRight, FileText } from 'lucide-react';
+import { unwrap } from '../../../../lib/tracked-field';
+import { Button } from '../../../../components/ui/Button';
+import { PliegoVM } from '../../model/pliego-vm';
 
 interface HeaderProps {
     vm: PliegoVM;
@@ -10,21 +11,17 @@ export function Header({ vm }: HeaderProps) {
     return (
         <header
             className="flex items-center justify-between px-6 py-4 bg-white border-b border-border flex-shrink-0 z-10 sticky top-0"
-            style={{ boxShadow: "0 1px 3px rgba(0,28,61,0.06)" }}
+            style={{ boxShadow: '0 1px 3px rgba(0,28,61,0.06)' }}
         >
             {/* Breadcrumb + Title */}
             <div className="flex flex-col gap-1 min-w-0 flex-1 pr-4">
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 select-none">
-                    <span className="hover:text-slate-900 cursor-pointer transition-colors">
-                        Licitaciones
-                    </span>
+                    <span className="hover:text-slate-900 cursor-pointer transition-colors">Licitaciones</span>
                     <ChevronRight className="w-3 h-3" />
-                    <span className="hover:text-slate-900 cursor-pointer transition-colors">
-                        Análisis Reciente
-                    </span>
+                    <span className="hover:text-slate-900 cursor-pointer transition-colors">Análisis Reciente</span>
                     <ChevronRight className="w-3 h-3" />
                     <span className="text-slate-900 font-medium truncate">
-                        {vm.result.datosGenerales.organoContratacion || 'Pliego Actual'}
+                        {unwrap(vm.result.datosGenerales.organoContratacion) || 'Pliego Actual'}
                     </span>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">

@@ -13,22 +13,25 @@ describe('AnalyticsService', () => {
             data: {
                 datosGenerales: { presupuesto: 1000 * base },
                 restriccionesYRiesgos: {
-                    riesgos: base % 2 === 0 ? [{ descripcion: 'r', impacto: 'ALTO' as const, probabilidad: 'ALTA' as const }] : [],
+                    riesgos:
+                        base % 2 === 0
+                            ? [{ descripcion: 'r', impacto: 'ALTO' as const, probabilidad: 'ALTA' as const }]
+                            : [],
                     killCriteria: [],
-                    penalizaciones: []
+                    penalizaciones: [],
                 },
                 metadata: {
                     cliente: 'Client ' + (base % 2),
                     tags: ['tag' + (base % 3)],
                     importeAdjudicado: 500 * base,
-                    estado: 'PENDIENTE'
+                    estado: 'PENDIENTE',
                 },
                 // Add minimum required fields for LicitacionData if strict, or cast to unknown first
                 requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [] },
                 criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
                 requisitosTecnicos: { funcionales: [], normativa: [] },
-                modeloServicio: { sla: [], equipoMinimo: [] }
-            } as unknown as LicitacionData
+                modeloServicio: { sla: [], equipoMinimo: [] },
+            } as unknown as LicitacionData,
         });
 
         it('returns zeros for empty input', () => {

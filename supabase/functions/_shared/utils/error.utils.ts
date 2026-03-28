@@ -1,4 +1,3 @@
-
 export function mapOpenAIError(error: { code?: string; message?: string } | Error | string | unknown): string {
     // If it's a "Run" error style object
     if (error?.code && error?.message) {
@@ -24,5 +23,5 @@ export function mapOpenAIError(error: { code?: string; message?: string } | Erro
     // String fallback
     if (typeof error === 'string') return error;
 
-    return "Error desconocido en el procesamiento de IA";
+    return 'Error desconocido en el procesamiento de IA';
 }

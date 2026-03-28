@@ -2,32 +2,40 @@ import {
     Note as ZodNote,
     LicitacionMetadata as ZodMetadata,
     LicitacionData as ZodData,
-    LicitacionContent as ZodContent, // Import new type
+    LicitacionContent as ZodContent,
     WorkflowState as ZodWorkflow,
     AnalysisVersion as ZodVersion,
     ExtractionTemplate as ZodExtractionTemplate,
-    TemplateField as ZodTemplateField
+    TemplateField as ZodTemplateField,
+    Evidence as ZodEvidence,
+    FieldStatus as ZodFieldStatus,
 } from './lib/schemas';
 
 export type Note = ZodNote;
 export type LicitacionMetadata = ZodMetadata;
 export type LicitacionData = ZodData;
-export type LicitacionContent = ZodContent; // Export new type
+export type LicitacionContent = ZodContent;
 export type WorkflowState = ZodWorkflow;
 export type AnalysisVersion = ZodVersion;
+export type Evidence = ZodEvidence;
+export type FieldStatus = ZodFieldStatus;
 
 export type ExtractionTemplate = ZodExtractionTemplate;
 export type TemplateField = ZodTemplateField;
 export type ProcessingStatus = 'IDLE' | 'READING_PDF' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
 
+/** Phase names for the analysis pipeline */
+export type AnalysisPhase = 'ingestion' | 'document_map' | 'extraction' | 'consolidation' | 'validation';
+
 export interface AnalysisState {
     status: ProcessingStatus;
     progress: number; // 0-100
-    thinkingOutput: string; // Stream de pensamiento
+    thinkingOutput: string;
     data: LicitacionData | null;
     error: string | null;
     fileName?: string;
-    hash?: string; // For edit persistence
+    hash?: string;
+    currentPhase?: AnalysisPhase | null;
 }
 
 export interface DbLicitacion {

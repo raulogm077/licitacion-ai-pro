@@ -18,9 +18,9 @@ Superficies desplegables principales:
 
 Antes de desplegar una tarea, QA debe verificar:
 
-1. `npm run type-check`
-2. `npm test`
-3. `npm run test:e2e` si la tarea toca UI, flujo de análisis o SSE
+1. `pnpm typecheck`
+2. `pnpm test`
+3. `pnpm test:e2e` si la tarea toca UI, flujo de análisis o SSE
 4. si la tarea es IA:
    - compatibilidad con la Guía de lectura de pliegos
    - compatibilidad con SSE
@@ -32,6 +32,8 @@ Antes de desplegar una tarea, QA debe verificar:
 ```bash
 npx supabase functions deploy analyze-with-agents --no-verify-jwt
 ```
+
+> **Nota sobre `--no-verify-jwt`**: Este flag desactiva la validación JWT del Kong API Gateway de Supabase. La función valida el JWT internamente usando el SDK de Supabase (`supabase.auth.getUser()`), lo que permite un manejo granular de errores de autenticación y evita problemas de CORS con preflight requests.
 
 ## 5. Secretos y configuración
 

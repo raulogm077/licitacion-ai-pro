@@ -1,4 +1,3 @@
-
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
@@ -9,8 +8,8 @@ import translationES from '../locales/es/translation.json';
 // Define resources
 const resources = {
     es: {
-        translation: translationES
-    }
+        translation: translationES,
+    },
 };
 
 i18n
@@ -25,7 +24,7 @@ i18n
 
         interpolation: {
             escapeValue: false, // not needed for react as it escapes by default
-        }
+        },
     });
 
 export default i18n;

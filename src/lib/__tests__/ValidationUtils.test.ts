@@ -2,52 +2,55 @@ import { describe, it, expect } from 'vitest';
 import { LicitacionSchema } from '../schemas';
 
 describe('Detailed Schema Validation', () => {
-    // 30 distinct tests for granular coverage
+    // TrackedField fields return { value, status } objects
 
-    // Datos Generales
+    // Datos Generales - TrackedField fields
     it('validates titulo default', () => {
         const res = LicitacionSchema.parse({});
-        expect(res.datosGenerales.titulo).toBe('Sin título');
+        expect(res.datosGenerales.titulo).toMatchObject({ value: 'Sin título' });
     });
 
     it('validates titulo provided', () => {
         const res = LicitacionSchema.parse({ datosGenerales: { titulo: 'X' } });
-        expect(res.datosGenerales.titulo).toBe('X');
+        expect(res.datosGenerales.titulo).toMatchObject({ value: 'X', status: 'extraido' });
     });
 
     it('validates presupuesto default', () => {
         const res = LicitacionSchema.parse({});
-        expect(res.datosGenerales.presupuesto).toBe(0);
+        expect(res.datosGenerales.presupuesto).toMatchObject({ value: 0 });
     });
 
     it('validates presupuesto number', () => {
         const res = LicitacionSchema.parse({ datosGenerales: { presupuesto: 500 } });
-        expect(res.datosGenerales.presupuesto).toBe(500);
+        expect(res.datosGenerales.presupuesto).toMatchObject({ value: 500, status: 'extraido' });
     });
 
     it('validates presupuesto null coercion', () => {
         const res = LicitacionSchema.parse({ datosGenerales: { presupuesto: null } });
-        expect(res.datosGenerales.presupuesto).toBe(0);
+        expect(res.datosGenerales.presupuesto).toMatchObject({ value: 0, status: 'no_encontrado' });
     });
 
     it('validates moneda default', () => {
-        expect(LicitacionSchema.parse({}).datosGenerales.moneda).toBe('EUR');
+        expect(LicitacionSchema.parse({}).datosGenerales.moneda).toMatchObject({ value: 'EUR' });
     });
 
     it('validates plazo default', () => {
-        expect(LicitacionSchema.parse({}).datosGenerales.plazoEjecucionMeses).toBe(0);
+        expect(LicitacionSchema.parse({}).datosGenerales.plazoEjecucionMeses).toMatchObject({ value: 0 });
     });
 
     it('validates plazo provided', () => {
-        expect(LicitacionSchema.parse({ datosGenerales: { plazoEjecucionMeses: 10 } }).datosGenerales.plazoEjecucionMeses).toBe(10);
+        expect(
+            LicitacionSchema.parse({ datosGenerales: { plazoEjecucionMeses: 10 } }).datosGenerales.plazoEjecucionMeses
+        ).toMatchObject({ value: 10, status: 'extraido' });
     });
 
     it('validates cpv default', () => {
-        expect(LicitacionSchema.parse({}).datosGenerales.cpv).toEqual([]);
+        expect(LicitacionSchema.parse({}).datosGenerales.cpv).toMatchObject({ value: [] });
     });
 
     it('validates cpv provided', () => {
-        expect(LicitacionSchema.parse({ datosGenerales: { cpv: ['1', '2'] } }).datosGenerales.cpv).toHaveLength(2);
+        const result = LicitacionSchema.parse({ datosGenerales: { cpv: ['1', '2'] } });
+        expect(result.datosGenerales.cpv.value).toHaveLength(2);
     });
 
     // Criterios

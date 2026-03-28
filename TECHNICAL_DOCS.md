@@ -1,6 +1,6 @@
 # Documentación Técnica — Analista de Pliegos
 
-> Versión: 1.1.0 | Fecha: 2026-03-27
+> Versión: 2.0.0 | Fecha: 2026-03-28
 
 ---
 
@@ -31,7 +31,7 @@
 
 | Capacidad | Descripción |
 |-----------|-------------|
-| Análisis de PDFs | Procesamiento de pliegos de condiciones con OpenAI Agents SDK |
+| Análisis de PDFs | Procesamiento de pliegos de condiciones con OpenAI Responses API (pipeline por fases) |
 | Extracción estructurada | Output validado con Zod (30+ campos por documento) |
 | Streaming en tiempo real | Progreso de análisis vía Server-Sent Events (SSE) |
 | Multi-documento | Análisis de varios archivos en una sola sesión |
@@ -70,14 +70,14 @@
          ▼                     ▼
   ┌──────────────┐    ┌──────────────────┐
   │  PostgreSQL  │    │   OpenAI API     │
-  │  15+ (RLS)   │    │   Agents SDK     │
-  │              │    │   gpt-4o         │
+  │  15+ (RLS)   │    │   Responses API  │
+  │              │    │   gpt-4.1        │
   └──────────────┘    │   Files API      │
                       │   Vector Store   │
                       └──────────────────┘
 ```
 
-### Flujo de análisis
+### Flujo de análisis (Pipeline por Fases)
 
 ```
 Usuario sube PDF
@@ -92,25 +92,37 @@ POST /functions/v1/analyze-with-agents
 Edge Function valida JWT + rate limit (10/hora)
        │
        ▼
-Sube PDF a OpenAI Files API → Vector Store
+Fase A: Ingesta
+  └── Sube PDF a OpenAI Files API → Vector Store
        │
        ▼
-OpenAI Agent (gpt-4o) procesa el documento
-  ├── file_search en Vector Store
-  ├── Extracción estructurada con schemas Zod
-  └── submit_analysis_result (tool call obligatorio)
+Fase B: Mapa Documental
+  └── Responses API + file_search → identifica PCAP, PPT, anexos
        │
        ▼
-SSE streaming → cliente (heartbeat, progress, complete)
+Fase C: Extracción por Bloques (~9 llamadas)
+  └── Responses API + file_search por sección
+      (datosGenerales, criterios, solvencia, técnicos, riesgos, etc.)
        │
        ▼
-Frontend valida respuesta con Zod
+Fase D: Consolidación
+  └── Merge de bloques + prelación documental + resolución de conflictos
+       │
+       ▼
+Fase E: Validación Final
+  └── Quality scoring, evidencias, campos críticos
+       │
+       ▼
+SSE streaming → cliente (phase events + complete)
+       │
+       ▼
+Frontend valida respuesta con Zod (TrackedField para campos críticos)
        │
        ▼
 Guarda en Supabase (licitaciones table)
        │
        ▼
-Dashboard renderiza resultado
+Dashboard renderiza resultado con evidencias y warnings
 ```
 
 ---
@@ -141,7 +153,7 @@ Dashboard renderiza resultado
 | Supabase | latest | BaaS (DB + Auth + Storage + Edge) |
 | PostgreSQL | 15+ | Base de datos principal |
 | Deno | runtime | Edge Functions |
-| OpenAI Agents SDK | 0.8.1 | Orquestación de agentes IA |
+| OpenAI Responses API | latest | Pipeline de extracción por fases |
 | OpenAI Files API | v1 | Ingesta de PDFs |
 | OpenAI Vector Store | v1 | Búsqueda semántica en PDFs |
 
@@ -169,16 +181,11 @@ Dashboard renderiza resultado
 ## 4. Estructura del Proyecto
 
 ```
-licitacion-ai-pro-qa/
+licitacion-ai-pro/
 ├── src/                        # Código fuente frontend
-│   ├── agents/                 # Definiciones de agentes IA
-│   │   ├── analista.agent.ts   # Agente principal (gpt-4o)
-│   │   ├── schemas/            # Schemas de output del agente
-│   │   ├── tools/              # Tools del agente (submit-result)
-│   │   └── utils/              # Instrucciones y schema-transformer
 │   ├── components/             # Componentes React
 │   │   ├── ui/                 # Genéricos (Button, Card, Dialog, etc.)
-│   │   ├── domain/             # Dominio (ProviderSelector, TagManager)
+│   │   ├── domain/             # Dominio (TagManager, etc.)
 │   │   └── layout/             # Layout (Header, wrapper)
 │   ├── features/               # Módulos de feature
 │   │   ├── analytics/          # Dashboard de analíticas
@@ -188,7 +195,7 @@ licitacion-ai-pro-qa/
 │   ├── services/               # Lógica de negocio
 │   ├── hooks/                  # Custom React hooks
 │   ├── stores/                 # Stores de Zustand
-│   ├── lib/                    # Schemas Zod + config i18n
+│   ├── lib/                    # Schemas Zod + tracked-field utils + config i18n
 │   ├── config/                 # Configuración (env, supabase, sentry, features)
 │   ├── locales/es/             # Traducciones en español
 │   ├── test/                   # Setup de tests
@@ -198,8 +205,11 @@ licitacion-ai-pro-qa/
 ├── supabase/
 │   ├── config.toml             # Config Supabase CLI
 │   ├── functions/
-│   │   ├── analyze-with-agents/ # Edge Function principal
-│   │   └── _shared/            # Utilidades compartidas (cors, rate-limiter)
+│   │   ├── analyze-with-agents/ # Edge Function principal (pipeline por fases)
+│   │   │   ├── phases/          # Fases del pipeline (ingestion, document-map, etc.)
+│   │   │   └── prompts.ts       # Prompts por fase
+│   │   └── _shared/            # Utilidades compartidas (cors, rate-limiter, schemas)
+│   │       └── schemas/         # Schemas canónicos (canonical, blocks, job, etc.)
 │   ├── migrations/             # Migraciones SQL (orden cronológico)
 │   └── tests/database/         # Tests SQL
 ├── e2e/                        # Tests Playwright
@@ -272,25 +282,26 @@ Definidos en `src/lib/schemas.ts`:
 LicitacionContent {
   plantilla_personalizada?: Record<string, any>
   datosGenerales: {
-    titulo: string
-    presupuesto: number
-    moneda: string
-    plazoEjecucionMeses: number
-    cpv: string[]
-    organoContratacion: string
-    fechaLimitePresentacion: string
+    titulo: TrackedField<string>          // { value, status, evidence?, warnings? }
+    presupuesto: TrackedField<number>
+    moneda: TrackedField<string>
+    plazoEjecucionMeses: TrackedField<number>
+    cpv: TrackedField<string[]>
+    organoContratacion: TrackedField<string>
+    fechaLimitePresentacion?: string
   }
   criteriosAdjudicacion: {
-    subjetivos: CriterioAdjudicacion[]  // { descripcion, ponderacion, detalles, cita }
-    objetivos: CriterioAdjudicacion[]
+    subjetivos: CriterioSubjetivo[]  // { descripcion, ponderacion, detalles, cita, subcriterios }
+    objetivos: CriterioObjetivo[]    // { descripcion, ponderacion, formula, cita }
   }
   requisitosTecnicos: {
-    funcionales: RequisitoTecnico[]     // { requisito, obligatorio, referenciaPagina, cita }
+    funcionales: RequisitoTecnico[]  // { requisito, obligatorio, referenciaPagina, cita }
     normativa: NormativaRef[]
   }
   requisitosSolvencia: {
     economica: SolvenciaEconomica
     tecnica: SolvenciaTecnica[]
+    profesional: SolvenciaProfesional[]
   }
   restriccionesYRiesgos: Restriccion[]
   modeloServicio: ModeloServicio
@@ -328,22 +339,28 @@ LicitacionMetadata {
 
 **Archivo**: `supabase/functions/analyze-with-agents/index.ts`
 
-**Flujo interno**:
+**Flujo interno (Pipeline por Fases)**:
 
 ```
 1. Validar CORS (orígenes permitidos)
 2. Extraer y verificar JWT → user_id
 3. Rate limiting: 10 req/hora por usuario
 4. Validar body (Zod schema)
-5. Subir PDF a OpenAI Files API
-6. Crear Vector Store con el archivo
-7. Inicializar OpenAI Agent con:
-   - Instrucciones de lectura de pliegos (guia-lectura-pliegos.md)
-   - Tool: submit_analysis_result (mandatory)
-   - file_search habilitado en Vector Store
-8. Ejecutar agente con streaming
-9. Emitir SSE: heartbeat → agent_message (progress) → complete/error
-10. Limpiar archivos de OpenAI (Files API)
+5. Fase A — Ingesta:
+   - Subir PDF(s) a OpenAI Files API
+   - Crear Vector Store
+   - Persistir job en analysis_jobs
+6. Fase B — Mapa Documental:
+   - Responses API + file_search → identifica documentos
+7. Fase C — Extracción por Bloques:
+   - ~9 llamadas a Responses API + file_search
+   - Cada bloque valida con Zod parcial
+8. Fase D — Consolidación:
+   - Merge de bloques + prelación PCAP > PPT > carátula
+9. Fase E — Validación:
+   - Quality scoring + evidencias
+10. Emitir SSE: heartbeat → phase events → complete/error
+11. Cleanup de resources marcado para TTL
 ```
 
 **Utilidades compartidas** (`supabase/functions/_shared/`):
@@ -354,7 +371,9 @@ LicitacionMetadata {
 | `rate-limiter.ts` | Rate limiting: 10 req/hora por usuario |
 | `schemas.ts` | Validación de request/response |
 | `services/job.service.ts` | Lógica de jobs de análisis |
-| `services/openai.service.ts` | Cliente OpenAI |
+| `schemas/canonical.ts` | Schema canónico con TrackedField |
+| `schemas/blocks.ts` | Schemas parciales por bloque |
+| `schemas/job.ts` | Schema del estado del job |
 | `utils/error.utils.ts` | Manejo centralizado de errores |
 
 ---
@@ -461,18 +480,15 @@ supabase/migrations/
 
 ## 8. Integración con IA
 
-### Agente principal
-
-**Archivo**: `src/agents/analista.agent.ts`
+### Pipeline de Extracción (Responses API)
 
 | Parámetro | Valor |
 |-----------|-------|
-| Modelo | `gpt-4.1` (1M token context, Agents SDK default) |
-| SDK | OpenAI Agents SDK 0.8.1 |
-| Tool obligatorio | `submit_analysis_result` |
-| Capacidades | `file_search` (Vector Store) |
-| Instrucciones | `src/agents/utils/instructions.ts` |
-| Guía de dominio | `guia-lectura-pliegos.md` (en Edge Function) |
+| Modelo | `gpt-4.1` (1M token context) |
+| API | OpenAI Responses API (`openai.responses.create()`) |
+| Capacidades | `file_search` (Vector Store) por fase |
+| Prompts | `supabase/functions/analyze-with-agents/prompts.ts` |
+| Guía de dominio | Inyectada en system prompts (no en Vector Store) |
 
 ### Flujo de procesamiento de documentos
 
@@ -480,18 +496,31 @@ supabase/migrations/
 PDF (base64)
   → OpenAI Files API (upload)
   → Vector Store (indexación semántica)
-  → Agent run (file_search habilitado)
-      → Agent lee chunks relevantes del PDF
-      → Llena el schema estructurado
-      → Llama a submit_analysis_result (tool call)
-  → schema-transformer valida con Zod
-  → WorkflowState (quality, warnings)
+  → Pipeline de 5 fases:
+      Fase A: Ingesta + Vector Store
+      Fase B: Mapa documental (file_search)
+      Fase C: Extracción por bloques (file_search × 9)
+      Fase D: Consolidación (local, sin API)
+      Fase E: Validación + quality scoring
+  → Resultado validado con Zod canónico
+  → WorkflowState (quality, warnings, phases)
   → SSE complete event → frontend
 ```
 
-### Schema de output del agente
+### Schema canónico
 
-`src/agents/schemas/licitacion-agent.schema.ts` define el schema JSON que el agente debe seguir, validado después con Zod.
+El schema canónico (`supabase/functions/_shared/schemas/canonical.ts`) define la estructura rica del resultado. Los 6 campos críticos (titulo, presupuesto, moneda, plazo, cpv, organoContratacion) usan **TrackedField**:
+
+```typescript
+TrackedField<T> = {
+  value: T,
+  evidence?: { quote: string, pageHint?: string, confidence?: number },
+  status: 'extraido' | 'ambiguo' | 'no_encontrado' | 'derivado_tecnico',
+  warnings?: string[]
+}
+```
+
+El frontend (`src/lib/schemas.ts`) define schemas equivalentes con backward-compat via `z.preprocess` para datos legacy.
 
 ### WorkflowState
 
@@ -514,10 +543,12 @@ WorkflowState {
 
 | Decisión | Alternativa rechazada | Razón |
 |---------|----------------------|-------|
-| OpenAI Files API + Vector Store | Extraer texto en frontend | Permite file_search nativo del agente |
+| Responses API por fases | Agents SDK monolítico | Evidencias por campo, resultado parcial, mejor control |
+| file_search + JSON en prompt | file_search + json_schema (incompatibles) | Restricción de OpenAI API; Zod valida server-side |
+| OpenAI Files API + Vector Store | Extraer texto en frontend | Permite file_search nativo |
 | Base64 para transferencia de PDF | FormData multipart | Simplifica validación Zod en Edge Function |
 | SSE para streaming | WebSocket | Unidireccional, HTTP-nativo, más simple |
-| Tool call obligatorio (`submit_result`) | Respuesta directa de texto | Garantiza output estructurado validable |
+| TrackedField para campos críticos | Valores planos | Permite status, evidencia y warnings por campo |
 | Procesamiento secuencial multi-doc | Paralelo | Límites de memoria del Edge Runtime |
 
 ---
@@ -562,12 +593,20 @@ apikey: <VITE_SUPABASE_ANON_KEY>
 event: heartbeat
 data: {}
 
-# Progreso del agente
+# Inicio de fase
+event: phase_started
+data: { "phase": "C", "name": "block_extraction" }
+
+# Fin de fase
+event: phase_completed
+data: { "phase": "C", "name": "block_extraction" }
+
+# Progreso dentro de fase (legacy compat)
 event: agent_message
 data: {
   "step": "Analizando criterios de adjudicación...",
   "progress": 45,           // 0-100
-  "thinkingOutput": "..."   // Opcional: razonamiento del agente
+  "thinkingOutput": "..."   // Opcional
 }
 
 # Análisis completado
@@ -888,8 +927,8 @@ Los siguientes documentos deben mantenerse actualizados con cada tarea:
 | Streaming | SSE | WebSocket | Unidireccional, HTTP-nativo, más simple de implementar |
 | Transferencia de PDF | Base64 en JSON | FormData multipart | Facilita validación Zod y SSE en mismo request |
 | Multi-tenancy | RLS en Supabase | Filtros en app | Aislamiento garantizado a nivel DB sin código adicional |
-| AI SDK | OpenAI Agents SDK | LangChain | Streaming nativo, tool calling, Files API integrado |
-| Modelo | gpt-4.1 | gpt-4o | Nuevo default del Agents SDK; contexto 1M tokens, mejor instruction following y structured output enforcement |
+| AI API | OpenAI Responses API | Agents SDK / LangChain | Pipeline por fases, file_search nativo, control granular |
+| Modelo | gpt-4.1 | gpt-4o | Contexto 1M tokens, mejor instruction following |
 | Multi-doc | Procesamiento secuencial | Paralelo | Límites de memoria del Deno Edge Runtime |
 | Validación | Zod (frontend + backend) | JSON Schema | Type-safe, reutilizable entre frontend y Edge Functions |
 | Estado | Zustand | Redux / Context | Más ligero, API más simple para este caso de uso |

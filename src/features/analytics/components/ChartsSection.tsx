@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
@@ -24,13 +23,14 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ analytics }) => {
                     <div className="space-y-3">
                         {Object.entries(analytics.distribucionEstados).map(([estado, count]) => {
                             const percentage = (count / analytics.totalLicitaciones) * 100;
-                            const color = {
-                                PENDIENTE: 'bg-yellow-500',
-                                EN_REVISION: 'bg-blue-500',
-                                ADJUDICADA: 'bg-green-500',
-                                DESCARTADA: 'bg-red-500',
-                                SIN_ESTADO: 'bg-gray-400',
-                            }[estado] || 'bg-slate-500';
+                            const color =
+                                {
+                                    PENDIENTE: 'bg-yellow-500',
+                                    EN_REVISION: 'bg-blue-500',
+                                    ADJUDICADA: 'bg-green-500',
+                                    DESCARTADA: 'bg-red-500',
+                                    SIN_ESTADO: 'bg-gray-400',
+                                }[estado] || 'bg-slate-500';
 
                             return (
                                 <div key={estado}>
@@ -65,26 +65,29 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({ analytics }) => {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">
-                        {Object.entries(analytics.distribucionRiesgos).sort((a, b) => b[1] - a[1]).map(([impacto, count]) => {
-                            const color = {
-                                CRITICO: 'bg-red-600',
-                                ALTO: 'bg-orange-500',
-                                MEDIO: 'bg-yellow-500',
-                                BAJO: 'bg-green-500',
-                            }[impacto] || 'bg-slate-500';
+                        {Object.entries(analytics.distribucionRiesgos)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([impacto, count]) => {
+                                const color =
+                                    {
+                                        CRITICO: 'bg-red-600',
+                                        ALTO: 'bg-orange-500',
+                                        MEDIO: 'bg-yellow-500',
+                                        BAJO: 'bg-green-500',
+                                    }[impacto] || 'bg-slate-500';
 
-                            return (
-                                <div key={impacto} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-3 h-3 rounded-full ${color}`} />
-                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                            {impacto}
-                                        </span>
+                                return (
+                                    <div key={impacto} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-3 h-3 rounded-full ${color}`} />
+                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                {impacto}
+                                            </span>
+                                        </div>
+                                        <Badge variant="outline">{count}</Badge>
                                     </div>
-                                    <Badge variant="outline">{count}</Badge>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
                     </div>
                 </CardContent>
             </Card>

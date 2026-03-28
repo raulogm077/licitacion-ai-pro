@@ -12,7 +12,7 @@ class ServiceRegistry {
     private _ai: AIService | null = null;
     private _db: DBService | null = null;
 
-    private constructor() { }
+    private constructor() {}
 
     public static getInstance(): ServiceRegistry {
         if (!ServiceRegistry.instance) {

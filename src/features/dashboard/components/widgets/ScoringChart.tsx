@@ -1,8 +1,8 @@
-import { BarChart2 } from "lucide-react";
-import { PliegoVM } from "../../model/pliego-vm";
+import { BarChart2 } from 'lucide-react';
+import { PliegoVM } from '../../model/pliego-vm';
 
 export function ScoringChart({ vm }: { vm: PliegoVM }) {
-    const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
+    const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
     // Extract actual scoring criteria from VM
     const { subjetivos, objetivos } = vm.result.criteriosAdjudicacion;
@@ -11,20 +11,20 @@ export function ScoringChart({ vm }: { vm: PliegoVM }) {
     const total = totalSub + totalObj || 100; // Avoid division by zero
 
     const criteriaData = [
-        ...objetivos.map(o => ({
+        ...objetivos.map((o) => ({
             label: o.descripcion,
             points: o.ponderacion || 0,
             percentage: ((o.ponderacion || 0) / total) * 100,
-            color: "bg-navy",
-            type: "automatic"
+            color: 'bg-navy',
+            type: 'automatic',
         })),
-        ...subjetivos.map(s => ({
+        ...subjetivos.map((s) => ({
             label: s.descripcion,
             points: s.ponderacion || 0,
             percentage: ((s.ponderacion || 0) / total) * 100,
-            color: "bg-cyan-muted",
-            type: "judgement"
-        }))
+            color: 'bg-cyan-muted',
+            type: 'judgement',
+        })),
     ];
 
     return (
@@ -34,9 +34,7 @@ export function ScoringChart({ vm }: { vm: PliegoVM }) {
                     <div className="flex items-center justify-center w-6 h-6 rounded bg-navy/10">
                         <BarChart2 className="w-3.5 h-3.5 text-navy" />
                     </div>
-                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                        Distribución de Criterios
-                    </h3>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">Distribución de Criterios</h3>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] font-medium text-slate-500">
                     <div className="flex items-center gap-1.5">
@@ -52,7 +50,9 @@ export function ScoringChart({ vm }: { vm: PliegoVM }) {
 
             <div className="p-5 space-y-4 flex-1">
                 {criteriaData.length === 0 ? (
-                    <div className="text-center text-slate-400 py-8 text-sm">No hay criterios de adjudicación detectados.</div>
+                    <div className="text-center text-slate-400 py-8 text-sm">
+                        No hay criterios de adjudicación detectados.
+                    </div>
                 ) : (
                     <>
                         {/* Stacked bar */}
@@ -60,14 +60,15 @@ export function ScoringChart({ vm }: { vm: PliegoVM }) {
                             {criteriaData.map((c, i) => (
                                 <div
                                     key={i}
-                                    className={clx(c.color, "flex items-center justify-center transition-all duration-300 hover:opacity-80")}
+                                    className={clx(
+                                        c.color,
+                                        'flex items-center justify-center transition-all duration-300 hover:opacity-80'
+                                    )}
                                     style={{ width: `${c.percentage}%` }}
                                     title={`${c.label}: ${c.points} pts`}
                                 >
                                     {c.percentage >= 15 && (
-                                        <span className="text-[10px] font-bold text-white">
-                                            {c.points}
-                                        </span>
+                                        <span className="text-[10px] font-bold text-white">{c.points}</span>
                                     )}
                                 </div>
                             ))}
@@ -78,7 +79,10 @@ export function ScoringChart({ vm }: { vm: PliegoVM }) {
                             {criteriaData.slice(0, 5).map((c, i) => (
                                 <div key={i} className="flex items-center gap-3">
                                     <div className={clx(`w-2.5 h-2.5 rounded-sm flex-shrink-0 ${c.color}`)} />
-                                    <span className="flex-1 text-xs text-slate-700 font-medium truncate" title={c.label}>
+                                    <span
+                                        className="flex-1 text-xs text-slate-700 font-medium truncate"
+                                        title={c.label}
+                                    >
                                         {c.label}
                                     </span>
                                     <div className="flex items-center gap-2 flex-shrink-0">

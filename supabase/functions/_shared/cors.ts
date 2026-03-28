@@ -1,9 +1,5 @@
 // Allowed origins for CORS
-const ALLOWED_ORIGINS = [
-    'https://licitacion-ai-pro.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-];
+const ALLOWED_ORIGINS = ['https://licitacion-ai-pro.vercel.app', 'http://localhost:5173', 'http://localhost:3000'];
 
 function isAllowedOrigin(origin: string): boolean {
     if (ALLOWED_ORIGINS.includes(origin)) return true;
@@ -19,7 +15,7 @@ export function getCorsHeaders(req?: Request): Record<string, string> {
     return {
         'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Vary': 'Origin',
+        Vary: 'Origin',
     };
 }
 

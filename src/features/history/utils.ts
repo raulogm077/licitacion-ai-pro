@@ -1,6 +1,6 @@
 import { LicitacionData } from '../../types';
 
-export type AnalysisStatus = "COMPLETO" | "PARCIAL" | "failed" | "desconocido";
+export type AnalysisStatus = 'COMPLETO' | 'PARCIAL' | 'failed' | 'desconocido';
 
 export function getStatusFromData(data: LicitacionData): AnalysisStatus {
     if (data.workflow?.status === 'failed') return 'failed';

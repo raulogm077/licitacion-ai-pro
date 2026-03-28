@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                     user: currentSession.user,
                     session: currentSession,
                     isAuthenticated: true,
-                    loading: false
+                    loading: false,
                 });
             }
 
@@ -63,10 +63,9 @@ export const useAuthStore = create<AuthState>((set) => ({
                     user,
                     session,
                     isAuthenticated: !!user,
-                    loading: false
+                    loading: false,
                 });
             });
-
         } catch (err) {
             logger.error('Auth Initialization Error:', err);
             set({ user: null, session: null, isAuthenticated: false });
@@ -74,8 +73,6 @@ export const useAuthStore = create<AuthState>((set) => ({
             set({ loading: false });
         }
     },
-
-
 
     signInWithPassword: async (email: string, password: string) => {
         const { user, session, error } = await authService.signInWithPassword(email, password);
@@ -87,7 +84,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({
             user,
             session,
-            isAuthenticated: !!user
+            isAuthenticated: !!user,
         });
 
         return { success: true };
@@ -103,7 +100,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({
             user,
             session,
-            isAuthenticated: !!user
+            isAuthenticated: !!user,
         });
 
         return { success: true };
@@ -114,7 +111,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({
             user: null,
             session: null,
-            isAuthenticated: false
+            isAuthenticated: false,
         });
     },
 
@@ -122,8 +119,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({
             user,
             session,
-            isAuthenticated: !!user
+            isAuthenticated: !!user,
         });
     },
-    reset: () => set({ user: null, session: null, isAuthenticated: false, loading: false })
+    reset: () => set({ user: null, session: null, isAuthenticated: false, loading: false }),
 }));

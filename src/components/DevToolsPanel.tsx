@@ -10,14 +10,14 @@ import { AlertCircle, CheckCircle, Zap } from 'lucide-react';
  */
 export function DevToolsPanel() {
     const [testResults, setTestResults] = useState<string[]>([]);
-    const clearLogs = useLoggerStore(s => s.clearLogs);
+    const clearLogs = useLoggerStore((s) => s.clearLogs);
 
     if (!features.enableDevTools) {
         return null;
     }
 
     const addResult = (message: string) => {
-        setTestResults(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+        setTestResults((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
     };
 
     const testSentryError = () => {
@@ -26,24 +26,32 @@ export function DevToolsPanel() {
         } catch (error) {
             logger.error('Test error thrown', error, {
                 component: 'DevToolsPanel',
-                action: 'test_sentry'
+                action: 'test_sentry',
             });
             addResult('✅ Error thrown - Check Sentry dashboard');
         }
     };
 
     const testSentryWarning = () => {
-        logger.warn('Test warning from DevTools', { test: true }, {
-            component: 'DevToolsPanel'
-        });
+        logger.warn(
+            'Test warning from DevTools',
+            { test: true },
+            {
+                component: 'DevToolsPanel',
+            }
+        );
         addResult('✅ Warning logged');
     };
 
     const testAnalyticsEvent = () => {
-        logger.info('Test analytics event', { event: 'test_click' }, {
-            component: 'DevToolsPanel',
-            action: 'test_analytics'
-        });
+        logger.info(
+            'Test analytics event',
+            { event: 'test_click' },
+            {
+                component: 'DevToolsPanel',
+                action: 'test_analytics',
+            }
+        );
         addResult('✅ Event logged - Check Analytics');
     };
 
@@ -63,9 +71,7 @@ export function DevToolsPanel() {
                     <Zap className="h-4 w-4 text-yellow-400" />
                     Dev Tools
                 </h3>
-                <span className="text-xs bg-yellow-500 text-black px-2 py-1 rounded">
-                    DEV ONLY
-                </span>
+                <span className="text-xs bg-yellow-500 text-black px-2 py-1 rounded">DEV ONLY</span>
             </div>
 
             <div className="space-y-2 mb-3">
@@ -103,10 +109,7 @@ export function DevToolsPanel() {
                 <div className="border-t border-gray-700 pt-3">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-gray-400">Test Results</span>
-                        <button
-                            onClick={clearResults}
-                            className="text-xs text-gray-400 hover:text-white"
-                        >
+                        <button onClick={clearResults} className="text-xs text-gray-400 hover:text-white">
                             Clear
                         </button>
                     </div>
@@ -131,17 +134,15 @@ export function DevToolsPanel() {
                     <div className="flex items-center gap-2">
                         <CheckCircle className="h-3 w-3 text-green-400" />
                         <span className="text-gray-400">
-                            Sentry: <span className="text-white">
-                                {features.enableSentry ? 'Enabled' : 'Disabled (dev)'}
-                            </span>
+                            Sentry:{' '}
+                            <span className="text-white">{features.enableSentry ? 'Enabled' : 'Disabled (dev)'}</span>
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <CheckCircle className="h-3 w-3 text-green-400" />
                         <span className="text-gray-400">
-                            Analytics: <span className="text-white">
-                                {features.enableAnalytics ? 'Enabled' : 'Disabled'}
-                            </span>
+                            Analytics:{' '}
+                            <span className="text-white">{features.enableAnalytics ? 'Enabled' : 'Disabled'}</span>
                         </span>
                     </div>
                 </div>

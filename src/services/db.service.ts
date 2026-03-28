@@ -1,6 +1,6 @@
 import { supabase as defaultClient } from '../config/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { LicitacionData, LicitacionContent, SearchFilters, DbLicitacion } from '../types';
+import { LicitacionData, LicitacionContent, SearchFilters, DbLicitacion, WorkflowState } from '../types';
 import { qualityService } from './quality.service';
 import { Result, ok, err } from '../lib/Result';
 import { appCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
@@ -73,7 +73,7 @@ export class DBService {
                     updated_at: now,
                     evidences: envelope.workflow?.evidences || [],
                     quality: qualityReport,
-                };
+                } as WorkflowState;
 
                 // Sync legacy root fields
                 envelope = { ...envelope, ...content };
@@ -100,8 +100,9 @@ export class DBService {
                         updated_at: now,
                         steps: [],
                         evidences: [],
+                        phases: {},
                         quality: qualityReport,
-                    },
+                    } as WorkflowState,
                     metadata: {
                         tags: [],
                     },

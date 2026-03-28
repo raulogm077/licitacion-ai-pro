@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { Dashboard } from '../Dashboard';
 import { MemoryRouter } from 'react-router-dom';
 import { LicitacionData } from '../../../types';
+import { tf } from '../../../test-utils/tracked-field-factory';
 
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
@@ -53,12 +54,12 @@ vi.mock('lucide-react', () => ({
 
 const mockData: LicitacionData = {
     datosGenerales: {
-        titulo: 'Licitación de Prueba Smoke',
-        organoContratacion: 'Ministerio de Prueba',
-        presupuesto: 100000,
-        moneda: 'EUR',
-        plazoEjecucionMeses: 12,
-        cpv: ['72000000-5'],
+        titulo: tf('Licitación de Prueba Smoke'),
+        organoContratacion: tf('Ministerio de Prueba'),
+        presupuesto: tf(100000),
+        moneda: tf('EUR'),
+        plazoEjecucionMeses: tf(12),
+        cpv: tf(['72000000-5']),
     },
     criteriosAdjudicacion: {
         objetivos: [],
@@ -71,6 +72,7 @@ const mockData: LicitacionData = {
     requisitosSolvencia: {
         economica: { cifraNegocioAnualMinima: 0, descripcion: '' },
         tecnica: [],
+        profesional: [],
     },
     restriccionesYRiesgos: {
         killCriteria: [],

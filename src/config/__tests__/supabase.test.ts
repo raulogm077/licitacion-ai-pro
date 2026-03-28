@@ -6,13 +6,13 @@ vi.mock('../env', () => {
         __esModule: true,
         env: {
             VITE_SUPABASE_URL: 'https://example.supabase.co',
-            VITE_SUPABASE_ANON_KEY: 'valid-key'
+            VITE_SUPABASE_ANON_KEY: 'valid-key',
         },
         envConfig: {
             isValid: true,
             errors: null,
-            values: {}
-        }
+            values: {},
+        },
     };
 });
 

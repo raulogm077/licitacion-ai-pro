@@ -12,8 +12,6 @@ export interface AuthResponse {
  * Provides methods for user authentication with magic links
  */
 export class AuthService {
-
-
     /**
      * Sign up with email/password (optional, for traditional auth)
      */
@@ -23,13 +21,13 @@ export class AuthService {
             password,
             options: {
                 emailRedirectTo: import.meta.env.VITE_SITE_URL || window.location.origin,
-            }
+            },
         });
 
         return {
             user: data.user,
             session: data.session,
-            error
+            error,
         };
     }
 
@@ -39,13 +37,13 @@ export class AuthService {
     async signInWithPassword(email: string, password: string): Promise<AuthResponse> {
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
-            password
+            password,
         });
 
         return {
             user: data.user,
             session: data.session,
-            error
+            error,
         };
     }
 
@@ -63,12 +61,12 @@ export class AuthService {
     async setSession(access_token: string, refresh_token: string): Promise<AuthResponse> {
         const { data, error } = await supabase.auth.setSession({
             access_token,
-            refresh_token
+            refresh_token,
         });
         return {
             user: data.user,
             session: data.session,
-            error
+            error,
         };
     }
 
@@ -79,7 +77,7 @@ export class AuthService {
         const { data, error } = await supabase.auth.getUser();
         return {
             user: data.user,
-            error
+            error,
         };
     }
 
@@ -90,7 +88,7 @@ export class AuthService {
         const { data, error } = await supabase.auth.getSession();
         return {
             session: data.session,
-            error
+            error,
         };
     }
 

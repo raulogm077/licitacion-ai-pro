@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { unwrap } from './tracked-field';
 import { LicitacionData, AnalyticsData } from '../types';
 
 export function exportToJson(data: LicitacionData, filename: string) {
@@ -40,30 +41,38 @@ export async function exportToExcel(data: LicitacionData, filename: string) {
         { header: 'Valor', key: 'valor', width: 50 },
     ];
     wsGeneral.addRows([
-        ['Título', data.datosGenerales.titulo],
-        ['Presupuesto', data.datosGenerales.presupuesto],
-        ['Moneda', data.datosGenerales.moneda],
-        ['Plazo (Meses)', data.datosGenerales.plazoEjecucionMeses],
-        ['Órgano Contratación', data.datosGenerales.organoContratacion],
-        ['CPV', data.datosGenerales.cpv.join(', ')],
-        ['Fecha Límite', data.datosGenerales.fechaLimitePresentacion || 'N/A']
+        ['Título', unwrap(data.datosGenerales.titulo)],
+        ['Presupuesto', unwrap(data.datosGenerales.presupuesto)],
+        ['Moneda', unwrap(data.datosGenerales.moneda)],
+        ['Plazo (Meses)', unwrap(data.datosGenerales.plazoEjecucionMeses)],
+        ['Órgano Contratación', unwrap(data.datosGenerales.organoContratacion)],
+        ['CPV', unwrap(data.datosGenerales.cpv).join(', ')],
+        ['Fecha Límite', data.datosGenerales.fechaLimitePresentacion || 'N/A'],
     ]);
 
     // Sheet 2: Criterios
     const wsCriterios = workbook.addWorksheet('Criterios');
     wsCriterios.addRow(['Tipo', 'Descripción', 'Ponderación', 'Detalle/Fórmula']);
-    data.criteriosAdjudicacion.subjetivos.forEach(c => wsCriterios.addRow(['Subjetivo', c.descripcion, c.ponderacion, c.detalles || '']));
-    data.criteriosAdjudicacion.objetivos.forEach(c => wsCriterios.addRow(['Objetivo', c.descripcion, c.ponderacion, c.formula || '']));
+    data.criteriosAdjudicacion.subjetivos.forEach((c) =>
+        wsCriterios.addRow(['Subjetivo', c.descripcion, c.ponderacion, c.detalles || ''])
+    );
+    data.criteriosAdjudicacion.objetivos.forEach((c) =>
+        wsCriterios.addRow(['Objetivo', c.descripcion, c.ponderacion, c.formula || ''])
+    );
 
     // Sheet 3: Requisitos
     const wsReq = workbook.addWorksheet('Requisitos');
     wsReq.addRow(['Tipo', 'Requisito', 'Obligatorio', 'Página']);
-    data.requisitosTecnicos.funcionales.forEach(r => wsReq.addRow(['Funcional', r.requisito, r.obligatorio ? 'Sí' : 'No', r.referenciaPagina || '']));
+    data.requisitosTecnicos.funcionales.forEach((r) =>
+        wsReq.addRow(['Funcional', r.requisito, r.obligatorio ? 'Sí' : 'No', r.referenciaPagina || ''])
+    );
 
     // Sheet 4: Riesgos
     const wsRisk = workbook.addWorksheet('Riesgos');
     wsRisk.addRow(['Descripción', 'Impacto', 'Probabilidad', 'Mitigación']);
-    data.restriccionesYRiesgos.riesgos.forEach(r => wsRisk.addRow([r.descripcion, r.impacto, r.probabilidad || '', r.mitigacionSugerida || '']));
+    data.restriccionesYRiesgos.riesgos.forEach((r) =>
+        wsRisk.addRow([r.descripcion, r.impacto, r.probabilidad || '', r.mitigacionSugerida || ''])
+    );
 
     await saveWorkbook(workbook, filename);
 }
@@ -79,7 +88,7 @@ export async function exportAnalyticsToExcel(data: AnalyticsData, filename: stri
         ['Presupuesto Total', data.presupuestoTotal],
         ['Presupuesto Promedio', data.presupuestoPromedio],
         ['Importe Adjudicado Total', data.importeAdjudicadoTotal],
-        ['Tiempo Análisis Promedio (ms)', data.tiempoAnalisisPromedio]
+        ['Tiempo Análisis Promedio (ms)', data.tiempoAnalisisPromedio],
     ]);
 
     // Sheet 2: Distribución Estados
@@ -92,7 +101,7 @@ export async function exportAnalyticsToExcel(data: AnalyticsData, filename: stri
     // Sheet 3: Top Clientes
     const wsClientes = workbook.addWorksheet('Top Clientes');
     wsClientes.addRow(['Cliente', 'Cantidad', 'Total Presupuesto']);
-    data.topClientes.forEach(c => wsClientes.addRow([c.cliente, c.count, c.total]));
+    data.topClientes.forEach((c) => wsClientes.addRow([c.cliente, c.count, c.total]));
 
     await saveWorkbook(workbook, filename);
 }

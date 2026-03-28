@@ -11,7 +11,7 @@ describe('Security (XSS Prevention)', () => {
     it('should render malicious strings as text, not HTML', () => {
         const maliciousData: LicitacionData = {
             metadata: {
-                tags: []
+                tags: [],
             },
             datosGenerales: {
                 // The Attack Payload
@@ -20,17 +20,15 @@ describe('Security (XSS Prevention)', () => {
                 moneda: 'EUR',
                 plazoEjecucionMeses: 0,
                 cpv: [],
-                organoContratacion: '<img src="x" onerror="alert(1)" />'
+                organoContratacion: '<img src="x" onerror="alert(1)" />',
             },
             // ... minimal other fields
             criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
             requisitosTecnicos: { funcionales: [], normativa: [] },
             requisitosSolvencia: { economica: {}, tecnica: [] },
             restriccionesYRiesgos: { killCriteria: [], riesgos: [], penalizaciones: [] },
-            modeloServicio: { sla: [], equipoMinimo: [] }
+            modeloServicio: { sla: [], equipoMinimo: [] },
         } as unknown as LicitacionData;
-
-
 
         render(
             <MemoryRouter>
@@ -42,13 +40,11 @@ describe('Security (XSS Prevention)', () => {
         // screen.getByText finds by *textContent*, meaning it was rendered visible to user
         expect(screen.getAllByText(/<script>alert\("XSS"\)<\/script>/i).length).toBeGreaterThan(0);
 
-
-
         // 3. Ensure no actual script tag exists in DOM with that content
         // (If escaped, it is text inside a div/span, not a <script> element)
         const scripts = document.querySelectorAll('script');
         // JSDOM might have scripts, but none should contain our alert
-        scripts.forEach(script => {
+        scripts.forEach((script) => {
             expect(script.innerHTML).not.toContain('alert("XSS")');
         });
     });

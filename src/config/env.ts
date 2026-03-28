@@ -2,23 +2,23 @@ import { z } from 'zod';
 
 /**
  * Client-side environment variables schema
- * 
+ *
  * IMPORTANT: OpenAI API key should ONLY be set server-side as OPENAI_API_KEY
  * (without VITE_ prefix) in Vercel environment variables for security.
  * Client-side OpenAI usage has been deprecated.
  */
 const envSchema = z.object({
-    VITE_SUPABASE_URL: z.string().url("VITE_SUPABASE_URL must be a valid URL"),
-    VITE_SUPABASE_ANON_KEY: z.string().min(1, "VITE_SUPABASE_ANON_KEY is required"),
+    VITE_SUPABASE_URL: z.string().url('VITE_SUPABASE_URL must be a valid URL'),
+    VITE_SUPABASE_ANON_KEY: z.string().min(1, 'VITE_SUPABASE_ANON_KEY is required'),
     VITE_SENTRY_DSN: z.string().optional(),
     // VITE_OPENAI_API_KEY removed - OpenAI now server-side only
 });
 
 const getEnvSource = () => {
-    const metaEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
-    const procEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
+    const metaEnv = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+    const procEnv = typeof process !== 'undefined' && process.env ? process.env : {};
 
-    // Merge sources to ensure we catch shell variables in CI (process.env) 
+    // Merge sources to ensure we catch shell variables in CI (process.env)
     // even if running in a Vite context (which defines import.meta.env)
     return { ...procEnv, ...metaEnv };
 };
@@ -32,16 +32,18 @@ const parsed = envSchema.safeParse(processEnv);
 export const envConfig = {
     isValid: parsed.success,
     errors: parsed.success ? null : parsed.error.format(),
-    values: parsed.success ? parsed.data : {} as Partial<z.infer<typeof envSchema>>
+    values: parsed.success ? parsed.data : ({} as Partial<z.infer<typeof envSchema>>),
 };
 
 // Fallback to empty string to prevent crashes, but isConfigValid will be false
-export const env = parsed.success ? parsed.data : {
-    VITE_SUPABASE_URL: "",
-    VITE_SUPABASE_ANON_KEY: "",
-    VITE_SENTRY_DSN: undefined,
-};
+export const env = parsed.success
+    ? parsed.data
+    : {
+          VITE_SUPABASE_URL: '',
+          VITE_SUPABASE_ANON_KEY: '',
+          VITE_SENTRY_DSN: undefined,
+      };
 
 if (!parsed.success && !isTestEnv) {
-    console.error("❌ Invalid Environment Configuration:", parsed.error.format());
+    console.error('❌ Invalid Environment Configuration:', parsed.error.format());
 }

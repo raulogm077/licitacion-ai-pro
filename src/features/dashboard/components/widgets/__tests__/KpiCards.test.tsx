@@ -14,7 +14,7 @@ vi.mock('lucide-react', () => ({
     Euro: () => <span data-testid="icon-euro" />,
     CalendarClock: () => <span data-testid="icon-calendar" />,
     Timer: () => <span data-testid="icon-timer" />,
-    TrendingUp: () => <span data-testid="icon-trending" />
+    TrendingUp: () => <span data-testid="icon-trending" />,
 }));
 
 describe('KpiCards Component', () => {

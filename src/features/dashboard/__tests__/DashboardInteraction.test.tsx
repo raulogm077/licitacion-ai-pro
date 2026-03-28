@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { Dashboard } from '../Dashboard';
 import { MemoryRouter } from 'react-router-dom';
 import { LicitacionData } from '../../../types';
+import { tf } from '../../../test-utils/tracked-field-factory';
 
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
@@ -55,16 +56,16 @@ describe('Dashboard Interaction', () => {
     const mockData: LicitacionData = {
         metadata: { tags: ['test'] },
         datosGenerales: {
-            titulo: 'Test Licitacion Interaction',
-            presupuesto: 50000,
-            organoContratacion: 'Test Org',
-            plazoEjecucionMeses: 6,
-            cpv: ['12345678'],
-            moneda: 'EUR',
+            titulo: tf('Test Licitacion Interaction'),
+            presupuesto: tf(50000),
+            organoContratacion: tf('Test Org'),
+            plazoEjecucionMeses: tf(6),
+            cpv: tf(['12345678']),
+            moneda: tf('EUR'),
         },
         criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
         requisitosTecnicos: { funcionales: [], normativa: [] },
-        requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 1000 }, tecnica: [] },
+        requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 1000 }, tecnica: [], profesional: [] },
         restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },
         modeloServicio: { sla: [], equipoMinimo: [] },
     };
@@ -84,10 +85,6 @@ describe('Dashboard Interaction', () => {
         expect(screen.getAllByText('Criterios de Adjudicación')[0]).toBeInTheDocument();
         expect(screen.getAllByText('Solvencia')[0]).toBeInTheDocument();
     });
-
-    // Note: Drawer interaction is hard to test if purely controlled by state without aria-expanded or similar,
-    // but we can check if the button to toggle it exists or if we can find the drawer content when "pinned" or "open".
-    // Since we mocked Lucide icons, we can look for "icon-more" which opens the actions menu.
 
     it('renders export buttons in header', () => {
         render(

@@ -6,11 +6,7 @@ import { useEffect } from 'react';
  * @param callback - Function to call when key is pressed
  * @param enabled - Whether the shortcut is active
  */
-export function useKeyboardShortcut(
-    key: string,
-    callback: () => void,
-    enabled: boolean = true
-): void {
+export function useKeyboardShortcut(key: string, callback: () => void, enabled: boolean = true): void {
     useEffect(() => {
         if (!enabled) return;
 

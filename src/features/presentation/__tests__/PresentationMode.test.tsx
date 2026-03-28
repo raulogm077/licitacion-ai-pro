@@ -2,48 +2,43 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { PresentationMode } from '../PresentationMode';
 import { LicitacionData } from '../../../types';
+import { tf } from '../../../test-utils/tracked-field-factory';
 
 describe('PresentationMode', () => {
     const mockData: LicitacionData = {
         datosGenerales: {
-            titulo: 'Licitacion Alpha',
-            presupuesto: 50000,
-            plazoEjecucionMeses: 12,
-            moneda: 'EUR',
-            cpv: [],
-            organoContratacion: 'Org',
+            titulo: tf('Licitacion Alpha'),
+            presupuesto: tf(50000),
+            plazoEjecucionMeses: tf(12),
+            moneda: tf('EUR'),
+            cpv: tf([]),
+            organoContratacion: tf('Org'),
         },
         metadata: {
             tags: ['IT', 'Cloud'],
             estado: 'PENDIENTE',
-            // fileHash: '123', // Removed as likely not in type definition or legacy
-            // fileName: 'test.pdf',
-            // userId: 'user',
         },
         criteriosAdjudicacion: {
             subjetivos: [
-                { descripcion: 'Calidad Técnica', ponderacion: 40, detalles: 'Detalles tec' }
+                { descripcion: 'Calidad Técnica', ponderacion: 40, detalles: 'Detalles tec', subcriterios: [] },
             ],
-            objetivos: [
-                { descripcion: 'Precio', ponderacion: 60, formula: 'P = 60 * min/off' }
-            ]
+            objetivos: [{ descripcion: 'Precio', ponderacion: 60, formula: 'P = 60 * min/off' }],
         },
         requisitosTecnicos: { funcionales: [], normativa: [] },
         requisitosSolvencia: {
             economica: { cifraNegocioAnualMinima: 100000 },
-            tecnica: [
-                { descripcion: 'Exp previa', proyectosSimilaresRequeridos: 3 }
-            ]
+            tecnica: [{ descripcion: 'Exp previa', proyectosSimilaresRequeridos: 3 }],
+            profesional: [],
         },
         restriccionesYRiesgos: {
             killCriteria: [],
             riesgos: [
                 { descripcion: 'Riesgo 1', impacto: 'ALTO' },
-                { descripcion: 'Riesgo 2', impacto: 'BAJO' }
+                { descripcion: 'Riesgo 2', impacto: 'BAJO' },
             ],
-            penalizaciones: []
+            penalizaciones: [],
         },
-        modeloServicio: { sla: [], equipoMinimo: [] }
+        modeloServicio: { sla: [], equipoMinimo: [] },
     };
 
     const mockOnClose = vi.fn();
@@ -57,7 +52,6 @@ describe('PresentationMode', () => {
 
     it('renders budget formatted', () => {
         render(<PresentationMode data={mockData} onClose={mockOnClose} />);
-        // 50.000,00 € roughly
         expect(screen.getByText(/50\.000/)).toBeInTheDocument();
         expect(screen.getByText(/Meses/i)).toBeInTheDocument();
     });
@@ -87,9 +81,6 @@ describe('PresentationMode', () => {
         expect(screen.getByText('Riesgos Identificados')).toBeInTheDocument();
         expect(screen.getByText('Riesgo 1')).toBeInTheDocument();
         expect(screen.getByText('ALTO')).toBeInTheDocument();
-
-        // Check for class logic indirectly via badge content or just presence
-        // Detailed class checks are brittle, presence is good enough.
     });
 
     it('calls onClose when close button clicked', () => {

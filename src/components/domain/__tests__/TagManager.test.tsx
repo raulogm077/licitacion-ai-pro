@@ -6,11 +6,8 @@ import { TagManager } from '../TagManager';
 vi.mock('lucide-react', () => ({
     X: () => <span data-testid="icon-x">X</span>,
     Tag: () => <span data-testid="icon-tag">Tag</span>,
-    Plus: () => <span data-testid="icon-plus">+</span>
+    Plus: () => <span data-testid="icon-plus">+</span>,
 }));
-
-
-
 
 describe('TagManager', () => {
     const mockOnChange = vi.fn();
@@ -20,8 +17,6 @@ describe('TagManager', () => {
         expect(screen.getByText('tag1')).toBeInTheDocument();
         expect(screen.getByText('tag2')).toBeInTheDocument();
     });
-
-
 
     beforeEach(() => {
         mockOnChange.mockClear();

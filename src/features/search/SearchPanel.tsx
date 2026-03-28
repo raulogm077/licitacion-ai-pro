@@ -15,7 +15,7 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     const handleFilterChange = (key: keyof SearchFilters, value: string | number | string[] | undefined) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
+        setFilters((prev) => ({ ...prev, [key]: value }));
     };
 
     const handleSearch = () => {
@@ -36,11 +36,16 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
 
     const removeTag = (tag: string) => {
         const currentTags = filters.tags || [];
-        handleFilterChange('tags', currentTags.filter(t => t !== tag));
+        handleFilterChange(
+            'tags',
+            currentTags.filter((t) => t !== tag)
+        );
     };
 
     const activeFilterCount = useMemo(() => {
-        return Object.values(filters).filter(v => v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
+        return Object.values(filters).filter(
+            (v) => v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)
+        ).length;
     }, [filters]);
 
     return (
@@ -69,9 +74,7 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
             <CardContent className="space-y-4">
                 {/* Basic Search */}
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        Cliente
-                    </label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Cliente</label>
                     <input
                         type="text"
                         value={filters.cliente || ''}
@@ -94,7 +97,12 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
                                 <input
                                     type="number"
                                     value={filters.presupuestoMin || ''}
-                                    onChange={(e) => handleFilterChange('presupuestoMin', e.target.value ? Number(e.target.value) : undefined)}
+                                    onChange={(e) =>
+                                        handleFilterChange(
+                                            'presupuestoMin',
+                                            e.target.value ? Number(e.target.value) : undefined
+                                        )
+                                    }
                                     placeholder="0"
                                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
                                 />
@@ -107,7 +115,12 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
                                 <input
                                     type="number"
                                     value={filters.presupuestoMax || ''}
-                                    onChange={(e) => handleFilterChange('presupuestoMax', e.target.value ? Number(e.target.value) : undefined)}
+                                    onChange={(e) =>
+                                        handleFilterChange(
+                                            'presupuestoMax',
+                                            e.target.value ? Number(e.target.value) : undefined
+                                        )
+                                    }
                                     placeholder="1000000"
                                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
                                 />
@@ -123,8 +136,17 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
                                 </label>
                                 <input
                                     type="date"
-                                    value={filters.fechaDesde ? new Date(filters.fechaDesde).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleFilterChange('fechaDesde', e.target.value ? new Date(e.target.value).getTime() : undefined)}
+                                    value={
+                                        filters.fechaDesde
+                                            ? new Date(filters.fechaDesde).toISOString().split('T')[0]
+                                            : ''
+                                    }
+                                    onChange={(e) =>
+                                        handleFilterChange(
+                                            'fechaDesde',
+                                            e.target.value ? new Date(e.target.value).getTime() : undefined
+                                        )
+                                    }
                                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
                                 />
                             </div>
@@ -135,8 +157,17 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
                                 </label>
                                 <input
                                     type="date"
-                                    value={filters.fechaHasta ? new Date(filters.fechaHasta).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleFilterChange('fechaHasta', e.target.value ? new Date(e.target.value).getTime() : undefined)}
+                                    value={
+                                        filters.fechaHasta
+                                            ? new Date(filters.fechaHasta).toISOString().split('T')[0]
+                                            : ''
+                                    }
+                                    onChange={(e) =>
+                                        handleFilterChange(
+                                            'fechaHasta',
+                                            e.target.value ? new Date(e.target.value).getTime() : undefined
+                                        )
+                                    }
                                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-800 dark:text-white"
                                 />
                             </div>
@@ -183,15 +214,17 @@ export function SearchPanel({ onSearch, onReset }: SearchPanelProps) {
 
                             {/* Tag Suggestions */}
                             <div className="flex flex-wrap gap-2">
-                                {COMMON_TAGS.filter(tag => !filters.tags?.includes(tag)).slice(0, 8).map((tag, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => addTag(tag)}
-                                        className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:border-brand-500 transition-colors"
-                                    >
-                                        + {tag}
-                                    </button>
-                                ))}
+                                {COMMON_TAGS.filter((tag) => !filters.tags?.includes(tag))
+                                    .slice(0, 8)
+                                    .map((tag, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => addTag(tag)}
+                                            className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:border-brand-500 transition-colors"
+                                        >
+                                            + {tag}
+                                        </button>
+                                    ))}
                             </div>
                         </div>
                     </div>

@@ -17,11 +17,16 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     if (!open) return null;
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center sm:items-center">
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => onOpenChange(false)} />
+            <div
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+                onClick={() => onOpenChange(false)}
+            />
             <div className="relative w-full max-w-lg scale-100 transition-all z-50">
-                {React.Children.map(children, child =>
+                {React.Children.map(children, (child) =>
                     React.isValidElement(child)
-                        ? React.cloneElement(child as React.ReactElement<{ onOpenChange?: (open: boolean) => void }>, { onOpenChange })
+                        ? React.cloneElement(child as React.ReactElement<{ onOpenChange?: (open: boolean) => void }>, {
+                              onOpenChange,
+                          })
                         : child
                 )}
             </div>
@@ -37,7 +42,7 @@ export function DialogContent({ className, children, onOpenChange, ...props }: D
     return (
         <div
             className={cn(
-                "relative w-full gap-4 border border-slate-200 bg-white p-6 shadow-lg sm:rounded-lg md:w-full",
+                'relative w-full gap-4 border border-slate-200 bg-white p-6 shadow-lg sm:rounded-lg md:w-full',
                 className
             )}
             {...props}
@@ -55,19 +60,9 @@ export function DialogContent({ className, children, onOpenChange, ...props }: D
 }
 
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-    return (
-        <div
-            className={cn("flex flex-col space-y-1.5 text-center sm:text-left mb-4", className)}
-            {...props}
-        />
-    );
+    return <div className={cn('flex flex-col space-y-1.5 text-center sm:text-left mb-4', className)} {...props} />;
 }
 
 export function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-    return (
-        <h2
-            className={cn("text-lg font-semibold leading-none tracking-tight", className)}
-            {...props}
-        />
-    );
+    return <h2 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />;
 }

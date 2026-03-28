@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { ProcessingStatus, LicitacionData } from '../types';
-import { LicitacionContent } from '../lib/schemas';
+import { ProcessingStatus, AnalysisPhase } from '../types';
 import { useLicitacionStore } from './licitacion.store';
 import { processFile } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
@@ -16,25 +15,15 @@ interface AnalysisStore {
     error: string | null;
     persistenceWarning: string | null;
     abortController: AbortController | null;
-    selectedProvider: string; // 'openai'
     selectedTemplateId: string | null;
-    currentJobId: string | null;
+    currentPhase: AnalysisPhase | null;
 
     // Actions
     analyzeFiles: (files: File[]) => Promise<void>;
     cancelAnalysis: () => void;
     resetAnalysis: () => void;
-    setProvider: (provider: string) => void;
     setTemplateId: (id: string | null) => void;
 }
-
-const loadSelectedProvider = (): string => {
-    try {
-        return localStorage.getItem('selectedProvider') || 'openai';
-    } catch {
-        return 'openai';
-    }
-};
 
 export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     status: 'IDLE',
@@ -43,13 +32,12 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
     error: null,
     persistenceWarning: null,
     abortController: null,
-    selectedProvider: loadSelectedProvider(),
     selectedTemplateId: null,
-    currentJobId: null,
+    currentPhase: null,
 
     analyzeFiles: async (files: File[]) => {
         if (!files || files.length === 0) return;
-        const file = files[0]; // Main file
+        const file = files[0];
         const { loadLicitacion, reset: resetLicitacion } = useLicitacionStore.getState();
         const newController = new AbortController();
 
@@ -60,27 +48,28 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             thinkingOutput: `Iniciando lectura de ${file.name}...`,
             error: null,
             persistenceWarning: null,
-            abortController: newController
+            abortController: newController,
+            currentPhase: null,
         });
 
         try {
-            // 1. Validation Fail-Fast
+            // 1. Validation
             if (file.size > MAX_PDF_SIZE_BYTES) {
                 throw new Error(
                     `El archivo supera el tamaño máximo permitido de ${MAX_PDF_SIZE_MB}MB. ` +
-                    `Tamaño actual: ${(file.size / 1024 / 1024).toFixed(2)}MB`
+                        `Tamaño actual: ${(file.size / 1024 / 1024).toFixed(2)}MB`
                 );
             }
 
-            // 2. Optimized File Processing (Single Pass)
+            // 2. File processing
             const { hash, base64, isValidPdf } = await processFile(file);
 
             if (!isValidPdf) {
-                throw new Error("El archivo principal no es un PDF válido.");
+                throw new Error('El archivo principal no es un PDF válido.');
             }
 
             // Process additional files
-            const additionalFiles: { name: string, base64: string }[] = [];
+            const additionalFiles: { name: string; base64: string }[] = [];
             for (let i = 1; i < files.length; i++) {
                 const addFile = files[i];
                 if (addFile.size > MAX_PDF_SIZE_BYTES) {
@@ -93,23 +82,14 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 additionalFiles.push({ name: addFile.name, base64: addBase64 });
             }
 
-            set({ status: 'ANALYZING', progress: 10, thinkingOutput: `Archivos verificados. Principal hash: ${hash}\nIniciando motor de IA...` });
+            set({
+                status: 'ANALYZING',
+                progress: 10,
+                thinkingOutput: `Archivos verificados. Principal hash: ${hash}\nIniciando pipeline de análisis...`,
+            });
 
-            // Define onPartialSave for Gemini
-            const onPartialSave = async (partialData: Partial<LicitacionData>) => {
-                const contentToSave = partialData as LicitacionContent;
-                const result = await services.db.saveLicitacion(hash, file.name, contentToSave);
-                if (result.ok) {
-                    const store = useLicitacionStore.getState();
-                    if (!store.hash) {
-                        store.loadLicitacion(contentToSave, hash);
-                    }
-                }
-            };
-
-            // 3. Unified AI Execution Route
-            const { selectedProvider, selectedTemplateId } = get();
-
+            // 3. Template loading
+            const { selectedTemplateId } = get();
             let template = null;
             if (selectedTemplateId) {
                 const templateResult = await templateService.getTemplate(selectedTemplateId);
@@ -118,109 +98,101 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 }
             }
 
-            set(state => ({
-                status: 'ANALYZING',
-                thinkingOutput: state.thinkingOutput + `\n🚀 Iniciando análisis con ${selectedProvider.toUpperCase()}...`
-            }));
-
-            const result = await services.ai.analyzePdfContent(
+            // 4. Run analysis pipeline
+            const { content, workflow } = await services.ai.analyzePdfContent(
                 base64,
                 (processed, total, message) => {
-                    // Normalize progress (10% to 90%)
-                    const progressWeight = 80 / total; // Use 80% range for analysis (10->90)
+                    const progressWeight = 80 / total;
                     const currentProgress = 10 + Math.round(processed * progressWeight);
 
-                    set(state => {
-                        // Avoid duplicate lines in log
+                    set((state) => {
                         const lines = state.thinkingOutput.split('\n');
                         if (lines[lines.length - 1] !== message) {
                             return {
-                                thinkingOutput: state.thinkingOutput + "\n" + message,
-                                progress: Math.min(currentProgress, 90)
+                                thinkingOutput: state.thinkingOutput + '\n' + message,
+                                progress: Math.min(currentProgress, 90),
                             };
                         }
                         return { progress: Math.min(currentProgress, 90) };
                     });
                 },
-                onPartialSave,
                 newController.signal,
-                selectedProvider,
-                file.name, // Required for OpenAI
-                hash,      // Required for OpenAI
-                template,   // Pass the custom extraction template
+                file.name,
+                hash,
+                template,
                 additionalFiles.length > 0 ? additionalFiles : undefined
             );
 
-            // 4. Update State & Persist
-            loadLicitacion(result, hash);
+            // 5. Update state & persist
+            loadLicitacion(content, hash, workflow);
 
-            set(state => ({
+            set((state) => ({
                 status: 'COMPLETED',
                 progress: 100,
-                thinkingOutput: state.thinkingOutput + "\n✅ Análisis completado con éxito.",
-                currentJobId: null
+                thinkingOutput: state.thinkingOutput + '\nAnálisis completado con éxito.',
+                currentPhase: null,
             }));
 
-            // Final Persistence
-            const saveResult = await services.db.saveLicitacion(hash, file.name, result);
+            // Persist to DB
+            const saveResult = await services.db.saveLicitacion(hash, file.name, content);
             if (isErr(saveResult)) {
-                logger.warn("Fallo en persistencia remota:", saveResult.error);
-                set({ persistenceWarning: `Advertencia: ${saveResult.error.message}. Los datos no se sincronizaron con la nube.` });
+                logger.warn('Fallo en persistencia remota:', saveResult.error);
+                set({
+                    persistenceWarning: `Advertencia: ${saveResult.error.message}. Los datos no se sincronizaron con la nube.`,
+                });
             }
-
         } catch (error: unknown) {
-            logger.error("Critical Analysis Error:", error);
-            let errorMessage = "Error inesperado en el motor de análisis";
+            logger.error('Critical Analysis Error:', error);
+            let errorMessage = 'Error inesperado en el motor de análisis';
 
             if (error instanceof Error) {
                 errorMessage = error.message;
 
-                // Detect CORS / network errors
                 if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-                    errorMessage = 'Error de conexión con el servidor de análisis. ' +
+                    errorMessage =
+                        'Error de conexión con el servidor de análisis. ' +
                         'Esto puede deberse a un problema de red o a que este dominio no está autorizado (CORS). ' +
                         'Intente de nuevo o contacte soporte si el problema persiste.';
                 }
 
-                // Detect inactivity timeout
                 if (error.message.includes('Tiempo de espera agotado')) {
-                    errorMessage = 'El servidor no respondió a tiempo. ' +
+                    errorMessage =
+                        'El servidor no respondió a tiempo. ' +
                         'Intente de nuevo con un documento más pequeño o contacte soporte.';
                 }
             }
 
-            // Handle Supabase/Edge Functions Errors specifically
             if (typeof error === 'object' && error !== null) {
                 const errObj = error as Record<string, unknown>;
                 const context = errObj.context as Record<string, unknown> | undefined;
                 if (context?.status) {
                     errorMessage = `Error del Servidor (${context.status}): ${errorMessage}`;
-                    // Try to extract body
                     try {
-                        // Check if context has .json() method (Response object)
                         if (typeof context.json === 'function') {
                             const body = await (context.json as () => Promise<Record<string, unknown>>)();
-                            // If backend provides a specific error message, use it as the PRIMARY message, not just detail
                             if (typeof body.error === 'string') {
-                                errorMessage = body.error; // Use the specific Spanish message from backend
+                                errorMessage = body.error;
                             } else if (typeof body.message === 'string') {
                                 errorMessage = body.message;
-                            } else {
-                                // Fallback if formatting is weird
-                                if (body.error) errorMessage += `\nDetalle: ${body.error}`;
                             }
                         }
-                    } catch (e) { /* ignore body parse error */ }
-                } else if (errObj.status && errObj.statusText) {
-                    // Fetch/Response error
-                    errorMessage = `Error HTTP ${errObj.status}: ${errObj.statusText}`;
+                    } catch {
+                        /* ignore */
+                    }
                 }
             }
 
-            // Clean up message
-            if (errorMessage.includes('cancelado') || errorMessage.includes('Cancelado') ||
-                (error instanceof Error && error.name === 'AbortError')) {
-                set({ status: 'IDLE', error: null, thinkingOutput: 'Análisis cancelado por el usuario', abortController: null });
+            if (
+                errorMessage.includes('cancelado') ||
+                errorMessage.includes('Cancelado') ||
+                (error instanceof Error && error.name === 'AbortError')
+            ) {
+                set({
+                    status: 'IDLE',
+                    error: null,
+                    thinkingOutput: 'Análisis cancelado por el usuario',
+                    abortController: null,
+                });
             } else {
                 set({ status: 'ERROR', error: errorMessage, abortController: null });
             }
@@ -233,8 +205,9 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             abortController.abort();
             set({
                 status: 'IDLE',
-                thinkingOutput: '⚠️ Cancelando análisis...',
-                abortController: null
+                thinkingOutput: 'Cancelando análisis...',
+                abortController: null,
+                currentPhase: null,
             });
         }
     },
@@ -244,19 +217,19 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
         if (abortController) {
             abortController.abort();
         }
-        set({ status: 'IDLE', progress: 0, thinkingOutput: '', error: null, persistenceWarning: null, abortController: null, selectedTemplateId: null });
-    },
-
-    setProvider: (provider: string) => {
-        try {
-            localStorage.setItem('selectedProvider', provider);
-        } catch (error) {
-            logger.warn('Failed to save provider to localStorage:', error);
-        }
-        set({ selectedProvider: provider });
+        set({
+            status: 'IDLE',
+            progress: 0,
+            thinkingOutput: '',
+            error: null,
+            persistenceWarning: null,
+            abortController: null,
+            selectedTemplateId: null,
+            currentPhase: null,
+        });
     },
 
     setTemplateId: (id: string | null) => {
         set({ selectedTemplateId: id });
-    }
+    },
 }));

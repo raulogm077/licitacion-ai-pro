@@ -151,9 +151,9 @@ No puede:
 
 Criterios mínimos de validación:
 
-1. `npm run type-check`
-2. `npm test`
-3. `npm run test:e2e` si la tarea toca UI, flujo de análisis o SSE
+1. `pnpm typecheck`
+2. `pnpm test`
+3. `pnpm test:e2e` si la tarea toca UI, flujo de análisis o SSE
 4. Si la tarea es `🧠 [AI]`:
    - debe respetar la Guía de lectura de pliegos
    - no debe romper SSE

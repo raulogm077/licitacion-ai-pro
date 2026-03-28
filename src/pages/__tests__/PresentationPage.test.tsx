@@ -11,7 +11,7 @@ vi.mock('../../features/presentation/PresentationMode', () => ({
             <h1>Presentation Mode</h1>
             <button onClick={onClose}>Close</button>
         </div>
-    )
+    ),
 }));
 
 describe('PresentationPage', () => {

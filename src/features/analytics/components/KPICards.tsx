@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { FileText, Euro, CheckCircle, Clock } from 'lucide-react';
@@ -50,7 +49,8 @@ export const KPICards: React.FC<KPICardsProps> = ({ analytics }) => {
                     </p>
                     {analytics.presupuestoTotal > 0 && (
                         <p className="text-xs text-slate-400 mt-1">
-                            {((analytics.importeAdjudicadoTotal / analytics.presupuestoTotal) * 100).toFixed(1)}% del total
+                            {((analytics.importeAdjudicadoTotal / analytics.presupuestoTotal) * 100).toFixed(1)}% del
+                            total
                         </p>
                     )}
                 </CardContent>

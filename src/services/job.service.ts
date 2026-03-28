@@ -1,9 +1,7 @@
 import { env } from '../config/env';
 import { supabase } from '../config/supabase';
 import { LicitacionContent } from '../types';
-import { transformAgentResponseToFrontend } from '../agents/utils/schema-transformer';
 import { LicitacionContentSchema } from '../lib/schemas';
-import type { LicitacionAgentResponse } from '../agents/schemas/licitacion-agent.schema';
 import type { ExtractionTemplate } from '../types';
 import { logger } from './logger';
 
@@ -44,19 +42,17 @@ function readWithTimeout(
 
 export class JobService {
     /**
-     * NEW: Analyze with Agents SDK (streaming)
-     * This method calls the new analyze-with-agents Edge Function
-     * and consumes the SSE stream for real-time progress
+     * Analyze documents using the phased pipeline.
+     * Consumes SSE stream with phase progress events.
      */
     async analyzeWithAgents(
         pdfBase64: string,
-        guiaBase64: string | null,
         filename: string,
         template: ExtractionTemplate | null = null,
         onProgress?: (event: StreamEvent) => void,
         files?: { name: string; base64: string }[],
         signal?: AbortSignal
-    ): Promise<LicitacionContent> {
+    ): Promise<{ content: LicitacionContent; workflow: unknown }> {
         let {
             data: { session },
         } = await supabase.auth.getSession();
@@ -66,8 +62,6 @@ export class JobService {
         }
 
         // Refresh token proactively if it expires within 60 seconds
-        // getSession() returns cached session without auto-refreshing, so an expired token
-        // would cause the Edge Function to return 401 "Invalid JWT"
         const now = Math.floor(Date.now() / 1000);
         if ((session.expires_at ?? 0) - now < 60) {
             logger.debug('[JobService] Token próximo a expirar, refrescando sesión...');
@@ -80,10 +74,7 @@ export class JobService {
         }
 
         try {
-            // 1. Note: We'll use fetch API directly for streaming
-            // supabase.functions.invoke doesn't support streaming properly
-
-            logger.debug('[JobService] Usando fetch API para streaming...');
+            logger.debug('[JobService] Starting phased analysis...');
 
             const projectUrl = env.VITE_SUPABASE_URL;
             const functionUrl = `${projectUrl}/functions/v1/analyze-with-agents`;
@@ -97,7 +88,6 @@ export class JobService {
                 },
                 body: JSON.stringify({
                     pdfBase64,
-                    guiaBase64,
                     filename,
                     template,
                     files,
@@ -120,11 +110,11 @@ export class JobService {
                 throw new Error('No response body');
             }
 
-            // 3. Read SSE stream
+            // Read SSE stream
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
-            let finalResult: unknown = null;
+            let finalResult: { result?: unknown; workflow?: unknown } | null = null;
 
             let reading = true;
             let streamError: Error | null = null;
@@ -139,43 +129,27 @@ export class JobService {
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+                buffer = lines.pop() || '';
 
                 for (const line of lines) {
-                    if (!line.trim() || !line.startsWith('data: ')) {
-                        continue;
-                    }
+                    if (!line.trim() || !line.startsWith('data: ')) continue;
 
                     let event: StreamEvent;
                     try {
                         event = JSON.parse(line.slice(6));
-                    } catch (parseError) {
-                        logger.warn('[JobService] No se pudo parsear evento JSON:', line);
+                    } catch {
+                        logger.warn('[JobService] Failed to parse SSE event:', line);
                         continue;
                     }
 
-                    // Notify progress
                     if (onProgress) {
                         onProgress(event);
                     }
 
-                    // Log important events
-                    if (event.type === 'agent_message') {
-                        logger.debug(
-                            `[Agent]: ${
-                                typeof event.content === 'string'
-                                    ? event.content.substring(0, 80)
-                                    : JSON.stringify(event.content).substring(0, 80)
-                            }...`
-                        );
-                    }
-
-                    // Capture final result
                     if (event.type === 'complete' && event.result) {
-                        finalResult = event.result;
+                        finalResult = event.result as { result?: unknown; workflow?: unknown };
                     }
 
-                    // Handle application error (do not throw inside loop parsing try/catch)
                     if (event.type === 'error') {
                         streamError = new Error(event.message || 'Error en streaming');
                         reading = false;
@@ -186,30 +160,21 @@ export class JobService {
                 if (streamError) break;
             }
 
-            if (streamError) {
-                throw streamError;
-            }
+            if (streamError) throw streamError;
+            if (!finalResult) throw new Error('No se recibió resultado final del stream');
 
-            if (!finalResult) {
-                throw new Error('No se recibió resultado final del stream');
-            }
+            logger.debug('[JobService] Result received, validating...');
 
-            logger.debug('[JobService] Resultado recibido, aplicando transformación...');
+            // The new pipeline returns { result, workflow } directly — no transformation needed
+            const resultData = finalResult.result || finalResult;
+            const validated = LicitacionContentSchema.parse(resultData);
 
-            // 4. Transform from Agent schema to Frontend schema
-            // Type assertion: we expect finalResult to match LicitacionAgentResponse
-            const transformed = transformAgentResponseToFrontend(finalResult as LicitacionAgentResponse);
+            logger.info('[JobService] Analysis completed and validated');
 
-            // 5. Validate with frontend schema
-            const validated = LicitacionContentSchema.parse(transformed);
-
-            logger.info('[JobService] Análisis completado y validado');
-            const typedResult = finalResult as LicitacionAgentResponse;
-            if (typedResult.workflow) {
-                logger.info(`[JobService] Quality: ${typedResult.workflow.quality?.overall || 'N/A'}`);
-            }
-
-            return validated;
+            return {
+                content: validated,
+                workflow: finalResult.workflow,
+            };
         } catch (error: unknown) {
             logger.error('[JobService] Error en análisis:', error);
             throw error;
@@ -217,14 +182,25 @@ export class JobService {
     }
 }
 
-// Type for streaming events
+// SSE event types
 export interface StreamEvent {
-    type: 'heartbeat' | 'agent_message' | 'complete' | 'error';
+    type:
+        | 'heartbeat'
+        | 'phase_started'
+        | 'phase_completed'
+        | 'phase_progress'
+        | 'extraction_progress'
+        | 'complete'
+        | 'error'
+        // Legacy event types (backward compat)
+        | 'agent_message';
+    phase?: string;
     content?: string | unknown;
     result?: unknown;
     message?: string;
     timestamp: number;
-    eventsProcessed?: number;
+    blockIndex?: number;
+    totalBlocks?: number;
 }
 
 export const jobService = new JobService();
