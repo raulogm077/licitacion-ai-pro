@@ -4,7 +4,7 @@
  * Ejecuta una llamada Responses API + file_search por cada bloque temático.
  * Cada bloque tiene su propio prompt y schema de validación.
  */
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
 import { BLOCK_NAMES, BLOCK_SCHEMAS } from '../../_shared/schemas/blocks.ts';
 import type { BlockName } from '../../_shared/schemas/blocks.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';

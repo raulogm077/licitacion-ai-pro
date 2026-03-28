@@ -4,7 +4,7 @@
  * Identifica la estructura del expediente usando Responses API + file_search.
  * Devuelve un mapa estructurado de los documentos encontrados.
  */
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
 import { DocumentMapSchema } from '../../_shared/schemas/document-map.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
 

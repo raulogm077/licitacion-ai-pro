@@ -11,7 +11,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limiter.ts';
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
 
 // Phase imports
 import { runIngestion } from './phases/ingestion.ts';

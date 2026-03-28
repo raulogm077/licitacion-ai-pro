@@ -4,7 +4,7 @@
  * Estrategia TTL: Los recursos (vector stores, files) se marcan para
  * limpieza con un timestamp futuro. Esta función limpia los que han expirado.
  */
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
 
 /** Default TTL: 24 hours after job completion */
 export const DEFAULT_CLEANUP_TTL_HOURS = 24;

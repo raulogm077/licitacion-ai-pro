@@ -6,7 +6,7 @@
  * - Crea vector store y espera indexación
  * - NO sube la guía al vector store (va en system prompt)
  */
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
 
 export interface IngestionInput {
     openai: OpenAI;
