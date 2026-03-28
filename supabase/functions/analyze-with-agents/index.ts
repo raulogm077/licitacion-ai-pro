@@ -448,11 +448,12 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
         }
 
         // In @openai/agents@0.8.1, vector store IDs are passed directly via fileSearchTool()
-        // instead of the toolResources option in run(). Model updated to gpt-4o auto-alias
-        // which always points to the latest stable snapshot.
+        // instead of the toolResources option in run(). Model upgraded to gpt-4.1 which is
+        // the new default in the Agents SDK: 1M token context, better instruction following,
+        // better structured output enforcement than gpt-4o.
         const agent = new Agent({
             name: 'Analista de Pliegos',
-            model: 'gpt-4o',
+            model: 'gpt-4.1',
             instructions: currentInstructions,
             response_format: dynamicResponseFormat,
             tools: [fileSearchTool([vectorStoreId!])],
