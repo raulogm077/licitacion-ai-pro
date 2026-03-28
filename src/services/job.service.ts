@@ -30,8 +30,14 @@ function readWithTimeout(
         }, timeoutMs);
 
         reader.read().then(
-            (result) => { clearTimeout(timer); resolve(result); },
-            (err) => { clearTimeout(timer); reject(err); }
+            (result) => {
+                clearTimeout(timer);
+                resolve(result);
+            },
+            (err) => {
+                clearTimeout(timer);
+                reject(err);
+            }
         );
     });
 }
@@ -51,10 +57,26 @@ export class JobService {
         files?: { name: string; base64: string }[],
         signal?: AbortSignal
     ): Promise<LicitacionContent> {
-        const { data: { session } } = await supabase.auth.getSession();
+        let {
+            data: { session },
+        } = await supabase.auth.getSession();
 
         if (!session?.user) {
             throw new Error('Usuario no autenticado');
+        }
+
+        // Refresh token proactively if it expires within 60 seconds
+        // getSession() returns cached session without auto-refreshing, so an expired token
+        // would cause the Edge Function to return 401 "Invalid JWT"
+        const now = Math.floor(Date.now() / 1000);
+        if ((session.expires_at ?? 0) - now < 60) {
+            logger.debug('[JobService] Token próximo a expirar, refrescando sesión...');
+            const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+            if (refreshErr || !refreshed.session) {
+                throw new Error('Sesión expirada. Por favor, inicia sesión de nuevo.');
+            }
+            session = refreshed.session;
+            logger.debug('[JobService] Sesión refrescada con éxito.');
         }
 
         try {
@@ -63,24 +85,24 @@ export class JobService {
 
             logger.debug('[JobService] Usando fetch API para streaming...');
 
-                        const projectUrl = env.VITE_SUPABASE_URL;
+            const projectUrl = env.VITE_SUPABASE_URL;
             const functionUrl = `${projectUrl}/functions/v1/analyze-with-agents`;
 
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`,
-                    'apikey': env.VITE_SUPABASE_ANON_KEY
+                    Authorization: `Bearer ${session?.access_token}`,
+                    apikey: env.VITE_SUPABASE_ANON_KEY,
                 },
                 body: JSON.stringify({
                     pdfBase64,
                     guiaBase64,
                     filename,
                     template,
-                    files
+                    files,
                 }),
-                signal
+                signal,
             });
 
             if (!response.ok) {
@@ -88,7 +110,9 @@ export class JobService {
                 try {
                     const errorBody = await response.json();
                     serverMessage = errorBody.error || errorBody.message || '';
-                } catch { /* ignore parse error */ }
+                } catch {
+                    /* ignore parse error */
+                }
                 throw new Error(serverMessage || `Error del servidor (HTTP ${response.status})`);
             }
 
@@ -137,9 +161,13 @@ export class JobService {
 
                     // Log important events
                     if (event.type === 'agent_message') {
-                        logger.debug(`[Agent]: ${typeof event.content === 'string'
-                            ? event.content.substring(0, 80)
-                            : JSON.stringify(event.content).substring(0, 80)}...`);
+                        logger.debug(
+                            `[Agent]: ${
+                                typeof event.content === 'string'
+                                    ? event.content.substring(0, 80)
+                                    : JSON.stringify(event.content).substring(0, 80)
+                            }...`
+                        );
                     }
 
                     // Capture final result
@@ -182,7 +210,6 @@ export class JobService {
             }
 
             return validated;
-
         } catch (error: unknown) {
             logger.error('[JobService] Error en análisis:', error);
             throw error;

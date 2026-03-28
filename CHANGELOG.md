@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased] - 2026-03-28
+
+### Fixed
+- **Bug crítico — JWT 401 en análisis** (`src/services/job.service.ts`): `supabase.auth.getSession()` devolvía el token en caché sin refrescar. Añadido refresh proactivo: si el `access_token` expira en ≤ 60s, se llama a `refreshSession()` antes de invocar la Edge Function. Resuelve el error "Invalid JWT" en producción.
+
+- **CI/CD — Migration drift** (`.github/workflows/ci-cd.yml`): `supabase db push` fallaba con "Remote migration versions not found in local migrations directory". Añadido `--include-all` para tolerar drift y `continue-on-error: true` para que la migración no bloquee el despliegue de la función.
+
+- **CI/CD — Postgres auth** (`.github/workflows/ci-cd.yml`): `SQLSTATE 28P01` al conectar con el pooler. Separado el paso de `db push` (no-crítico) del paso `functions deploy` (crítico) para que el despliegue de la Edge Function sea independiente.
+
+### Changed
+- **`@openai/agents` actualizado 0.3.7 → 0.8.1** (`supabase/functions/analyze-with-agents/index.ts`):
+  - `openai` SDK actualizado 4.77.0 → 6.26.0 (requerido por agents 0.8.1)
+  - Patrón de streaming migrado: `StreamedRunResult` es ahora directamente `AsyncIterable`; se itera `result` en lugar de `result.stream`
+  - `fileSearchTool([vectorStoreId])` reemplaza `{ type: 'file_search' }` + `toolResources` en `run()`
+  - Modelo actualizado `gpt-4o-2024-08-06` → `gpt-4o` (alias auto-latest)
+
+### Added
+- **Test E2E con PDF real** (`e2e/upload-pdf.spec.ts`): Test end-to-end completo usando `memo_p2.pdf` del repositorio. Cubre el flujo upload → análisis → progreso SSE → completado, con mocks de auth y Edge Function para CI.
+
+---
+
 ## [Unreleased] - 2026-01-02
 
 ### 🎉 Major: OpenAI Agents SDK Migration

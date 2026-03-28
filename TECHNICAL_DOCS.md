@@ -95,7 +95,7 @@ Edge Function valida JWT + rate limit (10/hora)
 Sube PDF a OpenAI Files API → Vector Store
        │
        ▼
-OpenAI Agent (gpt-4o-2024-08-06) procesa el documento
+OpenAI Agent (gpt-4o) procesa el documento
   ├── file_search en Vector Store
   ├── Extracción estructurada con schemas Zod
   └── submit_analysis_result (tool call obligatorio)
@@ -141,7 +141,7 @@ Dashboard renderiza resultado
 | Supabase | latest | BaaS (DB + Auth + Storage + Edge) |
 | PostgreSQL | 15+ | Base de datos principal |
 | Deno | runtime | Edge Functions |
-| OpenAI Agents SDK | 0.3.7 | Orquestación de agentes IA |
+| OpenAI Agents SDK | 0.8.1 | Orquestación de agentes IA |
 | OpenAI Files API | v1 | Ingesta de PDFs |
 | OpenAI Vector Store | v1 | Búsqueda semántica en PDFs |
 
@@ -246,7 +246,7 @@ licitacion-ai-pro-qa/
 
 | Servicio | Archivo | Responsabilidad |
 |---------|---------|----------------|
-| `job.service` | `src/services/job.service.ts` | Orquestación del análisis, SSE streaming, timeout de inactividad (5 min) |
+| `job.service` | `src/services/job.service.ts` | Orquestación del análisis, SSE streaming, timeout de inactividad (5 min). Incluye refresh proactivo del JWT antes de cada llamada a la Edge Function (si `expires_at - now < 60s`). |
 | `db.service` | `src/services/db.service.ts` | CRUD de licitaciones, búsqueda, filtros (303 líneas) |
 | `template.service` | `src/services/template.service.ts` | CRUD de plantillas de extracción |
 | `auth.service` | `src/services/auth.service.ts` | Login, logout, sesión |
@@ -467,8 +467,8 @@ supabase/migrations/
 
 | Parámetro | Valor |
 |-----------|-------|
-| Modelo | `gpt-4o-2024-08-06` |
-| SDK | OpenAI Agents SDK 0.3.7 |
+| Modelo | `gpt-4o` (alias auto-latest) |
+| SDK | OpenAI Agents SDK 0.8.1 |
 | Tool obligatorio | `submit_analysis_result` |
 | Capacidades | `file_search` (Vector Store) |
 | Instrucciones | `src/agents/utils/instructions.ts` |
@@ -889,7 +889,7 @@ Los siguientes documentos deben mantenerse actualizados con cada tarea:
 | Transferencia de PDF | Base64 en JSON | FormData multipart | Facilita validación Zod y SSE en mismo request |
 | Multi-tenancy | RLS en Supabase | Filtros en app | Aislamiento garantizado a nivel DB sin código adicional |
 | AI SDK | OpenAI Agents SDK | LangChain | Streaming nativo, tool calling, Files API integrado |
-| Modelo | gpt-4o-2024-08-06 | gpt-4-turbo | Mejor capacidad de comprensión de documentos legales |
+| Modelo | gpt-4o (auto-latest) | gpt-4-turbo | Mejor capacidad de comprensión de documentos legales; alias garantiza acceso al snapshot estable más reciente |
 | Multi-doc | Procesamiento secuencial | Paralelo | Límites de memoria del Deno Edge Runtime |
 | Validación | Zod (frontend + backend) | JSON Schema | Type-safe, reutilizable entre frontend y Edge Functions |
 | Estado | Zustand | Redux / Context | Más ligero, API más simple para este caso de uso |
