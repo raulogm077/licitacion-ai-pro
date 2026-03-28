@@ -5,16 +5,6 @@ import { LicitacionContentSchema } from '../lib/schemas';
 import type { ExtractionTemplate } from '../types';
 import { logger } from './logger';
 
-export interface JobStatus {
-    id: string;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
-    progress?: number;
-    message?: string;
-    step?: string;
-    result?: LicitacionContent;
-    error?: string;
-}
-
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 function readWithTimeout(
@@ -114,54 +104,68 @@ export class JobService {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
-            let finalResult: { result?: unknown; workflow?: unknown } | null = null;
+            const state = {
+                finalResult: null as { result: unknown; workflow?: unknown } | null,
+                reading: true,
+                streamError: null as Error | null,
+            };
 
-            let reading = true;
-            let streamError: Error | null = null;
+            const processLine = (line: string) => {
+                if (!line.trim() || !line.startsWith('data: ')) return;
 
-            while (reading) {
+                let event: StreamEvent;
+                try {
+                    event = JSON.parse(line.slice(6));
+                } catch {
+                    logger.warn('[JobService] Failed to parse SSE event:', line);
+                    return;
+                }
+
+                if (onProgress) {
+                    try {
+                        onProgress(event);
+                    } catch (err) {
+                        logger.error('[JobService] onProgress callback error:', err);
+                    }
+                }
+
+                if (event.type === 'complete') {
+                    if (!event.result) {
+                        state.streamError = new Error('Error del servidor: evento "complete" sin resultado');
+                        state.reading = false;
+                        return;
+                    }
+                    state.finalResult = {
+                        result: event.result,
+                        workflow: event.workflow,
+                    };
+                    state.reading = false;
+                }
+
+                if (event.type === 'error') {
+                    state.streamError = new Error(event.message || 'Error en streaming');
+                    state.reading = false;
+                }
+            };
+
+            while (state.reading) {
                 const { done, value } = await readWithTimeout(reader, INACTIVITY_TIMEOUT_MS);
 
-                if (done) {
-                    reading = false;
-                    break;
-                }
+                if (done) break;
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
-                    if (!line.trim() || !line.startsWith('data: ')) continue;
-
-                    let event: StreamEvent;
-                    try {
-                        event = JSON.parse(line.slice(6));
-                    } catch {
-                        logger.warn('[JobService] Failed to parse SSE event:', line);
-                        continue;
-                    }
-
-                    if (onProgress) {
-                        onProgress(event);
-                    }
-
-                    if (event.type === 'complete') {
-                        // Pipeline sends { result, workflow } spread into the event
-                        finalResult = {
-                            result: event.result,
-                            workflow: event.workflow,
-                        };
-                    }
-
-                    if (event.type === 'error') {
-                        streamError = new Error(event.message || 'Error en streaming');
-                        reading = false;
-                        break;
-                    }
+                    processLine(line);
+                    if (!state.reading) break;
                 }
+            }
 
-                if (streamError) break;
+            // Process any remaining data in buffer after stream ends
+            if (buffer.trim()) {
+                processLine(buffer);
             }
 
             // Release the reader lock
@@ -171,20 +175,19 @@ export class JobService {
                 /* already released */
             }
 
-            if (streamError) throw streamError;
-            if (!finalResult) throw new Error('No se recibió resultado final del stream');
+            if (state.streamError) throw state.streamError;
+            if (!state.finalResult) throw new Error('No se recibió resultado final del stream');
 
             logger.debug('[JobService] Result received, validating...');
 
-            // The new pipeline returns { result, workflow } directly — no transformation needed
-            const resultData = finalResult.result || finalResult;
+            const resultData = state.finalResult.result;
             const validated = LicitacionContentSchema.parse(resultData);
 
             logger.info('[JobService] Analysis completed and validated');
 
             return {
                 content: validated,
-                workflow: finalResult.workflow,
+                workflow: state.finalResult.workflow,
             };
         } catch (error: unknown) {
             logger.error('[JobService] Error en análisis:', error);

@@ -102,8 +102,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             const { content, workflow } = await services.ai.analyzePdfContent(
                 base64,
                 (processed, total, message) => {
-                    const progressWeight = 80 / total;
-                    const currentProgress = 10 + Math.round(processed * progressWeight);
+                    const progressWeight = total > 0 ? 80 / total : 0;
+                    const currentProgress = total > 0 ? 10 + Math.round(processed * progressWeight) : 50;
 
                     set((state) => {
                         const lines = state.thinkingOutput.split('\n');
