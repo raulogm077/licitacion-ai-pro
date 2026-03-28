@@ -5,7 +5,7 @@ import { useLicitacionStore } from '../stores/licitacion.store';
 import { useAnalysisStore } from '../stores/analysis.store';
 import { useNavigate } from 'react-router-dom';
 
-const HistoryView = lazy(() => import('../features/history/HistoryView').then(m => ({ default: m.HistoryView })));
+const HistoryView = lazy(() => import('../features/history/HistoryView').then((m) => ({ default: m.HistoryView })));
 
 export const HistoryPage: React.FC = () => {
     const navigate = useNavigate();

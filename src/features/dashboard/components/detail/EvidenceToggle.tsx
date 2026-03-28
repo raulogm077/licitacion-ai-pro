@@ -47,11 +47,7 @@ export function EvidenceToggle({ evidence, className = '' }: EvidenceToggleProps
                     </div>
 
                     {/* Backdrop to close when clicking outside (or use a global listener, but this is simple) */}
-                    <div
-                        className="fixed inset-0 z-[-1]"
-                        onClick={() => setIsOpen(false)}
-                        aria-hidden="true"
-                    />
+                    <div className="fixed inset-0 z-[-1]" onClick={() => setIsOpen(false)} aria-hidden="true" />
                 </div>
             )}
         </div>

@@ -27,10 +27,6 @@ export function bufferToBase64(buffer: ArrayBuffer): Promise<string> {
 }
 
 /**
- * @deprecated Use processFile() if you also need hash/validation
- */
-
-/**
  * Optimized file processor: reads file ONCE and generates all needed artifacts.
  */
 export async function processFile(file: File): Promise<{

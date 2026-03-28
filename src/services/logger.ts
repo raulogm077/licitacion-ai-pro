@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 
 export enum LogLevel {
@@ -6,7 +5,7 @@ export enum LogLevel {
     WARN = 'WARN',
     ERROR = 'ERROR',
     DEBUG = 'DEBUG',
-    PERF = 'PERF' // New: Performance metrics
+    PERF = 'PERF', // New: Performance metrics
 }
 
 export interface LogEntry {
@@ -35,20 +34,21 @@ interface LoggerStore {
 
 export const useLoggerStore = create<LoggerStore>((set) => ({
     logs: [],
-    addLog: (level, message, data, context) => set((state) => ({
-        logs: [
-            {
-                id: crypto.randomUUID(),
-                timestamp: Date.now(),
-                level,
-                message,
-                data,
-                context
-            },
-            ...state.logs
-        ].slice(0, 200)  // Increased from 100 to 200
-    })),
-    clearLogs: () => set({ logs: [] })
+    addLog: (level, message, data, context) =>
+        set((state) => ({
+            logs: [
+                {
+                    id: crypto.randomUUID(),
+                    timestamp: Date.now(),
+                    level,
+                    message,
+                    data,
+                    context,
+                },
+                ...state.logs,
+            ].slice(0, 200), // Increased from 100 to 200
+        })),
+    clearLogs: () => set({ logs: [] }),
 }));
 
 // Performance tracking utility
@@ -92,14 +92,16 @@ export const logger = {
 
         // In production, send to Sentry
         if (import.meta.env.PROD && !isTest && typeof window !== 'undefined') {
-            import('../config/sentry').then(({ Sentry }) => {
-                Sentry.captureException(data instanceof Error ? data : new Error(msg), {
-                    contexts: { custom: context as Record<string, unknown> },
-                    extra: { data }
+            import('../config/sentry')
+                .then(({ Sentry }) => {
+                    Sentry.captureException(data instanceof Error ? data : new Error(msg), {
+                        contexts: { custom: context as Record<string, unknown> },
+                        extra: { data },
+                    });
+                })
+                .catch((err) => {
+                    console.warn('Sentry not available:', err);
                 });
-            }).catch((err) => {
-                console.warn('Sentry not available:', err);
-            });
         }
     },
 
@@ -115,5 +117,5 @@ export const logger = {
         if (import.meta.env.DEV && !isTest) {
             console.log(`[PERF] ${msg}`, data, context);
         }
-    }
+    },
 };

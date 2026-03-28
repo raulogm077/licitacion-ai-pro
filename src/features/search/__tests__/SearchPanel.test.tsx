@@ -9,8 +9,8 @@ vi.mock('../../../services/db.service', () => ({
         getLicitacion: vi.fn(),
         searchByPresupuestoRange: vi.fn(),
         advancedSearch: vi.fn(),
-        searchByTags: vi.fn()
-    }
+        searchByTags: vi.fn(),
+    },
 }));
 
 describe('SearchPanel', () => {

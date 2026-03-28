@@ -20,14 +20,16 @@ export const Layout: React.FC<LayoutProps> = (props) => {
             <Header {...props} />
 
             <main className="max-w-6xl mx-auto px-6 py-8">
-                <Suspense fallback={
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="animate-spin text-brand-600" size={48} />
-                    </div>
-                }>
+                <Suspense
+                    fallback={
+                        <div className="flex items-center justify-center py-20">
+                            <Loader2 className="animate-spin text-brand-600" size={48} />
+                        </div>
+                    }
+                >
                     <Outlet />
                 </Suspense>
             </main>
-        </div >
+        </div>
     );
 };

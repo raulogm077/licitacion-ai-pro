@@ -12,18 +12,20 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 
 ## Arquitectura actual
 
-La arquitectura vigente usa **OpenAI Agents SDK**, **Supabase Edge Functions** y **SSE** para streaming del análisis.
+La arquitectura vigente usa **OpenAI Responses API** con un **pipeline de 5 fases**, **Supabase Edge Functions** y **SSE** para streaming del análisis.
 
 Flujo lógico actual:
 
 ```text
 Usuario → Frontend → Edge Function `analyze-with-agents`
                      ↓
-              OpenAI Files API / Vector Store
+              Fase A: Ingesta (Files API + Vector Store)
+              Fase B: Mapa Documental (Responses API)
+              Fase C: Extracción por Bloques (~9 llamadas)
+              Fase D: Consolidación
+              Fase E: Validación Final
                      ↓
-               Agents SDK (streaming)
-                     ↓
-                 SSE → Frontend
+                 SSE → Frontend (progreso por fase)
 ```
 
 Documentación viva del sistema:
@@ -48,8 +50,8 @@ Documentación viva del sistema:
 
 ### Backend y servicios
 - Supabase
-- Supabase Edge Functions
-- OpenAI Agents SDK
+- Supabase Edge Functions (Deno runtime)
+- OpenAI Responses API (pipeline por fases)
 - OpenAI Files API / Vector Store
 - Vercel para hosting frontend
 
@@ -64,7 +66,7 @@ Documentación viva del sistema:
 ### Requisitos
 
 - Node.js 20+
-- npm 10+
+- pnpm 9+
 - proyecto de Supabase configurado
 - variables de entorno locales completas
 - secreto `OPENAI_API_KEY` configurado en Supabase para la Edge Function
@@ -74,7 +76,7 @@ Documentación viva del sistema:
 ```bash
 git clone https://github.com/raulogm077/licitacion-ai-pro.git
 cd licitacion-ai-pro
-npm install
+pnpm install
 ```
 
 ### Variables de entorno
@@ -92,19 +94,19 @@ VITE_ENVIRONMENT=local
 ### Ejecución local
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ## Testing
 
 ```bash
-npm run type-check
-npm test
-npm run test:e2e
+pnpm typecheck
+pnpm test
+pnpm test:e2e
 ```
 
 Notas:
-- `npm run test:e2e` debe usarse cuando una tarea toque UI, flujo principal de análisis o SSE.
+- `pnpm test:e2e` debe usarse cuando una tarea toque UI, flujo principal de análisis o SSE.
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
 
 ## Flujo de ramas y entrega

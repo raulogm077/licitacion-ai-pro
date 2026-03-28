@@ -19,8 +19,6 @@ export const AnalysisWizard: React.FC = () => {
         analyzeFiles,
         cancelAnalysis,
         resetAnalysis,
-        selectedProvider,
-        setProvider,
         selectedTemplateId,
         setTemplateId,
     } = useAnalysisStore();
@@ -71,7 +69,6 @@ export const AnalysisWizard: React.FC = () => {
                 isAuthenticated={isAuthenticated}
                 selectedFiles={selectedFiles}
                 validationError={validationError}
-                selectedProvider={selectedProvider}
                 templates={templates}
                 selectedTemplateId={selectedTemplateId}
                 error={status === 'ERROR' ? error : null}
@@ -80,7 +77,6 @@ export const AnalysisWizard: React.FC = () => {
                 onClearAll={handleClearAll}
                 onStartAnalysis={handleStartAnalysis}
                 onResetAnalysis={resetAnalysis}
-                onSetProvider={setProvider}
                 onSetTemplateId={setTemplateId}
             />
         );

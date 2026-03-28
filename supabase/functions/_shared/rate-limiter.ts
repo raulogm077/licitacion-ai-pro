@@ -10,7 +10,7 @@ export function checkRateLimit(userId: string): { allowed: boolean; retryAfterMs
     const timestamps = rateLimitMap.get(userId) || [];
 
     // Remove expired entries
-    const valid = timestamps.filter(t => now - t < WINDOW_MS);
+    const valid = timestamps.filter((t) => now - t < WINDOW_MS);
 
     if (valid.length >= MAX_REQUESTS) {
         const oldest = valid[0];

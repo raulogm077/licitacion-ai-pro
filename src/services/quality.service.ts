@@ -1,9 +1,16 @@
-import { LicitacionContent, WorkflowState } from "../types";
+import { LicitacionContent, WorkflowState } from '../types';
 
 type QualityReport = NonNullable<WorkflowState['quality']>;
 
-export class QualityService {
+/** Unwrap a TrackedField or raw value to its primitive */
+function unwrap<T>(field: T | { value: T }): T {
+    if (typeof field === 'object' && field !== null && 'value' in field) {
+        return (field as { value: T }).value;
+    }
+    return field as T;
+}
 
+export class QualityService {
     evaluateQuality(content: LicitacionContent, existingAmbiguousFields?: string[]): QualityReport {
         const warnings: string[] = [];
         const missingCritical: string[] = [];
@@ -22,7 +29,7 @@ export class QualityService {
         else if (hasSubnetivos || hasObjetivos) sectionStatus['criteriosAdjudicacion'] = 'PARCIAL';
         else {
             sectionStatus['criteriosAdjudicacion'] = 'VACIO';
-            warnings.push("No se detectaron criterios de adjudicación.");
+            warnings.push('No se detectaron criterios de adjudicación.');
         }
 
         // 3. Solvencia
@@ -48,7 +55,7 @@ export class QualityService {
         let overall: 'COMPLETO' | 'PARCIAL' | 'VACIO' = 'COMPLETO';
 
         const criticalSections = ['datosGenerales', 'criteriosAdjudicacion', 'requisitosTecnicos'];
-        const emptyCritical = criticalSections.filter(k => sectionStatus[k] === 'VACIO');
+        const emptyCritical = criticalSections.filter((k) => sectionStatus[k] === 'VACIO');
 
         if (emptyCritical.length === criticalSections.length) {
             overall = 'VACIO';
@@ -67,7 +74,7 @@ export class QualityService {
             missingCriticalFields: missingCritical,
             ambiguous_fields: existingAmbiguousFields || [],
             warnings: warnings, // Standard warnings (e.g. empty lists)
-            consistencyWarnings: consistencyWarnings // New semantic warnings
+            consistencyWarnings: consistencyWarnings, // New semantic warnings
         };
     }
 
@@ -76,68 +83,81 @@ export class QualityService {
         const { datosGenerales, requisitosSolvencia } = content;
 
         // 1. Budget Logic
-        if (datosGenerales.presupuesto !== undefined) {
-            if (datosGenerales.presupuesto <= 0) {
-                warnings.push("El presupuesto es 0 o negativo, lo cual es inusual.");
+        const presupuesto = unwrap(datosGenerales.presupuesto);
+        const moneda = unwrap(datosGenerales.moneda);
+        if (presupuesto !== undefined) {
+            if (presupuesto <= 0) {
+                warnings.push('El presupuesto es 0 o negativo, lo cual es inusual.');
             }
-            // Formatting check (simple heuristic)
-            if (datosGenerales.moneda && !['EUR', 'USD'].includes(datosGenerales.moneda)) {
-                warnings.push(`Moneda '${datosGenerales.moneda}' no es estándar (EUR/USD).`);
+            if (moneda && !['EUR', 'USD'].includes(moneda)) {
+                warnings.push(`Moneda '${moneda}' no es estándar (EUR/USD).`);
             }
         }
 
         // 2. Timeline Logic
-        if (datosGenerales.plazoEjecucionMeses <= 0) {
-            warnings.push("Plazo de ejecución es 0 meses.");
+        const plazo = unwrap(datosGenerales.plazoEjecucionMeses);
+        if (plazo <= 0) {
+            warnings.push('Plazo de ejecución es 0 meses.');
         }
 
         // 3. Solvency vs Budget (Typical rule: Solvency < 1.5 * Budget, or Solvency > 0)
         const solvencyAmount = requisitosSolvencia.economica.cifraNegocioAnualMinima;
-        const budget = datosGenerales.presupuesto;
+        const budget = presupuesto;
 
         if (solvencyAmount > 0 && budget > 0) {
             if (solvencyAmount > budget * 2) {
-                warnings.push(`La solvencia exigida (${solvencyAmount}) es > 2x el presupuesto (${budget}). Verificar.`);
+                warnings.push(
+                    `La solvencia exigida (${solvencyAmount}) es > 2x el presupuesto (${budget}). Verificar.`
+                );
             }
         }
 
         // 4. Duplicate Detection in Lists (Simple exact match)
         const checkDuplicates = (list: string[], context: string) => {
-            const unique = new Set(list.map(s => s.toLowerCase().trim()));
+            const unique = new Set(list.map((s) => s.toLowerCase().trim()));
             if (unique.size !== list.length) {
                 warnings.push(`Detectados elementos duplicados en ${context}.`);
             }
         };
 
-        const killCriteriaStrings = content.restriccionesYRiesgos.killCriteria.map(k => typeof k === 'string' ? k : k.criterio);
-        checkDuplicates(killCriteriaStrings, "Kill Criteria");
+        const killCriteriaStrings = content.restriccionesYRiesgos.killCriteria.map((k) =>
+            typeof k === 'string' ? k : k.criterio
+        );
+        checkDuplicates(killCriteriaStrings, 'Kill Criteria');
 
         return warnings;
     }
 
-    private evaluateGenerales(data: LicitacionContent['datosGenerales'], missingLog: string[]): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
+    private evaluateGenerales(
+        data: LicitacionContent['datosGenerales'],
+        missingLog: string[]
+    ): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
         let missing = 0;
         const total = 4; // Titulo, Presupuesto, Plazo, Organo
 
-        if (!data.titulo || data.titulo === 'Sin título' || data.titulo === 'No detectado') {
+        const titulo = unwrap(data.titulo);
+        const presupuesto = unwrap(data.presupuesto);
+        const organo = unwrap(data.organoContratacion);
+
+        if (!titulo || titulo === 'Sin título' || titulo === 'No detectado') {
             missingLog.push('datosGenerales.titulo');
             missing++;
         }
-        if (!data.presupuesto || data.presupuesto === 0) {
+        if (!presupuesto || presupuesto === 0) {
             missingLog.push('datosGenerales.presupuesto');
             missing++;
         }
-        if (!data.plazoEjecucionMeses) {
+        if (!unwrap(data.plazoEjecucionMeses)) {
             // Optional/Warning?
             // missingLog.push('datosGenerales.plazoEjecucionMeses');
         }
-        if (!data.organoContratacion || data.organoContratacion === 'Desconocido') {
+        if (!organo || organo === 'Desconocido') {
             missingLog.push('datosGenerales.organoContratacion');
             missing++;
         }
 
         if (missing === 0) return 'COMPLETO';
-        if (missing === total) return 'VACIO'; // Likely impossible due to defaults, but logic stands
+        if (missing === total) return 'VACIO';
         return 'PARCIAL';
     }
 }

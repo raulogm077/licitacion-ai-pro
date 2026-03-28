@@ -14,40 +14,37 @@ interface HeaderProps {
     onLogout: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-    status,
-    data,
-    reset,
-    darkMode,
-    setDarkMode,
-    onLogout,
-}) => {
+export const Header: React.FC<HeaderProps> = ({ status, data, reset, darkMode, setDarkMode, onLogout }) => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const navButton = useCallback((path: string, icon: React.ReactNode, label: string) => {
-        const isActive = location.pathname === path;
-        return (
-            <button
-                onClick={() => navigate(path)}
-                title={label}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isActive
-                    ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'
+    const navButton = useCallback(
+        (path: string, icon: React.ReactNode, label: string) => {
+            const isActive = location.pathname === path;
+            return (
+                <button
+                    onClick={() => navigate(path)}
+                    title={label}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                        isActive
+                            ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
-            >
-                {icon}
-                <span className="text-sm font-medium hidden sm:inline">{label}</span>
-            </button>
-        );
-    }, [location.pathname, navigate]);
+                >
+                    {icon}
+                    <span className="text-sm font-medium hidden sm:inline">{label}</span>
+                </button>
+            );
+        },
+        [location.pathname, navigate]
+    );
 
     const handleLogoClick = () => {
         reset();
         navigate('/');
     };
 
-    const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return (
         <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50">
@@ -93,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     <button
                         onClick={() => setDarkMode(!darkMode)}
-                        title={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                        title={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
                         className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
                     >
                         {darkMode ? <Sun size={20} /> : <Moon size={20} />}

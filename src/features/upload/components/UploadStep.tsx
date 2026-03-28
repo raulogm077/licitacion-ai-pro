@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Upload, Lock, X, ArrowRight, FileType } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ExtractionTemplate } from '../../../types';
-import { ProviderSelector } from '../../../components/domain/ProviderSelector';
 import { AuthModal } from '../../../components/ui/AuthModal';
 import { StepIndicator } from './StepIndicator';
 
@@ -10,7 +9,6 @@ interface UploadStepProps {
     isAuthenticated: boolean;
     selectedFiles: File[];
     validationError: string | null;
-    selectedProvider: string;
     templates: ExtractionTemplate[];
     selectedTemplateId: string | null;
     error: string | null;
@@ -19,7 +17,6 @@ interface UploadStepProps {
     onClearAll: () => void;
     onStartAnalysis: () => void;
     onResetAnalysis: () => void;
-    onSetProvider: (provider: string) => void;
     onSetTemplateId: (id: string | null) => void;
 }
 
@@ -27,7 +24,6 @@ export const UploadStep: React.FC<UploadStepProps> = ({
     isAuthenticated,
     selectedFiles,
     validationError,
-    selectedProvider,
     templates,
     selectedTemplateId,
     error,
@@ -36,7 +32,6 @@ export const UploadStep: React.FC<UploadStepProps> = ({
     onClearAll,
     onStartAnalysis,
     onResetAnalysis,
-    onSetProvider,
     onSetTemplateId,
 }) => {
     const { t } = useTranslation();
@@ -86,7 +81,10 @@ export const UploadStep: React.FC<UploadStepProps> = ({
             <div className="relative backdrop-blur-xl bg-white/70 dark:bg-slate-900/60 border border-white/20 dark:border-slate-700/50 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300">
                 {isAuthenticated && (
                     <div className="absolute top-4 right-4 z-20">
-                        <ProviderSelector value={selectedProvider} onChange={onSetProvider} variant="minimal" />
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            <span className="opacity-70">Powered by</span>
+                            <span className="ml-1 font-semibold text-brand-600 dark:text-brand-400">OpenAI</span>
+                        </span>
                     </div>
                 )}
 
@@ -262,9 +260,9 @@ export const UploadStep: React.FC<UploadStepProps> = ({
 
                                 <div className="mt-4 text-center">
                                     <p className="text-xs text-slate-400">
-                                        Motor seleccionado:{' '}
+                                        Motor:{' '}
                                         <span className="font-medium text-brand-600 dark:text-brand-400">
-                                            {selectedProvider.toUpperCase()}
+                                            OpenAI Responses API
                                         </span>
                                     </p>
                                 </div>

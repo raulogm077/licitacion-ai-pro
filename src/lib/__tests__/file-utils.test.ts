@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { validateBufferMagicBytes, bufferToBase64 } from '../file-utils';
 
 describe('file-utils', () => {
-
-
-    // readFileAsBase64 requires valid FileReader which is tricky in JSDOM sometimes, 
+    // readFileAsBase64 requires valid FileReader which is tricky in JSDOM sometimes,
     // but usually supported.
 
     describe('validateBufferMagicBytes', () => {
@@ -26,7 +24,7 @@ describe('file-utils', () => {
             // Expected base64 for "Hello" is "SGVsbG8="
             // However, Blob/FileReader might add data URI scheme, our util strips it
 
-            // Note: Since we use Blob/FileReader inside bufferToBase64, and JSDOM supports it partially, 
+            // Note: Since we use Blob/FileReader inside bufferToBase64, and JSDOM supports it partially,
             // the result should be consistent with readFileAsBase64 logic.
 
             const result = await bufferToBase64(buffer);

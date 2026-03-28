@@ -1,5 +1,5 @@
-
 import { LicitacionData } from '../../types';
+import { unwrap } from '../../lib/tracked-field';
 import { X, Maximize2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 
@@ -12,7 +12,7 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('es-ES', {
             style: 'currency',
-            currency: data.datosGenerales.moneda
+            currency: unwrap(data.datosGenerales.moneda),
         }).format(amount);
     };
 
@@ -40,14 +40,15 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                 {/* Title Slide */}
                 <section className="text-center py-20">
                     <h1 className="text-5xl font-bold text-slate-900 dark:text-white mb-6">
-                        {data.datosGenerales.titulo}
+                        {unwrap(data.datosGenerales.titulo)}
                     </h1>
                     <div className="flex flex-wrap justify-center gap-3">
-                        {data.metadata?.tags && data.metadata.tags.map((tag, idx) => (
-                            <Badge key={idx} variant="default" className="text-sm px-4 py-2">
-                                {tag}
-                            </Badge>
-                        ))}
+                        {data.metadata?.tags &&
+                            data.metadata.tags.map((tag, idx) => (
+                                <Badge key={idx} variant="default" className="text-sm px-4 py-2">
+                                    {tag}
+                                </Badge>
+                            ))}
                     </div>
                 </section>
 
@@ -58,7 +59,7 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                             Presupuesto
                         </p>
                         <p className="text-4xl font-bold text-brand-900 dark:text-brand-100">
-                            {formatCurrency(data.datosGenerales.presupuesto)}
+                            {formatCurrency(unwrap(data.datosGenerales.presupuesto))}
                         </p>
                     </div>
 
@@ -67,7 +68,7 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                             Plazo
                         </p>
                         <p className="text-4xl font-bold text-purple-900 dark:text-purple-100">
-                            {data.datosGenerales.plazoEjecucionMeses}
+                            {unwrap(data.datosGenerales.plazoEjecucionMeses)}
                             <span className="text-2xl ml-2">meses</span>
                         </p>
                     </div>
@@ -94,7 +95,10 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                                 Criterios Subjetivos
                             </h3>
                             {data.criteriosAdjudicacion.subjetivos.map((criterio, idx) => (
-                                <div key={idx} className="p-4 bg-white dark:bg-slate-800 border-l-4 border-blue-500 rounded-lg shadow-sm">
+                                <div
+                                    key={idx}
+                                    className="p-4 bg-white dark:bg-slate-800 border-l-4 border-blue-500 rounded-lg shadow-sm"
+                                >
                                     <div className="flex items-start justify-between mb-2">
                                         <p className="font-medium text-slate-900 dark:text-white flex-1">
                                             {criterio.descripcion}
@@ -118,7 +122,10 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                                 Criterios Objetivos
                             </h3>
                             {data.criteriosAdjudicacion.objetivos.map((criterio, idx) => (
-                                <div key={idx} className="p-4 bg-white dark:bg-slate-800 border-l-4 border-green-500 rounded-lg shadow-sm">
+                                <div
+                                    key={idx}
+                                    className="p-4 bg-white dark:bg-slate-800 border-l-4 border-green-500 rounded-lg shadow-sm"
+                                >
                                     <div className="flex items-start justify-between mb-2">
                                         <p className="font-medium text-slate-900 dark:text-white flex-1">
                                             {criterio.descripcion}
@@ -187,15 +194,26 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {data.restriccionesYRiesgos.riesgos.slice(0, 6).map((riesgo, idx) => {
                                 const colors = {
-                                    CRITICO: 'from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border-red-500',
+                                    CRITICO:
+                                        'from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border-red-500',
                                     ALTO: 'from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-500',
                                     MEDIO: 'from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border-yellow-500',
                                     BAJO: 'from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-500',
                                 };
 
                                 return (
-                                    <div key={idx} className={`p-4 bg-gradient-to-br ${colors[riesgo.impacto]} border-l-4 rounded-lg`}>
-                                        <Badge variant={riesgo.impacto === 'CRITICO' || riesgo.impacto === 'ALTO' ? 'danger' : 'warning'} className="mb-2">
+                                    <div
+                                        key={idx}
+                                        className={`p-4 bg-gradient-to-br ${colors[riesgo.impacto]} border-l-4 rounded-lg`}
+                                    >
+                                        <Badge
+                                            variant={
+                                                riesgo.impacto === 'CRITICO' || riesgo.impacto === 'ALTO'
+                                                    ? 'danger'
+                                                    : 'warning'
+                                            }
+                                            className="mb-2"
+                                        >
                                             {riesgo.impacto}
                                         </Badge>
                                         <p className="text-sm font-medium text-slate-800 dark:text-slate-200">

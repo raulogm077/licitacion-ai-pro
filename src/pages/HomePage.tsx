@@ -14,11 +14,13 @@ export const HomePage: React.FC = () => {
 
     return (
         <>
-            <Suspense fallback={
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="animate-spin text-brand-600" size={48} />
-                </div>
-            }>
+            <Suspense
+                fallback={
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="animate-spin text-brand-600" size={48} />
+                    </div>
+                }
+            >
                 {/* Wizard handles Idle, Analyzing, and Error states */}
                 {(status === 'IDLE' || status === 'ANALYZING' || status === 'ERROR') && (
                     <div className="max-w-5xl mx-auto mt-8">

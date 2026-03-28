@@ -23,15 +23,21 @@ export const DefaultAnalysisPlugin: PromptPlugin = {
 
     getSectionPrompt: (sectionKey: string) => {
         const prompts: Record<string, string> = {
-            datosGenerales: "Extrae el título de la licitación, presupuesto base de licitación (sin IVA), moneda, plazo de ejecución en meses, códigos CPV y el órgano de contratación.",
-            criteriosAdjudicacion: "Identifica los criterios subjetivos (juicio de valor) y objetivos (fórmula). Para cada uno, incluye descripción, ponderación (porcentaje) y detalles o fórmula. IMPORTANTE: Incluye el campo 'cita' con el texto literal del pliego donde aparece cada criterio.",
-            requisitosTecnicos: "Extrae los requisitos funcionales obligatorios y normativa. IMPORTANTE: Para cada requisito, incluye el campo 'cita' con el fragmento exacto del texto que lo describe.",
-            requisitosSolvencia: "Extrae la solvencia económica y técnica. IMPORTANTE: Incluye el campo 'cita' con el texto literal para cada requisito de solvencia técnica.",
-            restriccionesYRiesgos: "Detecta 'Kill Criteria', riesgos y penalizaciones. IMPORTANTE: Justifica cada riesgo y penalización incluyendo el campo 'cita' con el texto literal del pliego.",
-            modeloServicio: "Identifica SLA y equipo mínimo. IMPORTANTE: Incluye el campo 'cita' con el fragmento de texto original para cada SLA y rol del equipo."
+            datosGenerales:
+                'Extrae el título de la licitación, presupuesto base de licitación (sin IVA), moneda, plazo de ejecución en meses, códigos CPV y el órgano de contratación.',
+            criteriosAdjudicacion:
+                "Identifica los criterios subjetivos (juicio de valor) y objetivos (fórmula). Para cada uno, incluye descripción, ponderación (porcentaje) y detalles o fórmula. IMPORTANTE: Incluye el campo 'cita' con el texto literal del pliego donde aparece cada criterio.",
+            requisitosTecnicos:
+                "Extrae los requisitos funcionales obligatorios y normativa. IMPORTANTE: Para cada requisito, incluye el campo 'cita' con el fragmento exacto del texto que lo describe.",
+            requisitosSolvencia:
+                "Extrae la solvencia económica y técnica. IMPORTANTE: Incluye el campo 'cita' con el texto literal para cada requisito de solvencia técnica.",
+            restriccionesYRiesgos:
+                "Detecta 'Kill Criteria', riesgos y penalizaciones. IMPORTANTE: Justifica cada riesgo y penalización incluyendo el campo 'cita' con el texto literal del pliego.",
+            modeloServicio:
+                "Identifica SLA y equipo mínimo. IMPORTANTE: Incluye el campo 'cita' con el fragmento de texto original para cada SLA y rol del equipo.",
         };
-        return prompts[sectionKey] || "Analiza esta sección del pliego y extrae la información relevante.";
-    }
+        return prompts[sectionKey] || 'Analiza esta sección del pliego y extrae la información relevante.';
+    },
 };
 
 export const FastAnalysisPlugin: PromptPlugin = {
@@ -44,11 +50,11 @@ export const FastAnalysisPlugin: PromptPlugin = {
 
     getSectionPrompt: (sectionKey: string) => {
         const prompts: Record<string, string> = {
-            datosGenerales: "Extrae solo título, presupuesto y plazo. Sé muy breve.",
-            restriccionesYRiesgos: "Identifica únicamente los 3 riesgos más críticos.",
+            datosGenerales: 'Extrae solo título, presupuesto y plazo. Sé muy breve.',
+            restriccionesYRiesgos: 'Identifica únicamente los 3 riesgos más críticos.',
         };
-        return prompts[sectionKey] || "Extrae un resumen muy breve de esta sección.";
-    }
+        return prompts[sectionKey] || 'Extrae un resumen muy breve de esta sección.';
+    },
 };
 
 class PromptRegistry {

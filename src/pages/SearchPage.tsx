@@ -1,5 +1,6 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { Card } from '../components/ui/Card';
+import { unwrap } from '../lib/tracked-field';
 import { LicitacionData, SearchFilters, DbLicitacion } from '../types';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +8,7 @@ import { useLicitacionStore } from '../stores/licitacion.store';
 import { services } from '../config/service-registry';
 import { logger } from '../services/logger';
 
-const SearchPanel = lazy(() => import('../features/search/SearchPanel').then(m => ({ default: m.SearchPanel })));
+const SearchPanel = lazy(() => import('../features/search/SearchPanel').then((m) => ({ default: m.SearchPanel })));
 
 export const SearchPage: React.FC = () => {
     const navigate = useNavigate();
@@ -35,7 +36,13 @@ export const SearchPage: React.FC = () => {
     };
 
     return (
-        <Suspense fallback={<div className="flex items-center justify-center p-10"><Loader2 className="animate-spin" /></div>}>
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center p-10">
+                    <Loader2 className="animate-spin" />
+                </div>
+            }
+        >
             <div className="space-y-6">
                 {/* Search Panel */}
                 <SearchPanel onSearch={handleSearch} onReset={handleSearchReset} />
@@ -55,17 +62,23 @@ export const SearchPage: React.FC = () => {
                                 >
                                     <div className="p-4">
                                         <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
-                                            {result.data.datosGenerales.titulo}
+                                            {unwrap(result.data.datosGenerales.titulo)}
                                         </h4>
                                         <div className="flex flex-wrap gap-2 mb-2">
                                             {result.data.metadata?.tags?.map((tag: string, idx: number) => (
-                                                <span key={idx} className="text-xs px-2 py-1 bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 rounded">
+                                                <span
+                                                    key={idx}
+                                                    className="text-xs px-2 py-1 bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 rounded"
+                                                >
                                                     {tag}
                                                 </span>
                                             ))}
                                         </div>
                                         <p className="text-sm text-slate-600 dark:text-slate-400">
-                                            {new Intl.NumberFormat('es-ES', { style: 'currency', currency: result.data.datosGenerales.moneda }).format(result.data.datosGenerales.presupuesto)}
+                                            {new Intl.NumberFormat('es-ES', {
+                                                style: 'currency',
+                                                currency: unwrap(result.data.datosGenerales.moneda),
+                                            }).format(unwrap(result.data.datosGenerales.presupuesto))}
                                         </p>
                                     </div>
                                 </Card>

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { exportToJson, exportToExcel } from '../export-utils';
+import { tf } from '../../test-utils/tracked-field-factory';
 
 // Mock ExcelJS
 const mockAddRows = vi.fn();
@@ -7,11 +8,10 @@ const mockAddRow = vi.fn();
 const mockAddWorksheet = vi.fn(() => ({
     columns: [],
     addRows: mockAddRows,
-    addRow: mockAddRow
+    addRow: mockAddRow,
 }));
 const mockWriteBuffer = vi.fn(() => Promise.resolve(new ArrayBuffer(8)));
 
-// Correctly mock the default export for ExcelJS
 vi.mock('exceljs', () => {
     return {
         default: {
@@ -23,58 +23,64 @@ vi.mock('exceljs', () => {
                     modified: new Date(),
                     addWorksheet: mockAddWorksheet,
                     xlsx: {
-                        writeBuffer: mockWriteBuffer
-                    }
+                        writeBuffer: mockWriteBuffer,
+                    },
                 };
-            })
-        }
+            }),
+        },
     };
 });
 
 describe('Export Utils', () => {
     const mockData = {
         datosGenerales: {
-            titulo: 'Test Title',
-            presupuesto: 1000,
-            moneda: 'EUR',
-            plazoEjecucionMeses: 12,
-            cpv: ['123', '456'],
-            organoContratacion: 'Org Test',
-            fechaLimitePresentacion: '2025-12-31'
+            titulo: tf('Test Title'),
+            presupuesto: tf(1000),
+            moneda: tf('EUR'),
+            plazoEjecucionMeses: tf(12),
+            cpv: tf(['123', '456']),
+            organoContratacion: tf('Org Test'),
+            fechaLimitePresentacion: '2025-12-31',
         },
         criteriosAdjudicacion: {
-            subjetivos: [{ descripcion: 'Subj 1', ponderacion: 10, detalles: 'Det 1' }],
-            objetivos: [{ descripcion: 'Obj 1', ponderacion: 20, formula: 'Form 1' }]
+            subjetivos: [{ descripcion: 'Subj 1', ponderacion: 10, detalles: 'Det 1', subcriterios: [] }],
+            objetivos: [{ descripcion: 'Obj 1', ponderacion: 20, formula: 'Form 1' }],
         },
         requisitosTecnicos: {
             funcionales: [{ requisito: 'Req 1', obligatorio: true, referenciaPagina: 1 }],
-            normativa: []
+            normativa: [],
         },
         requisitosSolvencia: {
             economica: { cifraNegocioAnualMinima: 0 },
-            tecnica: []
+            tecnica: [],
+            profesional: [],
         },
         restriccionesYRiesgos: {
-            riesgos: [{ descripcion: 'Risk 1', impacto: 'ALTO' as const, probabilidad: 'MEDIA' as const, mitigacionSugerida: 'Mit 1' }],
+            riesgos: [
+                {
+                    descripcion: 'Risk 1',
+                    impacto: 'ALTO' as const,
+                    probabilidad: 'MEDIA' as const,
+                    mitigacionSugerida: 'Mit 1',
+                },
+            ],
             killCriteria: [],
-            penalizaciones: []
+            penalizaciones: [],
         },
         modeloServicio: { sla: [], equipoMinimo: [] },
-        metadata: { tags: [] }
+        metadata: { tags: [] },
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
 
-        // Mock DOM/Window globals for download simulation
         global.URL.createObjectURL = vi.fn(() => 'mock-url');
         global.URL.revokeObjectURL = vi.fn();
 
-        // Mock document.createElement and body methods
         const mockLink = {
             click: vi.fn(),
             href: '',
-            download: ''
+            download: '',
         };
 
         vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
@@ -97,8 +103,8 @@ describe('Export Utils', () => {
     it('should export Excel using ExcelJS library', async () => {
         await exportToExcel(mockData, 'test-file');
 
-        expect(mockAddWorksheet).toHaveBeenCalledTimes(4); // General, Criterios, Requisitos, Riesgos
+        expect(mockAddWorksheet).toHaveBeenCalledTimes(4);
         expect(mockWriteBuffer).toHaveBeenCalled();
-        expect(global.URL.createObjectURL).toHaveBeenCalled(); // Should trigger download
+        expect(global.URL.createObjectURL).toHaveBeenCalled();
     });
 });

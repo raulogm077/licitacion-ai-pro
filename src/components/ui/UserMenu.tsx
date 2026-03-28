@@ -60,9 +60,7 @@ export const UserMenu: React.FC = () => {
                                 <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                                     {user.email}
                                 </p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    Usuario autenticado
-                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Usuario autenticado</p>
                             </div>
                         </div>
                     </div>
@@ -72,9 +70,7 @@ export const UserMenu: React.FC = () => {
                         className="w-full px-4 py-2 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 text-left transition-colors"
                     >
                         <LogOut size={16} className="text-red-600 dark:text-red-400" />
-                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                            Cerrar sesión
-                        </span>
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400">Cerrar sesión</span>
                     </button>
                 </div>
             )}

@@ -7,11 +7,11 @@ import { useAnalysisStore } from '../stores/analysis.store';
 
 // Mock pages to avoid full render
 vi.mock('../../features/dashboard/Dashboard', () => ({
-    Dashboard: () => <div>Dashboard Page</div>
+    Dashboard: () => <div>Dashboard Page</div>,
 }));
 
 vi.mock('../services/db.service', () => ({
-    LoginPage: () => <div>Login Page</div>
+    LoginPage: () => <div>Login Page</div>,
 }));
 
 // Mock authService
@@ -21,12 +21,12 @@ vi.mock('../services/auth.service', () => ({
         onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
         signInWithMagicLink: vi.fn(),
         signOut: vi.fn(),
-    }
+    },
 }));
 
 // Mock HomePage
 vi.mock('../pages/HomePage', () => ({
-    HomePage: () => <div>Home Page Mock</div>
+    HomePage: () => <div>Home Page Mock</div>,
 }));
 
 describe('App', () => {
@@ -45,7 +45,7 @@ describe('App', () => {
         expect(await screen.findByText('Home Page Mock')).toBeInTheDocument();
     });
 
-    // Note: Testing authenticated state requires mocking the module return value before render, 
-    // which is tricky with hoisted mocks in separate tests without complex setup. 
+    // Note: Testing authenticated state requires mocking the module return value before render,
+    // which is tricky with hoisted mocks in separate tests without complex setup.
     // We will focus on unauthed for now to keep it simple and robust.
 });

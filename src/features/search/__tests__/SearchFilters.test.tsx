@@ -32,7 +32,7 @@ describe('SearchFilters', () => {
         expect(min).toHaveValue(100);
         expect(max).toHaveValue(200);
 
-        // Check if onSearch called with correct filters logic would be ideal if controlled, 
+        // Check if onSearch called with correct filters logic would be ideal if controlled,
         // but component likely handles state internally until search logic triggers.
         // We verify interactions work.
     });

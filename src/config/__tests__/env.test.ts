@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.unmock('../env');
 
-
-
 describe('Environment Configuration', () => {
     beforeEach(() => {
         vi.resetModules();
@@ -15,7 +13,6 @@ describe('Environment Configuration', () => {
         const { envConfig } = await import('../env');
         expect(envConfig.isValid).toBe(false);
         // expect(envConfig.errors.VITE_SUPABASE_URL).toBeDefined(); // Adjust based on error format
-
     });
 
     it('should mark config as invalid if URL format is wrong', async () => {

@@ -1,11 +1,10 @@
-
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
 // Mock matchMedia for UI components (Radix UI etc often need this)
 Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: vi.fn().mockImplementation(query => ({
+    value: vi.fn().mockImplementation((query) => ({
         matches: false,
         media: query,
         onchange: null,
@@ -30,8 +29,8 @@ vi.mock('../config/env', () => ({
         values: {
             VITE_SUPABASE_URL: 'https://mock.supabase.co',
             VITE_SUPABASE_ANON_KEY: 'mock-anon-key',
-        }
-    }
+        },
+    },
 }));
 
 // Mock i18next
@@ -41,13 +40,13 @@ vi.mock('react-i18next', () => ({
         return {
             t: (str: string) => str,
             i18n: {
-                changeLanguage: () => new Promise(() => { }),
+                changeLanguage: () => new Promise(() => {}),
             },
         };
     },
     initReactI18next: {
         type: '3rdParty',
-        init: () => { },
+        init: () => {},
     },
     Trans: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -62,5 +61,5 @@ Object.defineProperty(window, 'localStorage', {
         length: 0,
         key: vi.fn(),
     },
-    writable: true
+    writable: true,
 });

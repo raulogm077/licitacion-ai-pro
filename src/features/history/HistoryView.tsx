@@ -1,16 +1,25 @@
-import { useState } from "react";
+import { useState } from 'react';
+import { unwrap } from '../../lib/tracked-field';
 import { formatCurrency } from '../../lib/formatters';
 import { useHistory } from '../../hooks/useHistory';
 import { LicitacionData } from '../../types';
-import { cn } from "../../lib/utils";
+import { cn } from '../../lib/utils';
 import {
-    Search, Calendar, DollarSign, Filter, FileText,
-    ChevronLeft, ChevronRight, CheckCircle2, TrendingUp,
-    Building2, Loader2
-} from "lucide-react";
-import { StatCard } from "./components/StatCard";
-import { HistoryTableRow } from "./components/HistoryTableRow";
-import { getStatusFromData } from "./utils";
+    Search,
+    Calendar,
+    DollarSign,
+    Filter,
+    FileText,
+    ChevronLeft,
+    ChevronRight,
+    CheckCircle2,
+    TrendingUp,
+    Building2,
+    Loader2,
+} from 'lucide-react';
+import { StatCard } from './components/StatCard';
+import { HistoryTableRow } from './components/HistoryTableRow';
+import { getStatusFromData } from './utils';
 
 interface HistoryViewProps {
     onSelect: (data: LicitacionData, hash?: string) => void;
@@ -19,11 +28,15 @@ interface HistoryViewProps {
 export function HistoryView({ onSelect }: HistoryViewProps) {
     const { items, loading, applyFilters, activeFilters } = useHistory();
 
-    const [searchCliente, setSearchCliente] = useState(activeFilters.cliente || "");
-    const [fechaDesde, setFechaDesde] = useState(activeFilters.fechaDesde ? new Date(activeFilters.fechaDesde).toISOString().split('T')[0] : "");
-    const [fechaHasta, setFechaHasta] = useState(activeFilters.fechaHasta ? new Date(activeFilters.fechaHasta).toISOString().split('T')[0] : "");
-    const [presupuestoMin, setPresupuestoMin] = useState(activeFilters.presupuestoMin?.toString() || "");
-    const [presupuestoMax, setPresupuestoMax] = useState(activeFilters.presupuestoMax?.toString() || "");
+    const [searchCliente, setSearchCliente] = useState(activeFilters.cliente || '');
+    const [fechaDesde, setFechaDesde] = useState(
+        activeFilters.fechaDesde ? new Date(activeFilters.fechaDesde).toISOString().split('T')[0] : ''
+    );
+    const [fechaHasta, setFechaHasta] = useState(
+        activeFilters.fechaHasta ? new Date(activeFilters.fechaHasta).toISOString().split('T')[0] : ''
+    );
+    const [presupuestoMin, setPresupuestoMin] = useState(activeFilters.presupuestoMin?.toString() || '');
+    const [presupuestoMax, setPresupuestoMax] = useState(activeFilters.presupuestoMax?.toString() || '');
     const [currentPage, setCurrentPage] = useState(1);
 
     const rowsPerPage = 10;
@@ -41,26 +54,20 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
     }
 
     function handleReset() {
-        setSearchCliente("");
-        setFechaDesde("");
-        setFechaHasta("");
-        setPresupuestoMin("");
-        setPresupuestoMax("");
+        setSearchCliente('');
+        setFechaDesde('');
+        setFechaHasta('');
+        setPresupuestoMin('');
+        setPresupuestoMax('');
         applyFilters({});
         setCurrentPage(1);
     }
 
     const totalPages = Math.max(1, Math.ceil(items.length / rowsPerPage));
-    const paginatedData = items.slice(
-        (currentPage - 1) * rowsPerPage,
-        currentPage * rowsPerPage
-    );
+    const paginatedData = items.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
-    const exitosos = items.filter((d) => getStatusFromData(d.data) === "COMPLETO").length;
-    const totalPresupuesto = items.reduce(
-        (acc, d) => acc + (d.data.datosGenerales.presupuesto || 0),
-        0
-    );
+    const exitosos = items.filter((d) => getStatusFromData(d.data) === 'COMPLETO').length;
+    const totalPresupuesto = items.reduce((acc, d) => acc + (unwrap(d.data.datosGenerales.presupuesto) || 0), 0);
 
     return (
         <div className="p-6 md:p-8 font-sans animate-in fade-in duration-500">
@@ -85,10 +92,33 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
 
                 {/* Stats Row */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <StatCard icon={<FileText className="w-4 h-4" />} label="Total licitaciones" value={loading ? '-' : items.length} accent />
-                    <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Análisis exitosos" value={loading ? '-' : exitosos} />
-                    <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Tasa de éxito" value={loading || items.length === 0 ? '-' : `${Math.round((exitosos / items.length) * 100)}%`} />
-                    <StatCard icon={<DollarSign className="w-4 h-4" />} label="Presupuesto total" value={loading ? '-' : (totalPresupuesto >= 1_000_000 ? `€${(totalPresupuesto / 1_000_000).toFixed(1)}M` : formatCurrency(totalPresupuesto, 'EUR'))} />
+                    <StatCard
+                        icon={<FileText className="w-4 h-4" />}
+                        label="Total licitaciones"
+                        value={loading ? '-' : items.length}
+                        accent
+                    />
+                    <StatCard
+                        icon={<CheckCircle2 className="w-4 h-4" />}
+                        label="Análisis exitosos"
+                        value={loading ? '-' : exitosos}
+                    />
+                    <StatCard
+                        icon={<TrendingUp className="w-4 h-4" />}
+                        label="Tasa de éxito"
+                        value={loading || items.length === 0 ? '-' : `${Math.round((exitosos / items.length) * 100)}%`}
+                    />
+                    <StatCard
+                        icon={<DollarSign className="w-4 h-4" />}
+                        label="Presupuesto total"
+                        value={
+                            loading
+                                ? '-'
+                                : totalPresupuesto >= 1_000_000
+                                  ? `€${(totalPresupuesto / 1_000_000).toFixed(1)}M`
+                                  : formatCurrency(totalPresupuesto, 'EUR')
+                        }
+                    />
                 </div>
 
                 {/* Filter Card */}
@@ -105,54 +135,124 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
 
                     <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                         <div className="lg:col-span-1 space-y-1.5">
-                            <label htmlFor="cliente" className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Cliente</label>
+                            <label
+                                htmlFor="cliente"
+                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                            >
+                                Cliente
+                            </label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input id="cliente" type="text" placeholder="Buscar cliente..." value={searchCliente} onChange={(e) => setSearchCliente(e.target.value)} className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition" />
+                                <input
+                                    id="cliente"
+                                    type="text"
+                                    placeholder="Buscar cliente..."
+                                    value={searchCliente}
+                                    onChange={(e) => setSearchCliente(e.target.value)}
+                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label htmlFor="fechaDesde" className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Fecha desde</label>
+                            <label
+                                htmlFor="fechaDesde"
+                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                            >
+                                Fecha desde
+                            </label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input id="fechaDesde" type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition" />
+                                <input
+                                    id="fechaDesde"
+                                    type="date"
+                                    value={fechaDesde}
+                                    onChange={(e) => setFechaDesde(e.target.value)}
+                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label htmlFor="fechaHasta" className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Fecha hasta</label>
+                            <label
+                                htmlFor="fechaHasta"
+                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                            >
+                                Fecha hasta
+                            </label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input id="fechaHasta" type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition" />
+                                <input
+                                    id="fechaHasta"
+                                    type="date"
+                                    value={fechaHasta}
+                                    onChange={(e) => setFechaHasta(e.target.value)}
+                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label htmlFor="presMin" className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Presupuesto mín.</label>
+                            <label
+                                htmlFor="presMin"
+                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                            >
+                                Presupuesto mín.
+                            </label>
                             <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input id="presMin" type="number" placeholder="0" value={presupuestoMin} onChange={(e) => setPresupuestoMin(e.target.value)} className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition" />
+                                <input
+                                    id="presMin"
+                                    type="number"
+                                    placeholder="0"
+                                    value={presupuestoMin}
+                                    onChange={(e) => setPresupuestoMin(e.target.value)}
+                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label htmlFor="presMax" className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Presupuesto máx.</label>
+                            <label
+                                htmlFor="presMax"
+                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                            >
+                                Presupuesto máx.
+                            </label>
                             <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input id="presMax" type="number" placeholder="Sin límite" value={presupuestoMax} onChange={(e) => setPresupuestoMax(e.target.value)} className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition" />
+                                <input
+                                    id="presMax"
+                                    type="number"
+                                    placeholder="Sin límite"
+                                    value={presupuestoMax}
+                                    onChange={(e) => setPresupuestoMax(e.target.value)}
+                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                />
                             </div>
                         </div>
                     </div>
 
                     <div className="px-5 pb-5 flex flex-wrap items-center gap-3">
-                        <button onClick={handleFiltrar} className="inline-flex items-center gap-2 h-9 px-5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 active:bg-brand-800 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900">
+                        <button
+                            onClick={handleFiltrar}
+                            className="inline-flex items-center gap-2 h-9 px-5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 active:bg-brand-800 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                        >
                             <Filter className="w-4 h-4" />
                             Aplicar filtros
                         </button>
                         {filtersApplied && (
-                            <button onClick={handleReset} className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900">
+                            <button
+                                onClick={handleReset}
+                                className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                            >
                                 Limpiar filtros
                             </button>
                         )}
                         <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin inline-block" /> : items.length === 0 ? "Sin resultados" : `${items.length} resultado${items.length !== 1 ? "s" : ""}`}
+                            {loading ? (
+                                <Loader2 className="w-4 h-4 animate-spin inline-block" />
+                            ) : items.length === 0 ? (
+                                'Sin resultados'
+                            ) : (
+                                `${items.length} resultado${items.length !== 1 ? 's' : ''}`
+                            )}
                         </span>
                     </div>
                 </div>
@@ -162,10 +262,12 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                     <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                            <h2 className="font-semibold text-sm text-slate-900 dark:text-white">Licitaciones analizadas</h2>
+                            <h2 className="font-semibold text-sm text-slate-900 dark:text-white">
+                                Licitaciones analizadas
+                            </h2>
                         </div>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {loading ? "Cargando..." : `${items.length} registros encontrados`}
+                            {loading ? 'Cargando...' : `${items.length} registros encontrados`}
                         </span>
                     </div>
 
@@ -173,18 +275,33 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-                                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-[35%]">Título</th>
-                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Cliente</th>
-                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Fecha</th>
-                                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Presupuesto</th>
-                                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">Estado de Análisis</th>
-                                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Acciones</th>
+                                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-[35%]">
+                                        Título
+                                    </th>
+                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                        Cliente
+                                    </th>
+                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                                        Fecha
+                                    </th>
+                                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                                        Presupuesto
+                                    </th>
+                                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                                        Estado de Análisis
+                                    </th>
+                                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                        Acciones
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-5 py-16 text-center text-slate-500 dark:text-slate-400">
+                                        <td
+                                            colSpan={6}
+                                            className="px-5 py-16 text-center text-slate-500 dark:text-slate-400"
+                                        >
                                             <div className="flex flex-col items-center gap-3">
                                                 <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
                                                 <p className="font-medium text-sm">Cargando resultados...</p>
@@ -193,7 +310,10 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                                     </tr>
                                 ) : paginatedData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-5 py-16 text-center text-slate-500 dark:text-slate-400">
+                                        <td
+                                            colSpan={6}
+                                            className="px-5 py-16 text-center text-slate-500 dark:text-slate-400"
+                                        >
                                             <div className="flex flex-col items-center gap-2">
                                                 <Search className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                                                 <p className="font-medium">Sin resultados</p>
@@ -203,7 +323,12 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                                     </tr>
                                 ) : (
                                     paginatedData.map((item, idx) => (
-                                        <HistoryTableRow key={item.hash} item={item} isEven={idx % 2 === 0} onSelect={() => onSelect(item.data, item.hash)} />
+                                        <HistoryTableRow
+                                            key={item.hash}
+                                            item={item}
+                                            isEven={idx % 2 === 0}
+                                            onSelect={() => onSelect(item.data, item.hash)}
+                                        />
                                     ))
                                 )}
                             </tbody>
@@ -213,24 +338,49 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                     {/* Pagination */}
                     {items.length > rowsPerPage && (
                         <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-800">
-                            <span className="text-xs text-slate-500 dark:text-slate-400">Página {currentPage} de {totalPages}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                                Página {currentPage} de {totalPages}
+                            </span>
                             <div className="flex items-center gap-1">
-                                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition" aria-label="Página anterior">
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    aria-label="Página anterior"
+                                >
                                     <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                                 </button>
                                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
                                     if (p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1)) {
                                         return (
-                                            <button key={p} onClick={() => setCurrentPage(p)} className={cn("w-7 h-7 rounded-md text-xs font-medium transition", p === currentPage ? "bg-brand-600 text-white" : "border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300")}>
+                                            <button
+                                                key={p}
+                                                onClick={() => setCurrentPage(p)}
+                                                className={cn(
+                                                    'w-7 h-7 rounded-md text-xs font-medium transition',
+                                                    p === currentPage
+                                                        ? 'bg-brand-600 text-white'
+                                                        : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                                )}
+                                            >
                                                 {p}
                                             </button>
                                         );
                                     } else if (p === currentPage - 2 || p === currentPage + 2) {
-                                        return <span key={p} className="text-slate-400 text-xs">...</span>;
+                                        return (
+                                            <span key={p} className="text-slate-400 text-xs">
+                                                ...
+                                            </span>
+                                        );
                                     }
                                     return null;
                                 })}
-                                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition" aria-label="Página siguiente">
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    aria-label="Página siguiente"
+                                >
                                     <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                                 </button>
                             </div>

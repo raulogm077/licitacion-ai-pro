@@ -1,11 +1,11 @@
-import { PliegoVM } from "../../model/pliego-vm";
-import { KpiCards } from "../widgets/KpiCards";
-import { SummarySection } from "../widgets/SummarySection";
-import { AlertsPanel } from "../widgets/AlertsPanel";
-import { ScoringChart } from "../widgets/ScoringChart";
-import { RiskSummary } from "../widgets/RiskSummary";
+import { PliegoVM } from '../../model/pliego-vm';
+import { KpiCards } from '../widgets/KpiCards';
+import { SummarySection } from '../widgets/SummarySection';
+import { AlertsPanel } from '../widgets/AlertsPanel';
+import { ScoringChart } from '../widgets/ScoringChart';
+import { RiskSummary } from '../widgets/RiskSummary';
 
-export function MainContent({ vm, onNavigate }: { vm: PliegoVM, onNavigate: (section: string) => void }) {
+export function MainContent({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (section: string) => void }) {
     return (
         <main className="flex-1 overflow-y-auto bg-slate-50 relative">
             <div className="p-6 space-y-5 max-w-[1600px] mx-auto animate-fade-in">

@@ -17,9 +17,7 @@ export function initSentry() {
             environment: ENVIRONMENT,
 
             // Performance Monitoring
-            integrations: [
-                Sentry.browserTracingIntegration(),
-            ],
+            integrations: [Sentry.browserTracingIntegration()],
 
             // Set tracesSampleRate to 1.0 in staging, 0.1 in production
             tracesSampleRate: ENVIRONMENT === 'staging' ? 1.0 : 0.1,
@@ -51,10 +49,7 @@ export function initSentry() {
 }
 
 // Helper to capture custom events
-export function captureAnalyticsEvent(
-    eventName: string,
-    data?: Record<string, unknown>
-) {
+export function captureAnalyticsEvent(eventName: string, data?: Record<string, unknown>) {
     Sentry.addBreadcrumb({
         category: 'analytics',
         message: eventName,

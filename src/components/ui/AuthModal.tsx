@@ -34,9 +34,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 result = await signUp(email, password);
             } catch (err: unknown) {
                 if (err instanceof Error && err.message.includes('Supabase Client Error')) {
-                    result = { success: false, error: "ERROR CRÍTICO: Faltan variables de entorno en Vercel." };
+                    result = { success: false, error: 'ERROR CRÍTICO: Faltan variables de entorno en Vercel.' };
                 } else {
-                    result = { success: false, error: "Error inesperado" };
+                    result = { success: false, error: 'Error inesperado' };
                 }
             }
         } else {
@@ -44,9 +44,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 result = await signInWithPassword(email, password);
             } catch (err: unknown) {
                 if (err instanceof Error && err.message.includes('Supabase Client Error')) {
-                    result = { success: false, error: "ERROR CRÍTICO: Faltan variables de entorno en Vercel." };
+                    result = { success: false, error: 'ERROR CRÍTICO: Faltan variables de entorno en Vercel.' };
                 } else {
-                    result = { success: false, error: "Error de conexión" };
+                    result = { success: false, error: 'Error de conexión' };
                 }
             }
         }
@@ -54,7 +54,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         setLoading(false);
 
         if (result.success) {
-
             setEmail('');
             setPassword('');
 
@@ -143,7 +142,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                         Email
                                     </label>
                                     <div className="relative">
-                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <Mail
+                                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                            size={18}
+                                        />
                                         <input
                                             id="email"
                                             data-testid="email-input"
@@ -166,7 +168,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                         Contraseña
                                     </label>
                                     <div className="relative">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <Lock
+                                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                            size={18}
+                                        />
                                         <input
                                             id="password"
                                             data-testid="password-input"
@@ -183,16 +188,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 </div>
 
                                 {error && (
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg" data-testid="auth-error">
+                                    <div
+                                        className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+                                        data-testid="auth-error"
+                                    >
                                         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                                     </div>
                                 )}
 
                                 {successMessage && mode === 'login' && (
-                                    <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg" data-testid="auth-success">
-                                        <p className="text-sm text-green-600 dark:text-green-400">
-                                            {successMessage}
-                                        </p>
+                                    <div
+                                        className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+                                        data-testid="auth-success"
+                                    >
+                                        <p className="text-sm text-green-600 dark:text-green-400">{successMessage}</p>
                                     </div>
                                 )}
 
@@ -214,13 +223,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                         </>
                                     )}
                                 </button>
-
-
                             </form>
 
                             <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                                    {mode === 'login' ? "¿No tienes cuenta?" : "¿Ya tienes cuenta?"}
+                                    {mode === 'login' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
                                 </p>
                                 <button
                                     onClick={toggleMode}
@@ -228,7 +235,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                     disabled={loading}
                                     className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium transition-colors"
                                 >
-                                    {mode === 'login' ? "Regístrate ahora" : "Inicia sesión aquí"}
+                                    {mode === 'login' ? 'Regístrate ahora' : 'Inicia sesión aquí'}
                                 </button>
                             </div>
                         </>

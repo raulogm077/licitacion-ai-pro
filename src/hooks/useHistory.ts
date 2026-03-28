@@ -34,8 +34,8 @@ export function useHistory() {
             setItems(sorted);
             setError(null);
         } else {
-            logger.error("Failed to load history:", result.error);
-            setError("Error al cargar el historial. Por favor intente nuevamente.");
+            logger.error('Failed to load history:', result.error);
+            setError('Error al cargar el historial. Por favor intente nuevamente.');
         }
         setLoading(false);
     }, []);
@@ -50,6 +50,6 @@ export function useHistory() {
         error,
         refresh: () => loadHistory(activeFilters),
         applyFilters: loadHistory,
-        activeFilters
+        activeFilters,
     };
 }

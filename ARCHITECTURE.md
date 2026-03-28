@@ -18,7 +18,7 @@ Este documento es obligatorio actualizarlo cuando cambie cualquiera de estos pun
 
 ## 3. Vista general
 
-La aplicación está diseñada para analizar documentos PDF de licitaciones usando una Edge Function con **OpenAI Agents SDK** y enviar el progreso al frontend mediante **Server-Sent Events (SSE)**.
+La aplicación analiza documentos PDF de licitaciones usando una Edge Function con **OpenAI Responses API** organizada en un **pipeline de 5 fases**, con streaming de progreso al frontend mediante **Server-Sent Events (SSE)**.
 
 Flujo actual:
 
@@ -26,9 +26,12 @@ Flujo actual:
 Frontend
   └─ JobService.analyzeWithAgents()
        └─ Supabase Edge Function: analyze-with-agents
-            └─ OpenAI Files API / Vector Store
-                 └─ Agents SDK
-                      └─ SSE → Frontend
+            ├─ Fase A: Ingesta (Files API + Vector Store)
+            ├─ Fase B: Mapa Documental (Responses API + file_search)
+            ├─ Fase C: Extracción por Bloques (~9 llamadas Responses API)
+            ├─ Fase D: Consolidación (merge + prelación documental)
+            └─ Fase E: Validación Final (quality scoring)
+                 └─ SSE → Frontend (progreso por fase + resultado)
 ```
 
 ## 4. Componentes principales
@@ -69,17 +72,28 @@ Cualquier cambio relevante en este servicio obliga a revisar este documento.
 
 ### 4.3. Edge Function `analyze-with-agents`
 
-Es el núcleo del pipeline de IA. La función requiere autenticación JWT (`verify_jwt = true` en `supabase/config.toml`). El frontend envía el token de sesión en el header `Authorization: Bearer <token>` desde `JobService`.
+Es el núcleo del pipeline de IA. La función requiere autenticación JWT (validado manualmente dentro de la función). El frontend envía el token de sesión en el header `Authorization: Bearer <token>` desde `JobService`.
 
 Responsabilidades:
 
-- verificar la autenticación del usuario (JWT validado por Supabase runtime)
+- verificar la autenticación del usuario (JWT validado internamente con Supabase SDK)
 - recibir la solicitud de análisis
-- cargar uno o múltiples archivos (mediante `pdfBase64` o el array `files`) a OpenAI. La carga de múltiples archivos se realiza de forma **secuencial** para evitar picos de consumo de memoria que rompan el límite del Edge Runtime.
-- construir un contexto consolidado en el Vector Store con el expediente completo (polling mediante exponential backoff) y la "Guía de lectura de pliegos". Ésta última se incluye localmente usando `Deno.readTextFile(new URL('./Guía de lectura de pliegos.md', import.meta.url))` de manera que la IA siempre tenga la guía de negocio disponible por sistema y de forma automática como archivo `.md`.
-- ejecutar análisis con Agents SDK (inyectando mensaje con los nombres de los documentos del expediente)
-- emitir eventos SSE
-- devolver resultado estructurado compatible con frontend
+- ejecutar pipeline de 5 fases usando **OpenAI Responses API** (`openai.responses.create()`)
+- cada fase usa `file_search` sobre Vector Store para acceder al contenido de los documentos
+- la "Guía de lectura de pliegos" se inyecta como contenido en los system prompts (no en Vector Store)
+- emitir eventos SSE por fase (phase_started, phase_completed, heartbeat, complete)
+- devolver resultado en formato canónico rico con evidencias por campo
+- persistir estado del job en `analysis_jobs` para recovery de fallos parciales
+
+#### Fases del pipeline:
+
+| Fase | Descripción | Llamadas API |
+|------|-------------|--------------|
+| A: Ingesta | Subir archivos a OpenAI Files API, crear Vector Store | 0 (solo REST) |
+| B: Mapa Documental | Identificar documentos (PCAP, PPT, anexos) | 1 |
+| C: Extracción por Bloques | Extraer datos por sección (datosGenerales, criterios, etc.) | ~9 |
+| D: Consolidación | Unificar bloques, resolver conflictos, prelación documental | 0 (local) |
+| E: Validación | Quality scoring, verificar campos críticos, evidencias | 1 |
 
 ### 4.4. Persistencia
 
@@ -97,8 +111,10 @@ El frontend depende de un contrato SSE estable para mostrar progreso en tiempo r
 Eventos esperados, a nivel lógico:
 
 - `heartbeat`
-- `agent_message`
-- `complete`
+- `phase_started` — indica inicio de una fase (A, B, C, D, E)
+- `phase_completed` — indica fin de una fase con resultado parcial
+- `agent_message` — progreso dentro de una fase (legacy compat)
+- `complete` — resultado final con `{result, workflow}`
 - `error`
 
 Reglas:
@@ -156,7 +172,7 @@ Riesgos principales mitigados por la estrategia actual:
 
 - crecimiento de memoria en Edge Functions (resuelto mediante carga secuencial de `files` usando `for...of`)
 - crecimiento del contexto (OpenAI Vector Stores es responsable de la partición/chunks y recuperación mediante embeddings)
-- comportamiento ambiguo entre documentos (Agent SDK orquesta la lectura priorizada según `instructions` donde se define que la IA analiza un expediente)
+- comportamiento ambiguo entre documentos (Responses API con file_search permite lectura priorizada según prompts de cada fase)
 - límites de Rate Limiting en API de OpenAI (resuelto mediante Exponential Backoff en el polling del Vector Store)
 
 ## 8. Decisiones técnicas documentadas
@@ -176,7 +192,23 @@ Riesgos principales mitigados por la estrategia actual:
 
 **Fecha:** 2026-03-22
 
-### 8.2 CORS restrictivo (Implementado)
+### 8.2 Migración de Agents SDK a Responses API (Implementado)
+
+**Contexto:** La aplicación usaba OpenAI Agents SDK con un único run monolítico que hacía todo en una llamada.
+
+**Decisión:** Migrar a OpenAI Responses API (`openai.responses.create()`) con pipeline de 5 fases.
+
+**Restricción técnica:** `file_search` y `text.format: json_schema` (structured outputs) NO pueden usarse juntos en Responses API. Se instruye JSON estricto en el prompt y se valida con Zod server-side.
+
+**Beneficios:**
+- Extracción por bloques permite evidencias por campo
+- Resultado parcial persistido en DB si una fase falla
+- Vector Store persiste para reintentos (cleanup por TTL)
+- Schema canónico rico con TrackedField (value + status + evidence) para campos críticos
+
+**Fecha:** 2026-03-28
+
+### 8.3 CORS restrictivo (Implementado)
 
 **Contexto:** CORS wildcard (`*`) permitía cualquier origen invocar la Edge Function.
 

@@ -1,37 +1,37 @@
-import { ShieldAlert } from "lucide-react";
-import { PliegoVM } from "../../model/pliego-vm";
+import { ShieldAlert } from 'lucide-react';
+import { PliegoVM } from '../../model/pliego-vm';
 
 export function RiskSummary({ vm }: { vm: PliegoVM }) {
-    const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(" ");
+    const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
     // Convert Pliego restrictions into risk display format
     const rs = vm.result.restriccionesYRiesgos;
 
     const risks = [
-        ...rs.killCriteria.map(kc => ({
+        ...rs.killCriteria.map((kc) => ({
             id: kc.criterio,
             label: kc.criterio,
-            level: "Alto",
-            levelClass: "text-red-600 bg-red-50 border-red-200",
-            barClass: "bg-red-500",
-            barWidth: "85%",
+            level: 'Alto',
+            levelClass: 'text-red-600 bg-red-50 border-red-200',
+            barClass: 'bg-red-500',
+            barWidth: '85%',
         })),
-        ...rs.penalizaciones.map(p => ({
+        ...rs.penalizaciones.map((p) => ({
             id: p.causa,
             label: p.causa,
-            level: "Medio",
-            levelClass: "text-amber-600 bg-amber-50 border-amber-200",
-            barClass: "bg-amber-400",
-            barWidth: "50%",
+            level: 'Medio',
+            levelClass: 'text-amber-600 bg-amber-50 border-amber-200',
+            barClass: 'bg-amber-400',
+            barWidth: '50%',
         })),
-        ...rs.riesgos.map(r => ({
+        ...rs.riesgos.map((r) => ({
             id: r.descripcion,
             label: r.descripcion,
-            level: "Bajo",
-            levelClass: "text-emerald-700 bg-emerald-50 border-emerald-200",
-            barClass: "bg-emerald-500",
-            barWidth: "25%",
-        }))
+            level: 'Bajo',
+            levelClass: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+            barClass: 'bg-emerald-500',
+            barWidth: '25%',
+        })),
     ].slice(0, 5); // Limit to top 5
 
     return (
@@ -41,9 +41,7 @@ export function RiskSummary({ vm }: { vm: PliegoVM }) {
                     <div className="flex items-center justify-center w-6 h-6 rounded bg-red-50">
                         <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
                     </div>
-                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                        Mapa de Riesgos Identificados
-                    </h3>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">Mapa de Riesgos Identificados</h3>
                 </div>
                 <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                     {vm.counts.riesgos} riesgos
@@ -52,7 +50,9 @@ export function RiskSummary({ vm }: { vm: PliegoVM }) {
 
             <div className="p-5 space-y-3 flex-1 overflow-y-auto">
                 {risks.length === 0 ? (
-                    <div className="text-center text-slate-400 py-8 text-sm">No se detectaron riesgos ni penalizaciones críticas.</div>
+                    <div className="text-center text-slate-400 py-8 text-sm">
+                        No se detectaron riesgos ni penalizaciones críticas.
+                    </div>
                 ) : (
                     risks.map((risk, i) => (
                         <div
@@ -66,7 +66,7 @@ export function RiskSummary({ vm }: { vm: PliegoVM }) {
                                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
                                     <div
                                         className={clx(
-                                            "h-full rounded-full transition-all duration-500",
+                                            'h-full rounded-full transition-all duration-500',
                                             risk.barClass
                                         )}
                                         style={{ width: risk.barWidth }}
@@ -75,7 +75,7 @@ export function RiskSummary({ vm }: { vm: PliegoVM }) {
                             </div>
                             <span
                                 className={clx(
-                                    "text-[10px] font-bold px-2 py-0.5 rounded border flex-shrink-0 w-14 text-center",
+                                    'text-[10px] font-bold px-2 py-0.5 rounded border flex-shrink-0 w-14 text-center',
                                     risk.levelClass
                                 )}
                             >
