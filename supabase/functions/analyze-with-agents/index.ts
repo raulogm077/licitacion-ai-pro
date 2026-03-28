@@ -293,7 +293,7 @@ serve(async (req: Request) => {
                         jobService.completeJob(jobId, finalOutput).catch(() => {});
                     }
 
-                    sendEvent('complete', { result: finalOutput });
+                    sendEvent('complete', finalOutput);
                 } catch (error: unknown) {
                     const errMsg = error instanceof Error ? error.message : 'Unknown error';
                     console.error('[analyze] Pipeline error:', error);

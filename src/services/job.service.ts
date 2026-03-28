@@ -146,8 +146,12 @@ export class JobService {
                         onProgress(event);
                     }
 
-                    if (event.type === 'complete' && event.result) {
-                        finalResult = event.result as { result?: unknown; workflow?: unknown };
+                    if (event.type === 'complete') {
+                        // Pipeline sends { result, workflow } spread into the event
+                        finalResult = {
+                            result: event.result,
+                            workflow: event.workflow,
+                        };
                     }
 
                     if (event.type === 'error') {
@@ -197,6 +201,7 @@ export interface StreamEvent {
     phase?: string;
     content?: string | unknown;
     result?: unknown;
+    workflow?: unknown;
     message?: string;
     timestamp: number;
     blockIndex?: number;
