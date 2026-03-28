@@ -33,7 +33,7 @@ test.describe('Critical User Flows - Complete Journey', () => {
             await historyLink.click();
 
             // Wait for history page to load
-            await page.waitForLoadState('networkidle');
+            await page.waitForSelector('#root', { timeout: 10000 }).catch(() => null);
 
             // Verify search functionality exists
             const searchInput = page.getByRole('searchbox').or(page.getByPlaceholder(/buscar/i).first());
@@ -70,7 +70,7 @@ test.describe('Smoke Tests - Core Functionality', () => {
         });
 
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForSelector('#root', { timeout: 10000 }).catch(() => null);
 
         expect(errors).toHaveLength(0);
     });

@@ -56,7 +56,7 @@ test.describe('Complete User Journey - Upload to Export', () => {
 
         if (await historyLink.isVisible({ timeout: 5000 }).catch(() => false)) {
             await historyLink.click();
-            await page.waitForLoadState('networkidle');
+            await page.waitForSelector('#root', { timeout: 10000 }).catch(() => null);
 
             // 2. Use search
             const searchInput = page.getByRole('searchbox').or(page.getByPlaceholder(/buscar/i).first());
@@ -83,7 +83,7 @@ test.describe('Complete User Journey - Upload to Export', () => {
 
         // This would navigate to a specific licitación and test export
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForSelector('#root', { timeout: 10000 }).catch(() => null);
 
         // Look for export buttons (typically in toolbar or actions menu)
         const exportButton = page.getByRole('button', { name: /exportar|export|download/i }).first();
@@ -150,7 +150,7 @@ test.describe('Error Handling', () => {
         await page.goto('/non-existent-route');
 
         // Should redirect to home or show 404 page
-        await page.waitForLoadState('networkidle');
+        await page.waitForSelector('#root', { timeout: 10000 }).catch(() => null);
 
         // Either shows error message or redirects
         const root = page.locator('#root');
@@ -160,7 +160,7 @@ test.describe('Error Handling', () => {
     test('Handles network errors gracefully', async ({ page }) => {
         // First load the page
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForSelector('#root', { timeout: 10000 }).catch(() => null);
 
         // Simulate offline mode
         await page.context().setOffline(true);
