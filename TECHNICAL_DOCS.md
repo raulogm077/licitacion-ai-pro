@@ -467,7 +467,7 @@ supabase/migrations/
 
 | Parámetro | Valor |
 |-----------|-------|
-| Modelo | `gpt-4o` (alias auto-latest) |
+| Modelo | `gpt-4.1` (1M token context, Agents SDK default) |
 | SDK | OpenAI Agents SDK 0.8.1 |
 | Tool obligatorio | `submit_analysis_result` |
 | Capacidades | `file_search` (Vector Store) |
@@ -889,7 +889,7 @@ Los siguientes documentos deben mantenerse actualizados con cada tarea:
 | Transferencia de PDF | Base64 en JSON | FormData multipart | Facilita validación Zod y SSE en mismo request |
 | Multi-tenancy | RLS en Supabase | Filtros en app | Aislamiento garantizado a nivel DB sin código adicional |
 | AI SDK | OpenAI Agents SDK | LangChain | Streaming nativo, tool calling, Files API integrado |
-| Modelo | gpt-4o (auto-latest) | gpt-4-turbo | Mejor capacidad de comprensión de documentos legales; alias garantiza acceso al snapshot estable más reciente |
+| Modelo | gpt-4.1 | gpt-4o | Nuevo default del Agents SDK; contexto 1M tokens, mejor instruction following y structured output enforcement |
 | Multi-doc | Procesamiento secuencial | Paralelo | Límites de memoria del Deno Edge Runtime |
 | Validación | Zod (frontend + backend) | JSON Schema | Type-safe, reutilizable entre frontend y Edge Functions |
 | Estado | Zustand | Redux / Context | Más ligero, API más simple para este caso de uso |

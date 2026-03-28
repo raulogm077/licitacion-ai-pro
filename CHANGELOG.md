@@ -16,6 +16,11 @@
   - `fileSearchTool([vectorStoreId])` reemplaza `{ type: 'file_search' }` + `toolResources` en `run()`
   - Modelo actualizado `gpt-4o-2024-08-06` → `gpt-4o` (alias auto-latest)
 
+- **Modelo del agente actualizado `gpt-4o` → `gpt-4.1`** (`supabase/functions/analyze-with-agents/index.ts`):
+  - `gpt-4.1` es el nuevo modelo por defecto del Agents SDK, con ventana de contexto de 1M tokens (vs 128k de gpt-4o)
+  - Mejor instruction following, tool calling y structured output enforcement
+  - Rendimiento superior en workflows agénticos con file_search y JSON estructurado
+
 ### Added
 - **Test E2E con PDF real** (`e2e/upload-pdf.spec.ts`): Test end-to-end completo usando `memo_p2.pdf` del repositorio. Cubre el flujo upload → análisis → progreso SSE → completado, con mocks de auth y Edge Function para CI.
 
