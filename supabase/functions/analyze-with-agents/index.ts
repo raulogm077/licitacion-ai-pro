@@ -4,10 +4,13 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limiter.ts';
 
 // OpenAI SDK for Files and Vector Store management
-import OpenAI from 'npm:openai@4.77.0';
+// NOTE: @openai/agents@0.8.1 requires openai@^6.26.0
+import OpenAI from 'npm:openai@6.26.0';
 
-// Agents SDK
-import { Agent, run } from 'npm:@openai/agents@0.3.7';
+// Agents SDK v0.8.1 — breaking changes vs 0.3.7:
+//   - fileSearchTool(vectorStoreIds) replaces { type: 'file_search' } + toolResources in run()
+//   - StreamedRunResult is directly AsyncIterable (iterate result, not result.stream)
+import { Agent, run, fileSearchTool } from 'npm:@openai/agents@0.8.1';
 
 // Configuración
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -169,7 +172,7 @@ serve(async (req: Request) => {
         // 0. Authenticate user via Supabase JS Client (securely verifies token against Auth service)
         const authHeader = req.headers.get('authorization') || '';
         const token = authHeader.replace('Bearer ', '');
-        
+
         if (!token) {
             return new Response(JSON.stringify({ error: 'Token de autenticación requerido' }), {
                 status: 401,
@@ -183,10 +186,13 @@ serve(async (req: Request) => {
         const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 
         const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-            global: { headers: { Authorization: `Bearer ${token}` } }
+            global: { headers: { Authorization: `Bearer ${token}` } },
         });
 
-        const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabaseClient.auth.getUser();
 
         if (authError || !user) {
             console.error('[analyze-with-agents] Auth error:', authError);
@@ -348,7 +354,8 @@ serve(async (req: Request) => {
             console.warn(`[analyze-with-agents] Vector Store indexing timeout (${timeoutMs}ms). Proceeding anyway...`);
         }
 
-        // 5. Create Agent (SINGLETON PATTERN - created once here)
+        // 5. Create Agent — created AFTER vector store is ready so fileSearchTool
+        //    receives the actual vectorStoreId (required by @openai/agents@0.8.1)
         console.log('[analyze-with-agents] Creating Agent...');
 
         // Modify instructions if a template is provided
@@ -440,16 +447,15 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
             };
         }
 
+        // In @openai/agents@0.8.1, vector store IDs are passed directly via fileSearchTool()
+        // instead of the toolResources option in run(). Model updated to gpt-4o auto-alias
+        // which always points to the latest stable snapshot.
         const agent = new Agent({
             name: 'Analista de Pliegos',
-            model: 'gpt-4o-2024-08-06',
+            model: 'gpt-4o',
             instructions: currentInstructions,
             response_format: dynamicResponseFormat,
-            tools: [
-                {
-                    type: 'file_search' as const,
-                },
-            ],
+            tools: [fileSearchTool([vectorStoreId!])],
         });
 
         // 6. Execute Agent with streaming (CORRECTED PATTERN)
@@ -466,14 +472,10 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
         }
         const runMessage = `Analiza este expediente de licitación (principal: ${filename || 'documento.pdf'})${extraDocsMsg} siguiendo la guía de lectura. Cuando termines, usa la herramienta submit_analysis_result con el JSON estructurado completo.`;
 
+        // @openai/agents@0.8.1: toolResources removed from run() options.
+        // Vector store is now configured directly in fileSearchTool([vectorStoreId]) above.
         const runPromise = run(agent, runMessage, {
             stream: true,
-            // Attach vector store for file_search
-            toolResources: {
-                file_search: {
-                    vector_store_ids: [vectorStoreId],
-                },
-            },
         });
 
         console.log('[analyze-with-agents] Stream created, starting response...');
@@ -527,26 +529,56 @@ Debes estructurar el JSON de salida añadiendo una nueva clave "plantilla_person
 
                     const result = await runPromise;
 
-                    // CORRECCIÓN: Iterar sobre result.stream, NO sobre result directamente
-                    for await (const event of result.stream) {
+                    // @openai/agents@0.8.1: StreamedRunResult is directly AsyncIterable.
+                    // Iterate `result` directly — `result.stream` no longer exists.
+                    // Events are: RunRawModelStreamEvent | RunItemStreamEvent | RunAgentUpdatedStreamEvent
+                    for await (const event of result) {
                         if (completed) break;
                         eventCount++;
 
-                        // Enviar evento al cliente
-                        const data = JSON.stringify({
-                            type: event.type || 'agent_message',
-                            content: event.content,
-                            timestamp: Date.now(),
-                        });
+                        // Map SDK events to the frontend SSE format
+                        let frontendContent: string | undefined;
+                        if (event.type === 'run_item_stream_event') {
+                            const name = (event as any).name as string;
+                            if (name === 'tool_called' || name === 'tool_search_called') {
+                                frontendContent = 'Buscando en documentos...';
+                            } else if (name === 'tool_output' || name === 'tool_search_output_created') {
+                                frontendContent = 'Resultados de búsqueda recibidos...';
+                            } else if (name === 'message_output_created') {
+                                // Try to extract text from message output item
+                                const item = (event as any).item;
+                                const text =
+                                    typeof item?.content === 'string'
+                                        ? item.content
+                                        : Array.isArray(item?.rawItem?.content)
+                                          ? item.rawItem.content
+                                                .filter((c: any) => c.type === 'output_text')
+                                                .map((c: any) => c.text)
+                                                .join(' ')
+                                                .substring(0, 80)
+                                          : undefined;
+                                frontendContent = text || 'Generando análisis...';
+                            }
+                        } else if (event.type === 'agent_updated_stream_event') {
+                            frontendContent = 'Agente actualizado...';
+                        }
+                        // raw_model_stream_event: too noisy, skip to avoid flooding the client
 
-                        controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                        if (frontendContent) {
+                            const data = JSON.stringify({
+                                type: 'agent_message',
+                                content: frontendContent,
+                                timestamp: Date.now(),
+                            });
+                            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                        }
                     }
 
                     if (!completed) {
                         clearInterval(keepAlive);
                         clearTimeout(timeoutId);
 
-                        // 8. CORRECCIÓN: Obtener resultado final de result.finalOutput
+                        // finalOutput is still available on StreamedRunResult after iteration
                         console.log('[analyze-with-agents] Stream completed, getting final output...');
                         const finalOutput = result.finalOutput;
 

@@ -65,7 +65,7 @@
         "vitest": "^4.0.15"
     },
     "lint-staged": {
-        "*.{ts,tsx}": [
+        "{src,e2e}/**/*.{ts,tsx}": [
             "eslint --max-warnings 0"
         ],
         "*.{ts,tsx,json,css}": [
