@@ -38,37 +38,56 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     const uploadedFileIds: string[] = [];
     const fileNames: string[] = [];
 
-    // 1. Upload main document
-    if (pdfBase64) {
-        onProgress?.('Subiendo documento principal...');
-        const pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), (c) => c.charCodeAt(0));
-        const pdfUpload = await openai.files.create({
-            file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
-            purpose: 'assistants',
-        });
-        uploadedFileIds.push(pdfUpload.id);
-        fileNames.push(filename || 'documento.pdf');
-        console.log(`[Ingestion] PDF principal uploaded: ${pdfUpload.id}`);
-    }
+    try {
+        // 1. Upload main document
+        if (pdfBase64) {
+            onProgress?.('Subiendo documento principal...');
+            let pdfBuffer: Uint8Array;
+            try {
+                pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), (c) => c.charCodeAt(0));
+            } catch {
+                throw new Error('El archivo principal no tiene un formato base64 válido');
+            }
+            const pdfUpload = await openai.files.create({
+                file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
+                purpose: 'assistants',
+            });
+            uploadedFileIds.push(pdfUpload.id);
+            fileNames.push(filename || 'documento.pdf');
+            console.log(`[Ingestion] PDF principal uploaded: ${pdfUpload.id}`);
+        }
 
-    // 2. Upload additional files sequentially (avoid memory spikes)
-    if (files && Array.isArray(files)) {
-        for (const extraFile of files) {
-            if (extraFile?.base64 && extraFile?.name) {
-                onProgress?.(`Subiendo ${extraFile.name}...`);
-                const buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), (c) => c.charCodeAt(0));
-                const mimeType = inferMimeType(extraFile.name);
-                const upload = await openai.files.create({
-                    file: new File([buffer], extraFile.name, { type: mimeType }),
-                    purpose: 'assistants',
-                });
-                if (upload.id) {
-                    uploadedFileIds.push(upload.id);
-                    fileNames.push(extraFile.name);
-                    console.log(`[Ingestion] Archivo adicional uploaded: ${upload.id}`);
+        // 2. Upload additional files sequentially (avoid memory spikes)
+        if (files && Array.isArray(files)) {
+            for (const extraFile of files) {
+                if (extraFile?.base64 && extraFile?.name) {
+                    onProgress?.(`Subiendo ${extraFile.name}...`);
+                    let buffer: Uint8Array;
+                    try {
+                        buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), (c) => c.charCodeAt(0));
+                    } catch {
+                        console.warn(`[Ingestion] Skipping ${extraFile.name}: invalid base64`);
+                        continue;
+                    }
+                    const mimeType = inferMimeType(extraFile.name);
+                    const upload = await openai.files.create({
+                        file: new File([buffer], extraFile.name, { type: mimeType }),
+                        purpose: 'assistants',
+                    });
+                    if (upload.id) {
+                        uploadedFileIds.push(upload.id);
+                        fileNames.push(extraFile.name);
+                        console.log(`[Ingestion] Archivo adicional uploaded: ${upload.id}`);
+                    }
                 }
             }
         }
+    } catch (error) {
+        // Cleanup any uploaded files on failure
+        for (const fileId of uploadedFileIds) {
+            openai.files.del(fileId).catch(() => {});
+        }
+        throw error;
     }
 
     if (uploadedFileIds.length === 0) {

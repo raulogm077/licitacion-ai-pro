@@ -83,13 +83,13 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
 function ensureMinimalDatosGenerales(datos: unknown): unknown {
     const d = (datos && typeof datos === 'object' ? datos : {}) as Record<string, unknown>;
     return {
+        ...d,
         titulo: d.titulo ?? { value: '', status: 'no_encontrado' },
         organoContratacion: d.organoContratacion ?? { value: '', status: 'no_encontrado' },
         presupuesto: d.presupuesto ?? { value: 0, status: 'no_encontrado' },
         moneda: d.moneda ?? { value: 'EUR', status: 'derivado_tecnico' },
         plazoEjecucionMeses: d.plazoEjecucionMeses ?? { value: 0, status: 'no_encontrado' },
         cpv: d.cpv ?? { value: [], status: 'no_encontrado' },
-        ...d,
     };
 }
 

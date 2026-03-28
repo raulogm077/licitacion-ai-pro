@@ -103,6 +103,10 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
 
 function extractOutputText(response: OpenAI.Responses.Response): string {
     // The Responses API returns output as an array of items
+    if (!response.output || !Array.isArray(response.output)) {
+        console.error('[extractOutputText] Unexpected response structure:', JSON.stringify(response).substring(0, 500));
+        throw new Error('Responses API devolvió una estructura inesperada (output no es array)');
+    }
     for (const item of response.output) {
         if (item.type === 'message' && item.content) {
             for (const content of item.content) {
@@ -112,7 +116,8 @@ function extractOutputText(response: OpenAI.Responses.Response): string {
             }
         }
     }
-    throw new Error('No text output found in Responses API response');
+    const types = response.output.map((i: { type: string }) => i.type).join(', ');
+    throw new Error(`No text output found in Responses API response. Output types: [${types}]`);
 }
 
 function parseJsonFromText(text: string): unknown {
@@ -123,14 +128,23 @@ function parseJsonFromText(text: string): unknown {
         // Try extracting JSON from markdown code block
         const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[1].trim());
+            try {
+                return JSON.parse(jsonMatch[1].trim());
+            } catch {
+                // Fall through to next strategy
+            }
         }
         // Try finding first { to last }
         const start = text.indexOf('{');
         const end = text.lastIndexOf('}');
         if (start !== -1 && end > start) {
-            return JSON.parse(text.substring(start, end + 1));
+            try {
+                return JSON.parse(text.substring(start, end + 1));
+            } catch {
+                // Fall through to error
+            }
         }
+        console.error('[parseJsonFromText] Failed to parse. First 500 chars:', text.substring(0, 500));
         throw new Error('No se pudo extraer JSON válido de la respuesta');
     }
 }

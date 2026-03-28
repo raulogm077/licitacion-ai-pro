@@ -1,14 +1,7 @@
 import { LicitacionContent, WorkflowState } from '../types';
+import { unwrap } from '../lib/tracked-field';
 
 type QualityReport = NonNullable<WorkflowState['quality']>;
-
-/** Unwrap a TrackedField or raw value to its primitive */
-function unwrap<T>(field: T | { value: T }): T {
-    if (typeof field === 'object' && field !== null && 'value' in field) {
-        return (field as { value: T }).value;
-    }
-    return field as T;
-}
 
 export class QualityService {
     evaluateQuality(content: LicitacionContent, existingAmbiguousFields?: string[]): QualityReport {

@@ -229,11 +229,12 @@ export class DBService {
             let query = this.client.from('licitaciones').select('*');
 
             if (filters.presupuestoMin !== undefined) {
-                query = query.filter('data->datosGenerales->>presupuesto', 'gte', filters.presupuestoMin);
+                // presupuesto is TrackedField { value, status, ... } — access .value
+                query = query.filter('data->datosGenerales->presupuesto->>value', 'gte', filters.presupuestoMin);
             }
 
             if (filters.presupuestoMax !== undefined) {
-                query = query.filter('data->datosGenerales->>presupuesto', 'lte', filters.presupuestoMax);
+                query = query.filter('data->datosGenerales->presupuesto->>value', 'lte', filters.presupuestoMax);
             }
 
             if (filters.estado) {

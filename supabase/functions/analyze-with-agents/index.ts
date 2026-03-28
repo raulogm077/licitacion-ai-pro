@@ -19,7 +19,7 @@ import { runDocumentMap } from './phases/document-map.ts';
 import { runBlockExtraction } from './phases/block-extraction.ts';
 import { runConsolidation } from './phases/consolidation.ts';
 import { runValidation } from './phases/validation.ts';
-import { getCleanupTimestamp, runOpportunisticCleanup } from './cleanup.ts';
+import { getCleanupTimestamp, runOpportunisticCleanup, cleanupJobResources } from './cleanup.ts';
 import { JobService } from '../_shared/services/job.service.ts';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
@@ -181,10 +181,19 @@ serve(async (req: Request) => {
                     sendEvent('heartbeat', {});
                 }, 10000);
 
-                // Timeout
+                // Track resources for cleanup on error
+                let vectorStoreId: string | undefined;
+                let fileIds: string[] | undefined;
+                const jobService = new JobService(supabaseClient);
+                let jobId: string | null = null;
+
+                // Timeout with resource cleanup
                 const timeoutId = setTimeout(() => {
                     if (!completed) {
                         console.error('[analyze] Execution timeout');
+                        if (vectorStoreId || fileIds) {
+                            cleanupJobResources(openai, vectorStoreId, fileIds).catch(() => {});
+                        }
                         sendEvent('error', {
                             message: 'Tiempo de ejecución excedido. Intente con documentos más pequeños.',
                         });
@@ -204,11 +213,11 @@ serve(async (req: Request) => {
                         files,
                         onProgress: (msg) => sendProgress('ingestion', msg),
                     });
+                    vectorStoreId = ingestion.vectorStoreId;
+                    fileIds = ingestion.fileIds;
                     sendEvent('phase_completed', { phase: 'ingestion', message: 'Documentos indexados' });
 
                     // Persist job via JobService
-                    const jobService = new JobService(supabaseClient);
-                    let jobId: string | null = null;
                     try {
                         jobId = await jobService.createJob(
                             user.id,
@@ -299,6 +308,12 @@ serve(async (req: Request) => {
                     console.error('[analyze] Pipeline error:', error);
                     if (jobId) {
                         jobService.failJob(jobId, errMsg).catch(() => {});
+                    }
+                    // Cleanup OpenAI resources on pipeline failure (non-blocking)
+                    if (vectorStoreId || fileIds) {
+                        cleanupJobResources(openai, vectorStoreId, fileIds).catch((e) =>
+                            console.warn('[analyze] Error cleanup failed:', e)
+                        );
                     }
                     sendEvent('error', { message: errMsg });
                 } finally {

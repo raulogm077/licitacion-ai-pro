@@ -164,6 +164,13 @@ export class JobService {
                 if (streamError) break;
             }
 
+            // Release the reader lock
+            try {
+                reader.releaseLock();
+            } catch {
+                /* already released */
+            }
+
             if (streamError) throw streamError;
             if (!finalResult) throw new Error('No se recibió resultado final del stream');
 
