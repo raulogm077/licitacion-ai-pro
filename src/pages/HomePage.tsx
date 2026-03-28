@@ -1,7 +1,5 @@
 import React, { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
-// import { TagManager } from '../components/domain/TagManager';
-// import { NotesPanel } from '../components/domain/NotesPanel';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useLicitacionStore } from '../stores/licitacion.store';

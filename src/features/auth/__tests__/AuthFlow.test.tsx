@@ -7,18 +7,6 @@ import * as AuthStore from '../../../stores/auth.store';
 
 // Mock dependencies
 vi.mock('../../../stores/auth.store');
-vi.mock('../../../hooks/useLicitacionProcessor', () => ({
-    useLicitacionProcessor: () => ({
-        state: { status: 'IDLE', thinkingOutput: '' },
-        processFile: vi.fn(),
-        reset: vi.fn(),
-        handleDataUpdate: vi.fn(),
-    }),
-}));
-
-// Mock child components that might cause issues
-vi.mock('../../../components/domain/TagManager', () => ({ TagManager: () => <div>TagManager</div> }));
-vi.mock('../../../components/domain/NotesPanel', () => ({ NotesPanel: () => <div>NotesPanel</div> }));
 vi.mock('../../dashboard/Dashboard', () => ({ Dashboard: () => <div>Dashboard</div> }));
 
 describe('Auth Validation Flow', () => {
