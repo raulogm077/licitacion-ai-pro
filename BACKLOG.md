@@ -23,6 +23,12 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Done
 
+- [x] [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
+  - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
+  - Implementación: Se desactivó `verify_jwt = false` en `config.toml` y explícitamente en el despliegue CI. Se implementó verificación robusta desde cero dentro de `index.ts` usando `@supabase/supabase-js`, garantizando seguridad sin afectar el paso preflight de Kong.
+  - Criterios: Peticiones legítimas son aceptadas, tokens inválidos o expirados son rechazados (401).
+
+
 - [x] [Tipo: AI|QA] [Área: Analysis] Fix Error 401 Unauthorized en `analyze-with-agents` (JWT expirado)
   - Implementación: Añadido refresh proactivo del token en `job.service.ts` antes de llamar a la Edge Function. Si el `access_token` expira en menos de 60 segundos, se llama a `supabase.auth.refreshSession()` para obtener un token fresco.
   - Archivos modificados: `src/services/job.service.ts`
@@ -45,15 +51,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
-  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
-  - Implementación: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente.
-  - Criterios: Pasa validación de types. *Nota: Validación unitaria local bloqueada por fallo global de Vitest.*
-
-- [x] [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
-  - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
-  - Implementación: Se desactivó `verify_jwt = false` en `config.toml` y explícitamente en el despliegue CI. Se implementó verificación robusta desde cero dentro de `index.ts` usando `@supabase/supabase-js`, garantizando seguridad sin afectar el paso preflight de Kong.
-  - Criterios: Peticiones legítimas son aceptadas, tokens inválidos o expirados son rechazados (401).
 
 ## To Do (Iteración Actual)
 
@@ -86,6 +83,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/main.tsx`, `src/App.tsx`, `package.json`
   - Dependencias: Ninguna.
 
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
+  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
+  - Implementación: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente.
+  - Criterios: Pasa validación de types. *Nota: Validación unitaria local bloqueada por fallo global de Vitest.*
+  > Falla devuelta a To Do: El desarrollador indicó que la validación unitaria local estaba bloqueada por un fallo global de Vitest. No se aprueban tareas con reportes de bloqueo no resueltos.
+
+
 ## Deuda Técnica / Refactorización
 
 - [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
@@ -103,11 +107,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Visual regression testing con Playwright screenshots
 
 ## Done
-
-- [x] [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
-  - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
-  - Implementación: Se desactivó `verify_jwt = false` en `config.toml` y explícitamente en el despliegue CI. Se implementó verificación robusta desde cero dentro de `index.ts` usando `@supabase/supabase-js`, garantizando seguridad sin afectar el paso preflight de Kong.
-  - Criterios: Peticiones legítimas son aceptadas, tokens inválidos o expirados son rechazados (401).
 
 - [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios para KpiCards
   - Objetivo: Asegurar que los componentes principales del dashboard funcionen y no presenten regresiones.
