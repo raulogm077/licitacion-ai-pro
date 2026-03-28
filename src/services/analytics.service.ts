@@ -1,4 +1,5 @@
 import { LicitacionData, AnalyticsData } from '../types';
+import { unwrap } from '../lib/tracked-field';
 
 interface LicitacionHistoryItem {
     hash: string;
@@ -41,11 +42,7 @@ export class AnalyticsService {
         // ⚡ Bolt Optimization: Single O(n) traversal replacing multiple array methods
         for (const item of items) {
             // Presupuestos & Importes
-            const rawPresupuesto = item.data.datosGenerales.presupuesto;
-            const presupuestoValue =
-                typeof rawPresupuesto === 'object' && rawPresupuesto !== null && 'value' in rawPresupuesto
-                    ? (rawPresupuesto as { value: number }).value
-                    : (rawPresupuesto as number);
+            const presupuestoValue = unwrap(item.data.datosGenerales.presupuesto) ?? 0;
             presupuestoTotal += presupuestoValue;
             importeAdjudicadoTotal += item.data.metadata?.importeAdjudicado || 0;
 

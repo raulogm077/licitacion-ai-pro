@@ -19,7 +19,8 @@ import { runDocumentMap } from './phases/document-map.ts';
 import { runBlockExtraction } from './phases/block-extraction.ts';
 import { runConsolidation } from './phases/consolidation.ts';
 import { runValidation } from './phases/validation.ts';
-import { getCleanupTimestamp } from './cleanup.ts';
+import { getCleanupTimestamp, runOpportunisticCleanup } from './cleanup.ts';
+import { JobService } from '../_shared/services/job.service.ts';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -131,6 +132,24 @@ serve(async (req: Request) => {
             console.log(`[analyze] Additional documents: ${files.length}`);
         }
 
+        // Opportunistic cleanup of expired resources (non-blocking)
+        runOpportunisticCleanup(openai, async () => {
+            const { data } = await supabaseClient
+                .from('analysis_jobs')
+                .select('id, vector_store_id, file_ids')
+                .lt('cleanup_at', new Date().toISOString())
+                .not('vector_store_id', 'is', null)
+                .limit(5);
+            if (data && data.length > 0) {
+                const ids = data.map((j: { id: string }) => j.id);
+                await supabaseClient
+                    .from('analysis_jobs')
+                    .update({ vector_store_id: null, file_ids: null })
+                    .in('id', ids);
+            }
+            return data || [];
+        }).catch((err) => console.warn('[analyze] Cleanup skipped:', err));
+
         // 3. Create SSE stream with pipeline execution
         const encoder = new TextEncoder();
         const readable = new ReadableStream({
@@ -187,20 +206,17 @@ serve(async (req: Request) => {
                     });
                     sendEvent('phase_completed', { phase: 'ingestion', message: 'Documentos indexados' });
 
-                    // Persist job metadata
+                    // Persist job via JobService
+                    const jobService = new JobService(supabaseClient);
+                    let jobId: string | null = null;
                     try {
-                        await supabaseClient.from('analysis_jobs').insert({
-                            user_id: user.id,
-                            status: 'processing',
-                            phase: 'ingestion',
-                            vector_store_id: ingestion.vectorStoreId,
-                            file_ids: ingestion.fileIds,
-                            metadata: {
-                                filename: filename || 'documento.pdf',
-                                fileNames: ingestion.fileNames,
-                            },
-                            cleanup_at: getCleanupTimestamp(),
-                        });
+                        jobId = await jobService.createJob(
+                            user.id,
+                            filename || 'documento.pdf',
+                            ingestion.vectorStoreId,
+                            ingestion.fileIds,
+                            getCleanupTimestamp()
+                        );
                     } catch (dbErr) {
                         console.warn('[analyze] Failed to persist job:', dbErr);
                     }
@@ -218,6 +234,10 @@ serve(async (req: Request) => {
                         phase: 'document_map',
                         message: `${documentMap.documentos.length} documentos identificados`,
                     });
+
+                    if (jobId) {
+                        jobService.updatePhase(jobId, 'document_map', documentMap).catch(() => {});
+                    }
 
                     // ═══ FASE C: EXTRACCIÓN POR BLOQUES ═══
                     sendEvent('phase_started', { phase: 'extraction', message: 'Extrayendo información...' });
@@ -240,6 +260,10 @@ serve(async (req: Request) => {
                         phase: 'extraction',
                         message: `${extraction.blocks.length} bloques extraídos`,
                     });
+
+                    if (jobId) {
+                        jobService.updatePhase(jobId, 'extraction').catch(() => {});
+                    }
 
                     // ═══ FASE D: CONSOLIDACIÓN ═══
                     sendEvent('phase_started', { phase: 'consolidation', message: 'Consolidando resultados...' });
@@ -265,10 +289,17 @@ serve(async (req: Request) => {
                     const finalOutput = { result, workflow };
                     console.log(`[analyze] Pipeline completed. Quality: ${workflow.quality?.overall}`);
 
+                    if (jobId) {
+                        jobService.completeJob(jobId, finalOutput).catch(() => {});
+                    }
+
                     sendEvent('complete', { result: finalOutput });
                 } catch (error: unknown) {
                     const errMsg = error instanceof Error ? error.message : 'Unknown error';
                     console.error('[analyze] Pipeline error:', error);
+                    if (jobId) {
+                        jobService.failJob(jobId, errMsg).catch(() => {});
+                    }
                     sendEvent('error', { message: errMsg });
                 } finally {
                     completed = true;
