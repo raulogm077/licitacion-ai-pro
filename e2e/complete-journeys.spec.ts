@@ -2,16 +2,21 @@ import { test, expect, Page } from '@playwright/test';
 
 // Helper para simular autenticación
 async function mockAuth(page: Page) {
-    // En un escenario real, usarías credenciales de test
-    // Por ahora simulamos que el usuario ya está autenticado
-    await page.goto('/');
+    // Block Vercel analytics/telemetry that prevent networkidle in CI
+    await page.route(
+        (url) =>
+            url.hostname.includes('vercel-insights.com') ||
+            url.hostname.includes('vercel-scripts.com') ||
+            url.hostname.includes('sentry.io'),
+        (route) => route.abort()
+    );
 
-    // Esperar a que la app cargue
-    await page.waitForLoadState('networkidle');
+    await page.goto('/');
+    // Use #root selector instead of networkidle — Vercel analytics block networkidle in CI
+    await page.waitForSelector('#root', { timeout: 10000 });
 }
 
 test.describe('Complete User Journey - Upload to Export', () => {
-
     test('Full flow: Upload PDF → Wait for Analysis → View Results → Export', async ({ page }) => {
         await mockAuth(page);
 
@@ -95,7 +100,6 @@ test.describe('Complete User Journey - Upload to Export', () => {
 });
 
 test.describe('Authentication Flows', () => {
-
     test('Login flow (if authentication required)', async ({ page }) => {
         await page.goto('/');
 
@@ -142,7 +146,6 @@ test.describe('Authentication Flows', () => {
 });
 
 test.describe('Error Handling', () => {
-
     test('Handles 404 gracefully', async ({ page }) => {
         await page.goto('/non-existent-route');
 

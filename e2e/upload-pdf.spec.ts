@@ -164,11 +164,12 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         const pdfBuffer = fs.readFileSync(pdfPath);
 
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        // Wait for the app shell to render (not networkidle — Vercel analytics block that in CI)
+        await page.waitForSelector('#root', { timeout: 10000 });
 
         // ── Step 1: File upload ─────────────────────────────────────────────
         const fileInput = page.locator('input[type="file"]').first();
-        await fileInput.waitFor({ state: 'attached', timeout: 10000 });
+        await fileInput.waitFor({ state: 'attached', timeout: 15000 });
 
         // Make the (visually hidden) file input interactable
         await fileInput.evaluate((el: HTMLInputElement) => {
@@ -198,7 +199,8 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         await expect(page.getByText(/analizando|procesando/i).first()).toBeVisible({ timeout: 8000 });
 
         // ── Step 5: Progress messages from SSE stream ──────────────────────
-        await expect(page.getByText('Leyendo documento PDF...')).toBeVisible({ timeout: 8000 });
+        // The ai.service prefixes content with "[Agent] " — use regex for substring match
+        await expect(page.getByText(/Leyendo documento PDF/i).first()).toBeVisible({ timeout: 8000 });
 
         // ── Step 6: Completion ─────────────────────────────────────────────
         // After receiving the 'complete' event the store sets status = COMPLETED
@@ -229,10 +231,10 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         const pdfBuffer = fs.readFileSync(pdfPath);
 
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForSelector('#root', { timeout: 10000 });
 
         const fileInput = page.locator('input[type="file"]').first();
-        await fileInput.waitFor({ state: 'attached', timeout: 10000 });
+        await fileInput.waitFor({ state: 'attached', timeout: 15000 });
         await fileInput.evaluate((el: HTMLInputElement) => {
             el.style.display = 'block';
             el.style.visibility = 'visible';

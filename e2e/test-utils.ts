@@ -13,6 +13,17 @@ export async function setupAuthMock(page: Page) {
     const ref = getSupabaseRef();
     const authKey = `sb-${ref}-auth-token`;
 
+    // Block external analytics/telemetry calls that would prevent networkidle in CI.
+    // @vercel/analytics and @vercel/speed-insights beacon to external domains.
+    await page.route(
+        (url) =>
+            url.hostname.includes('vercel-insights.com') ||
+            url.hostname.includes('vercel-scripts.com') ||
+            url.hostname.includes('sentry.io') ||
+            url.hostname.includes('segment.io'),
+        (route) => route.abort()
+    );
+
     await page.route(
         (url) => url.href.includes('/auth/v1/user'),
         async (route) => {
