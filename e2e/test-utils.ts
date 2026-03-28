@@ -46,6 +46,37 @@ export async function setupAuthMock(page: Page) {
         }
     );
 
+    // Mock all Supabase REST API calls — prevents real network calls hanging in CI
+    await page.route(
+        (url) => url.href.includes('/rest/v1/'),
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([]),
+            });
+        }
+    );
+
+    // Mock token refresh endpoint
+    await page.route(
+        (url) => url.href.includes('/auth/v1/token'),
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    access_token: 'mock-token-refreshed',
+                    token_type: 'bearer',
+                    expires_in: 3600,
+                    refresh_token: 'mock-refresh-new',
+                    user: { id: 'test-user', email: 'test@example.com' },
+                    expires_at: Math.floor(Date.now() / 1000) + 3600,
+                }),
+            });
+        }
+    );
+
     await page.addInitScript(
         ({ key }) => {
             window.localStorage.setItem(
