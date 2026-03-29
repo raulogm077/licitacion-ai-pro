@@ -26,28 +26,35 @@ export async function cleanupJobResources(
 ): Promise<void> {
     console.log('[Cleanup] Starting resource cleanup...');
 
+    const tasks: Promise<void>[] = [];
+
     if (vectorStoreId) {
-        try {
-            await openai.vectorStores.del(vectorStoreId);
-            console.log(`[Cleanup] Vector Store deleted: ${vectorStoreId}`);
-        } catch (error) {
-            console.error(`[Cleanup] Failed to delete vector store ${vectorStoreId}:`, error);
-        }
+        tasks.push(
+            openai.vectorStores
+                .del(vectorStoreId)
+                .then(() => console.log(`[Cleanup] Vector Store deleted: ${vectorStoreId}`))
+                .catch((error) => console.error(`[Cleanup] Failed to delete vector store ${vectorStoreId}:`, error))
+        );
     }
 
     if (fileIds && fileIds.length > 0) {
-        const results = await Promise.allSettled(fileIds.map((fileId) => openai.files.del(fileId)));
-        for (let i = 0; i < results.length; i++) {
-            if (results[i].status === 'fulfilled') {
-                console.log(`[Cleanup] File deleted: ${fileIds[i]}`);
-            } else {
-                console.error(
-                    `[Cleanup] Failed to delete file ${fileIds[i]}:`,
-                    (results[i] as PromiseRejectedResult).reason
-                );
-            }
-        }
+        tasks.push(
+            Promise.allSettled(fileIds.map((fileId) => openai.files.del(fileId))).then((results) => {
+                for (let i = 0; i < results.length; i++) {
+                    if (results[i].status === 'fulfilled') {
+                        console.log(`[Cleanup] File deleted: ${fileIds[i]}`);
+                    } else {
+                        console.error(
+                            `[Cleanup] Failed to delete file ${fileIds[i]}:`,
+                            (results[i] as PromiseRejectedResult).reason
+                        );
+                    }
+                }
+            })
+        );
     }
+
+    await Promise.all(tasks);
 }
 
 /**

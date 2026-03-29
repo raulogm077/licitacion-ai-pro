@@ -3,6 +3,8 @@ import { services } from '../config/service-registry';
 import { LicitacionData, SearchFilters } from '../types';
 import { logger } from '../services/logger';
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export interface HistoryItem {
     hash: string;
     fileName: string;
@@ -65,7 +67,7 @@ export function useHistory() {
                     setError('Error en la búsqueda.');
                 }
                 setLoading(false);
-            }, 300);
+            }, SEARCH_DEBOUNCE_MS);
         },
         [activeFilters, loadHistory]
     );
@@ -85,6 +87,9 @@ export function useHistory() {
 
     useEffect(() => {
         loadHistory();
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
     }, [loadHistory]);
 
     return {

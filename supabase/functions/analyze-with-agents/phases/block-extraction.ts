@@ -117,11 +117,8 @@ Incluye cualquier información importante no cubierta en otros bloques.`,
 
 // ─── System prompt with guide and anti-injection ──────────────────────────────
 
-function buildSystemPrompt(blockName: BlockName, documentMap: DocumentMap, guideContent: string): string {
+function buildSystemPrompt(blockName: BlockName, documentMap: DocumentMap, guideSummary: string): string {
     const mapSummary = documentMap.documentos.map((d) => `- ${d.nombre} (${d.tipo})`).join('\n');
-
-    // Use condensed guide to fit in context
-    const guideSummary = guideContent.substring(0, GUIDE_EXCERPT_LENGTH);
 
     return `Eres "Analista de Pliegos". Extraes información EXCLUSIVAMENTE del expediente de licitación indexado.
 
@@ -179,10 +176,13 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     const totalBlocks = BLOCK_NAMES.length;
     let completedCount = 0;
 
+    // Truncate guide once instead of per-block call
+    const guideSummary = guideContent.substring(0, GUIDE_EXCERPT_LENGTH);
+
     const tasks = BLOCK_NAMES.map((blockName, i) => async (): Promise<BlockResult> => {
         onProgress?.(`Extrayendo: ${blockName}...`, i, totalBlocks);
         try {
-            const result = await extractBlock(openai, vectorStoreId, blockName, documentMap, guideContent);
+            const result = await extractBlock(openai, vectorStoreId, blockName, documentMap, guideSummary);
             completedCount++;
             console.log(
                 `[Extraction] Block ${blockName} completed (${completedCount}/${totalBlocks}): ${result.warnings.length} warnings`

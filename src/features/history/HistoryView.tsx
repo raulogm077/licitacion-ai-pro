@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { unwrap } from '../../lib/tracked-field';
 import { formatCurrency } from '../../lib/formatters';
 import { useHistory } from '../../hooks/useHistory';
@@ -76,8 +76,11 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
     const totalPages = Math.max(1, Math.ceil(items.length / rowsPerPage));
     const paginatedData = items.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
-    const exitosos = items.filter((d) => getStatusFromData(d.data) === 'COMPLETO').length;
-    const totalPresupuesto = items.reduce((acc, d) => acc + (unwrap(d.data.datosGenerales.presupuesto) || 0), 0);
+    const exitosos = useMemo(() => items.filter((d) => getStatusFromData(d.data) === 'COMPLETO').length, [items]);
+    const totalPresupuesto = useMemo(
+        () => items.reduce((acc, d) => acc + (unwrap(d.data.datosGenerales.presupuesto) || 0), 0),
+        [items]
+    );
 
     return (
         <div className="p-6 md:p-8 font-sans animate-in fade-in duration-500">
