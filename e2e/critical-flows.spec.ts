@@ -1,23 +1,25 @@
 import { test, expect } from '@playwright/test';
+import { setupAuthMock } from './test-utils';
 
 test.describe('Critical User Flows - Complete Journey', () => {
-    test('Upload PDF → AI Analysis → View Results', async ({ page }) => {
-        // Navigate to homepage
-        await page.goto('/');
+    test.beforeEach(async ({ page }) => {
+        await setupAuthMock(page);
+    });
 
-        // Wait for app to load
+    test('Upload PDF → AI Analysis → View Results', async ({ page }) => {
+        await page.goto('/');
         await expect(page).toHaveTitle(/Analista de Pliegos/);
 
-        // Check for upload section OR Login button
-        // This makes the test robust if auth state is missing in CI
-        const uploadSection = page.locator('[data-testid="upload-section"]').or(page.getByText(/subir.*pdf/i).first());
+        // Check for upload section OR login button — robust for auth state variations
+        const uploadSection = page
+            .locator('[data-testid="upload-section"]')
+            .or(page.locator('input[type="file"]'))
+            .first();
         const loginButton = page.getByRole('button', { name: /login|iniciar.*sesión/i }).first();
 
         await expect(uploadSection.or(loginButton)).toBeVisible({ timeout: 10000 });
 
-        // For now, verify the upload UI is accessible if logged in
         if (await uploadSection.isVisible()) {
-            // In real scenario: upload file, wait for analysis, verify results
             const mainContent = page.getByRole('main');
             await expect(mainContent).toBeVisible();
         }
@@ -26,32 +28,34 @@ test.describe('Critical User Flows - Complete Journey', () => {
     test('Search and Filter Licitaciones', async ({ page }) => {
         await page.goto('/');
 
-        // Navigate to History/Search page
-        const historyLink = page.getByRole('link', { name: /historial|histórico/i });
+        // Navigate to History using sidebar title attribute
+        const historyLink = page.getByTitle('Historial');
 
         if (await historyLink.isVisible({ timeout: 5000 }).catch(() => false)) {
             await historyLink.click();
-
-            // Wait for history page to load
             await page.waitForSelector('#root', { timeout: 10000 }).catch(() => null);
 
-            // Verify search functionality exists
-            const searchInput = page.getByRole('searchbox').or(page.getByPlaceholder(/buscar/i).first());
+            // Search input has role="searchbox" or data-testid="search-input"
+            const searchInput = page
+                .getByRole('searchbox')
+                .or(page.getByTestId('search-input'))
+                .or(page.getByPlaceholder(/buscar/i).first());
             await expect(searchInput).toBeVisible({ timeout: 10000 });
         }
     });
 
     test('Export Functionality', async ({ page }) => {
         await page.goto('/');
-
-        // This test verifies export buttons are accessible
-        // In production: would verify PDF/Excel export works
         const mainApp = page.locator('#root');
         await expect(mainApp).not.toBeEmpty();
     });
 });
 
 test.describe('Smoke Tests - Core Functionality', () => {
+    test.beforeEach(async ({ page }) => {
+        await setupAuthMock(page);
+    });
+
     test('Homepage loads without errors', async ({ page }) => {
         const errors: string[] = [];
         page.on('pageerror', (err) => {
@@ -77,8 +81,6 @@ test.describe('Smoke Tests - Core Functionality', () => {
 
     test('Navigation is accessible', async ({ page }) => {
         await page.goto('/');
-
-        // Either navigation exists or we're on login/loading page
         const root = page.locator('#root');
         await expect(root).not.toBeEmpty();
     });
@@ -92,18 +94,17 @@ test.describe('Smoke Tests - Core Functionality', () => {
         });
 
         await page.goto('/');
-        await page.waitForTimeout(2000); // Wait for initial renders
+        await page.waitForTimeout(2000);
 
-        // Filter out known acceptable errors (if any)
         const criticalErrors = consoleErrors.filter(
             (err) =>
-                !err.includes('intentos fallaron') && // Expected retry logs in tests
-                !err.includes('Respuesta de Edge Function') && // Expected in tests
-                !err.includes('status of 404') && // Ignore missing assets (favicon, etc)
-                !err.includes('net::ERR_NAME_NOT_RESOLVED') && // Ignore missing mock supabase domain in CI
-                !err.includes('net::ERR_INTERNET_DISCONNECTED') && // Ignore missing mock supabase domain in CI
-                !err.includes('Invalid Environment Configuration') && // Ignore empty env vars in test environment
-                !err.includes('Auth Initialization Error') // Ignore auth error due to missing supabase url in tests
+                !err.includes('intentos fallaron') &&
+                !err.includes('Respuesta de Edge Function') &&
+                !err.includes('status of 404') &&
+                !err.includes('net::ERR_NAME_NOT_RESOLVED') &&
+                !err.includes('net::ERR_INTERNET_DISCONNECTED') &&
+                !err.includes('Invalid Environment Configuration') &&
+                !err.includes('Auth Initialization Error')
         );
 
         expect(criticalErrors).toHaveLength(0);
