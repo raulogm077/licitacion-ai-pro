@@ -8,6 +8,7 @@ import OpenAI from 'npm:openai@6.33.0';
 import { DocumentMapSchema } from '../../_shared/schemas/document-map.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
 import { OPENAI_MODEL, API_CALL_TIMEOUT_MS, GUIDE_EXCERPT_MAP_LENGTH } from '../../_shared/config.ts';
+import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 
 export interface DocumentMapInput {
     openai: OpenAI;
@@ -70,33 +71,25 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
 
     const guideExcerpt = guideContent.substring(0, GUIDE_EXCERPT_MAP_LENGTH);
 
-    const responsePromise = openai.responses.create({
-        model: OPENAI_MODEL,
-        input: [
-            {
-                role: 'user',
-                content: DOCUMENT_MAP_PROMPT(fileNames, guideExcerpt),
-            },
-        ],
-        tools: [
-            {
-                type: 'file_search',
-                vector_store_ids: [vectorStoreId],
-            },
-        ],
-    });
-
-    // Apply per-call timeout
-    let timer: ReturnType<typeof setTimeout>;
-    const timeout = new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('Timeout: Mapa documental excedió 90s')), API_CALL_TIMEOUT_MS);
-    });
-    let response: OpenAI.Responses.Response;
-    try {
-        response = await Promise.race([responsePromise, timeout]);
-    } finally {
-        clearTimeout(timer!);
-    }
+    const response = await callWithTimeout(
+        openai.responses.create({
+            model: OPENAI_MODEL,
+            input: [
+                {
+                    role: 'user',
+                    content: DOCUMENT_MAP_PROMPT(fileNames, guideExcerpt),
+                },
+            ],
+            tools: [
+                {
+                    type: 'file_search',
+                    vector_store_ids: [vectorStoreId],
+                },
+            ],
+        }),
+        API_CALL_TIMEOUT_MS,
+        'Mapa documental'
+    );
 
     // Extract text from response
     const outputText = extractOutputText(response);
