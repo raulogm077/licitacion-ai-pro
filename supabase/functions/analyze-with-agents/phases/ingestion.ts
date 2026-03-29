@@ -7,6 +7,7 @@
  * - NO sube la guía al vector store (va en system prompt)
  */
 import OpenAI from 'npm:openai@6.33.0';
+import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
 
 export interface IngestionInput {
     openai: OpenAI;
@@ -57,27 +58,35 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
             console.log(`[Ingestion] PDF principal uploaded: ${pdfUpload.id}`);
         }
 
-        // 2. Upload additional files sequentially (avoid memory spikes)
+        // 2. Upload additional files in parallel (batch of all valid files)
         if (files && Array.isArray(files)) {
-            for (const extraFile of files) {
-                if (extraFile?.base64 && extraFile?.name) {
-                    onProgress?.(`Subiendo ${extraFile.name}...`);
+            const validFiles = files.filter((f) => f?.base64 && f?.name);
+            if (validFiles.length > 0) {
+                onProgress?.(`Subiendo ${validFiles.length} archivos adicionales...`);
+                const uploadPromises = validFiles.map(async (extraFile) => {
                     let buffer: Uint8Array;
                     try {
                         buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), (c) => c.charCodeAt(0));
                     } catch {
                         console.warn(`[Ingestion] Skipping ${extraFile.name}: invalid base64`);
-                        continue;
+                        return null;
                     }
                     const mimeType = inferMimeType(extraFile.name);
                     const upload = await openai.files.create({
                         file: new File([buffer], extraFile.name, { type: mimeType }),
                         purpose: 'assistants',
                     });
-                    if (upload.id) {
-                        uploadedFileIds.push(upload.id);
-                        fileNames.push(extraFile.name);
-                        console.log(`[Ingestion] Archivo adicional uploaded: ${upload.id}`);
+                    return { id: upload.id, name: extraFile.name };
+                });
+
+                const results = await Promise.allSettled(uploadPromises);
+                for (const result of results) {
+                    if (result.status === 'fulfilled' && result.value) {
+                        uploadedFileIds.push(result.value.id);
+                        fileNames.push(result.value.name);
+                        console.log(`[Ingestion] Archivo adicional uploaded: ${result.value.id}`);
+                    } else if (result.status === 'rejected') {
+                        console.warn(`[Ingestion] File upload failed:`, result.reason);
                     }
                 }
             }
@@ -109,9 +118,8 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     let delay = 1000;
     const maxDelay = 5000;
     let totalTime = 0;
-    const timeoutMs = 90000; // 90s for large documents
 
-    while (totalTime < timeoutMs) {
+    while (totalTime < VECTOR_STORE_TIMEOUT_MS) {
         const vs = await openai.vectorStores.retrieve(vectorStoreId);
         if (vs.status === 'completed') {
             vectorStoreReady = true;
@@ -126,7 +134,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     }
 
     if (!vectorStoreReady) {
-        console.warn(`[Ingestion] Vector Store indexing timeout (${timeoutMs}ms). Proceeding anyway.`);
+        console.warn(`[Ingestion] Vector Store indexing timeout (${VECTOR_STORE_TIMEOUT_MS}ms). Proceeding anyway.`);
     }
 
     return { vectorStoreId, fileIds: uploadedFileIds, fileNames };

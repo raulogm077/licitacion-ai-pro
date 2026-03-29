@@ -7,6 +7,7 @@
 import OpenAI from 'npm:openai@6.33.0';
 import { DocumentMapSchema } from '../../_shared/schemas/document-map.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
+import { OPENAI_MODEL, API_CALL_TIMEOUT_MS, GUIDE_EXCERPT_MAP_LENGTH } from '../../_shared/config.ts';
 
 export interface DocumentMapInput {
     openai: OpenAI;
@@ -67,11 +68,10 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
 
     onProgress?.('Analizando estructura documental...');
 
-    // Condensed guide excerpt for the document map phase
-    const guideExcerpt = guideContent.substring(0, 3000);
+    const guideExcerpt = guideContent.substring(0, GUIDE_EXCERPT_MAP_LENGTH);
 
-    const response = await openai.responses.create({
-        model: 'gpt-4.1',
+    const responsePromise = openai.responses.create({
+        model: OPENAI_MODEL,
         input: [
             {
                 role: 'user',
@@ -85,6 +85,18 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
             },
         ],
     });
+
+    // Apply per-call timeout
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Timeout: Mapa documental excedió 90s')), API_CALL_TIMEOUT_MS);
+    });
+    let response: OpenAI.Responses.Response;
+    try {
+        response = await Promise.race([responsePromise, timeout]);
+    } finally {
+        clearTimeout(timer!);
+    }
 
     // Extract text from response
     const outputText = extractOutputText(response);

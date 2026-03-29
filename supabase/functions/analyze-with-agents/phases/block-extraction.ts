@@ -9,6 +9,27 @@ import { BLOCK_NAMES, BLOCK_SCHEMAS } from '../../_shared/schemas/blocks.ts';
 import type { BlockName } from '../../_shared/schemas/blocks.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
 import { extractOutputText, parseJsonFromText } from './document-map.ts';
+import {
+    OPENAI_MODEL,
+    API_CALL_TIMEOUT_MS,
+    BLOCK_CONCURRENCY,
+    GUIDE_EXCERPT_LENGTH,
+    GUIDE_EXCERPT_TEMPLATE_LENGTH,
+} from '../../_shared/config.ts';
+import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
+
+/** Wraps a promise with a timeout. Rejects if the promise doesn't resolve in time. */
+async function callWithTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Timeout: ${label} excedió ${timeoutMs / 1000}s`)), timeoutMs);
+    });
+    try {
+        return await Promise.race([promise, timeout]);
+    } finally {
+        clearTimeout(timer!);
+    }
+}
 
 export interface BlockExtractionInput {
     openai: OpenAI;
@@ -111,8 +132,8 @@ Incluye cualquier información importante no cubierta en otros bloques.`,
 function buildSystemPrompt(blockName: BlockName, documentMap: DocumentMap, guideContent: string): string {
     const mapSummary = documentMap.documentos.map((d) => `- ${d.nombre} (${d.tipo})`).join('\n');
 
-    // Use condensed guide (first 4000 chars to fit in context)
-    const guideSummary = guideContent.substring(0, 4000);
+    // Use condensed guide to fit in context
+    const guideSummary = guideContent.substring(0, GUIDE_EXCERPT_LENGTH);
 
     return `Eres "Analista de Pliegos". Extraes información EXCLUSIVAMENTE del expediente de licitación indexado.
 
@@ -145,33 +166,59 @@ Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin comentarios) con esta
 
 // ─── Main extraction function ─────────────────────────────────────────────────
 
+/**
+ * Runs blocks in parallel with a concurrency limit.
+ * This avoids overwhelming OpenAI's API while still being much faster than sequential.
+ */
+async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
+    const results: T[] = new Array(items.length);
+    let nextIndex = 0;
+
+    async function worker() {
+        while (nextIndex < items.length) {
+            const idx = nextIndex++;
+            results[idx] = await items[idx]();
+        }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+    await Promise.all(workers);
+    return results;
+}
+
 export async function runBlockExtraction(input: BlockExtractionInput): Promise<BlockExtractionResult> {
     const { openai, vectorStoreId, documentMap, guideContent, template, onProgress } = input;
-    const blocks: BlockResult[] = [];
     const totalBlocks = BLOCK_NAMES.length;
+    let completedCount = 0;
 
-    for (let i = 0; i < BLOCK_NAMES.length; i++) {
-        const blockName = BLOCK_NAMES[i];
+    const tasks = BLOCK_NAMES.map((blockName, i) => async (): Promise<BlockResult> => {
         onProgress?.(`Extrayendo: ${blockName}...`, i, totalBlocks);
-
         try {
             const result = await extractBlock(openai, vectorStoreId, blockName, documentMap, guideContent);
-            blocks.push(result);
-            console.log(`[Extraction] Block ${blockName} completed: ${result.warnings.length} warnings`);
+            completedCount++;
+            console.log(
+                `[Extraction] Block ${blockName} completed (${completedCount}/${totalBlocks}): ${result.warnings.length} warnings`
+            );
+            onProgress?.(
+                `Completado: ${blockName} (${completedCount}/${totalBlocks})`,
+                completedCount - 1,
+                totalBlocks
+            );
+            return result;
         } catch (error) {
+            completedCount++;
             console.error(`[Extraction] Block ${blockName} failed:`, error);
-            // Create a failed block result rather than aborting the entire pipeline
-            blocks.push({
+            return {
                 blockName,
                 data: {},
                 evidences: [],
-                warnings: [
-                    `Error extrayendo bloque ${blockName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                ],
+                warnings: [`Error extrayendo bloque ${blockName}: ${mapOpenAIError(error)}`],
                 ambiguous_fields: [],
-            });
+            };
         }
-    }
+    });
+
+    const blocks = await runWithConcurrency(tasks, BLOCK_CONCURRENCY);
 
     // Extract custom template if provided
     let customTemplate: Record<string, unknown> | undefined;
@@ -197,19 +244,23 @@ async function extractBlock(
     const systemPrompt = buildSystemPrompt(blockName, documentMap, guideContent);
     const userPrompt = BLOCK_PROMPTS[blockName];
 
-    const response = await openai.responses.create({
-        model: 'gpt-4.1',
-        input: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-        ],
-        tools: [
-            {
-                type: 'file_search',
-                vector_store_ids: [vectorStoreId],
-            },
-        ],
-    });
+    const response = await callWithTimeout(
+        openai.responses.create({
+            model: OPENAI_MODEL,
+            input: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+            ],
+            tools: [
+                {
+                    type: 'file_search',
+                    vector_store_ids: [vectorStoreId],
+                },
+            ],
+        }),
+        API_CALL_TIMEOUT_MS,
+        `Block ${blockName}`
+    );
 
     const outputText = extractOutputText(response);
     let parsed: { data?: unknown; evidences?: unknown[]; warnings?: string[]; ambiguous_fields?: string[] };
@@ -219,24 +270,28 @@ async function extractBlock(
     } catch {
         // Retry once if parse fails
         console.warn(`[Extraction] JSON parse failed for ${blockName}, retrying...`);
-        const retryResponse = await openai.responses.create({
-            model: 'gpt-4.1',
-            input: [
-                { role: 'system', content: systemPrompt },
-                {
-                    role: 'user',
-                    content:
-                        userPrompt +
-                        '\n\nIMPORTANTE: Tu respuesta anterior no fue JSON válido. Devuelve SOLO JSON, sin texto adicional.',
-                },
-            ],
-            tools: [
-                {
-                    type: 'file_search',
-                    vector_store_ids: [vectorStoreId],
-                },
-            ],
-        });
+        const retryResponse = await callWithTimeout(
+            openai.responses.create({
+                model: OPENAI_MODEL,
+                input: [
+                    { role: 'system', content: systemPrompt },
+                    {
+                        role: 'user',
+                        content:
+                            userPrompt +
+                            '\n\nIMPORTANTE: Tu respuesta anterior no fue JSON válido. Devuelve SOLO JSON, sin texto adicional.',
+                    },
+                ],
+                tools: [
+                    {
+                        type: 'file_search',
+                        vector_store_ids: [vectorStoreId],
+                    },
+                ],
+            }),
+            API_CALL_TIMEOUT_MS,
+            `Block ${blockName} retry`
+        );
         const retryText = extractOutputText(retryResponse);
         parsed = parseJsonFromText(retryText) as typeof parsed;
     }
@@ -282,22 +337,26 @@ async function extractCustomTemplate(
         )
         .join('\n');
 
-    const response = await openai.responses.create({
-        model: 'gpt-4.1',
-        input: [
-            {
-                role: 'system',
-                content: `Eres un analista de pliegos. Extrae los campos personalizados solicitados del expediente.
-GUÍA (solo metodología): ${guideContent.substring(0, 2000)}
+    const response = await callWithTimeout(
+        openai.responses.create({
+            model: OPENAI_MODEL,
+            input: [
+                {
+                    role: 'system',
+                    content: `Eres un analista de pliegos. Extrae los campos personalizados solicitados del expediente.
+GUÍA (solo metodología): ${guideContent.substring(0, GUIDE_EXCERPT_TEMPLATE_LENGTH)}
 Devuelve SOLO un JSON con los campos solicitados.`,
-            },
-            {
-                role: 'user',
-                content: `Extrae estos campos del expediente:\n${fieldDescriptions}\n\nDevuelve un JSON con las claves exactas indicadas.`,
-            },
-        ],
-        tools: [{ type: 'file_search', vector_store_ids: [vectorStoreId] }],
-    });
+                },
+                {
+                    role: 'user',
+                    content: `Extrae estos campos del expediente:\n${fieldDescriptions}\n\nDevuelve un JSON con las claves exactas indicadas.`,
+                },
+            ],
+            tools: [{ type: 'file_search', vector_store_ids: [vectorStoreId] }],
+        }),
+        API_CALL_TIMEOUT_MS,
+        'Custom template'
+    );
 
     const outputText = extractOutputText(response);
     return parseJsonFromText(outputText) as Record<string, unknown>;

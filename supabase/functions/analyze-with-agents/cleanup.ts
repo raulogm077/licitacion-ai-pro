@@ -36,12 +36,15 @@ export async function cleanupJobResources(
     }
 
     if (fileIds && fileIds.length > 0) {
-        for (const fileId of fileIds) {
-            try {
-                await openai.files.del(fileId);
-                console.log(`[Cleanup] File deleted: ${fileId}`);
-            } catch (error) {
-                console.error(`[Cleanup] Failed to delete file ${fileId}:`, error);
+        const results = await Promise.allSettled(fileIds.map((fileId) => openai.files.del(fileId)));
+        for (let i = 0; i < results.length; i++) {
+            if (results[i].status === 'fulfilled') {
+                console.log(`[Cleanup] File deleted: ${fileIds[i]}`);
+            } else {
+                console.error(
+                    `[Cleanup] Failed to delete file ${fileIds[i]}:`,
+                    (results[i] as PromiseRejectedResult).reason
+                );
             }
         }
     }

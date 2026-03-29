@@ -21,6 +21,8 @@ import { runConsolidation } from './phases/consolidation.ts';
 import { runValidation } from './phases/validation.ts';
 import { getCleanupTimestamp, runOpportunisticCleanup, cleanupJobResources } from './cleanup.ts';
 import { JobService } from '../_shared/services/job.service.ts';
+import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES } from '../_shared/config.ts';
+import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -31,8 +33,6 @@ if (!OPENAI_API_KEY) {
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const MAX_REQUESTS_MSG = '10 análisis/hora';
-const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024; // 50MB
-const TIMEOUT_MS = 360000; // 6 minutes
 
 // Load guide content once at startup
 let guideContent = '';
@@ -201,7 +201,7 @@ serve(async (req: Request) => {
                         clearInterval(keepAlive);
                         controller.close();
                     }
-                }, TIMEOUT_MS);
+                }, PIPELINE_TIMEOUT_MS);
 
                 try {
                     // ═══ FASE A: INGESTA ═══
@@ -304,7 +304,7 @@ serve(async (req: Request) => {
 
                     sendEvent('complete', finalOutput);
                 } catch (error: unknown) {
-                    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+                    const errMsg = mapOpenAIError(error);
                     console.error('[analyze] Pipeline error:', error);
                     if (jobId) {
                         jobService.failJob(jobId, errMsg).catch(() => {});
