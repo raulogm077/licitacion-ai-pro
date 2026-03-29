@@ -1,5 +1,6 @@
 import { LicitacionData, LicitacionContent, Note } from '../../../types';
 import { qualityService } from '../../../services/quality.service';
+import { unwrap } from '../../../lib/tracked-field';
 
 export interface ChapterStatus {
     id: string;
@@ -44,19 +45,6 @@ export interface PliegoVM {
 
     getEvidence: (fieldPath: string) => { quote: string; pageHint?: string } | undefined;
     isAmbiguous: (fieldPath: string) => boolean;
-}
-
-/**
- * Helper to extract the raw value from a TrackedField or a plain value.
- * TrackedField has shape { value, evidence?, status, warnings? }.
- * Legacy data may have plain values (string, number, array).
- */
-function unwrap<T>(field: unknown, defaultValue: T): T {
-    if (field === null || field === undefined) return defaultValue;
-    if (typeof field === 'object' && field !== null && 'value' in field) {
-        return ((field as Record<string, unknown>).value as T) ?? defaultValue;
-    }
-    return field as T;
 }
 
 function getFieldStatus(field: unknown): string | undefined {

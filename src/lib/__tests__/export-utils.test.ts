@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { exportToJson, exportToExcel } from '../export-utils';
-import { tf } from '../../test-utils/tracked-field-factory';
+import { exportAnalyticsToExcel } from '../export-utils';
 
 // Mock ExcelJS
 const mockAddRows = vi.fn();
@@ -17,10 +16,6 @@ vi.mock('exceljs', () => {
         default: {
             Workbook: vi.fn(function () {
                 return {
-                    creator: '',
-                    lastModifiedBy: '',
-                    created: new Date(),
-                    modified: new Date(),
                     addWorksheet: mockAddWorksheet,
                     xlsx: {
                         writeBuffer: mockWriteBuffer,
@@ -32,45 +27,6 @@ vi.mock('exceljs', () => {
 });
 
 describe('Export Utils', () => {
-    const mockData = {
-        datosGenerales: {
-            titulo: tf('Test Title'),
-            presupuesto: tf(1000),
-            moneda: tf('EUR'),
-            plazoEjecucionMeses: tf(12),
-            cpv: tf(['123', '456']),
-            organoContratacion: tf('Org Test'),
-            fechaLimitePresentacion: '2025-12-31',
-        },
-        criteriosAdjudicacion: {
-            subjetivos: [{ descripcion: 'Subj 1', ponderacion: 10, detalles: 'Det 1', subcriterios: [] }],
-            objetivos: [{ descripcion: 'Obj 1', ponderacion: 20, formula: 'Form 1' }],
-        },
-        requisitosTecnicos: {
-            funcionales: [{ requisito: 'Req 1', obligatorio: true, referenciaPagina: 1 }],
-            normativa: [],
-        },
-        requisitosSolvencia: {
-            economica: { cifraNegocioAnualMinima: 0 },
-            tecnica: [],
-            profesional: [],
-        },
-        restriccionesYRiesgos: {
-            riesgos: [
-                {
-                    descripcion: 'Risk 1',
-                    impacto: 'ALTO' as const,
-                    probabilidad: 'MEDIA' as const,
-                    mitigacionSugerida: 'Mit 1',
-                },
-            ],
-            killCriteria: [],
-            penalizaciones: [],
-        },
-        modeloServicio: { sla: [], equipoMinimo: [] },
-        metadata: { tags: [] },
-    };
-
     beforeEach(() => {
         vi.clearAllMocks();
 
@@ -92,18 +48,24 @@ describe('Export Utils', () => {
         vi.restoreAllMocks();
     });
 
-    it('should export JSON correctly', () => {
-        exportToJson(mockData, 'test-file');
+    it('should export analytics to Excel', async () => {
+        const analyticsData = {
+            totalLicitaciones: 10,
+            presupuestoTotal: 500000,
+            presupuestoPromedio: 50000,
+            importeAdjudicadoTotal: 400000,
+            tiempoAnalisisPromedio: 1200,
+            distribucionEstados: { completado: 8, pendiente: 2 },
+            distribucionRiesgos: { ALTO: 2, MEDIO: 3 },
+            topClientes: [{ cliente: 'Ministerio', count: 5, total: 300000 }],
+            topTags: [{ tag: 'TI', count: 4 }],
+            tendenciaMensual: [],
+            promedioCriterios: { subjetivos: 40, objetivos: 60 },
+        };
 
-        expect(document.createElement).toHaveBeenCalledWith('a');
-        expect(document.body.appendChild).toHaveBeenCalled();
-        expect(global.URL.createObjectURL).toHaveBeenCalled();
-    });
+        await exportAnalyticsToExcel(analyticsData, 'test-analytics');
 
-    it('should export Excel using ExcelJS library', async () => {
-        await exportToExcel(mockData, 'test-file');
-
-        expect(mockAddWorksheet).toHaveBeenCalledTimes(4);
+        expect(mockAddWorksheet).toHaveBeenCalledTimes(3);
         expect(mockWriteBuffer).toHaveBeenCalled();
         expect(global.URL.createObjectURL).toHaveBeenCalled();
     });

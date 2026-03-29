@@ -34,12 +34,22 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
 
     // Build the consolidated result object from blocks
     const blockDataMap: Record<string, unknown> = {};
+    const receivedBlocks = new Set<string>();
 
     for (const block of blocks) {
         blockDataMap[block.blockName] = block.data;
+        receivedBlocks.add(block.blockName);
         allEvidences.push(...block.evidences);
         allWarnings.push(...block.warnings);
         allAmbiguousFields.push(...block.ambiguous_fields);
+    }
+
+    // Warn if critical blocks are missing entirely
+    const criticalBlocks = ['datosGenerales', 'economico', 'criteriosAdjudicacion'];
+    for (const name of criticalBlocks) {
+        if (!receivedBlocks.has(name)) {
+            allWarnings.push(`Bloque crítico "${name}" no fue recibido en la extracción`);
+        }
     }
 
     // Assemble the canonical result
@@ -58,15 +68,27 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
 
     // Validate against canonical schema (lenient — use safeParse)
     const validated = CanonicalResultSchema.safeParse(rawResult);
-    const result: CanonicalResult = validated.success
-        ? validated.data
-        : (CanonicalResultSchema.parse({
-              ...rawResult,
-              datosGenerales: ensureMinimalDatosGenerales(rawResult.datosGenerales),
-          }) as CanonicalResult);
+    let result: CanonicalResult;
 
-    if (!validated.success) {
+    if (validated.success) {
+        result = validated.data;
+    } else {
         allWarnings.push(`Consolidation schema warning: ${validated.error.message.substring(0, 300)}`);
+        // Retry with ensured minimal datosGenerales
+        const retryResult = CanonicalResultSchema.safeParse({
+            ...rawResult,
+            datosGenerales: ensureMinimalDatosGenerales(rawResult.datosGenerales),
+        });
+        if (retryResult.success) {
+            result = retryResult.data;
+        } else {
+            // Last resort: force-parse with all defaults to avoid pipeline crash
+            console.error('[Consolidation] Schema validation failed even after retry:', retryResult.error.message);
+            allWarnings.push('Consolidación forzada: el resultado puede estar incompleto');
+            result = CanonicalResultSchema.parse({
+                datosGenerales: ensureMinimalDatosGenerales({}),
+            });
+        }
     }
 
     // Cross-block consistency checks
@@ -83,13 +105,13 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
 function ensureMinimalDatosGenerales(datos: unknown): unknown {
     const d = (datos && typeof datos === 'object' ? datos : {}) as Record<string, unknown>;
     return {
+        ...d,
         titulo: d.titulo ?? { value: '', status: 'no_encontrado' },
         organoContratacion: d.organoContratacion ?? { value: '', status: 'no_encontrado' },
         presupuesto: d.presupuesto ?? { value: 0, status: 'no_encontrado' },
         moneda: d.moneda ?? { value: 'EUR', status: 'derivado_tecnico' },
         plazoEjecucionMeses: d.plazoEjecucionMeses ?? { value: 0, status: 'no_encontrado' },
         cpv: d.cpv ?? { value: [], status: 'no_encontrado' },
-        ...d,
     };
 }
 

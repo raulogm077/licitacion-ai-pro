@@ -11,7 +11,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limiter.ts';
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
 
 // Phase imports
 import { runIngestion } from './phases/ingestion.ts';
@@ -19,8 +19,10 @@ import { runDocumentMap } from './phases/document-map.ts';
 import { runBlockExtraction } from './phases/block-extraction.ts';
 import { runConsolidation } from './phases/consolidation.ts';
 import { runValidation } from './phases/validation.ts';
-import { getCleanupTimestamp, runOpportunisticCleanup } from './cleanup.ts';
+import { getCleanupTimestamp, runOpportunisticCleanup, cleanupJobResources } from './cleanup.ts';
 import { JobService } from '../_shared/services/job.service.ts';
+import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES } from '../_shared/config.ts';
+import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -31,8 +33,6 @@ if (!OPENAI_API_KEY) {
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const MAX_REQUESTS_MSG = '10 análisis/hora';
-const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024; // 50MB
-const TIMEOUT_MS = 360000; // 6 minutes
 
 // Load guide content once at startup
 let guideContent = '';
@@ -66,7 +66,7 @@ serve(async (req: Request) => {
             });
         }
 
-        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.39.3');
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
         const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
         const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 
@@ -181,10 +181,21 @@ serve(async (req: Request) => {
                     sendEvent('heartbeat', {});
                 }, 10000);
 
-                // Timeout
+                // Track resources for cleanup on error
+                let vectorStoreId: string | undefined;
+                let fileIds: string[] | undefined;
+                const jobService = new JobService(supabaseClient);
+                let jobId: string | null = null;
+
+                // Timeout with resource cleanup
                 const timeoutId = setTimeout(() => {
                     if (!completed) {
                         console.error('[analyze] Execution timeout');
+                        if (vectorStoreId || fileIds) {
+                            cleanupJobResources(openai, vectorStoreId, fileIds).catch((e) =>
+                                console.warn('[analyze] Timeout cleanup failed:', e)
+                            );
+                        }
                         sendEvent('error', {
                             message: 'Tiempo de ejecución excedido. Intente con documentos más pequeños.',
                         });
@@ -192,7 +203,7 @@ serve(async (req: Request) => {
                         clearInterval(keepAlive);
                         controller.close();
                     }
-                }, TIMEOUT_MS);
+                }, PIPELINE_TIMEOUT_MS);
 
                 try {
                     // ═══ FASE A: INGESTA ═══
@@ -204,11 +215,11 @@ serve(async (req: Request) => {
                         files,
                         onProgress: (msg) => sendProgress('ingestion', msg),
                     });
+                    vectorStoreId = ingestion.vectorStoreId;
+                    fileIds = ingestion.fileIds;
                     sendEvent('phase_completed', { phase: 'ingestion', message: 'Documentos indexados' });
 
                     // Persist job via JobService
-                    const jobService = new JobService(supabaseClient);
-                    let jobId: string | null = null;
                     try {
                         jobId = await jobService.createJob(
                             user.id,
@@ -236,7 +247,9 @@ serve(async (req: Request) => {
                     });
 
                     if (jobId) {
-                        jobService.updatePhase(jobId, 'document_map', documentMap).catch(() => {});
+                        jobService
+                            .updatePhase(jobId, 'document_map', documentMap)
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
                     // ═══ FASE C: EXTRACCIÓN POR BLOQUES ═══
@@ -262,7 +275,9 @@ serve(async (req: Request) => {
                     });
 
                     if (jobId) {
-                        jobService.updatePhase(jobId, 'extraction').catch(() => {});
+                        jobService
+                            .updatePhase(jobId, 'extraction')
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
                     // ═══ FASE D: CONSOLIDACIÓN ═══
@@ -290,15 +305,25 @@ serve(async (req: Request) => {
                     console.log(`[analyze] Pipeline completed. Quality: ${workflow.quality?.overall}`);
 
                     if (jobId) {
-                        jobService.completeJob(jobId, finalOutput).catch(() => {});
+                        jobService
+                            .completeJob(jobId, finalOutput)
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
                     sendEvent('complete', finalOutput);
                 } catch (error: unknown) {
-                    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+                    const errMsg = mapOpenAIError(error);
                     console.error('[analyze] Pipeline error:', error);
                     if (jobId) {
-                        jobService.failJob(jobId, errMsg).catch(() => {});
+                        jobService
+                            .failJob(jobId, errMsg)
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
+                    }
+                    // Cleanup OpenAI resources on pipeline failure (non-blocking)
+                    if (vectorStoreId || fileIds) {
+                        cleanupJobResources(openai, vectorStoreId, fileIds).catch((e) =>
+                            console.warn('[analyze] Error cleanup failed:', e)
+                        );
                     }
                     sendEvent('error', { message: errMsg });
                 } finally {

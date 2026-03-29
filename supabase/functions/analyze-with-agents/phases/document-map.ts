@@ -4,9 +4,11 @@
  * Identifica la estructura del expediente usando Responses API + file_search.
  * Devuelve un mapa estructurado de los documentos encontrados.
  */
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
 import { DocumentMapSchema } from '../../_shared/schemas/document-map.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
+import { OPENAI_MODEL, API_CALL_TIMEOUT_MS, GUIDE_EXCERPT_MAP_LENGTH } from '../../_shared/config.ts';
+import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 
 export interface DocumentMapInput {
     openai: OpenAI;
@@ -67,24 +69,27 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
 
     onProgress?.('Analizando estructura documental...');
 
-    // Condensed guide excerpt for the document map phase
-    const guideExcerpt = guideContent.substring(0, 3000);
+    const guideExcerpt = guideContent.substring(0, GUIDE_EXCERPT_MAP_LENGTH);
 
-    const response = await openai.responses.create({
-        model: 'gpt-4.1',
-        input: [
-            {
-                role: 'user',
-                content: DOCUMENT_MAP_PROMPT(fileNames, guideExcerpt),
-            },
-        ],
-        tools: [
-            {
-                type: 'file_search',
-                vector_store_ids: [vectorStoreId],
-            },
-        ],
-    });
+    const response = await callWithTimeout(
+        openai.responses.create({
+            model: OPENAI_MODEL,
+            input: [
+                {
+                    role: 'user',
+                    content: DOCUMENT_MAP_PROMPT(fileNames, guideExcerpt),
+                },
+            ],
+            tools: [
+                {
+                    type: 'file_search',
+                    vector_store_ids: [vectorStoreId],
+                },
+            ],
+        }),
+        API_CALL_TIMEOUT_MS,
+        'Mapa documental'
+    );
 
     // Extract text from response
     const outputText = extractOutputText(response);
@@ -103,6 +108,10 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
 
 function extractOutputText(response: OpenAI.Responses.Response): string {
     // The Responses API returns output as an array of items
+    if (!response.output || !Array.isArray(response.output)) {
+        console.error('[extractOutputText] Unexpected response structure:', JSON.stringify(response).substring(0, 500));
+        throw new Error('Responses API devolvió una estructura inesperada (output no es array)');
+    }
     for (const item of response.output) {
         if (item.type === 'message' && item.content) {
             for (const content of item.content) {
@@ -112,7 +121,8 @@ function extractOutputText(response: OpenAI.Responses.Response): string {
             }
         }
     }
-    throw new Error('No text output found in Responses API response');
+    const types = response.output.map((i: { type: string }) => i.type).join(', ');
+    throw new Error(`No text output found in Responses API response. Output types: [${types}]`);
 }
 
 function parseJsonFromText(text: string): unknown {
@@ -123,14 +133,23 @@ function parseJsonFromText(text: string): unknown {
         // Try extracting JSON from markdown code block
         const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[1].trim());
+            try {
+                return JSON.parse(jsonMatch[1].trim());
+            } catch {
+                // Fall through to next strategy
+            }
         }
         // Try finding first { to last }
         const start = text.indexOf('{');
         const end = text.lastIndexOf('}');
         if (start !== -1 && end > start) {
-            return JSON.parse(text.substring(start, end + 1));
+            try {
+                return JSON.parse(text.substring(start, end + 1));
+            } catch {
+                // Fall through to error
+            }
         }
+        console.error('[parseJsonFromText] Failed to parse. First 500 chars:', text.substring(0, 500));
         throw new Error('No se pudo extraer JSON válido de la respuesta');
     }
 }

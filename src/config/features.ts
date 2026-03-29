@@ -99,17 +99,3 @@ export function isEnabled(flag: keyof FeatureFlags): boolean {
 export function getFeature<K extends keyof FeatureFlags>(flag: K): FeatureFlags[K] {
     return features[flag];
 }
-
-/**
- * Log feature flags on app startup (dev only)
- */
-export function logFeatureFlags(): void {
-    if (isDev()) {
-        console.group('🎭 Feature Flags');
-        Object.entries(features).forEach(([key, value]) => {
-            const emoji = typeof value === 'boolean' ? (value ? '✅' : '❌') : '⚙️';
-            console.log(`${emoji} ${key}:`, value);
-        });
-        console.groupEnd();
-    }
-}

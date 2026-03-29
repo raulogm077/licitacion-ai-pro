@@ -18,6 +18,3 @@ export function getCorsHeaders(req?: Request): Record<string, string> {
         Vary: 'Origin',
     };
 }
-
-// Backward-compatible export for existing code
-export const corsHeaders = getCorsHeaders();

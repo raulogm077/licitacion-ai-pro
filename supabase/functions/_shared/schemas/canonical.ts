@@ -31,7 +31,7 @@ function TrackedField<T extends z.ZodTypeAny>(valueSchema: T) {
         value: valueSchema,
         evidence: EvidenceSchema.optional(),
         status: FieldStatusEnum.default('extraido'),
-        warnings: z.array(z.string()).optional(),
+        warnings: z.array(z.string()).default([]),
     });
 }
 

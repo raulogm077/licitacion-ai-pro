@@ -6,7 +6,8 @@
  * - Crea vector store y espera indexación
  * - NO sube la guía al vector store (va en system prompt)
  */
-import OpenAI from 'npm:openai@7.8.0';
+import OpenAI from 'npm:openai@6.33.0';
+import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
 
 export interface IngestionInput {
     openai: OpenAI;
@@ -38,37 +39,64 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     const uploadedFileIds: string[] = [];
     const fileNames: string[] = [];
 
-    // 1. Upload main document
-    if (pdfBase64) {
-        onProgress?.('Subiendo documento principal...');
-        const pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), (c) => c.charCodeAt(0));
-        const pdfUpload = await openai.files.create({
-            file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
-            purpose: 'assistants',
-        });
-        uploadedFileIds.push(pdfUpload.id);
-        fileNames.push(filename || 'documento.pdf');
-        console.log(`[Ingestion] PDF principal uploaded: ${pdfUpload.id}`);
-    }
+    try {
+        // 1. Upload main document
+        if (pdfBase64) {
+            onProgress?.('Subiendo documento principal...');
+            let pdfBuffer: Uint8Array;
+            try {
+                pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), (c) => c.charCodeAt(0));
+            } catch {
+                throw new Error('El archivo principal no tiene un formato base64 válido');
+            }
+            const pdfUpload = await openai.files.create({
+                file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
+                purpose: 'assistants',
+            });
+            uploadedFileIds.push(pdfUpload.id);
+            fileNames.push(filename || 'documento.pdf');
+            console.log(`[Ingestion] PDF principal uploaded: ${pdfUpload.id}`);
+        }
 
-    // 2. Upload additional files sequentially (avoid memory spikes)
-    if (files && Array.isArray(files)) {
-        for (const extraFile of files) {
-            if (extraFile?.base64 && extraFile?.name) {
-                onProgress?.(`Subiendo ${extraFile.name}...`);
-                const buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), (c) => c.charCodeAt(0));
-                const mimeType = inferMimeType(extraFile.name);
-                const upload = await openai.files.create({
-                    file: new File([buffer], extraFile.name, { type: mimeType }),
-                    purpose: 'assistants',
+        // 2. Upload additional files in parallel (batch of all valid files)
+        if (files && Array.isArray(files)) {
+            const validFiles = files.filter((f) => f?.base64 && f?.name);
+            if (validFiles.length > 0) {
+                onProgress?.(`Subiendo ${validFiles.length} archivos adicionales...`);
+                const uploadPromises = validFiles.map(async (extraFile) => {
+                    let buffer: Uint8Array;
+                    try {
+                        buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), (c) => c.charCodeAt(0));
+                    } catch {
+                        console.warn(`[Ingestion] Skipping ${extraFile.name}: invalid base64`);
+                        return null;
+                    }
+                    const mimeType = inferMimeType(extraFile.name);
+                    const upload = await openai.files.create({
+                        file: new File([buffer], extraFile.name, { type: mimeType }),
+                        purpose: 'assistants',
+                    });
+                    return { id: upload.id, name: extraFile.name };
                 });
-                if (upload.id) {
-                    uploadedFileIds.push(upload.id);
-                    fileNames.push(extraFile.name);
-                    console.log(`[Ingestion] Archivo adicional uploaded: ${upload.id}`);
+
+                const results = await Promise.allSettled(uploadPromises);
+                for (const result of results) {
+                    if (result.status === 'fulfilled' && result.value) {
+                        uploadedFileIds.push(result.value.id);
+                        fileNames.push(result.value.name);
+                        console.log(`[Ingestion] Archivo adicional uploaded: ${result.value.id}`);
+                    } else if (result.status === 'rejected') {
+                        console.warn(`[Ingestion] File upload failed:`, result.reason);
+                    }
                 }
             }
         }
+    } catch (error) {
+        // Cleanup any uploaded files on failure
+        for (const fileId of uploadedFileIds) {
+            openai.files.del(fileId).catch((e) => console.warn(`[Ingestion] Cleanup failed for ${fileId}:`, e));
+        }
+        throw error;
     }
 
     if (uploadedFileIds.length === 0) {
@@ -90,9 +118,8 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     let delay = 1000;
     const maxDelay = 5000;
     let totalTime = 0;
-    const timeoutMs = 90000; // 90s for large documents
 
-    while (totalTime < timeoutMs) {
+    while (totalTime < VECTOR_STORE_TIMEOUT_MS) {
         const vs = await openai.vectorStores.retrieve(vectorStoreId);
         if (vs.status === 'completed') {
             vectorStoreReady = true;
@@ -107,7 +134,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     }
 
     if (!vectorStoreReady) {
-        console.warn(`[Ingestion] Vector Store indexing timeout (${timeoutMs}ms). Proceeding anyway.`);
+        console.warn(`[Ingestion] Vector Store indexing timeout (${VECTOR_STORE_TIMEOUT_MS}ms). Proceeding anyway.`);
     }
 
     return { vectorStoreId, fileIds: uploadedFileIds, fileNames };

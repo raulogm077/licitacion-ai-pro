@@ -20,14 +20,6 @@ export const formatDate = (timestamp: number | string | Date): string => {
     }).format(new Date(timestamp));
 };
 
-export const formatPercentage = (value: number, decimals: number = 0): string => {
-    return new Intl.NumberFormat('es-ES', {
-        style: 'percent',
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-    }).format(value / 100);
-};
-
 export const formatNumber = (value: number): string => {
     return new Intl.NumberFormat('es-ES').format(value);
 };

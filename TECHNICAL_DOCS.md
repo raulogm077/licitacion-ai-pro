@@ -1,6 +1,6 @@
 # Documentación Técnica — Analista de Pliegos
 
-> Versión: 2.0.0 | Fecha: 2026-03-28
+> Versión: 2.1.0 | Fecha: 2026-03-29
 
 ---
 
@@ -36,7 +36,7 @@
 | Streaming en tiempo real | Progreso de análisis vía Server-Sent Events (SSE) |
 | Multi-documento | Análisis de varios archivos en una sola sesión |
 | Plantillas personalizadas | Esquemas de extracción configurables por usuario |
-| Historial y búsqueda | Almacenamiento persistente con filtros avanzados |
+| Historial y búsqueda | Almacenamiento persistente con FTS (español) + filtros avanzados + eliminación |
 | Analytics | Dashboard de métricas y estadísticas de licitaciones |
 | Multi-tenant | Aislamiento total de datos por usuario (RLS en Supabase) |
 
@@ -100,9 +100,10 @@ Fase B: Mapa Documental
   └── Responses API + file_search → identifica PCAP, PPT, anexos
        │
        ▼
-Fase C: Extracción por Bloques (~9 llamadas)
+Fase C: Extracción por Bloques (~9 llamadas, 3 en paralelo)
   └── Responses API + file_search por sección
       (datosGenerales, criterios, solvencia, técnicos, riesgos, etc.)
+      Ejecución con concurrencia limitada (runWithConcurrency)
        │
        ▼
 Fase D: Consolidación
@@ -190,7 +191,8 @@ licitacion-ai-pro/
 │   ├── features/               # Módulos de feature
 │   │   ├── analytics/          # Dashboard de analíticas
 │   │   ├── auth/               # Flujos de autenticación
-│   │   └── dashboard/          # Vista principal + detalle de capítulos
+│   │   ├── dashboard/          # Vista principal + detalle de capítulos
+│   │   └── history/            # Historial con búsqueda FTS y eliminación
 │   ├── pages/                  # Páginas de rutas
 │   ├── services/               # Lógica de negocio
 │   ├── hooks/                  # Custom React hooks
@@ -257,7 +259,7 @@ licitacion-ai-pro/
 | Servicio | Archivo | Responsabilidad |
 |---------|---------|----------------|
 | `job.service` | `src/services/job.service.ts` | Orquestación del análisis, SSE streaming, timeout de inactividad (5 min). Incluye refresh proactivo del JWT antes de cada llamada a la Edge Function (si `expires_at - now < 60s`). |
-| `db.service` | `src/services/db.service.ts` | CRUD de licitaciones, búsqueda, filtros (303 líneas) |
+| `db.service` | `src/services/db.service.ts` | CRUD de licitaciones, FTS search (RPC), filtros avanzados, delete |
 | `template.service` | `src/services/template.service.ts` | CRUD de plantillas de extracción |
 | `auth.service` | `src/services/auth.service.ts` | Login, logout, sesión |
 | `ai.service` | `src/services/ai.service.ts` | Interacciones IA (cancelación, reintentos) |
@@ -367,14 +369,15 @@ LicitacionMetadata {
 
 | Archivo | Función |
 |---------|---------|
+| `config.ts` | Constantes centralizadas (modelo, timeouts, concurrencia) |
 | `cors.ts` | Manejo de CORS (whitelist de orígenes) |
 | `rate-limiter.ts` | Rate limiting: 10 req/hora por usuario |
-| `schemas.ts` | Validación de request/response |
 | `services/job.service.ts` | Lógica de jobs de análisis |
 | `schemas/canonical.ts` | Schema canónico con TrackedField |
 | `schemas/blocks.ts` | Schemas parciales por bloque |
 | `schemas/job.ts` | Schema del estado del job |
-| `utils/error.utils.ts` | Manejo centralizado de errores |
+| `utils/error.utils.ts` | Manejo centralizado de errores OpenAI (type guard + mapeo) |
+| `utils/timeout.ts` | Timeout por llamada API (`callWithTimeout` con `Promise.race`) |
 
 ---
 
@@ -402,11 +405,14 @@ data            JSONB NOT NULL                   -- LicitacionContent + Licitaci
 created_at      TIMESTAMPTZ DEFAULT NOW()
 updated_at      TIMESTAMPTZ DEFAULT NOW()
 
+search_vector   TSVECTOR GENERATED ALWAYS AS (...)  -- FTS español (weighted A/B/C)
+
 -- Índices:
 -- data->'metadata'->'tags' GIN
 -- data->'metadata'->>'cliente'
 -- data->'datosGenerales'->>'presupuesto' (numeric)
 -- data->'metadata'->>'estado'
+-- search_vector GIN (full-text search)
 
 -- RLS: SELECT/INSERT/UPDATE/DELETE requieren auth.uid() = user_id
 ```
@@ -473,7 +479,8 @@ supabase/migrations/
 ├── 20260103_create_analysis_pdfs_bucket.sql    # Storage bucket
 ├── 20260318192404_extraction_templates.sql     # Plantillas de extracción
 ├── 20260323000000_extraction_feedback.sql      # Feedback de usuario
-└── 20250130000000_add_provider_reading_mode.sql # Modo de lectura por proveedor
+├── 20250130000000_add_provider_reading_mode.sql # Modo de lectura por proveedor
+└── 20260329000000_fulltext_search.sql          # FTS español + RPC search_licitaciones
 ```
 
 ---
@@ -627,6 +634,20 @@ data: {
 - Rate limit: 10 requests/hora por usuario
 - Timeout de inactividad (frontend): 5 minutos
 - CORS: `licitacion-ai-pro.vercel.app`, `localhost:5173`, `localhost:3000`
+
+### RPC: `search_licitaciones`
+
+**Endpoint**: `POST https://<PROJECT>.supabase.co/rest/v1/rpc/search_licitaciones`
+
+Combina full-text search (FTS español con `websearch_to_tsquery`) y fallback ILIKE para coincidencias parciales (códigos CPV, términos cortos). El `search_vector` es una columna `tsvector` generada con pesos:
+
+| Peso | Campos |
+|------|--------|
+| A | `datosGenerales.titulo` |
+| B | `datosGenerales.organoContratacion`, `metadata.cliente` |
+| C | `file_name`, `tipoContrato`, `procedimiento` |
+
+Resultados ordenados por ranking FTS descendente + fecha de actualización.
 
 ### REST API (Supabase auto-generada)
 
@@ -930,9 +951,12 @@ Los siguientes documentos deben mantenerse actualizados con cada tarea:
 | AI API | OpenAI Responses API | Agents SDK / LangChain | Pipeline por fases, file_search nativo, control granular |
 | Modelo | gpt-4.1 | gpt-4o | Contexto 1M tokens, mejor instruction following |
 | Multi-doc | Procesamiento secuencial | Paralelo | Límites de memoria del Deno Edge Runtime |
+| Extracción bloques | Paralela (3 concurrentes) | Secuencial | ~3x speedup sin saturar API; `runWithConcurrency` |
+| Config backend | Centralizada (`_shared/config.ts`) | Hardcoded por archivo | Único punto de cambio para modelo, timeouts, concurrencia |
+| Búsqueda historial | FTS español + ILIKE fallback | Solo ILIKE | Stemming español + ranking por relevancia + parciales |
 | Validación | Zod (frontend + backend) | JSON Schema | Type-safe, reutilizable entre frontend y Edge Functions |
 | Estado | Zustand | Redux / Context | Más ligero, API más simple para este caso de uso |
 
 ---
 
-*Documentación generada el 2026-03-27. Para actualizaciones, ver `CHANGELOG.md` y `ARCHITECTURE.md`.*
+*Documentación actualizada el 2026-03-29. Para actualizaciones, ver `CHANGELOG.md` y `ARCHITECTURE.md`.*
