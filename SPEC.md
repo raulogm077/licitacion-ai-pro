@@ -38,6 +38,16 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
+
+### 4.1. Bug Crítico: Fallo global de inicialización de Vitest
+
+**Contexto:** La suite completa de tests está fallando en inicialización (`runWithExpensiveErrorDiagnosticsDisabled`). Esto bloquea toda validación unitaria local y las métricas de cobertura necesarias para la Iteración D.
+**Objetivo:** Restaurar la funcionalidad completa de `vitest` y `pnpm test`.
+**Implementación esperada:**
+- Identificar conflicto en `node_modules/@testing-library/dom` o en la configuración de `jsdom`.
+- Purgar la caché (`rm -rf node_modules .vite pnpm-lock.yaml`) y reinstalar dependencias, o actualizar `vitest`/`jsdom`.
+- Verificar que las 49 suites pasan exitosamente.
+
 **Iteración D (Mantenimiento y Observabilidad)**
 
 - **Testing (QA):** Incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard (`KpiCards`, `FeedbackToggle`), hasta alcanzar el 80% global.
