@@ -86,14 +86,15 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/main.tsx`, `src/App.tsx`, `package.json`
   - Dependencias: Ninguna.
 
-## Deuda Técnica / Refactorización
-
 - [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
   - Objetivo: Incrementar cobertura de ~67% a 80% en statements/lines.
   - Alcance: Añadir unit tests para componentes de UI, dashboard y servicios pendientes.
   - Criterios de aceptación: `vitest --coverage` ≥80% statements, ≥70% branches.
   - Archivos probables: `src/features/dashboard/__tests__/`, `src/services/__tests__/`
   - Dependencias: Ninguna
+
+## Deuda Técnica / Refactorización
+
 
 ## Ideas de Producto
 
