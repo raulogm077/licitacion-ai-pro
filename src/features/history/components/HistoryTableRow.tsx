@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Building2, Eye } from 'lucide-react';
+import { Calendar, Building2, Eye, Trash2, Loader2 } from 'lucide-react';
 import { unwrap } from '../../../lib/tracked-field';
 import { formatCurrency, formatDate } from '../../../lib/formatters';
 import { cn } from '../../../lib/utils';
@@ -11,10 +11,14 @@ export function HistoryTableRow({
     item,
     isEven,
     onSelect,
+    onDelete,
+    isDeleting,
 }: {
     item: HistoryItem;
     isEven: boolean;
     onSelect: () => void;
+    onDelete: () => void;
+    isDeleting: boolean;
 }) {
     const [hovered, setHovered] = useState(false);
     const estado = getStatusFromData(item.data);
@@ -27,6 +31,7 @@ export function HistoryTableRow({
             onMouseLeave={() => setHovered(false)}
             className={cn(
                 'transition-colors',
+                isDeleting && 'opacity-50',
                 hovered
                     ? 'bg-brand-50/50 dark:bg-slate-700'
                     : isEven
@@ -77,14 +82,28 @@ export function HistoryTableRow({
             </td>
 
             <td className="px-4 py-3.5 text-center">
-                <button
-                    onClick={onSelect}
-                    aria-label={`Ver detalles de ${unwrap(item.data.datosGenerales.titulo)}`}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-brand-600 hover:border-brand-600 dark:hover:text-brand-400 dark:hover:border-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1"
-                >
-                    <Eye className="w-3.5 h-3.5" />
-                    Ver
-                </button>
+                <div className="inline-flex items-center gap-1.5">
+                    <button
+                        onClick={onSelect}
+                        aria-label={`Ver detalles de ${unwrap(item.data.datosGenerales.titulo)}`}
+                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-brand-600 hover:border-brand-600 dark:hover:text-brand-400 dark:hover:border-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1"
+                    >
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver
+                    </button>
+                    <button
+                        onClick={onDelete}
+                        disabled={isDeleting}
+                        aria-label="Eliminar análisis"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-600 hover:border-red-300 dark:hover:text-red-400 dark:hover:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {isDeleting ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                    </button>
+                </div>
             </td>
         </tr>
     );

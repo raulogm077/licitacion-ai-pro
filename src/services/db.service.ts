@@ -281,6 +281,26 @@ export class DBService {
         }
     }
 
+    async searchLicitaciones(query: string): Promise<Result<DbLicitacion[]>> {
+        try {
+            const trimmed = query.trim();
+            if (!trimmed) return this.getAllLicitaciones();
+
+            const { data, error } = await this.client.rpc('search_licitaciones', {
+                search_query: trimmed,
+            });
+
+            if (error) return err(new Error(error.message));
+
+            const results: DbLicitacion[] = (data || []).map((item: Record<string, unknown>) =>
+                this.mapToDbLicitacion(item)
+            );
+            return ok(results);
+        } catch (error) {
+            return err(error instanceof Error ? error : new Error(String(error)));
+        }
+    }
+
     subscribeToLicitacion(hash: string, onUpdate: (data: LicitacionData) => void) {
         return this.client
             .channel(`licitacion:${hash}`)

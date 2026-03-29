@@ -16,6 +16,7 @@ import {
     TrendingUp,
     Building2,
     Loader2,
+    X,
 } from 'lucide-react';
 import { StatCard } from './components/StatCard';
 import { HistoryTableRow } from './components/HistoryTableRow';
@@ -26,7 +27,8 @@ interface HistoryViewProps {
 }
 
 export function HistoryView({ onSelect }: HistoryViewProps) {
-    const { items, loading, applyFilters, activeFilters } = useHistory();
+    const { items, loading, applyFilters, activeFilters, search, searchQuery, deleteLicitacion, deleting } =
+        useHistory();
 
     const [searchCliente, setSearchCliente] = useState(activeFilters.cliente || '');
     const [fechaDesde, setFechaDesde] = useState(
@@ -38,6 +40,8 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
     const [presupuestoMin, setPresupuestoMin] = useState(activeFilters.presupuestoMin?.toString() || '');
     const [presupuestoMax, setPresupuestoMax] = useState(activeFilters.presupuestoMax?.toString() || '');
     const [currentPage, setCurrentPage] = useState(1);
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
     const rowsPerPage = 10;
     const filtersApplied = Object.keys(activeFilters).length > 0;
@@ -60,7 +64,13 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
         setPresupuestoMin('');
         setPresupuestoMax('');
         applyFilters({});
+        search('');
         setCurrentPage(1);
+    }
+
+    async function handleDelete(hash: string) {
+        const success = await deleteLicitacion(hash);
+        if (success) setConfirmDelete(null);
     }
 
     const totalPages = Math.max(1, Math.ceil(items.length / rowsPerPage));
@@ -85,7 +95,7 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                             Historial de Análisis
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            Busca y filtra tus licitaciones pasadas
+                            Busca, filtra y gestiona tus licitaciones analizadas
                         </p>
                     </div>
                 </header>
@@ -115,162 +125,195 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                             loading
                                 ? '-'
                                 : totalPresupuesto >= 1_000_000
-                                  ? `€${(totalPresupuesto / 1_000_000).toFixed(1)}M`
+                                  ? `${(totalPresupuesto / 1_000_000).toFixed(1)}M`
                                   : formatCurrency(totalPresupuesto, 'EUR')
                         }
                     />
                 </div>
 
-                {/* Filter Card */}
-                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-colors">
-                    <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                        <h2 className="font-semibold text-sm text-slate-900 dark:text-white">Filtros de búsqueda</h2>
-                        {filtersApplied && (
-                            <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
-                                Activos
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                        <div className="lg:col-span-1 space-y-1.5">
-                            <label
-                                htmlFor="cliente"
-                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-                            >
-                                Cliente
-                            </label>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input
-                                    id="cliente"
-                                    type="text"
-                                    placeholder="Buscar cliente..."
-                                    value={searchCliente}
-                                    onChange={(e) => setSearchCliente(e.target.value)}
-                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                                />
-                            </div>
+                {/* Search Bar (primary) */}
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                    <div className="p-4 flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por título, organismo, cliente, archivo..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    search(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full h-10 pl-10 pr-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => {
+                                        search('');
+                                        setCurrentPage(1);
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                    aria-label="Limpiar búsqueda"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
                         </div>
-                        <div className="space-y-1.5">
-                            <label
-                                htmlFor="fechaDesde"
-                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-                            >
-                                Fecha desde
-                            </label>
-                            <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input
-                                    id="fechaDesde"
-                                    type="date"
-                                    value={fechaDesde}
-                                    onChange={(e) => setFechaDesde(e.target.value)}
-                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label
-                                htmlFor="fechaHasta"
-                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-                            >
-                                Fecha hasta
-                            </label>
-                            <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input
-                                    id="fechaHasta"
-                                    type="date"
-                                    value={fechaHasta}
-                                    onChange={(e) => setFechaHasta(e.target.value)}
-                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label
-                                htmlFor="presMin"
-                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-                            >
-                                Presupuesto mín.
-                            </label>
-                            <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input
-                                    id="presMin"
-                                    type="number"
-                                    placeholder="0"
-                                    value={presupuestoMin}
-                                    onChange={(e) => setPresupuestoMin(e.target.value)}
-                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label
-                                htmlFor="presMax"
-                                className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-                            >
-                                Presupuesto máx.
-                            </label>
-                            <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                <input
-                                    id="presMax"
-                                    type="number"
-                                    placeholder="Sin límite"
-                                    value={presupuestoMax}
-                                    onChange={(e) => setPresupuestoMax(e.target.value)}
-                                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="px-5 pb-5 flex flex-wrap items-center gap-3">
                         <button
-                            onClick={handleFiltrar}
-                            className="inline-flex items-center gap-2 h-9 px-5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 active:bg-brand-800 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                            onClick={() => setShowAdvancedFilters((v) => !v)}
+                            className={cn(
+                                'inline-flex items-center gap-2 h-10 px-4 rounded-lg border text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1',
+                                showAdvancedFilters || filtersApplied
+                                    ? 'border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20'
+                                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                            )}
                         >
                             <Filter className="w-4 h-4" />
-                            Aplicar filtros
-                        </button>
-                        {filtersApplied && (
-                            <button
-                                onClick={handleReset}
-                                className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-                            >
-                                Limpiar filtros
-                            </button>
-                        )}
-                        <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
-                            {loading ? (
-                                <Loader2 className="w-4 h-4 animate-spin inline-block" />
-                            ) : items.length === 0 ? (
-                                'Sin resultados'
-                            ) : (
-                                `${items.length} resultado${items.length !== 1 ? 's' : ''}`
+                            Filtros
+                            {filtersApplied && (
+                                <span className="ml-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold bg-brand-600 text-white">
+                                    {Object.keys(activeFilters).length}
+                                </span>
                             )}
-                        </span>
+                        </button>
                     </div>
+
+                    {/* Advanced Filters (collapsible) */}
+                    {showAdvancedFilters && (
+                        <div className="border-t border-slate-200 dark:border-slate-700">
+                            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                                <div className="space-y-1.5">
+                                    <label
+                                        htmlFor="cliente"
+                                        className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                                    >
+                                        Cliente
+                                    </label>
+                                    <div className="relative">
+                                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <input
+                                            id="cliente"
+                                            type="text"
+                                            placeholder="Buscar cliente..."
+                                            value={searchCliente}
+                                            onChange={(e) => setSearchCliente(e.target.value)}
+                                            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label
+                                        htmlFor="fechaDesde"
+                                        className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                                    >
+                                        Fecha desde
+                                    </label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <input
+                                            id="fechaDesde"
+                                            type="date"
+                                            value={fechaDesde}
+                                            onChange={(e) => setFechaDesde(e.target.value)}
+                                            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label
+                                        htmlFor="fechaHasta"
+                                        className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                                    >
+                                        Fecha hasta
+                                    </label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <input
+                                            id="fechaHasta"
+                                            type="date"
+                                            value={fechaHasta}
+                                            onChange={(e) => setFechaHasta(e.target.value)}
+                                            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label
+                                        htmlFor="presMin"
+                                        className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                                    >
+                                        Presup. mín.
+                                    </label>
+                                    <div className="relative">
+                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <input
+                                            id="presMin"
+                                            type="number"
+                                            placeholder="0"
+                                            value={presupuestoMin}
+                                            onChange={(e) => setPresupuestoMin(e.target.value)}
+                                            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label
+                                        htmlFor="presMax"
+                                        className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                                    >
+                                        Presup. máx.
+                                    </label>
+                                    <div className="relative">
+                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <input
+                                            id="presMax"
+                                            type="number"
+                                            placeholder="Sin límite"
+                                            value={presupuestoMax}
+                                            onChange={(e) => setPresupuestoMax(e.target.value)}
+                                            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="px-5 pb-5 flex flex-wrap items-center gap-3">
+                                <button
+                                    onClick={handleFiltrar}
+                                    className="inline-flex items-center gap-2 h-9 px-5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 active:bg-brand-800 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                                >
+                                    <Filter className="w-4 h-4" />
+                                    Aplicar filtros
+                                </button>
+                                {filtersApplied && (
+                                    <button
+                                        onClick={handleReset}
+                                        className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                                    >
+                                        Limpiar filtros
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Results count */}
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                    {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : items.length === 0 ? (
+                        'Sin resultados'
+                    ) : (
+                        `${items.length} resultado${items.length !== 1 ? 's' : ''}`
+                    )}
+                    {searchQuery && (
+                        <span className="text-slate-400 dark:text-slate-500">para &quot;{searchQuery}&quot;</span>
+                    )}
                 </div>
 
                 {/* Table Card */}
                 <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden transition-colors">
-                    <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                            <h2 className="font-semibold text-sm text-slate-900 dark:text-white">
-                                Licitaciones analizadas
-                            </h2>
-                        </div>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {loading ? 'Cargando...' : `${items.length} registros encontrados`}
-                        </span>
-                    </div>
-
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
@@ -288,7 +331,7 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                                         Presupuesto
                                     </th>
                                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">
-                                        Estado de Análisis
+                                        Estado
                                     </th>
                                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                                         Acciones
@@ -328,6 +371,8 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                                             item={item}
                                             isEven={idx % 2 === 0}
                                             onSelect={() => onSelect(item.data, item.hash)}
+                                            onDelete={() => setConfirmDelete(item.hash)}
+                                            isDeleting={deleting === item.hash}
                                         />
                                     ))
                                 )}
@@ -388,6 +433,34 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                     )}
                 </div>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {confirmDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm mx-4 w-full animate-in zoom-in-95 duration-200">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Eliminar análisis</h3>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                            Esta acción eliminará permanentemente este análisis y no se puede deshacer.
+                        </p>
+                        <div className="mt-5 flex items-center justify-end gap-3">
+                            <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => handleDelete(confirmDelete)}
+                                disabled={deleting === confirmDelete}
+                                className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50 inline-flex items-center gap-2"
+                            >
+                                {deleting === confirmDelete ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
