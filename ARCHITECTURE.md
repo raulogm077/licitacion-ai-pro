@@ -91,18 +91,33 @@ Responsabilidades:
 |------|-------------|--------------|
 | A: Ingesta | Subir archivos a OpenAI Files API, crear Vector Store | 0 (solo REST) |
 | B: Mapa Documental | Identificar documentos (PCAP, PPT, anexos) | 1 |
-| C: Extracción por Bloques | Extraer datos por sección (datosGenerales, criterios, etc.) | ~9 |
+| C: Extracción por Bloques | Extraer datos por sección (3 bloques en paralelo) | ~9 |
 | D: Consolidación | Unificar bloques, resolver conflictos, prelación documental | 0 (local) |
 | E: Validación | Quality scoring, verificar campos críticos, evidencias | 1 |
+
+**Optimizaciones del pipeline:**
+- Fase C usa `runWithConcurrency(tasks, 3)` para ejecutar bloques en paralelo (~3x speedup)
+- Cada llamada API tiene timeout individual de 90s (`callWithTimeout`)
+- Constantes centralizadas en `_shared/config.ts` (modelo, timeouts, concurrencia)
+- Errores de OpenAI mapeados a mensajes legibles (`mapOpenAIError`)
 
 ### 4.4. Persistencia
 
 Supabase se usa para:
 
 - autenticación
-- datos de historial
+- datos de historial con búsqueda full-text (FTS español + ILIKE fallback) y eliminación
 - plantillas de extracción (`extraction_templates`): permite definir estructuras de extracción configurables por usuario autenticado. La tabla cuenta con políticas RLS (`Row Level Security`) para garantizar que cada usuario gestione exclusivamente sus plantillas, basadas en su `user_id`.
 - otras entidades de soporte del producto
+
+#### Full-Text Search
+
+La tabla `licitaciones` incluye una columna `search_vector` (`tsvector`, generada, `stored`) con pesos:
+- **A**: título
+- **B**: órgano de contratación, cliente
+- **C**: nombre de archivo, tipo de contrato, procedimiento
+
+La función RPC `search_licitaciones` combina FTS (`websearch_to_tsquery('spanish', ...)`) con fallback ILIKE para coincidencias parciales (códigos CPV, términos cortos). Índice GIN para búsqueda rápida.
 
 ## 5. Contrato SSE
 

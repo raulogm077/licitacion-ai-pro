@@ -27,7 +27,20 @@ Antes de desplegar una tarea, QA debe verificar:
    - compatibilidad con schema/Zod
 5. documentación mínima actualizada
 
-## 4. Comando de despliegue de la Edge Function
+## 4. Migraciones de base de datos
+
+Antes de desplegar código que dependa de nuevas tablas o columnas, aplicar las migraciones pendientes:
+
+```bash
+npx supabase db push --include-all
+```
+
+Migraciones relevantes recientes:
+- `20260329000000_fulltext_search.sql` — Columna `search_vector` (tsvector español), índice GIN, función RPC `search_licitaciones`
+
+> **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
+
+## 5. Comando de despliegue de la Edge Function
 
 ```bash
 npx supabase functions deploy analyze-with-agents --no-verify-jwt
@@ -35,7 +48,7 @@ npx supabase functions deploy analyze-with-agents --no-verify-jwt
 
 > **Nota sobre `--no-verify-jwt`**: Este flag desactiva la validación JWT del Kong API Gateway de Supabase. La función valida el JWT internamente usando el SDK de Supabase (`supabase.auth.getUser()`), lo que permite un manejo granular de errores de autenticación y evita problemas de CORS con preflight requests.
 
-## 5. Secretos y configuración
+## 6. Secretos y configuración
 
 `OPENAI_API_KEY` debe estar configurada como secreto de Supabase para la Edge Function. No debe exponerse en el frontend.
 
@@ -45,7 +58,7 @@ Ejemplo de configuración:
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
-## 6. Validación posterior al despliegue
+## 7. Validación posterior al despliegue
 
 Después del despliegue, QA debe comprobar al menos:
 
@@ -59,7 +72,7 @@ Comandos útiles:
 npx supabase functions list
 ```
 
-## 7. Rollback operativo
+## 8. Rollback operativo
 
 Si el despliegue introduce una regresión:
 
@@ -67,6 +80,6 @@ Si el despliegue introduce una regresión:
 - se debe preparar una nueva tarea correctiva
 - la documentación debe recoger el riesgo o incidencia si aplica
 
-## 8. Regla documental
+## 9. Regla documental
 
 Si cambia el proceso real de despliegue, este archivo debe actualizarse antes de cerrar la tarea correspondiente.

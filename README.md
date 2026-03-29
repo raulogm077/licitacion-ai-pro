@@ -8,6 +8,8 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 - ejecuta análisis asistido por IA con streaming en tiempo real
 - valida y transforma la salida a un modelo tipado
 - guarda historial de análisis para su consulta posterior
+- búsqueda full-text en español (FTS + ILIKE fallback) sobre el historial
+- eliminación de registros del historial con confirmación
 - prepara el terreno para plantillas dinámicas de extracción y soporte multi-documento
 
 ## Arquitectura actual
