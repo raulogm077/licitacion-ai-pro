@@ -60,15 +60,15 @@ function buildMockSseStream(): ReadableStream {
             send({ type: 'heartbeat', timestamp: Date.now() });
 
             setTimeout(() => {
-                send({ type: 'agent_message', message: 'Leyendo documento PDF...', timestamp: Date.now() });
+                send({ type: 'phase_started', phase: 'ingestion', message: 'Leyendo documento PDF...', timestamp: Date.now() });
             }, 80);
 
             setTimeout(() => {
-                send({ type: 'agent_message', message: 'Buscando en documentos...', timestamp: Date.now() });
+                send({ type: 'phase_progress', phase: 'document_map', message: 'Buscando en documentos...', timestamp: Date.now() });
             }, 160);
 
             setTimeout(() => {
-                send({ type: 'agent_message', message: 'Extrayendo datos generales...', timestamp: Date.now() });
+                send({ type: 'extraction_progress', phase: 'extraction', blockIndex: 1, totalBlocks: 10, message: 'Extrayendo datos generales...', timestamp: Date.now() });
             }, 240);
 
             setTimeout(() => {
