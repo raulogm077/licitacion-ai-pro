@@ -45,6 +45,15 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
+- [x] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
+  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
+  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
+  - Criterios de aceptación:
+    - El archivo `.github/dependabot.yml` existe y es válido.
+    - Dependabot ejecuta chequeos semanales.
+  - Archivos probables: `.github/dependabot.yml`
+  - Dependencias: Ninguna.
+
 - [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
   - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
   - Implementación: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente.
@@ -67,14 +76,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     > Tests 1 failed | 253 passed (254)
     > ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
 
-- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
-  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
-  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
-  - Criterios de aceptación:
-    - El archivo `.github/dependabot.yml` existe y es válido.
-    - Dependabot ejecuta chequeos semanales.
-  - Archivos probables: `.github/dependabot.yml`
-  - Dependencias: Ninguna.
 
 - [ ] [Tipo: UI] [Área: Infra] Configurar infraestructura base para i18n (ES/EN)
   - Objetivo: Preparar la aplicación para soportar múltiples idiomas, empezando por español e inglés.

@@ -40,6 +40,8 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 
 **Iteración D (Mantenimiento y Observabilidad)**
 
+- **Dependabot Implementado**: Se configuró `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, habilitando el escaneo automatizado en PRs como se define en los criterios.
+
 - **Testing (QA):** Incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard (`KpiCards`, `FeedbackToggle`), hasta alcanzar el 80% global.
 - **i18n (UI/Infra):** Integrar `react-i18next` u otra librería estándar. Inicializar diccionarios básicos (`es`, `en`) e implementar un selector de idioma en la interfaz. Extraer progresivamente textos hardcodeados.
 - **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
