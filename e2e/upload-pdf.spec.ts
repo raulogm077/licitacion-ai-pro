@@ -60,15 +60,15 @@ function buildMockSseStream(): ReadableStream {
             send({ type: 'heartbeat', timestamp: Date.now() });
 
             setTimeout(() => {
-                send({ type: 'agent_message', content: 'Leyendo documento PDF...', timestamp: Date.now() });
+                send({ type: 'phase_started', phase: 'ingestion', message: 'Leyendo documento PDF...', timestamp: Date.now() });
             }, 80);
 
             setTimeout(() => {
-                send({ type: 'agent_message', content: 'Buscando en documentos...', timestamp: Date.now() });
+                send({ type: 'phase_progress', phase: 'document_map', message: 'Buscando en documentos...', timestamp: Date.now() });
             }, 160);
 
             setTimeout(() => {
-                send({ type: 'agent_message', content: 'Extrayendo datos generales...', timestamp: Date.now() });
+                send({ type: 'extraction_progress', phase: 'extraction', blockIndex: 1, totalBlocks: 10, message: 'Extrayendo datos generales...', timestamp: Date.now() });
             }, 240);
 
             setTimeout(() => {
@@ -160,7 +160,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
 
     test('carga memo_p2.pdf y completa el flujo de análisis', async ({ page }) => {
         // Read the actual PDF file from the repo root
-        const pdfPath = path.resolve(__dirname, '..', 'memo_p2.pdf');
+        const pdfPath = path.resolve(import.meta.dirname, '..', 'memo_p2.pdf');
         const pdfBuffer = fs.readFileSync(pdfPath);
 
         await page.goto('/');
@@ -227,7 +227,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
             }
         );
 
-        const pdfPath = path.resolve(__dirname, '..', 'memo_p2.pdf');
+        const pdfPath = path.resolve(import.meta.dirname, '..', 'memo_p2.pdf');
         const pdfBuffer = fs.readFileSync(pdfPath);
 
         await page.goto('/');
