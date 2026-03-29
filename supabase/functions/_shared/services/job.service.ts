@@ -1,7 +1,7 @@
 /**
  * Job Service — manages analysis_jobs table for pipeline tracking.
  */
-// @ts-ignore
+// @ts-expect-error — npm: specifier resolved at Deno runtime
 import { SupabaseClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 export class JobService {

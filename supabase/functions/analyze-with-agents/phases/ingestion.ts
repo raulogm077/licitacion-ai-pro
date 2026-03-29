@@ -94,7 +94,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     } catch (error) {
         // Cleanup any uploaded files on failure
         for (const fileId of uploadedFileIds) {
-            openai.files.del(fileId).catch(() => {});
+            openai.files.del(fileId).catch((e) => console.warn(`[Ingestion] Cleanup failed for ${fileId}:`, e));
         }
         throw error;
     }

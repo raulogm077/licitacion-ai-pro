@@ -34,12 +34,22 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
 
     // Build the consolidated result object from blocks
     const blockDataMap: Record<string, unknown> = {};
+    const receivedBlocks = new Set<string>();
 
     for (const block of blocks) {
         blockDataMap[block.blockName] = block.data;
+        receivedBlocks.add(block.blockName);
         allEvidences.push(...block.evidences);
         allWarnings.push(...block.warnings);
         allAmbiguousFields.push(...block.ambiguous_fields);
+    }
+
+    // Warn if critical blocks are missing entirely
+    const criticalBlocks = ['datosGenerales', 'economico', 'criteriosAdjudicacion'];
+    for (const name of criticalBlocks) {
+        if (!receivedBlocks.has(name)) {
+            allWarnings.push(`Bloque crítico "${name}" no fue recibido en la extracción`);
+        }
     }
 
     // Assemble the canonical result
