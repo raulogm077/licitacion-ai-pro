@@ -58,15 +58,27 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
 
     // Validate against canonical schema (lenient — use safeParse)
     const validated = CanonicalResultSchema.safeParse(rawResult);
-    const result: CanonicalResult = validated.success
-        ? validated.data
-        : (CanonicalResultSchema.parse({
-              ...rawResult,
-              datosGenerales: ensureMinimalDatosGenerales(rawResult.datosGenerales),
-          }) as CanonicalResult);
+    let result: CanonicalResult;
 
-    if (!validated.success) {
+    if (validated.success) {
+        result = validated.data;
+    } else {
         allWarnings.push(`Consolidation schema warning: ${validated.error.message.substring(0, 300)}`);
+        // Retry with ensured minimal datosGenerales
+        const retryResult = CanonicalResultSchema.safeParse({
+            ...rawResult,
+            datosGenerales: ensureMinimalDatosGenerales(rawResult.datosGenerales),
+        });
+        if (retryResult.success) {
+            result = retryResult.data;
+        } else {
+            // Last resort: force-parse with all defaults to avoid pipeline crash
+            console.error('[Consolidation] Schema validation failed even after retry:', retryResult.error.message);
+            allWarnings.push('Consolidación forzada: el resultado puede estar incompleto');
+            result = CanonicalResultSchema.parse({
+                datosGenerales: ensureMinimalDatosGenerales({}),
+            });
+        }
     }
 
     // Cross-block consistency checks

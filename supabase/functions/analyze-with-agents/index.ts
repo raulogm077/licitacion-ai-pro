@@ -192,7 +192,9 @@ serve(async (req: Request) => {
                     if (!completed) {
                         console.error('[analyze] Execution timeout');
                         if (vectorStoreId || fileIds) {
-                            cleanupJobResources(openai, vectorStoreId, fileIds).catch(() => {});
+                            cleanupJobResources(openai, vectorStoreId, fileIds).catch((e) =>
+                                console.warn('[analyze] Timeout cleanup failed:', e)
+                            );
                         }
                         sendEvent('error', {
                             message: 'Tiempo de ejecución excedido. Intente con documentos más pequeños.',
@@ -245,7 +247,9 @@ serve(async (req: Request) => {
                     });
 
                     if (jobId) {
-                        jobService.updatePhase(jobId, 'document_map', documentMap).catch(() => {});
+                        jobService
+                            .updatePhase(jobId, 'document_map', documentMap)
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
                     // ═══ FASE C: EXTRACCIÓN POR BLOQUES ═══
@@ -271,7 +275,9 @@ serve(async (req: Request) => {
                     });
 
                     if (jobId) {
-                        jobService.updatePhase(jobId, 'extraction').catch(() => {});
+                        jobService
+                            .updatePhase(jobId, 'extraction')
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
                     // ═══ FASE D: CONSOLIDACIÓN ═══
@@ -299,7 +305,9 @@ serve(async (req: Request) => {
                     console.log(`[analyze] Pipeline completed. Quality: ${workflow.quality?.overall}`);
 
                     if (jobId) {
-                        jobService.completeJob(jobId, finalOutput).catch(() => {});
+                        jobService
+                            .completeJob(jobId, finalOutput)
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
                     sendEvent('complete', finalOutput);
@@ -307,7 +315,9 @@ serve(async (req: Request) => {
                     const errMsg = mapOpenAIError(error);
                     console.error('[analyze] Pipeline error:', error);
                     if (jobId) {
-                        jobService.failJob(jobId, errMsg).catch(() => {});
+                        jobService
+                            .failJob(jobId, errMsg)
+                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
                     // Cleanup OpenAI resources on pipeline failure (non-blocking)
                     if (vectorStoreId || fileIds) {
