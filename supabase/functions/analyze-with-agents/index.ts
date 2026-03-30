@@ -21,8 +21,9 @@ import { runConsolidation } from './phases/consolidation.ts';
 import { runValidation } from './phases/validation.ts';
 import { getCleanupTimestamp, runOpportunisticCleanup, cleanupJobResources } from './cleanup.ts';
 import { JobService } from '../_shared/services/job.service.ts';
-import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES } from '../_shared/config.ts';
+import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES, API_CALL_TIMEOUT_MS } from '../_shared/config.ts';
 import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
+import { callWithTimeout } from '../_shared/utils/timeout.ts';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -208,13 +209,17 @@ serve(async (req: Request) => {
                 try {
                     // ═══ FASE A: INGESTA ═══
                     sendEvent('phase_started', { phase: 'ingestion', message: 'Subiendo documentos...' });
-                    const ingestion = await runIngestion({
-                        openai,
-                        pdfBase64,
-                        filename: filename || 'documento.pdf',
-                        files,
-                        onProgress: (msg) => sendProgress('ingestion', msg),
-                    });
+                    const ingestion = await callWithTimeout(
+                        runIngestion({
+                            openai,
+                            pdfBase64,
+                            filename: filename || 'documento.pdf',
+                            files,
+                            onProgress: (msg) => sendProgress('ingestion', msg),
+                        }),
+                        API_CALL_TIMEOUT_MS * 2, // 3min — uploads + indexing can be slow
+                        'Ingestion'
+                    );
                     vectorStoreId = ingestion.vectorStoreId;
                     fileIds = ingestion.fileIds;
                     sendEvent('phase_completed', { phase: 'ingestion', message: 'Documentos indexados' });

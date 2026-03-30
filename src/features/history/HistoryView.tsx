@@ -78,7 +78,7 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
 
     const exitosos = useMemo(() => items.filter((d) => getStatusFromData(d.data) === 'COMPLETO').length, [items]);
     const totalPresupuesto = useMemo(
-        () => items.reduce((acc, d) => acc + (unwrap(d.data.datosGenerales.presupuesto) || 0), 0),
+        () => items.reduce((acc, d) => acc + (unwrap(d.data.datosGenerales.presupuesto) ?? 0), 0),
         [items]
     );
 
