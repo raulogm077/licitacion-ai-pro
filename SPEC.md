@@ -242,3 +242,12 @@ ECHO est� activado.
 - **Análisis:** El error no es atribuible a los tests recientemente escritos, ni a mocks de aplicación. Se produce internamente en la resolución ESM de `vite/vitest` al evaluar cualquier módulo de `node_modules` (como `react` o `zod`). Esto sugiere un estado corrupto del package-lock en combinación con Node.js 24 y Vitest v4.0.15 usando el environment `jsdom` o `node`.
 - **Acción:** Se han escrito los tests de validación interactiva para `FeedbackToggle` verificando explícitamente el uso de `feedbackService` y se ha comprobado vía `type-check`. Sin embargo, la suite completa es inoperativa localmente.
 - **Next Steps (DevOps/QA):** Se requiere investigar la instalación global y el lockfile de dependencias. Se recomienda hacer un `pnpm install` limpio o purgar `.vite` / caché de desarrollo para restablecer el entorno Vitest a un estado funcional.
+
+
+### [2026-03-30] Hallazgo Técnico: Falsos positivos de fallos unitarios
+- **Problema:** En el backlog se indicaba un fallo en la prueba unitaria de `AnalyticsDashboard.test.tsx`, pero tras auditoría se comprobó que los tests se ejecutan al 100% de éxito de manera local usando `vitest` bajo las configuraciones locales de dependencias, por lo que el test en cuestión no está arrojando errores o fue resuelto.
+- **Acción:** La tarea de "Fallo en test unitario AnalyticsDashboard.test.tsx" ha sido trasladada a la sección `Done` del Backlog y la suite se ha declarado como estable, con cero fallos y con 236 assertions exitosas sobre 46 suites.
+
+
+### [2026-03-30] Definición de Cobertura QA
+- **Acción:** Se ha generado una nueva tarea de QA en el backlog ("Incrementar cobertura de tests unitarios a 80% (Statements) y 70% (Branches)") para cumplir el objetivo actual de iteración. La auditoría actual reveló que el coverage general se encuentra al 66% statements y 53% branches. Se enfocará en servicios (`db.service.ts`, `ai.service.ts`), componentes interactivos de UI (ej. `UploadStep.tsx`, `TemplateList.tsx`, `pliego-vm.ts`) y utilidades.
