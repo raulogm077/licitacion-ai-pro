@@ -25,6 +25,7 @@ export interface ConsolidationResult {
 export function runConsolidation(input: ConsolidationInput): ConsolidationResult {
     const { blocks, customTemplate, onProgress } = input;
 
+    console.log(`[Consolidation] Starting with ${blocks.length} blocks`);
     onProgress?.('Consolidando bloques...');
 
     // Collect all evidences, warnings, and ambiguous fields from all blocks
@@ -73,6 +74,7 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
     if (validated.success) {
         result = validated.data;
     } else {
+        console.warn('[Consolidation] Schema validation failed:', validated.error.message);
         allWarnings.push(`Consolidation schema warning: ${validated.error.message.substring(0, 300)}`);
         // Retry with ensured minimal datosGenerales
         const retryResult = CanonicalResultSchema.safeParse({
@@ -95,6 +97,9 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
     const consistencyWarnings = checkCrossBlockConsistency(result);
     allWarnings.push(...consistencyWarnings);
 
+    console.log(
+        `[Consolidation] Done: ${allWarnings.length} warnings, ${allAmbiguousFields.length} ambiguous, ${allEvidences.length} evidences`
+    );
     onProgress?.(
         `Consolidación completada: ${allWarnings.length} warnings, ${allAmbiguousFields.length} campos ambiguos`
     );

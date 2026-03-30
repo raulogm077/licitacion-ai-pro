@@ -149,7 +149,12 @@ serve(async (req: Request) => {
                     .in('id', ids);
             }
             return data || [];
-        }).catch((err) => console.warn('[analyze] Cleanup skipped:', err));
+        }).catch((err) =>
+            console.warn('[analyze] Opportunistic cleanup failed:', {
+                error: err instanceof Error ? err.message : String(err),
+                userId: user.id,
+            })
+        );
 
         // 3. Create SSE stream with pipeline execution
         const encoder = new TextEncoder();

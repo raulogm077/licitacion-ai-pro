@@ -304,16 +304,20 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                 </div>
 
                 {/* Results count */}
-                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <div
+                    className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400"
+                    aria-busy={loading}
+                    aria-live="polite"
+                >
                     {loading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                     ) : items.length === 0 ? (
                         'Sin resultados'
                     ) : (
                         `${items.length} resultado${items.length !== 1 ? 's' : ''}`
                     )}
                     {searchQuery && (
-                        <span className="text-slate-400 dark:text-slate-500">para &quot;{searchQuery}&quot;</span>
+                        <span className="text-slate-400 dark:text-slate-500">para &ldquo;{searchQuery}&rdquo;</span>
                     )}
                 </div>
 

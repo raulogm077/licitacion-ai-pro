@@ -106,7 +106,13 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
     return validated;
 }
 
-function extractOutputText(response: OpenAI.Responses.Response): string {
+/** Typed subset of OpenAI Responses API output structure */
+interface ResponseOutputItem {
+    type: string;
+    content?: Array<{ type: string; text?: string }>;
+}
+
+function extractOutputText(response: { output?: ResponseOutputItem[] }): string {
     // The Responses API returns output as an array of items
     if (!response.output || !Array.isArray(response.output)) {
         console.error('[extractOutputText] Unexpected response structure:', JSON.stringify(response).substring(0, 500));
@@ -115,13 +121,13 @@ function extractOutputText(response: OpenAI.Responses.Response): string {
     for (const item of response.output) {
         if (item.type === 'message' && item.content) {
             for (const content of item.content) {
-                if (content.type === 'output_text') {
+                if (content.type === 'output_text' && content.text) {
                     return content.text;
                 }
             }
         }
     }
-    const types = response.output.map((i: { type: string }) => i.type).join(', ');
+    const types = response.output.map((i) => i.type).join(', ');
     throw new Error(`No text output found in Responses API response. Output types: [${types}]`);
 }
 
