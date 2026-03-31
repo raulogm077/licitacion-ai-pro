@@ -16,6 +16,10 @@ Estado funcional confirmado a fecha de esta especificación:
 - la arquitectura legacy de colas/polling quedó fuera del flujo operativo principal
 - campos críticos (titulo, presupuesto, moneda, plazo, cpv, organo) usan **TrackedField** con status y evidencias
 - el schema canónico vive en `supabase/functions/_shared/schemas/canonical.ts`
+- la cobertura actual de tests está en progreso (~66% en statements), el objetivo de la iteración D es 80%.
+- no existen errores críticos globales en la ejecución de pruebas con vitest.
+- la cobertura actual de tests está en progreso (~66% en statements), el objetivo de la iteración D es 80%.
+- no existen errores críticos globales en la ejecución de pruebas con vitest.
 - los directorios `src/agents/` y `src/llm/` han sido eliminados (código legacy)
 
 ## 3. Iteración activa
@@ -40,7 +44,7 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 
 **Iteración D (Mantenimiento y Observabilidad)**
 
-- **Testing (QA):** Incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard (`KpiCards`, `FeedbackToggle`), hasta alcanzar el 80% global.
+- **Testing (QA):** El test global de Vitest que bloqueaba la suite ha sido resuelto. El objetivo ahora es incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard y los componentes core de UI (`src/components/`), hasta alcanzar el 80% global.
 - **i18n (UI/Infra):** Integrar `react-i18next` u otra librería estándar. Inicializar diccionarios básicos (`es`, `en`) e implementar un selector de idioma en la interfaz. Extraer progresivamente textos hardcodeados.
 - **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
 
