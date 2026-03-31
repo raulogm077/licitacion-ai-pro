@@ -23,6 +23,8 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Done
 
+- [x] [Tipo: QA] [Área: Analysis] Fix Fallo en test unitario `AnalyticsDashboard.test.tsx` (Eliminado o resuelto al mover el archivo)
+
 - [x] [Tipo: AI|QA] [Área: Analysis] Fix Error 401 Unauthorized en `analyze-with-agents` (JWT expirado)
   - Implementación: Añadido refresh proactivo del token en `job.service.ts` antes de llamar a la Edge Function. Si el `access_token` expira en menos de 60 segundos, se llama a `supabase.auth.refreshSession()` para obtener un token fresco.
   - Archivos modificados: `src/services/job.service.ts`
@@ -62,15 +64,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 > ReferenceError: __dirname is not defined
 >     at /app/e2e/upload-pdf.spec.ts:163:38
 
-- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Fallo en test unitario `AnalyticsDashboard.test.tsx`
-  - Objetivo: Fijar el suite de Vitest que actualmente está en rojo.
-  - Alcance: El componente aparentemente no renderiza "Analytics Dashboard" a tiempo.
-  - Criterios de aceptación: `vitest` completa con 0 fallos.
-  - Archivos probables: `src/features/dashboard/__tests__/AnalyticsDashboard.test.tsx`
-  - Evidencia:
-    > Test Files 1 failed | 48 passed (49)
-    > Tests 1 failed | 253 passed (254)
-    > ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+- [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
+  - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
+  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
+  - Criterios de aceptación:
+    - Ejecutar `vitest --coverage` debe reportar al menos 80% en statements y 70% en branches.
+  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
+  - Dependencias: Ninguna.
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
   - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
@@ -108,6 +108,8 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Visual regression testing con Playwright screenshots
 
 ## Done
+
+- [x] [Tipo: QA] [Área: Analysis] Fix Fallo en test unitario `AnalyticsDashboard.test.tsx` (Eliminado o resuelto al mover el archivo)
 
 - [x] [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
   - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
