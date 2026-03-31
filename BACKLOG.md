@@ -45,6 +45,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
+- [x] [Tipo: QA] [Área: Analysis] Fallo en test unitario `AnalyticsDashboard.test.tsx`
+  - Objetivo: Fijar el suite de Vitest que actualmente está en rojo.
+  - Alcance: El componente aparentemente no renderiza "Analytics Dashboard" a tiempo.
+  - Criterios de aceptación: `vitest` completa con 0 fallos.
+  - Archivos probables: `src/features/dashboard/__tests__/AnalyticsDashboard.test.tsx`
+
+
 - [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
   - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
   - Implementación: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente.
@@ -57,15 +64,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Fallo en test unitario `AnalyticsDashboard.test.tsx`
-  - Objetivo: Fijar el suite de Vitest que actualmente está en rojo.
-  - Alcance: El componente aparentemente no renderiza "Analytics Dashboard" a tiempo.
-  - Criterios de aceptación: `vitest` completa con 0 fallos.
-  - Archivos probables: `src/features/dashboard/__tests__/AnalyticsDashboard.test.tsx`
-  - Evidencia:
-    > Test Files 1 failed | 48 passed (49)
-    > Tests 1 failed | 253 passed (254)
-    > ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
   - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
