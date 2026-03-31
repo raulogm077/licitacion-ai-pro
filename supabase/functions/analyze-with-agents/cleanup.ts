@@ -60,11 +60,22 @@ export async function cleanupJobResources(
 /**
  * Opportunistic cleanup: run at the start of new analysis requests.
  * Checks for expired jobs and cleans their resources.
+ * Throttled to run at most once every CLEANUP_INTERVAL_MS to avoid
+ * excessive DB queries under concurrent load.
  */
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let lastCleanupRun = 0;
+
 export async function runOpportunisticCleanup(
     openai: OpenAI,
     getExpiredJobs: () => Promise<Array<{ vector_store_id?: string; file_ids?: string[] }>>
 ): Promise<number> {
+    const now = Date.now();
+    if (now - lastCleanupRun < CLEANUP_INTERVAL_MS) {
+        return 0; // Throttled — skip this run
+    }
+    lastCleanupRun = now;
+
     try {
         const expiredJobs = await getExpiredJobs();
         let cleaned = 0;

@@ -281,7 +281,11 @@ async function extractBlock(
             `Block ${blockName} retry`
         );
         const retryText = extractOutputText(retryResponse);
-        parsed = parseJsonFromText(retryText) as typeof parsed;
+        try {
+            parsed = parseJsonFromText(retryText) as typeof parsed;
+        } catch {
+            throw new Error(`JSON inválido en bloque ${blockName} tras reintento`);
+        }
     }
 
     // Validate block data with its specific schema
@@ -319,10 +323,13 @@ async function extractCustomTemplate(
     guideContent: string
 ): Promise<Record<string, unknown>> {
     const fieldDescriptions = template.schema
-        .map(
-            (f) =>
-                `- ${f.name} (${f.type}): ${f.description || 'Sin descripción'} [${f.required ? 'Obligatorio' : 'Opcional'}]`
-        )
+        .map((f) => {
+            // Sanitize user-provided descriptions to prevent prompt injection
+            const safeName = f.name.replace(/[\n\r]/g, ' ').substring(0, 100);
+            const safeType = f.type.replace(/[\n\r]/g, ' ').substring(0, 50);
+            const safeDesc = (f.description || 'Sin descripción').replace(/[\n\r]/g, ' ').substring(0, 200);
+            return `- ${safeName} (${safeType}): ${safeDesc} [${f.required ? 'Obligatorio' : 'Opcional'}]`;
+        })
         .join('\n');
 
     const response = await callWithTimeout(

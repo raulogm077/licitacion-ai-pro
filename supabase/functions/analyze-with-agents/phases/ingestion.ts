@@ -34,6 +34,20 @@ function inferMimeType(filename: string): string {
     return 'application/pdf';
 }
 
+async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
+    const results: T[] = new Array(items.length);
+    let nextIndex = 0;
+    async function worker() {
+        while (nextIndex < items.length) {
+            const idx = nextIndex++;
+            results[idx] = await items[idx]();
+        }
+    }
+    const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+    await Promise.all(workers);
+    return results;
+}
+
 export async function runIngestion(input: IngestionInput): Promise<IngestionResult> {
     const { openai, pdfBase64, filename, files, onProgress } = input;
     const uploadedFileIds: string[] = [];
@@ -58,12 +72,13 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
             console.log(`[Ingestion] PDF principal uploaded: ${pdfUpload.id}`);
         }
 
-        // 2. Upload additional files in parallel (batch of all valid files)
+        // 2. Upload additional files with concurrency limit to avoid rate-limiting
         if (files && Array.isArray(files)) {
             const validFiles = files.filter((f) => f?.base64 && f?.name);
             if (validFiles.length > 0) {
                 onProgress?.(`Subiendo ${validFiles.length} archivos adicionales...`);
-                const uploadPromises = validFiles.map(async (extraFile) => {
+                const MAX_UPLOAD_CONCURRENCY = 3;
+                const uploadTasks = validFiles.map((extraFile) => async () => {
                     let buffer: Uint8Array;
                     try {
                         buffer = Uint8Array.from(atob(extractBase64Data(extraFile.base64)), (c) => c.charCodeAt(0));
@@ -79,14 +94,12 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
                     return { id: upload.id, name: extraFile.name };
                 });
 
-                const results = await Promise.allSettled(uploadPromises);
+                const results = await runWithConcurrency(uploadTasks, MAX_UPLOAD_CONCURRENCY);
                 for (const result of results) {
-                    if (result.status === 'fulfilled' && result.value) {
-                        uploadedFileIds.push(result.value.id);
-                        fileNames.push(result.value.name);
-                        console.log(`[Ingestion] Archivo adicional uploaded: ${result.value.id}`);
-                    } else if (result.status === 'rejected') {
-                        console.warn(`[Ingestion] File upload failed:`, result.reason);
+                    if (result) {
+                        uploadedFileIds.push(result.id);
+                        fileNames.push(result.name);
+                        console.log(`[Ingestion] Archivo adicional uploaded: ${result.id}`);
                     }
                 }
             }
