@@ -42,7 +42,7 @@ vi.mock('recharts', async () => {
     const ActualRecharts = await vi.importActual('recharts');
     return {
         ...ActualRecharts,
-        ResponsiveContainer: ({ children }: { children: any }) => (
+        ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
             <div style={{ width: 800, height: 400 }}>{children}</div>
         ),
     };
