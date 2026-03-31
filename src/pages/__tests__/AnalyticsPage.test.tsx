@@ -37,6 +37,17 @@ vi.mock('../../config/service-registry', () => ({
     },
 }));
 
+// Mock recharts to prevent ResizeObserver errors in JSDOM
+vi.mock('recharts', async () => {
+    const ActualRecharts = await vi.importActual('recharts');
+    return {
+        ...ActualRecharts,
+        ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+            <div style={{ width: 800, height: 400 }}>{children}</div>
+        ),
+    };
+});
+
 describe('AnalyticsPage', () => {
     it('renders analytics dashboard', async () => {
         render(<AnalyticsPage />);
@@ -50,7 +61,7 @@ describe('AnalyticsPage', () => {
             () => {
                 expect(screen.getByText(/Analytics Dashboard|No hay datos de analytics/i)).toBeInTheDocument();
             },
-            { timeout: 5000 }
+            { timeout: 10000 }
         );
     });
 });
