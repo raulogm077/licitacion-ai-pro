@@ -50,12 +50,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
-  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
-  - Implementación: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente.
-  - Criterios: Pasa validación de types. *Nota: Validación unitaria local bloqueada por fallo global de Vitest.*
-> ReferenceError: __dirname is not defined
->     at /app/e2e/upload-pdf.spec.ts:163:38
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Upload] Implementar tests unitarios interactivos y Resolver Bloqueo E2E (`__dirname is not defined`)
+  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción, Y prioritariamente arreglar la inicialización de Playwright que bloquea la validación QA.
+  - Alcance: Modificar `e2e/upload-pdf.spec.ts` para sustituir el uso de `__dirname` por `import.meta.dirname` o el util de ESM que permita a los tests E2E y unitarios de UI compilar en Node 20+.
+  - Implementación: Se añadieron assertions para `feedbackService.saveFeedback`. Falta resolver el error E2E reportado en la iteración previa.
+  - Criterios: Pasa validación de types y la ejecución de `pnpm test:e2e` y `pnpm test` no arroja bloqueos de inicialización (ej. `ReferenceError`).
+  - Archivos probables: `e2e/upload-pdf.spec.ts`
+  - Dependencias: El bloqueo ESM afecta globalmente la QA de la iteración actual.
 
 - [ ] 🐛 BUG: [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
   - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
