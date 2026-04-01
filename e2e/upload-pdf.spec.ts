@@ -7,11 +7,9 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { test, expect } from '@playwright/test';
 import { setupAuthMock } from './test-utils';
 
-const __dirname = import.meta.dirname;
 
 // ── Mock result compatible with LicitacionAgentResponse schema ──────────────
 const MOCK_AGENT_RESULT = {

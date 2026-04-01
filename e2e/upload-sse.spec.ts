@@ -79,7 +79,7 @@ test.describe('PDF Upload and SSE Analysis', () => {
         }
     await fileInput.evaluate((el: HTMLInputElement) => el.style.display = 'block');
 
-    if (true) {
+    if (await fileInput.count() > 0) {
         await fileInput.setInputFiles({
           name: 'dummy.pdf',
           mimeType: 'application/pdf',
