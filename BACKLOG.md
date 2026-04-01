@@ -47,15 +47,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-
-## To Do (Iteración Actual)
-
-- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
+- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
   - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
   - Implementación: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente.
-  - Criterios: Pasa validación de types. *Nota: Validación unitaria local bloqueada por fallo global de Vitest.*
-> ReferenceError: __dirname is not defined
->     at /app/e2e/upload-pdf.spec.ts:163:38
+  - Criterios: Pasa validación de types y tests unitarios de vitest.
+
+
+## To Do (Iteración Actual)
 
 - [ ] 🐛 BUG: [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
   - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).

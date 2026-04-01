@@ -232,6 +232,7 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 
 
 ### QA: Tests Unitarios para KpiCards
+- **FeedbackToggle Component**: Se validó mediante Vitest el componente interactivo FeedbackToggle para asegurar que registra apropiadamente retroalimentación en la base de datos (Supabase) cuando se interactúa con sus botones (up/down).
 - **Implementación**: Se creó el archivo `KpiCards.test.tsx` garantizando la cobertura del componente `KpiCards.tsx`.
 - **Detalles**: Se verificó la renderización de KPIs, casos base (valores por defecto) y la correcta integración de `FeedbackToggle` pasándole los `fieldPath` requeridos según la estructura de `PliegoVM`.
 - **MCP/Skills**: No se requirió el uso de MCP (Supabase/Vercel) ya que la tarea fue exclusivamente unit testing de frontend puro.
