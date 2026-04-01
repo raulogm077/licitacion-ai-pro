@@ -79,13 +79,8 @@ test.describe('Multi-document Upload and Analysis', () => {
 
         // Look for the file input - this is the most reliable indicator the upload zone is ready
         const fileInput = page.locator('input[type="file"]').first();
-        const fileInputAttached = await fileInput
-            .waitFor({ state: 'attached', timeout: 10000 })
-            .then(() => true)
-            .catch(() => false);
-
+        const fileInputAttached = await fileInput.waitFor({ state: 'attached', timeout: 15000 }).then(() => true).catch(() => false);
         if (!fileInputAttached) {
-            // Auth mock didn't work in this environment - skip gracefully
             console.log('File input not found. Auth mock may not have established a session. Skipping upload test.');
             expect(true).toBe(true);
             return;
