@@ -7,11 +7,10 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { test, expect } from '@playwright/test';
 import { setupAuthMock } from './test-utils';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 
 // ── Mock result compatible with LicitacionAgentResponse schema ──────────────
 const MOCK_AGENT_RESULT = {
@@ -163,7 +162,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
 
     test('carga memo_p2.pdf y completa el flujo de análisis', async ({ page }) => {
         // Read the actual PDF file from the repo root
-        const pdfPath = path.resolve(__dirname, '..', 'memo_p2.pdf');
+        const pdfPath = path.resolve(import.meta.dirname, '..', 'memo_p2.pdf');
         const pdfBuffer = fs.readFileSync(pdfPath);
 
         await page.goto('/');
@@ -230,7 +229,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
             }
         );
 
-        const pdfPath = path.resolve(__dirname, '..', 'memo_p2.pdf');
+        const pdfPath = path.resolve(import.meta.dirname, '..', 'memo_p2.pdf');
         const pdfBuffer = fs.readFileSync(pdfPath);
 
         await page.goto('/');
