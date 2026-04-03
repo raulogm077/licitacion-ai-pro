@@ -246,3 +246,6 @@ ECHO est� activado.
 - **Análisis:** El error no es atribuible a los tests recientemente escritos, ni a mocks de aplicación. Se produce internamente en la resolución ESM de `vite/vitest` al evaluar cualquier módulo de `node_modules` (como `react` o `zod`). Esto sugiere un estado corrupto del package-lock en combinación con Node.js 24 y Vitest v4.0.15 usando el environment `jsdom` o `node`.
 - **Acción:** Se han escrito los tests de validación interactiva para `FeedbackToggle` verificando explícitamente el uso de `feedbackService` y se ha comprobado vía `type-check`. Sin embargo, la suite completa es inoperativa localmente.
 - **Next Steps (DevOps/QA):** Se requiere investigar la instalación global y el lockfile de dependencias. Se recomienda hacer un `pnpm install` limpio o purgar `.vite` / caché de desarrollo para restablecer el entorno Vitest a un estado funcional.
+
+### [Tech Lead] Corrección de Configuración Vitest
+- Se resolvió un problema de configuración global de Vitest excluyendo el directorio `e2e/`, permitiendo validar la suite interactiva de FeedbackToggle y el resto del proyecto sin interferencia de variables nativas de Node/Playwright.
