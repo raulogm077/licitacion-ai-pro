@@ -172,6 +172,10 @@ El incumplimiento de esta política expone infraestructura de producción de man
 
 ## 10. Hallazgos Técnicos y Mantenimiento
 
+### QA: E2E Playwright Tests Bugfix
+- **Problema:** En el archivo `e2e/upload-pdf.spec.ts` se utilizó `__dirname`, lo cual no está definido en entornos ESM, provocando que los tests de interfaz fallen en Playwright con `ReferenceError: __dirname is not defined`.
+- **Acción Planificada:** Reemplazar el uso de `__dirname` por `import.meta.dirname` para obtener la ruta absoluta compatible con módulos ES. Esto resolverá los timeouts y permitira subir los archivos de prueba exitosamente.
+
 ### 10.1. Limpieza de Credenciales (Sentinel)
 Se realizó una auditoría y limpieza de credenciales expuestas en el repositorio:
 - Se eliminaron las referencias directas y prompts para solicitar `GEMINI_KEY` / `VITE_GEMINI_API_KEY` en `scripts/setup-vercel-env.sh`, ya que Gemini ha sido reemplazado por la arquitectura server-side de OpenAI y el código no debe incitar a configurar variables obsoletas o exponer claves.
@@ -232,6 +236,10 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 
 
 ### QA: Tests Unitarios para KpiCards
+
+### QA: E2E Playwright Tests Bugfix
+- **Problema:** En el archivo `e2e/upload-pdf.spec.ts` se utilizó `__dirname`, lo cual no está definido en entornos ESM, provocando que los tests de interfaz fallen en Playwright con `ReferenceError: __dirname is not defined`.
+- **Acción Planificada:** Reemplazar el uso de `__dirname` por `import.meta.dirname` para obtener la ruta absoluta compatible con módulos ES. Esto resolverá los timeouts y permitira subir los archivos de prueba exitosamente.
 - **Implementación**: Se creó el archivo `KpiCards.test.tsx` garantizando la cobertura del componente `KpiCards.tsx`.
 - **Detalles**: Se verificó la renderización de KPIs, casos base (valores por defecto) y la correcta integración de `FeedbackToggle` pasándole los `fieldPath` requeridos según la estructura de `PliegoVM`.
 - **MCP/Skills**: No se requirió el uso de MCP (Supabase/Vercel) ya que la tarea fue exclusivamente unit testing de frontend puro.
