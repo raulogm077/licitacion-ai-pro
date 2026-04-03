@@ -50,20 +50,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle
-  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción.
-  - Implementación: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente.
-  - Criterios: Pasa validación de types. *Nota: Validación unitaria local bloqueada por fallo global de Vitest.*
-> ReferenceError: __dirname is not defined
->     at /app/e2e/upload-pdf.spec.ts:163:38
-
-- [ ] 🐛 BUG: [Tipo: Infra] [Área: Analysis] Resolver Error 401 Unauthorized en Endpoint de Producción (`analyze-with-agents`)
-  - Objetivo: La Edge Function requería JWT verificado por Kong, el cual bloqueaba peticiones válidas (probablemente por CORS preflight en peticiones externas o asimetría de secretos JS/Gateway).
-  - Implementación: Se desactivó `verify_jwt = false` en `config.toml` y explícitamente en el despliegue CI. Se implementó verificación robusta desde cero dentro de `index.ts` usando `@supabase/supabase-js`, garantizando seguridad sin afectar el paso preflight de Kong.
-  - Criterios: Peticiones legítimas son aceptadas, tokens inválidos o expirados son rechazados (401).
-> ReferenceError: __dirname is not defined
->     at /app/e2e/upload-pdf.spec.ts:163:38
-
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
+  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
+  - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
+  - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
+  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`, `e2e/upload-pdf.spec.ts`
+  - Dependencias: Ninguna.
+  - Tipo: QA
+  - Área: Analysis
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
   - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
