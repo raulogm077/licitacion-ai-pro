@@ -22,6 +22,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 ```
 
 ## Done
+- [x] [Tipo: UI] [Área: Infra] Configurar infraestructura base para i18n (ES/EN)
+  - Objetivo: Preparar la aplicación para soportar múltiples idiomas, empezando por español e inglés.
+  - Alcance: Instalar e inicializar librería de internacionalización (ej. `react-i18next`), crear archivos de traducción base (`es.json`, `en.json`) y configurar el proveedor en la raíz de la app.
+  - Criterios de aceptación:
+    - La librería de i18n está configurada y lista para usarse en componentes.
+    - Existe un mecanismo (ej. hook) para cambiar de idioma.
+    - El idioma por defecto es español.
+  - Archivos probables: `src/main.tsx`, `src/App.tsx`, `package.json`
+  - Dependencias: Ninguna.
+
+
 
 - [x] [Tipo: QA] [Área: Analysis] Fix Fallo en test unitario `AnalyticsDashboard.test.tsx` (Eliminado o resuelto al mover el archivo)
 
@@ -49,7 +60,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 
 ## To Do (Iteración Actual)
-
 - [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
   - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
   - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
@@ -73,16 +83,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - El archivo `.github/dependabot.yml` existe y es válido.
     - Dependabot ejecuta chequeos semanales.
   - Archivos probables: `.github/dependabot.yml`
-  - Dependencias: Ninguna.
-
-- [ ] [Tipo: UI] [Área: Infra] Configurar infraestructura base para i18n (ES/EN)
-  - Objetivo: Preparar la aplicación para soportar múltiples idiomas, empezando por español e inglés.
-  - Alcance: Instalar e inicializar librería de internacionalización (ej. `react-i18next`), crear archivos de traducción base (`es.json`, `en.json`) y configurar el proveedor en la raíz de la app.
-  - Criterios de aceptación:
-    - La librería de i18n está configurada y lista para usarse en componentes.
-    - Existe un mecanismo (ej. hook) para cambiar de idioma.
-    - El idioma por defecto es español.
-  - Archivos probables: `src/main.tsx`, `src/App.tsx`, `package.json`
   - Dependencias: Ninguna.
 
 ## Deuda Técnica / Refactorización
