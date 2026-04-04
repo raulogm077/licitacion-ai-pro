@@ -195,6 +195,10 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - El framework Playwright necesita proporcionar en el evento InputFiles un buffer real o path si se emulan archivos que el componente del frontend leerá localmente en lugar de enviar a un servidor tradicional.
 
 ## Implementación Técnica y Decisiones
+### Auditoría PM: Tareas completadas detectadas
+- **Contexto:** Durante la auditoría del PM, se detectó que la infraestructura base de i18n ya estaba configurada (`src/lib/i18n.ts` existente, dependencias instaladas).
+- **Acción PM:** La tarea se ha cerrado y movido a `Done` para evitar redundancia. El número de tareas activas en el backlog pasa de 4 a 3, permitiendo el flujo normal de trabajo.
+
 
 
 ### Corrección y Evaluación de Tareas de Historial
