@@ -220,6 +220,13 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - Se documentó este patrón (Agent Skill Modular Pattern) dentro de `ARCHITECTURE.md` para garantizar la estructura limpia de este proyecto en integraciones futuras.
 
 
+
+### QA: Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
+- **Contexto:** La primera tarea del backlog (`🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E`) tiene dos partes: 1) tests unitarios y 2) fix E2E. Los tests unitarios ya están creados (`FeedbackToggle.test.tsx`), pero la corrección E2E (`e2e/upload-pdf.spec.ts`) para solucionar `ReferenceError: __dirname is not defined` usando `import.meta.dirname` y resolver el timeout del file input aún está pendiente.
+- **Acción Planificada:** Se debe completar esta tarea arreglando `e2e/upload-pdf.spec.ts` y verificando los tests con `xvfb-run pnpm run test:e2e`. El agente QA será responsable de ejecutar este código.
+- **Riesgos:** La inyección de `__dirname` falla en entornos ESM; el timeout del `locator` requiere que se reevalúe el estado `attached` y posiblemente un `test.skip(true)` en entornos aislados si falla la autenticación (como en `upload-sse.spec.ts`).
+
+
 ### 10.2. Resolución de Errores de Despliegue (Edge Functions)
 Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `analyze-with-agents`. Se resolvió temporalmente con `--no-verify-jwt`.
 
