@@ -60,7 +60,7 @@ describe('ErrorBoundary', () => {
         const originalLocation = window.location;
         // @ts-expect-error Mocking window location
         delete window.location;
-        window.location = { ...originalLocation, href: '' } as any;
+        window.location = { ...originalLocation, href: '' } as unknown as string & Location;
 
         render(
             <ErrorBoundary>
