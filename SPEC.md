@@ -264,3 +264,8 @@ ECHO est� activado.
 Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.spec.ts`) originado por el uso no resuelto de `import.meta.dirname` en un entorno combinado de tests y el estado impredecible de autenticación en tests E2E.
 - Se implementó un fallback en los tests End-to-End para iniciar sesión vía UI si es necesario antes de buscar el input the ficheros.
 - Se ha verificado que los unit tests para el componente de feedback (`FeedbackToggle.test.tsx`) contienen assertions correctas validando `saveFeedback` y `removeFeedback`.
+
+### Mejoras de Cobertura de Tests (QA)
+- Se añadieron tests unitarios para `ErrorBoundary`, `DevToolsPanel`, `CancelButton` y `RiskSummary`.
+- Se superó el umbral de 50% de coverage en branches configurado en `vitest.config.ts`.
+- La ejecución de `vitest --coverage` confirma mejoras significativas en las métricas del directorio `src/components`.
