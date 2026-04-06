@@ -87,6 +87,15 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
 
+- [ ] [Tipo: UI] [Área: Analysis] Mejorar accesibilidad y estados de carga en AnalyticsDashboard
+  - Objetivo: Proveer feedback visual inmediato durante transiciones y asegurar correcta navegación por teclado en la visualización de pliegos.
+  - Alcance: `src/features/analytics/AnalyticsDashboard.tsx`, `src/features/analytics/components/KPICards.tsx`, `src/features/dashboard/components/widgets/AlertsPanel.tsx`.
+  - Criterios de aceptación:
+    - Ejecutar pruebas de accesibilidad (ej. axe-core) no debe arrojar errores críticos.
+    - Los indicadores de carga son visibles y accesibles para lectores de pantalla.
+  - Archivos probables: `src/features/analytics/AnalyticsDashboard.tsx`, `src/features/analytics/components/KPICards.tsx`, `src/features/dashboard/components/widgets/AlertsPanel.tsx`
+  - Dependencias: Ninguna.
+
 ## Deuda Técnica / Refactorización
 
 - [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
