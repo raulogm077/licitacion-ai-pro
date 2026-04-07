@@ -57,7 +57,12 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos modificados: `e2e/upload-pdf.spec.ts` (nuevo)
 
 ## Ready for QA
-- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
+
+
+
+## To Do (Iteración Actual)
+
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
   - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
   - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
   - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
@@ -66,9 +71,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Tipo: QA
   - Área: Analysis
 
+> File input not found. Auth mock may not have established a session. Skipping upload test.
+> test('carga memo_p2.pdf y completa el flujo de análisis', async ({ page }) => {
+>   // ...
+>   if (!fileInputAttached) {
+>     console.log('File input not found. Auth mock may not have established a session. Skipping upload test.');
+>     expect(true).toBe(true);
+>     return;
+>   }
+> })
+> Error: Never bypass Playwright E2E assertions (e.g., returning early) to resolve timeouts or flakiness. Always identify and fix the underlying mock data, locator, or authentication state causing the failure.
 
-
-## To Do (Iteración Actual)
 
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
