@@ -264,3 +264,9 @@ ECHO est� activado.
 Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.spec.ts`) originado por el uso no resuelto de `import.meta.dirname` en un entorno combinado de tests y el estado impredecible de autenticación en tests E2E.
 - Se implementó un fallback en los tests End-to-End para iniciar sesión vía UI si es necesario antes de buscar el input the ficheros.
 - Se ha verificado que los unit tests para el componente de feedback (`FeedbackToggle.test.tsx`) contienen assertions correctas validando `saveFeedback` y `removeFeedback`.
+
+
+### Auditoría PM: Refinamiento de Cobertura e i18n
+- **Contexto:** Al auditar la cola en `BACKLOG.md` se determinó que la tarea de incrementar cobertura al 80% era demasiado grande para una única sesión. También, se identificó un solapamiento en la sección de Deuda Técnica para el mismo fin. Por otro lado, la infraestructura base para i18n ya fue instalada, pero falta implementar el reemplazo de copys estáticos en los componentes de la aplicación.
+- **Acción:** Se dividió la tarea de cobertura en dos entregables (uno enfocado en `features/dashboard` y otro en `components/upload`). Se eliminó el registro redundante en Deuda Técnica. Además, se agendó formalmente en "To Do" una tarea orientada a la UI para usar `useTranslation` en los componentes donde aún hay strings en español.
+- **Riesgos Residuales:** Ninguno conocido. El backlog tiene menos de 4 tareas y está listo para que el próximo agente inicie su trabajo.

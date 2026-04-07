@@ -70,12 +70,20 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
-  - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
-  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
+- [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests en features/dashboard
+  - Objetivo: Cumplir con la meta de calidad de código de la iteración D (parte 1).
+  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos en src/features/dashboard.
   - Criterios de aceptación:
-    - Ejecutar `vitest --coverage` debe reportar al menos 80% en statements y 70% en branches.
-  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
+    - Ejecutar `vitest --coverage` debe mostrar mejora en el coverage de src/features/dashboard.
+  - Archivos probables: `src/features/dashboard/**/*.test.tsx`
+  - Dependencias: Ninguna.
+
+- [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests en components y upload
+  - Objetivo: Cumplir con la meta de calidad de código de la iteración D (parte 2).
+  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos en src/components y src/features/upload.
+  - Criterios de aceptación:
+    - Ejecutar `vitest --coverage` debe mostrar mejora en el coverage de src/components y src/features/upload.
+  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/upload/**/*.test.tsx`
   - Dependencias: Ninguna.
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
@@ -87,14 +95,19 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
 
+
+- [ ] [Tipo: UI] [Área: Templates] Completar la traducción de componentes al inglés (i18n)
+  - Objetivo: Permitir que los usuarios naveguen la aplicación completamente en inglés.
+  - Alcance: Mapear textos estáticos ("hardcodeados") de los componentes restantes a archivos de traducción y utilizar `useTranslation()`.
+  - Criterios de aceptación:
+    - Todos los componentes principales soportan traducción al inglés (EN).
+    - El cambio de idioma actualiza la UI al momento sin errores.
+  - Archivos probables: `src/features/**/*.tsx`, `src/pages/**/*.tsx`
+  - Dependencias: Infraestructura i18n ya configurada.
+
 ## Deuda Técnica / Refactorización
 
-- [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%
-  - Objetivo: Incrementar cobertura de ~67% a 80% en statements/lines.
-  - Alcance: Añadir unit tests para componentes de UI, dashboard y servicios pendientes.
-  - Criterios de aceptación: `vitest --coverage` ≥80% statements, ≥70% branches.
-  - Archivos probables: `src/features/dashboard/__tests__/`, `src/services/__tests__/`
-  - Dependencias: Ninguna
+
 
 ## Ideas de Producto
 
