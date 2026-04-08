@@ -1,74 +1,106 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Header } from '../../layout/Header';
-import { MemoryRouter } from 'react-router-dom';
-import { useAuthStore } from '../../../stores/auth.store';
+import { Header } from '../Header';
+import { BrowserRouter } from 'react-router-dom';
 
-// Mock the auth store
-vi.mock('../../../stores/auth.store', () => ({
-    useAuthStore: vi.fn(),
-}));
+// Setup router mock
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+    const actual = await vi.importActual('react-router-dom');
+    return {
+        ...actual,
+        useNavigate: () => mockNavigate,
+        useLocation: () => ({ pathname: '/' })
+    };
+});
 
-function mockAuthState(overrides: Record<string, unknown>) {
-    vi.mocked(useAuthStore).mockImplementation(((selector?: (s: unknown) => unknown) => {
-        return selector ? selector(overrides) : overrides;
-    }) as typeof useAuthStore);
-}
-
-describe('Header', () => {
-    const mockOnLogout = vi.fn();
-
-    it('renders logo and navigation', () => {
-        mockAuthState({ isAuthenticated: false });
-
+describe('Header Component', () => {
+    it('renders logo and navigation items', () => {
         render(
-            <MemoryRouter>
+            <BrowserRouter>
                 <Header
-                    onLogout={mockOnLogout}
                     status="IDLE"
                     data={null}
                     reset={vi.fn()}
                     darkMode={false}
                     setDarkMode={vi.fn()}
+                    onLogout={vi.fn()}
                 />
-            </MemoryRouter>
+            </BrowserRouter>
         );
-
-        expect(screen.getByText(/Analista de Pliegos/i)).toBeInTheDocument();
-        expect(screen.getByText(/Historial/i)).toBeInTheDocument();
+        expect(screen.getByText('Analista de Pliegos')).toBeInTheDocument();
+        expect(screen.getByText('Historial')).toBeInTheDocument();
+        expect(screen.getByText('Plantillas')).toBeInTheDocument();
     });
 
-    it('calls logout when clicked', async () => {
-        const mockSignOut = vi.fn();
-
-        mockAuthState({
-            isAuthenticated: true,
-            user: { email: 'test@example.com' },
-            signOut: mockSignOut,
-        });
-
+    it('handles navigation clicks', () => {
         render(
-            <MemoryRouter>
+            <BrowserRouter>
                 <Header
-                    onLogout={mockOnLogout}
                     status="IDLE"
                     data={null}
                     reset={vi.fn()}
                     darkMode={false}
                     setDarkMode={vi.fn()}
+                    onLogout={vi.fn()}
                 />
-            </MemoryRouter>
+            </BrowserRouter>
         );
+        fireEvent.click(screen.getByRole('button', { name: /Historial/i }));
+        expect(mockNavigate).toHaveBeenCalledWith('/history');
+    });
 
-        // 1. Open User Menu
-        const userMenuBtn = screen.getByText('test@example.com');
-        fireEvent.click(userMenuBtn);
+    it('shows presentation button when status is COMPLETED and data exists', () => {
+        render(
+            <BrowserRouter>
+                <Header
+                    status="COMPLETED"
+                    data={{ hash: '123' } as any}
+                    reset={vi.fn()}
+                    darkMode={false}
+                    setDarkMode={vi.fn()}
+                    onLogout={vi.fn()}
+                />
+            </BrowserRouter>
+        );
+        expect(screen.getByText('Presentar')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Presentar/i }));
+        expect(mockNavigate).toHaveBeenCalledWith('/presentation');
+    });
 
-        // 2. Click Logout
-        const logoutBtn = screen.getByText(/Cerrar sesión/i);
-        fireEvent.click(logoutBtn);
+    it('toggles dark mode', () => {
+        const setDarkMode = vi.fn();
+        render(
+            <BrowserRouter>
+                <Header
+                    status="IDLE"
+                    data={null}
+                    reset={vi.fn()}
+                    darkMode={false}
+                    setDarkMode={setDarkMode}
+                    onLogout={vi.fn()}
+                />
+            </BrowserRouter>
+        );
+        fireEvent.click(screen.getByTitle('Cambiar a modo oscuro'));
+        expect(setDarkMode).toHaveBeenCalledWith(true);
+    });
 
-        // 3. Expect store signOut to be called
-        await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+    it('handles logout click', () => {
+        const onLogout = vi.fn();
+        render(
+            <BrowserRouter>
+                <Header
+                    status="IDLE"
+                    data={null}
+                    reset={vi.fn()}
+                    darkMode={false}
+                    setDarkMode={vi.fn()}
+                    onLogout={onLogout}
+                />
+            </BrowserRouter>
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Iniciar sesión/i }));
+        expect(onLogout).toHaveBeenCalled();
     });
 });

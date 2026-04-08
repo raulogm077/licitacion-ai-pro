@@ -1,36 +1,37 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Layout } from '../../layout/Layout';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { Layout } from '../Layout';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-vi.mock('../../layout/Header', () => ({
-    Header: () => <header>Mock Header</header>,
+vi.mock('../Header', () => ({
+    Header: () => <div data-testid="header" />
 }));
 
-describe('Layout', () => {
-    it('renders children and header', () => {
+describe('Layout Component', () => {
+    it('renders header and main content correctly', () => {
         render(
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route
+                        path="/"
                         element={
                             <Layout
-                                onLogout={vi.fn()}
                                 status="IDLE"
                                 data={null}
                                 reset={vi.fn()}
                                 darkMode={false}
                                 setDarkMode={vi.fn()}
+                                onLogout={vi.fn()}
                             />
                         }
                     >
-                        <Route path="/" element={<div>Child Content</div>} />
+                        <Route index element={<div data-testid="outlet-content">Content</div>} />
                     </Route>
                 </Routes>
             </MemoryRouter>
         );
-
-        expect(screen.getByText('Mock Header')).toBeInTheDocument();
-        expect(screen.getByText('Child Content')).toBeInTheDocument();
+        expect(screen.getByTestId('header')).toBeInTheDocument();
+        expect(screen.getByTestId('outlet-content')).toBeInTheDocument();
+        expect(screen.getByText('Content')).toBeInTheDocument();
     });
 });

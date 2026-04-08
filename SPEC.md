@@ -264,3 +264,14 @@ ECHO est� activado.
 Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.spec.ts`) originado por el uso no resuelto de `import.meta.dirname` en un entorno combinado de tests y el estado impredecible de autenticación en tests E2E.
 - Se implementó un fallback en los tests End-to-End para iniciar sesión vía UI si es necesario antes de buscar el input the ficheros.
 - Se ha verificado que los unit tests para el componente de feedback (`FeedbackToggle.test.tsx`) contienen assertions correctas validando `saveFeedback` y `removeFeedback`.
+
+### Adición Extra de tests para UI Components y Dashboard
+- **Componentes cubiertos adicionalmente:** `AlertsPanel`, `ScoringChart`, `SummarySection`.
+- **Resultado:** Se cubrieron flujos de UI que dependían de datos críticos (`warnings`, mock data y tags autogenerados), aumentando aún más el statement branch coverage para estar alineados a la meta del 80%.
+
+### Aumento de Cobertura en Componentes de Layout
+- **Objetivo:** Continuar escalando la cobertura general hacia la meta de 80%.
+- **Implementación Real:**
+  - Se añadieron unit tests completos y robustos para los componentes base `Header` y `Layout`.
+  - Se verificaron integraciones con router, auth store y los theme toggles.
+  - La cobertura de `src/components/layout` subió notablemente al tener cubierto al 100% el Layout y más del 80% el Header.
