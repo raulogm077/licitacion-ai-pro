@@ -3,10 +3,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { Header } from '../Header';
 import { BrowserRouter } from 'react-router-dom';
 
-// Setup router mock
-const mockNavigate = vi.fn();
+const { mockNavigate, mockUseAuthStore } = vi.hoisted(() => ({
+    mockNavigate: vi.fn(),
+    mockUseAuthStore: vi.fn(),
+}));
+
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual('react-router-dom');
+    const actual = await vi.importActual<any>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -14,8 +17,17 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+vi.mock('../../../stores/auth.store', () => ({
+    useAuthStore: (selector: any) => selector({ isAuthenticated: mockUseAuthStore() })
+}));
+
+vi.mock('../../ui/UserMenu', () => ({
+    UserMenu: () => <button data-testid="mock-user-menu">User Menu</button>
+}));
+
 describe('Header Component', () => {
     it('renders logo and navigation items', () => {
+        mockUseAuthStore.mockReturnValue(false);
         render(
             <BrowserRouter>
                 <Header
@@ -34,6 +46,7 @@ describe('Header Component', () => {
     });
 
     it('handles navigation clicks', () => {
+        mockUseAuthStore.mockReturnValue(false);
         render(
             <BrowserRouter>
                 <Header
@@ -51,11 +64,12 @@ describe('Header Component', () => {
     });
 
     it('shows presentation button when status is COMPLETED and data exists', () => {
+        mockUseAuthStore.mockReturnValue(false);
         render(
             <BrowserRouter>
                 <Header
                     status="COMPLETED"
-                    data={{ hash: '123' } as any}
+                    data={{ hash: '123' } as unknown as import('../../../types').LicitacionData}
                     reset={vi.fn()}
                     darkMode={false}
                     setDarkMode={vi.fn()}
@@ -69,6 +83,7 @@ describe('Header Component', () => {
     });
 
     it('toggles dark mode', () => {
+        mockUseAuthStore.mockReturnValue(false);
         const setDarkMode = vi.fn();
         render(
             <BrowserRouter>
@@ -86,7 +101,25 @@ describe('Header Component', () => {
         expect(setDarkMode).toHaveBeenCalledWith(true);
     });
 
-    it('handles logout click', () => {
+    it('renders UserMenu when authenticated', () => {
+        mockUseAuthStore.mockReturnValue(true);
+        render(
+            <BrowserRouter>
+                <Header
+                    status="IDLE"
+                    data={null}
+                    reset={vi.fn()}
+                    darkMode={false}
+                    setDarkMode={vi.fn()}
+                    onLogout={vi.fn()}
+                />
+            </BrowserRouter>
+        );
+        expect(screen.getByTestId('mock-user-menu')).toBeInTheDocument();
+    });
+
+    it('handles login click when not authenticated', () => {
+        mockUseAuthStore.mockReturnValue(false);
         const onLogout = vi.fn();
         render(
             <BrowserRouter>
@@ -100,7 +133,9 @@ describe('Header Component', () => {
                 />
             </BrowserRouter>
         );
-        fireEvent.click(screen.getByRole('button', { name: /Iniciar sesión/i }));
+
+        const loginBtn = screen.getByRole('button', { name: /Iniciar sesión/i });
+        fireEvent.click(loginBtn);
         expect(onLogout).toHaveBeenCalled();
     });
 });

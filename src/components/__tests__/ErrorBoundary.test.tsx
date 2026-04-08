@@ -17,7 +17,6 @@ describe('ErrorBoundary Component', () => {
     });
 
     it('renders fallback UI when error occurs', () => {
-        // Prevent console.error from polluting test output
         const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
         render(
             <ErrorBoundary>
@@ -47,10 +46,12 @@ describe('ErrorBoundary Component', () => {
 
     it('resets error state when retry button is clicked', () => {
         const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        const locationSpy = vi.spyOn(window, 'location', 'get').mockReturnValue({
-            ...window.location,
-            href: '',
-        } as any);
+
+        const originalLocation = window.location;
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: { ...originalLocation, href: 'mock' },
+        });
 
         render(
             <ErrorBoundary>
@@ -64,6 +65,9 @@ describe('ErrorBoundary Component', () => {
         expect(window.location.href).toBe('/');
 
         spy.mockRestore();
-        locationSpy.mockRestore();
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: originalLocation,
+        });
     });
 });

@@ -29,10 +29,12 @@ describe('Dialog Components', () => {
                     <div>Content</div>
                 </Dialog>
             );
-            // The backdrop is the first div with bg-black/50
-            const backdrop = container.querySelector('.bg-black\\/50');
+            // The backdrop is the first div with bg-black/50 (it's the first child of the main fixed wrapper)
+            const wrapper = container.firstChild as HTMLElement;
+            const backdrop = wrapper.firstChild as HTMLElement;
+
             expect(backdrop).toBeInTheDocument();
-            fireEvent.click(backdrop!);
+            fireEvent.click(backdrop);
             expect(onOpenChange).toHaveBeenCalledWith(false);
         });
     });
