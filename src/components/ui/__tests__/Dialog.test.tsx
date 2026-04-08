@@ -29,7 +29,7 @@ describe('Dialog Components', () => {
                     <div>Content</div>
                 </Dialog>
             );
-            // The backdrop is the first div with bg-black/50 (it's the first child of the main fixed wrapper)
+
             const wrapper = container.firstChild as HTMLElement;
             const backdrop = wrapper.firstChild as HTMLElement;
 
@@ -43,9 +43,11 @@ describe('Dialog Components', () => {
         it('renders content and close button', () => {
             const onOpenChange = vi.fn();
             render(
-                <DialogContent onOpenChange={onOpenChange}>
-                    <div>Content body</div>
-                </DialogContent>
+                <Dialog open={true} onOpenChange={onOpenChange}>
+                    <DialogContent>
+                        <div>Content body</div>
+                    </DialogContent>
+                </Dialog>
             );
             expect(screen.getByText('Content body')).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /close/i })).toBeInTheDocument();
@@ -54,26 +56,29 @@ describe('Dialog Components', () => {
         it('calls onOpenChange when close button is clicked', () => {
             const onOpenChange = vi.fn();
             render(
-                <DialogContent onOpenChange={onOpenChange}>
-                    <div>Content body</div>
-                </DialogContent>
+                <Dialog open={true} onOpenChange={onOpenChange}>
+                    <DialogContent>
+                        <div>Content body</div>
+                    </DialogContent>
+                </Dialog>
             );
             fireEvent.click(screen.getByRole('button', { name: /close/i }));
             expect(onOpenChange).toHaveBeenCalledWith(false);
         });
     });
 
-    describe('DialogHeader', () => {
-        it('renders DialogHeader', () => {
-            render(<DialogHeader data-testid="header">Header text</DialogHeader>);
+    describe('DialogHeader & DialogTitle', () => {
+        it('renders DialogHeader and DialogTitle correctly', () => {
+            render(
+                <Dialog open={true} onOpenChange={() => {}}>
+                    <DialogContent>
+                        <DialogHeader data-testid="header">
+                            <DialogTitle data-testid="title">Title text</DialogTitle>
+                        </DialogHeader>
+                    </DialogContent>
+                </Dialog>
+            );
             expect(screen.getByTestId('header')).toBeInTheDocument();
-            expect(screen.getByText('Header text')).toBeInTheDocument();
-        });
-    });
-
-    describe('DialogTitle', () => {
-        it('renders DialogTitle', () => {
-            render(<DialogTitle data-testid="title">Title text</DialogTitle>);
             expect(screen.getByTestId('title')).toBeInTheDocument();
             expect(screen.getByText('Title text')).toBeInTheDocument();
             expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();

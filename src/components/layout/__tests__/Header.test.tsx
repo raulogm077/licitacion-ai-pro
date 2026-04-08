@@ -9,7 +9,7 @@ const { mockNavigate, mockUseAuthStore } = vi.hoisted(() => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<any>('react-router-dom');
+    const actual = await vi.importActual('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -18,7 +18,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('../../../stores/auth.store', () => ({
-    useAuthStore: (selector: any) => selector({ isAuthenticated: mockUseAuthStore() })
+    useAuthStore: (selector: (state: unknown) => unknown) => selector({ isAuthenticated: mockUseAuthStore() })
 }));
 
 vi.mock('../../ui/UserMenu', () => ({
@@ -120,7 +120,7 @@ describe('Header Component', () => {
 
     it('handles login click when not authenticated', () => {
         mockUseAuthStore.mockReturnValue(false);
-        const onLogout = vi.fn();
+        const onLoginClick = vi.fn(); // The property passed is currently `onLogout`, but it's used for login modal
         render(
             <BrowserRouter>
                 <Header
@@ -129,13 +129,14 @@ describe('Header Component', () => {
                     reset={vi.fn()}
                     darkMode={false}
                     setDarkMode={vi.fn()}
-                    onLogout={onLogout}
+                    onLogout={onLoginClick}
                 />
             </BrowserRouter>
         );
 
         const loginBtn = screen.getByRole('button', { name: /Iniciar sesión/i });
         fireEvent.click(loginBtn);
-        expect(onLogout).toHaveBeenCalled();
+        // Header incorrectly uses `onLogout` prop for the "Iniciar sesión" button logic (likely opening AuthModal)
+        expect(onLoginClick).toHaveBeenCalled();
     });
 });

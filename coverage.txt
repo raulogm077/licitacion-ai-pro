@@ -1,0 +1,186 @@
+
+> analista-de-pliegos@1.1.0 test /app
+> vitest --coverage
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/app[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/features/templates/hooks/__tests__/useTemplates.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 665[2mms[22m[39m
+ [32m✓[39m src/components/layout/__tests__/Header.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 849[2mms[22m[39m
+     [33m[2m✓[22m[39m handles navigation clicks [33m 399[2mms[22m[39m
+ [32m✓[39m src/features/auth/__tests__/AuthFlow.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 621[2mms[22m[39m
+     [33m[2m✓[22m[39m should open AuthModal with Password form [33m 403[2mms[22m[39m
+ [32m✓[39m src/pages/__tests__/AnalyticsPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 548[2mms[22m[39m
+     [33m[2m✓[22m[39m renders analytics dashboard [33m 544[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/Dialog.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 484[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 495[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/ErrorBoundary.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 416[2mms[22m[39m
+     [33m[2m✓[22m[39m resets error state when retry button is clicked [33m 337[2mms[22m[39m
+ [32m✓[39m src/components/domain/__tests__/CancelButton.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 345[2mms[22m[39m
+     [33m[2m✓[22m[39m renders and responds to click [33m 304[2mms[22m[39m
+ [32m✓[39m src/features/presentation/__tests__/PresentationMode.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 247[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/__tests__/DashboardInteraction.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 347[2mms[22m[39m
+ [32m✓[39m src/features/security/__tests__/XSS.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 211[2mms[22m[39m
+ [32m✓[39m src/__tests__/App.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 202[2mms[22m[39m
+ [32m✓[39m src/features/search/__tests__/SearchPanel.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/__tests__/DashboardSmoke.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 170[2mms[22m[39m
+ [32m✓[39m src/pages/__tests__/HistoryPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 307[2mms[22m[39m
+ [32m✓[39m src/features/search/__tests__/SearchFilters.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 221[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/widgets/__tests__/KpiCards.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 144[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/widgets/__tests__/ScoringChart.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 124[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/widgets/__tests__/AlertsPanel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 176[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/detail/__tests__/ChapterRenderer.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/widgets/__tests__/SummarySection.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 106[2mms[22m[39m
+ [32m✓[39m src/features/upload/hooks/__tests__/useFileValidation.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 118[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/Components.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/components/widgets/__tests__/RiskSummary.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 117[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/__tests__/Dashboard.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m src/pages/__tests__/PresentationPage.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/pages/__tests__/TemplatesPage.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/DashboardSkeleton.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m src/config/__tests__/supabase.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m src/components/layout/__tests__/Layout.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m src/features/dashboard/model/__tests__/pliego-vm.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useKeyboardShortcut.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m src/config/__tests__/env.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/analytics.service.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/ValidationUtils.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/schemas.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/logger.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/stores/__tests__/licitacion.store.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/stores/__tests__/analysis.store.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/ai.service.cancellation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/feedback.service.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/schema_robustness.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/auth.service.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/cache.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/stores/__tests__/auth.store.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/ai.service.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/file-utils-extended.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/template.service.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/config/__tests__/features.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/file-utils.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/db.service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/export-utils.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/quality.consistency.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/Result.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/errors.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m55 passed[39m[22m[90m (55)[39m
+[2m      Tests [22m [1m[32m269 passed[39m[22m[90m (269)[39m
+[2m   Start at [22m 22:58:51
+[2m   Duration [22m 29.10s[2m (transform 2.31s, setup 7.07s, import 13.62s, tests 8.24s, environment 39.96s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   70.11 |    57.19 |   67.67 |    71.6 |
+ src               |   57.57 |       50 |      25 |   77.27 |
+  App.tsx          |   57.57 |       50 |      25 |   77.27 | 23,40-43,67
+ src/components    |   46.15 |    47.72 |   52.94 |   46.93 |
+  ...oolsPanel.tsx |   19.23 |     12.5 |      20 |   16.66 | 19-118
+  ...rBoundary.tsx |     100 |      100 |     100 |     100 |
+  ...aseStatus.tsx |   58.82 |    46.66 |     100 |    62.5 | 21-32
+ ...ponents/domain |     100 |      100 |     100 |     100 |
+  CancelButton.tsx |     100 |      100 |     100 |     100 |
+ ...ponents/layout |   83.33 |    69.23 |   77.77 |   82.35 |
+  Header.tsx       |   81.25 |    69.23 |      75 |      80 | 43-44,64
+  Layout.tsx       |     100 |      100 |     100 |     100 |
+ src/components/ui |   72.91 |    66.66 |      80 |   73.11 |
+  AuthModal.tsx    |   81.81 |    79.16 |   83.33 |   81.39 | 36-39,46-49,64-65
+  Badge.tsx        |     100 |      100 |     100 |     100 |
+  Button.tsx       |     100 |      100 |     100 |     100 |
+  Card.tsx         |     100 |      100 |     100 |     100 |
+  ...dSkeleton.tsx |     100 |      100 |     100 |     100 |
+  Dialog.tsx       |     100 |    83.33 |     100 |     100 | 26
+  PageLoader.tsx   |     100 |      100 |     100 |     100 |
+  UserMenu.tsx     |    5.26 |        0 |       0 |    5.55 | 6-37
+ src/config        |   79.31 |       60 |   86.66 |   80.39 |
+  constants.ts     |     100 |      100 |     100 |     100 |
+  env.ts           |   91.66 |       85 |     100 |   91.66 | 48
+  features.ts      |   84.21 |    43.75 |     100 |   78.57 | 76,85-86
+  ...e-registry.ts |      50 |    16.66 |      50 |      60 | 25-31
+  supabase.ts      |   83.33 |     62.5 |     100 |   83.33 | 9-10
+ src/constants     |     100 |      100 |     100 |     100 |
+  tags.ts          |     100 |      100 |     100 |     100 |
+ ...ures/analytics |   84.21 |       60 |      75 |   84.21 |
+  ...Dashboard.tsx |   84.21 |       60 |      75 |   84.21 | 28,41,63
+ ...ics/components |   68.75 |    41.66 |   55.55 |   68.75 |
+  ...tsSection.tsx |    62.5 |       25 |      50 |    62.5 | 69-79
+  ...eriaStats.tsx |     100 |      100 |     100 |     100 |
+  KPICards.tsx     |     100 |      100 |     100 |     100 |
+  TopLists.tsx     |      50 |    33.33 |   33.33 |      50 | 27-61
+ ...ures/dashboard |   59.09 |    29.41 |   71.42 |   58.82 |
+  Dashboard.tsx    |   59.09 |    29.41 |   71.42 |   58.82 | 37,65-77,98
+ ...ponents/detail |   52.25 |    42.77 |   31.88 |   53.02 |
+  ...entsPart2.tsx |   66.66 |      100 |      50 |   66.66 | 8
+  ...rRenderer.tsx |   91.04 |     55.1 |      85 |   92.18 | 54-60,84,384,389
+  ...nceToggle.tsx |       0 |        0 |       0 |       0 | 15-50
+  ...ackToggle.tsx |   94.44 |    95.23 |      80 |   94.44 | 33
+  ...ter-config.ts |    1.69 |        0 |       0 |    1.75 | 29-33,44-257
+ ...ponents/layout |   88.23 |     87.5 |      80 |    87.5 |
+  Header.tsx       |     100 |       50 |     100 |     100 | 24-34
+  MainContent.tsx  |     100 |      100 |     100 |     100 |
+  ...olderView.tsx |       0 |      100 |       0 |       0 | 10
+  Sidebar.tsx      |   91.66 |      100 |   83.33 |    90.9 | 119
+  index.ts         |       0 |        0 |       0 |       0 |
+ ...onents/widgets |     100 |    80.55 |     100 |     100 |
+  AlertsPanel.tsx  |     100 |       80 |     100 |     100 | 62,110,118-127
+  KpiCards.tsx     |     100 |      100 |     100 |     100 |
+  RiskSummary.tsx  |     100 |      100 |     100 |     100 |
+  ScoringChart.tsx |     100 |       70 |     100 |     100 | 9-10,16-24
+  ...rySection.tsx |     100 |    77.77 |     100 |     100 | 7,14,56-57
+ ...ashboard/model |   86.13 |    79.54 |   73.33 |   88.04 |
+  pliego-vm.ts     |   86.13 |    79.54 |   73.33 |   88.04 | ...87,225-226,307
+ ...s/presentation |     100 |    92.85 |     100 |     100 |
+  ...ationMode.tsx |     100 |    92.85 |     100 |     100 | 81
+ ...eatures/search |   76.47 |    69.04 |   68.18 |   75.75 |
+  SearchPanel.tsx  |   76.47 |    69.04 |   68.18 |   75.75 | ...41,145-183,207
+ ...tes/components |   21.05 |    10.71 |    6.25 |   21.05 |
+  ...eldEditor.tsx |    12.5 |        0 |       0 |    12.5 | 18-94
+  TemplateForm.tsx |      25 |        0 |       0 |      25 | 27-56
+  TemplateList.tsx |   28.57 |    21.42 |   16.66 |   28.57 | 50-103
+ ...emplates/hooks |   75.29 |    42.85 |   93.33 |   81.01 |
+  useTemplates.ts  |   75.29 |    42.85 |   93.33 |   81.01 | ...81,104,116-120
+ ...oad/components |   47.14 |    35.13 |   28.57 |      50 |
+  ...sisWizard.tsx |   58.82 |    46.15 |   42.85 |   65.51 | ...53,57-58,63,85
+  ...yzingStep.tsx |      20 |        0 |       0 |      20 | 13-50
+  ...Indicator.tsx |     100 |       50 |     100 |     100 | 17-35
+  UploadStep.tsx   |   32.14 |     27.5 |   18.18 |   33.33 | ...66-106,179-232
+ ...s/upload/hooks |     100 |      100 |     100 |     100 |
+  ...Validation.ts |     100 |      100 |     100 |     100 |
+ src/hooks         |   94.73 |    77.77 |     100 |   94.11 |
+  useDarkMode.ts   |   88.88 |       50 |     100 |   88.88 | 12
+  ...rdShortcut.ts |     100 |      100 |     100 |     100 |
+ src/lib           |   85.62 |    78.78 |   86.44 |   87.66 |
+  Result.ts        |     100 |      100 |     100 |     100 |
+  cache.ts         |      95 |      100 |    87.5 |   94.73 | 50
+  export-utils.ts  |     100 |      100 |     100 |     100 |
+  file-utils.ts    |   76.19 |      100 |   85.71 |      75 | 38-49
+  schemas.ts       |   81.91 |    77.98 |   82.85 |    84.7 | ...54,365-366,396
+  tracked-field.ts |   83.33 |    69.23 |     100 |     100 | 9,12
+ src/pages         |   94.11 |    58.82 |   85.71 |    93.1 |
+  ...yticsPage.tsx |     100 |      100 |     100 |     100 |
+  HistoryPage.tsx  |     100 |      100 |     100 |     100 |
+  HomePage.tsx     |     100 |    42.85 |     100 |     100 | 23-30
+  ...ationPage.tsx |   88.88 |      100 |      75 |   85.71 | 28
+  ...latesPage.tsx |      80 |     62.5 |      50 |      80 | 78
+ src/services      |   63.84 |    47.12 |   76.47 |   66.32 |
+  ai.service.ts    |   45.45 |    25.49 |   66.66 |    43.9 | 53-90
+  ...cs.service.ts |     100 |    87.87 |     100 |     100 | 45,55-58,77
+  auth.service.ts  |     100 |      100 |     100 |     100 |
+  db.service.ts    |   26.72 |    19.78 |   41.17 |   27.18 | ...56-257,280-317
+  ...ck.service.ts |   78.26 |    47.05 |     100 |      85 | 53,68,82
+  logger.ts        |    75.6 |    55.17 |   78.57 |      80 | 95-111,118
+  ...ty.service.ts |   92.94 |     82.6 |     100 |   96.05 | 22,54,86
+  ...te.service.ts |   52.54 |    29.72 |   71.42 |   58.49 | ...96-124,134,144
+ src/stores        |   63.81 |    53.12 |   76.19 |   63.19 |
+  ...ysis.store.ts |   49.36 |       50 |    62.5 |   49.33 | 72-140,169-176
+  auth.store.ts    |      75 |       50 |    87.5 |   74.28 | 47-55,62
+  ...cion.store.ts |   83.78 |       65 |      80 |   82.35 | 81-83,112-114
+ src/test-utils    |     100 |      100 |     100 |     100 |
+  ...liego-data.ts |     100 |      100 |     100 |     100 |
+  ...ld-factory.ts |     100 |      100 |     100 |     100 |
+-------------------|---------|----------|---------|---------|-------------------

@@ -196,4 +196,77 @@ describe('ChapterRenderer', () => {
         render(<ChapterRenderer config={config} vm={vm} />);
         expect(screen.queryByText('Should Not Render')).not.toBeInTheDocument();
     });
+
+    it('renders risk-list subsection (kill-criteria)', () => {
+        const config: ChapterConfig = {
+            id: 'datos',
+            title: 'Riesgos',
+            subsections: [
+                {
+                    id: 'kill',
+                    title: 'Criterios Excluyentes',
+                    dataExtractor: () => [{ descripcion: 'Kill 1' }],
+                    fieldPathPrefix: 'result.restriccionesYRiesgos.killCriteria',
+                    renderPattern: 'risk-list',
+                    itemLabel: (item) => (item as {descripcion: string}).descripcion,
+                    containerClass: 'kill-criteria',
+                },
+            ],
+        };
+        const vm = mockVM({
+            chapters: [{ id: 'datos', label: 'Datos', status: 'COMPLETO' }],
+        });
+
+        render(<ChapterRenderer config={config} vm={vm} />);
+        expect(screen.getByText('Criterios Excluyentes')).toBeInTheDocument();
+        expect(screen.getByText('Kill 1')).toBeInTheDocument();
+    });
+
+    it('renders risk-list subsection (standard risk)', () => {
+        const config: ChapterConfig = {
+            id: 'datos',
+            title: 'Riesgos',
+            subsections: [
+                {
+                    id: 'risk',
+                    title: 'Riesgos',
+                    dataExtractor: () => [{ descripcion: 'Risk 1', impacto: 'CRITICO' }],
+                    fieldPathPrefix: 'result.restriccionesYRiesgos.riesgos',
+                    renderPattern: 'risk-list',
+                    itemLabel: (item) => (item as {descripcion: string}).descripcion,
+                },
+            ],
+        };
+        const vm = mockVM({
+            chapters: [{ id: 'datos', label: 'Datos', status: 'COMPLETO' }],
+        });
+
+        render(<ChapterRenderer config={config} vm={vm} />);
+        expect(screen.getByText('Risk 1')).toBeInTheDocument();
+    });
+
+    it('renders key-value-list subsection', () => {
+        const config: ChapterConfig = {
+            id: 'datos',
+            title: 'Key Value',
+            subsections: [
+                {
+                    id: 'kv',
+                    title: 'KV Data',
+                    dataExtractor: () => [{ key: 'KV Label', val: 'KV Value' }],
+                    fieldPathPrefix: 'test',
+                    renderPattern: 'key-value-list',
+                    itemLabel: (item) => (item as {key: string}).key,
+                    itemValue: (item) => (item as {val: string}).val,
+                },
+            ],
+        };
+        const vm = mockVM({
+            chapters: [{ id: 'datos', label: 'Datos', status: 'COMPLETO' }],
+        });
+
+        render(<ChapterRenderer config={config} vm={vm} />);
+        expect(screen.getByText('KV Label')).toBeInTheDocument();
+        expect(screen.getByText('KV Value')).toBeInTheDocument();
+    });
 });
