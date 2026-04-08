@@ -87,6 +87,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
 
+- [ ] 🧠 [AI] [Tipo: UI] [Área: Analysis] Mejorar manejo de errores y reintentos en flujo SSE de análisis
+  - Objetivo: Proporcionar una experiencia de usuario robusta ante fallos de conexión o timeouts durante el stream del análisis.
+  - Alcance: Modificar `src/features/upload/components/AnalysisWizard.tsx` y `src/stores/analysis.store.ts` para capturar explícitamente errores de red o desconexiones SSE, mostrando un mensaje de error claro en la UI con un botón para reintentar el análisis sin tener que volver a subir los documentos.
+  - Criterios de aceptación:
+    - Si el análisis falla por error de red o timeout, la UI muestra un mensaje amigable indicando la causa.
+    - Se presenta un botón "Reintentar" que reinicia el proceso usando los archivos ya en el estado (`analysis.store.ts`).
+  - Archivos probables: `src/features/upload/components/AnalysisWizard.tsx`, `src/stores/analysis.store.ts`
+  - Dependencias: Ninguna.
+
+
 ## Deuda Técnica / Refactorización
 
 - [ ] [Tipo: QA] [Área: Infra] Subir cobertura de tests al 80%

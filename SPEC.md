@@ -264,3 +264,8 @@ ECHO est� activado.
 Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.spec.ts`) originado por el uso no resuelto de `import.meta.dirname` en un entorno combinado de tests y el estado impredecible de autenticación en tests E2E.
 - Se implementó un fallback en los tests End-to-End para iniciar sesión vía UI si es necesario antes de buscar el input the ficheros.
 - Se ha verificado que los unit tests para el componente de feedback (`FeedbackToggle.test.tsx`) contienen assertions correctas validando `saveFeedback` y `removeFeedback`.
+
+
+### [2026-03-31] Auditoría PM: Resiliencia de UI en Análisis SSE
+- **Contexto:** Durante el análisis de cola, el backlog tenía menos de 4 tareas (2 activas). El sistema base es funcional y tiene cobertura de E2E.
+- **Decisión:** Se creó una tarea de tipo UI/Analysis para implementar reintentos y mejor manejo de errores en el flujo de Server-Sent Events (SSE) desde `AnalysisWizard.tsx` y `analysis.store.ts`. Esto mejora directamente la visión core ("Hacer que el análisis sea rápido, preciso y con UX excelente") al mitigar los fallos de red silenciosos en las Edge Functions de Supabase.
