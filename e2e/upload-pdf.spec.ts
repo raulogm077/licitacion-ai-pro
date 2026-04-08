@@ -66,15 +66,15 @@ function buildMockSseStream(): ReadableStream {
             send({ type: 'heartbeat', timestamp: Date.now() });
 
             setTimeout(() => {
-                send({ type: 'agent_message', content: 'Leyendo documento PDF...', timestamp: Date.now() });
+                send({ type: 'phase_started', phase: 'ingestion', message: 'Leyendo documento PDF...', timestamp: Date.now() });
             }, 80);
 
             setTimeout(() => {
-                send({ type: 'agent_message', content: 'Buscando en documentos...', timestamp: Date.now() });
+                send({ type: 'phase_started', phase: 'ingestion', message: 'Buscando en documentos...', timestamp: Date.now() });
             }, 160);
 
             setTimeout(() => {
-                send({ type: 'agent_message', content: 'Extrayendo datos generales...', timestamp: Date.now() });
+                send({ type: 'phase_started', phase: 'ingestion', message: 'Extrayendo datos generales...', timestamp: Date.now() });
             }, 240);
 
             setTimeout(() => {
@@ -237,7 +237,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         await expect(page.getByText(/analizando|procesando/i).first()).toBeVisible({ timeout: 8000 });
 
         // ── Step 5: Progress messages from SSE stream ──────────────────────
-        // The ai.service prefixes content with "[Agent] " — use regex for substring match
+
         await expect(page.getByText(/Leyendo documento PDF/i).first()).toBeVisible({ timeout: 8000 });
 
         // ── Step 6: Completion ─────────────────────────────────────────────

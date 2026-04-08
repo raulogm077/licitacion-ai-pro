@@ -13,7 +13,7 @@ const { mockGetAll, mockNavigate, mockSubscribeToLicitacion } = vi.hoisted(() =>
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
     return {
-        ...(actual as any),
+        ...actual,
         useNavigate: () => mockNavigate
     };
 });
@@ -29,7 +29,7 @@ vi.mock('../../config/service-registry', () => ({
 
 vi.mock('../../features/history/HistoryView', () => {
     return {
-        HistoryView: ({ onSelect }: any) => (
+        HistoryView: ({ onSelect }: { onSelect: (data: unknown, hash: string) => void }) => (
             <div data-testid="mock-history-view">
                 Mock History View
                 <button onClick={() => onSelect({ id: 'test' }, 'hash-test')}>Select</button>
