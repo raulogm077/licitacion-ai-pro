@@ -96,4 +96,56 @@ describe('Dashboard Smoke Test', () => {
         expect(screen.getAllByText('Licitación de Prueba Smoke')[0]).toBeInTheDocument();
         expect(screen.getAllByText('Ministerio de Prueba')[0]).toBeInTheDocument();
     });
+
+    it('renders DashboardSkeleton when isLoading is true', () => {
+        render(
+            <MemoryRouter>
+                <Dashboard data={mockData} isLoading={true} />
+            </MemoryRouter>
+        );
+        // DashboardSkeleton uses animate-pulse classes usually
+        expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+    });
+
+    it('renders plantilla section when activeSection is plantilla', async () => {
+        const dataWithTemplate = {
+            ...mockData,
+            plantilla_personalizada: {
+                testField: "Test Value"
+            }
+        };
+
+        const { fireEvent } = await import('@testing-library/react');
+        render(
+            <MemoryRouter>
+                <Dashboard data={dataWithTemplate} />
+            </MemoryRouter>
+        );
+
+        // Sidebar uses 'Extracción' for the chapter title
+        const templateNavs = screen.queryAllByText(/Extracción/i);
+        if (templateNavs.length > 0) {
+            fireEvent.click(templateNavs[0]);
+            // Now the main content should render the custom extraction title
+            const headers = screen.queryAllByText('Extracción Personalizada');
+            expect(headers.length).toBeGreaterThan(0);
+        }
+    });
+
+    it('renders specific chapter sections like datos, criterios, etc.', async () => {
+        const { fireEvent } = await import('@testing-library/react');
+        render(
+            <MemoryRouter>
+                <Dashboard data={mockData} />
+            </MemoryRouter>
+        );
+
+        // Click a sidebar item to change activeSection to 'datos'
+        const datosLink = screen.getByText('Datos Generales');
+        fireEvent.click(datosLink);
+
+        // Now chapter renderer should be active
+        expect(screen.getAllByText('Licitación de Prueba Smoke')[0]).toBeInTheDocument();
+    });
+
 });

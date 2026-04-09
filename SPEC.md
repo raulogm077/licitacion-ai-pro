@@ -264,3 +264,9 @@ ECHO est� activado.
 Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.spec.ts`) originado por el uso no resuelto de `import.meta.dirname` en un entorno combinado de tests y el estado impredecible de autenticación en tests E2E.
 - Se implementó un fallback en los tests End-to-End para iniciar sesión vía UI si es necesario antes de buscar el input the ficheros.
 - Se ha verificado que los unit tests para el componente de feedback (`FeedbackToggle.test.tsx`) contienen assertions correctas validando `saveFeedback` y `removeFeedback`.
+
+
+### Actualización de Tests y Cobertura
+- Se añadieron pruebas unitarias para `Header.tsx`, `CancelButton.tsx`, `RiskSummary.tsx`, `AlertsPanel.tsx`, `ScoringChart.tsx`, `ChapterComponentsPart2.tsx`, y `EvidenceToggle.tsx`.
+- Se solucionaron errores en la ejecución de pruebas de UI (DashboardSmoke.test.tsx) debido al uso de React Router sin mock adecuado.
+- Estas adiciones incrementan la cobertura general y la resiliencia de la interfaz de usuario.
