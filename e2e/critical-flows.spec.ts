@@ -85,7 +85,7 @@ test.describe('Smoke Tests - Core Functionality', () => {
         await expect(root).not.toBeEmpty();
     });
 
-    test.skip('No console errors on initial load', async ({ page }) => {
+    test('No console errors on initial load', async ({ page }) => {
         const consoleErrors: string[] = [];
         page.on('console', (msg) => {
             if (msg.type() === 'error') {
@@ -103,8 +103,11 @@ test.describe('Smoke Tests - Core Functionality', () => {
                 !err.includes('status of 404') &&
                 !err.includes('net::ERR_NAME_NOT_RESOLVED') &&
                 !err.includes('net::ERR_INTERNET_DISCONNECTED') &&
+                !err.includes('net::ERR_FAILED') &&
+                !err.includes('net::ERR_CONNECTION_REFUSED') &&
                 !err.includes('Invalid Environment Configuration') &&
-                !err.includes('Auth Initialization Error')
+                !err.includes('Auth Initialization Error') &&
+                !err.includes('Supabase client not available')
         );
 
         expect(criticalErrors).toHaveLength(0);

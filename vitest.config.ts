@@ -12,10 +12,12 @@ export default defineConfig({
         coverage: {
             reporter: ['text', 'json', 'html'],
             thresholds: {
-                statements: 65,
-                branches: 50,
-                functions: 58,
-                lines: 65,
+                // Thresholds raised from original baseline (65/50/58/65) to reflect
+                // improved coverage after iteración D. Target 80% in next iteration.
+                statements: 73,
+                branches: 59,
+                functions: 69,
+                lines: 73,
             },
         },
     },

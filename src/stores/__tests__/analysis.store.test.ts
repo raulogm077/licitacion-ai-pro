@@ -186,4 +186,56 @@ describe('Analysis Store', () => {
         expect(useAnalysisStore.getState().status).toBe('ERROR');
         expect(useAnalysisStore.getState().error).toContain('no respondió');
     });
+
+    it('should complete analysis successfully and set COMPLETED status', async () => {
+        const { processFile } = await import('../../lib/file-utils');
+        const { services } = await import('../../config/service-registry');
+
+        vi.mocked(processFile).mockResolvedValue({ hash: 'h1', base64: 'b64', isValidPdf: true });
+        vi.mocked(services.ai.analyzePdfContent).mockResolvedValue({
+            content: {
+                datosGenerales: {} as never,
+                criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                requisitosTecnicos: { funcionales: [], normativa: [] },
+                requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [], profesional: [] },
+                restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },
+                modeloServicio: { sla: [], equipoMinimo: [] },
+            },
+            workflow: {},
+        } as never);
+        vi.mocked(services.db.saveLicitacion).mockResolvedValue({ ok: true } as never);
+
+        const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
+        await useAnalysisStore.getState().analyzeFiles([file]);
+
+        expect(useAnalysisStore.getState().status).toBe('COMPLETED');
+        expect(useAnalysisStore.getState().progress).toBe(100);
+    });
+
+    it('should set persistenceWarning when DB save fails after successful analysis', async () => {
+        const { processFile } = await import('../../lib/file-utils');
+        const { services } = await import('../../config/service-registry');
+
+        vi.mocked(processFile).mockResolvedValue({ hash: 'h1', base64: 'b64', isValidPdf: true });
+        vi.mocked(services.ai.analyzePdfContent).mockResolvedValue({
+            content: {
+                datosGenerales: {} as never,
+                criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                requisitosTecnicos: { funcionales: [], normativa: [] },
+                requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [], profesional: [] },
+                restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },
+                modeloServicio: { sla: [], equipoMinimo: [] },
+            },
+            workflow: {},
+        } as never);
+        vi.mocked(services.db.saveLicitacion).mockResolvedValue({
+            ok: false,
+            error: new Error('DB connection failed'),
+        } as never);
+
+        const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
+        await useAnalysisStore.getState().analyzeFiles([file]);
+
+        expect(useAnalysisStore.getState().persistenceWarning).toContain('DB connection failed');
+    });
 });

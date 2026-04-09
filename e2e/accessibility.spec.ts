@@ -13,16 +13,21 @@ test.describe('Accessibility - WCAG Compliance', () => {
 
         const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
 
-        const critical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
-        if (critical.length > 0) {
+        // Log all violations for visibility (critical + serious)
+        const seriousOrCritical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+        if (seriousOrCritical.length > 0) {
             console.log(
-                `⚠️  ${critical.length} accessibility violation(s) found:`,
-                critical.map((v) => `${v.id}: ${v.description}`).join(', ')
+                `⚠️  ${seriousOrCritical.length} WCAG violation(s) on /:`,
+                seriousOrCritical.map((v) => `${v.id} (${v.impact}): ${v.description}`).join('\n')
             );
         }
-        // Non-fatal in CI — log violations but do not block pipeline
-        // TODO: fix underlying WCAG issues and re-enable strict assertion
-        expect(true).toBe(true);
+
+        // Block pipeline on CRITICAL violations only — serious violations tracked separately
+        const critical = results.violations.filter((v) => v.impact === 'critical');
+        expect(
+            critical,
+            `Critical WCAG violations on /:\n${critical.map((v) => `  ${v.id}: ${v.description}`).join('\n')}`
+        ).toHaveLength(0);
     });
 
     test('history page has no critical accessibility violations', async ({ page }) => {
@@ -31,14 +36,19 @@ test.describe('Accessibility - WCAG Compliance', () => {
 
         const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
 
-        const critical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
-        if (critical.length > 0) {
+        const seriousOrCritical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+        if (seriousOrCritical.length > 0) {
             console.log(
-                `⚠️  ${critical.length} accessibility violation(s) found on /history`,
-                critical.map((v) => v.id).join(', ')
+                `⚠️  ${seriousOrCritical.length} WCAG violation(s) on /history:`,
+                seriousOrCritical.map((v) => `${v.id} (${v.impact}): ${v.description}`).join('\n')
             );
         }
-        expect(true).toBe(true);
+
+        const critical = results.violations.filter((v) => v.impact === 'critical');
+        expect(
+            critical,
+            `Critical WCAG violations on /history:\n${critical.map((v) => `  ${v.id}: ${v.description}`).join('\n')}`
+        ).toHaveLength(0);
     });
 
     test('templates page has no critical accessibility violations', async ({ page }) => {
@@ -47,13 +57,18 @@ test.describe('Accessibility - WCAG Compliance', () => {
 
         const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
 
-        const critical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
-        if (critical.length > 0) {
+        const seriousOrCritical = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+        if (seriousOrCritical.length > 0) {
             console.log(
-                `⚠️  ${critical.length} accessibility violation(s) found on /templates`,
-                critical.map((v) => v.id).join(', ')
+                `⚠️  ${seriousOrCritical.length} WCAG violation(s) on /templates:`,
+                seriousOrCritical.map((v) => `${v.id} (${v.impact}): ${v.description}`).join('\n')
             );
         }
-        expect(true).toBe(true);
+
+        const critical = results.violations.filter((v) => v.impact === 'critical');
+        expect(
+            critical,
+            `Critical WCAG violations on /templates:\n${critical.map((v) => `  ${v.id}: ${v.description}`).join('\n')}`
+        ).toHaveLength(0);
     });
 });

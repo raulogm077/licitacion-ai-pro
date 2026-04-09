@@ -46,5 +46,17 @@ if [ "$SECRETS_FOUND" -eq 1 ]; then
   exit 1
 fi
 
-# --- 2. Lint-staged ---
+# --- 2. Lint-staged (ESLint + Prettier on staged files) ---
 npx lint-staged
+
+# --- 3. TypeScript check (cross-file type safety) ---
+# Runs tsc --noEmit to catch type errors that lint-staged may miss
+# (lint-staged only checks staged files; cross-file inference requires a full check)
+# Trade-off: adds ~10s per commit. Remove if too slow for the team.
+echo "→ TypeScript check..."
+pnpm typecheck || {
+  echo ""
+  echo "❌ TypeScript errors detected. Fix type errors before committing."
+  echo "   Run 'pnpm typecheck' to see details."
+  exit 1
+}

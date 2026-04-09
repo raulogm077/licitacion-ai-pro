@@ -1,0 +1,56 @@
+version: 2
+updates:
+    # Frontend / Node dependencies (package.json via pnpm)
+    - package-ecosystem: 'npm'
+      directory: '/'
+      schedule:
+          interval: 'weekly'
+          day: 'monday'
+          time: '09:00'
+          timezone: 'Europe/Madrid'
+      open-pull-requests-limit: 5
+      labels:
+          - 'dependencies'
+          - 'automated'
+      # Group minor/patch dev-dependencies into a single PR to reduce noise
+      groups:
+          dev-dependencies:
+              dependency-type: 'development'
+              update-types:
+                  - 'minor'
+                  - 'patch'
+          test-tooling:
+              patterns:
+                  - 'vitest*'
+                  - '@vitest/*'
+                  - '@playwright/test'
+                  - '@testing-library/*'
+              update-types:
+                  - 'minor'
+                  - 'patch'
+      ignore:
+          # Hold React major until full compatibility verified
+          - dependency-name: 'react'
+            update-types: ['version-update:semver-major']
+          - dependency-name: 'react-dom'
+            update-types: ['version-update:semver-major']
+          # Hold React Router major — v7 has breaking changes
+          - dependency-name: 'react-router-dom'
+            update-types: ['version-update:semver-major']
+
+    # GitHub Actions versions
+    - package-ecosystem: 'github-actions'
+      directory: '/'
+      schedule:
+          interval: 'weekly'
+          day: 'monday'
+          time: '09:00'
+          timezone: 'Europe/Madrid'
+      labels:
+          - 'dependencies'
+          - 'github-actions'
+
+# NOTE: Supabase Edge Functions (supabase/functions/) use Deno with direct URL
+# imports (e.g. npm:openai@6.33.0). Dependabot does not support Deno import maps
+# without a deno.json lockfile. These dependencies must be updated manually.
+# Tracked in BACKLOG.md under "Deno dependency management".
