@@ -266,6 +266,10 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 - Se ha verificado que los unit tests para el componente de feedback (`FeedbackToggle.test.tsx`) contienen assertions correctas validando `saveFeedback` y `removeFeedback`.
 
 
+### Actualización de Tests y Cobertura
+- Se añadieron pruebas unitarias para `Header.tsx`, `CancelButton.tsx`, `RiskSummary.tsx`, `AlertsPanel.tsx`, `ScoringChart.tsx`, `ChapterComponentsPart2.tsx`, y `EvidenceToggle.tsx`.
+- Se solucionaron errores en la ejecución de pruebas de UI (DashboardSmoke.test.tsx) debido al uso de React Router sin mock adecuado.
+- Estas adiciones incrementan la cobertura general y la resiliencia de la interfaz de usuario.
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
