@@ -76,6 +76,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Criterios de aceptación:
     - Ejecutar `vitest --coverage` debe reportar al menos 80% en statements y 70% en branches.
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
+  - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
+
+- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
+  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
+  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
+  - Criterios de aceptación:
+    - Ejecutar `pnpm test --run` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
+  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
   - Dependencias: Ninguna.
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
