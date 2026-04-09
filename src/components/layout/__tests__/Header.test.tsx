@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Header } from '../../layout/Header';
 import { MemoryRouter } from 'react-router-dom';
+import { LicitacionData } from '../../../types';
 import { useAuthStore } from '../../../stores/auth.store';
 
 // Mock the auth store
@@ -109,7 +110,7 @@ describe('Header', () => {
                 <Header
                     onLogout={mockOnLogout}
                     status="COMPLETED"
-                    data={{} as any}
+                    data={{} as unknown as LicitacionData}
                     reset={vi.fn()}
                     darkMode={false}
                     setDarkMode={vi.fn()}
