@@ -58,23 +58,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [x] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
-  - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
-  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm test --run --coverage` debe reportar al menos 80% en statements y 70% en branches.
-  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
-  - Dependencias: Ninguna.
-
-- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
-  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
-  - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
-  - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
-  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`, `e2e/upload-pdf.spec.ts`
-  - Dependencias: Ninguna.
-  - Tipo: QA
-  - Área: Analysis
-
 
 
 ## To Do (Iteración Actual)
@@ -86,14 +69,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
   - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
   - Dependencias: Ninguna.
-
-- [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
-  - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
-  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm exec vitest run --coverage` debe reportar al menos 80% en statements y 70% en branches.
-  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
-  - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
   - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
@@ -116,6 +91,23 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Visual regression testing con Playwright screenshots
 
 ## Done
+
+- [x] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
+  - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
+  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
+  - Criterios de aceptación:
+    - Ejecutar `pnpm test --run --coverage` debe reportar al menos 80% en statements y 70% en branches.
+  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
+  - Dependencias: Ninguna.
+
+- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
+  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
+  - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
+  - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
+  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`, `e2e/upload-pdf.spec.ts`
+  - Dependencias: Ninguna.
+  - Tipo: QA
+  - Área: Analysis
 
 - [x] [Tipo: QA] [Área: Analysis] Fix Fallo en test unitario `AnalyticsDashboard.test.tsx` (Eliminado o resuelto al mover el archivo)
 
