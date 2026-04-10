@@ -56,38 +56,22 @@ const MOCK_AGENT_RESULT = {
     },
 };
 
-// ── SSE stream factory ───────────────────────────────────────────────────────
-function buildMockSseStream(): ReadableStream {
-    return new ReadableStream({
-        start(controller) {
-            const enc = new TextEncoder();
-            const send = (obj: object) => controller.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
-
-            send({ type: 'heartbeat', timestamp: Date.now() });
-
-            setTimeout(() => {
-                send({ type: 'agent_message', content: 'Leyendo documento PDF...', timestamp: Date.now() });
-            }, 80);
-
-            setTimeout(() => {
-                send({ type: 'agent_message', content: 'Buscando en documentos...', timestamp: Date.now() });
-            }, 160);
-
-            setTimeout(() => {
-                send({ type: 'agent_message', content: 'Extrayendo datos generales...', timestamp: Date.now() });
-            }, 240);
-
-            setTimeout(() => {
-                send({
-                    type: 'complete',
-                    result: MOCK_AGENT_RESULT,
-                    eventsProcessed: 3,
-                    timestamp: Date.now(),
-                });
-                controller.close();
-            }, 400);
-        },
-    });
+// ── SSE body factory ─────────────────────────────────────────────────────────
+// Playwright's route.fulfill() only guarantees delivery for Buffer/string bodies.
+// ReadableStream with setTimeout is unreliable in CI (events may never fire).
+// Instead we build the full SSE payload as a single Buffer; the frontend SSE
+// parser handles receiving all events in one chunk without issues.
+function buildMockSseBody(): Buffer {
+    const ts = Date.now();
+    const line = (obj: object) => `data: ${JSON.stringify(obj)}\n\n`;
+    const payload = [
+        line({ type: 'heartbeat', timestamp: ts }),
+        line({ type: 'agent_message', content: 'Leyendo documento PDF...', timestamp: ts }),
+        line({ type: 'agent_message', content: 'Buscando en documentos...', timestamp: ts }),
+        line({ type: 'agent_message', content: 'Extrayendo datos generales...', timestamp: ts }),
+        line({ type: 'complete', result: MOCK_AGENT_RESULT, eventsProcessed: 3, timestamp: ts }),
+    ].join('');
+    return Buffer.from(payload, 'utf-8');
 }
 
 // ── Test suite ───────────────────────────────────────────────────────────────
@@ -133,8 +117,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
                         Connection: 'keep-alive',
                         'Access-Control-Allow-Origin': '*',
                     },
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    body: buildMockSseStream() as any,
+                    body: buildMockSseBody(),
                 });
             }
         );
