@@ -8,13 +8,13 @@ describe('AlertsPanel', () => {
         const vm = {
             warnings: [
                 { severity: 'CRITICO', title: 'Critical Warning', message: 'This is critical' },
-                { severity: 'ADVERTENCIA', title: 'Normal Warning', message: 'This is a warning' }
+                { severity: 'ADVERTENCIA', title: 'Normal Warning', message: 'This is a warning' },
             ],
             result: {
                 restriccionesYRiesgos: {
-                    penalizaciones: []
-                }
-            }
+                    penalizaciones: [],
+                },
+            },
         } as unknown as PliegoVM;
 
         const mockNavigate = vi.fn();
@@ -35,14 +35,12 @@ describe('AlertsPanel', () => {
         // Even with 0 warnings, it pushes default ones right now based on length < 3
         // So we will just test that the badges for critical/warning render
         const vm = {
-            warnings: [
-                { severity: 'CRITICO', title: 'Critical Warning', message: 'This is critical' }
-            ],
+            warnings: [{ severity: 'CRITICO', title: 'Critical Warning', message: 'This is critical' }],
             result: {
                 restriccionesYRiesgos: {
-                    penalizaciones: [{ causa: 'test' }]
-                }
-            }
+                    penalizaciones: [{ causa: 'test' }],
+                },
+            },
         } as unknown as PliegoVM;
 
         render(<AlertsPanel vm={vm} onNavigate={vi.fn()} />);
