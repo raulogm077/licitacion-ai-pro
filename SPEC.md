@@ -36,7 +36,7 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 
 ### 3.3. Criterios de aceptación globales
 
-- `vitest --coverage` ≥80% statements, ≥70% branches.
+- `pnpm exec vitest run --coverage` ≥80% statements, ≥70% branches.
 - La app puede cambiar entre ES y EN.
 - Dependabot crea PRs semanales.
 
