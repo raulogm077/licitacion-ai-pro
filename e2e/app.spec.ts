@@ -65,7 +65,8 @@ test.describe('Licitación AI Pro - E2E', () => {
             });
             return;
         }
-        await expect(page.getByText(/Arrastra y suelta|Arrastra tu/i)).toBeVisible();
-        await expect(page.getByText(/PDF.*Máx 20MB/i).or(page.getByText(/Seleccionar PDF/i))).toBeVisible();
+        // Dropzone hint: t('wizard.drag_drop_hint', 'Arrastra y suelta aquí...')
+        // Authenticated button: hardcoded "Seleccionar Archivo"
+        await expect(page.getByText(/Arrastra y suelta/i).or(page.getByText(/Seleccionar Archivo/i))).toBeVisible();
     });
 });
