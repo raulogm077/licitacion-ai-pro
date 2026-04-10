@@ -24,6 +24,7 @@ import { JobService } from '../_shared/services/job.service.ts';
 import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES, API_CALL_TIMEOUT_MS } from '../_shared/config.ts';
 import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../_shared/utils/timeout.ts';
+import { GUIDE_CONTENT } from './guide-content.ts';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -35,15 +36,9 @@ if (!OPENAI_API_KEY) {
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const MAX_REQUESTS_MSG = '10 análisis/hora';
 
-// Load guide content once at startup
-let guideContent = '';
-try {
-    const guiaPath = new URL('./guia-lectura-pliegos.md', import.meta.url);
-    guideContent = await Deno.readTextFile(guiaPath);
-    console.log(`[init] Guía de lectura cargada: ${guideContent.length} chars`);
-} catch (e) {
-    console.error('[init] No se pudo cargar la guía de lectura:', e);
-}
+// Guide content bundled at deploy time via guide-content.ts
+const guideContent = GUIDE_CONTENT;
+console.log(`[init] Guía de lectura cargada: ${guideContent.length} chars`);
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 
