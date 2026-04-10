@@ -67,6 +67,12 @@ test.describe('Licitación AI Pro - E2E', () => {
         }
         // Dropzone hint: t('wizard.drag_drop_hint', 'Arrastra y suelta aquí...')
         // Authenticated button: hardcoded "Seleccionar Archivo"
-        await expect(page.getByText(/Arrastra y suelta/i).or(page.getByText(/Seleccionar Archivo/i))).toBeVisible();
+        // Use .first() to avoid strict-mode violation when both elements are visible simultaneously
+        await expect(
+            page
+                .getByText(/Arrastra y suelta/i)
+                .or(page.getByText(/Seleccionar Archivo/i))
+                .first()
+        ).toBeVisible();
     });
 });
