@@ -18,6 +18,7 @@ import {
 } from '../../_shared/config.ts';
 import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
+import { retryWithBackoff } from '../../_shared/utils/retry.ts';
 
 export interface BlockExtractionInput {
     openai: OpenAI;
@@ -42,6 +43,8 @@ export interface BlockResult {
 export interface BlockExtractionResult {
     blocks: BlockResult[];
     customTemplate?: Record<string, unknown>;
+    /** Set when custom template extraction failed — propagate to client as a non-fatal warning */
+    templateWarning?: string;
 }
 
 // ─── Block-specific prompts ───────────────────────────────────────────────────
@@ -210,16 +213,21 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
 
     // Extract custom template if provided
     let customTemplate: Record<string, unknown> | undefined;
+    let templateWarning: string | undefined;
     if (template && template.schema && template.schema.length > 0) {
         onProgress?.('Extrayendo plantilla personalizada...', totalBlocks, totalBlocks + 1);
         try {
             customTemplate = await extractCustomTemplate(openai, vectorStoreId, template, guideContent);
         } catch (error) {
-            console.error('[Extraction] Custom template extraction failed:', error);
+            const errorMsg = mapOpenAIError(error);
+            console.error('[Extraction] Custom template extraction failed:', errorMsg);
+            templateWarning = `⚠️ Plantilla personalizada: ${errorMsg}`;
+            // Notify client via onProgress so the SSE stream reflects the failure
+            onProgress?.(templateWarning, totalBlocks, totalBlocks);
         }
     }
 
-    return { blocks, customTemplate };
+    return { blocks, customTemplate, templateWarning };
 }
 
 async function extractBlock(
@@ -232,22 +240,29 @@ async function extractBlock(
     const systemPrompt = buildSystemPrompt(blockName, documentMap, guideContent);
     const userPrompt = BLOCK_PROMPTS[blockName];
 
-    const response = await callWithTimeout(
-        openai.responses.create({
-            model: OPENAI_MODEL,
-            input: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt },
-            ],
-            tools: [
-                {
-                    type: 'file_search',
-                    vector_store_ids: [vectorStoreId],
-                },
-            ],
-        }),
-        API_CALL_TIMEOUT_MS,
-        `Block ${blockName}`
+    // Retry with exponential backoff for transient API errors (rate limits, network issues)
+    const response = await retryWithBackoff(
+        () =>
+            callWithTimeout(
+                openai.responses.create({
+                    model: OPENAI_MODEL,
+                    input: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt },
+                    ],
+                    tools: [
+                        {
+                            type: 'file_search',
+                            vector_store_ids: [vectorStoreId],
+                        },
+                    ],
+                }),
+                API_CALL_TIMEOUT_MS,
+                `Block ${blockName}`
+            ),
+        2,
+        500,
+        `BlockExtraction[${blockName}]`
     );
 
     const outputText = extractOutputText(response);

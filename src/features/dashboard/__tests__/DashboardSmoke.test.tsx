@@ -111,8 +111,8 @@ describe('Dashboard Smoke Test', () => {
         const dataWithTemplate = {
             ...mockData,
             plantilla_personalizada: {
-                testField: "Test Value"
-            }
+                testField: 'Test Value',
+            },
         };
 
         const { fireEvent } = await import('@testing-library/react');
@@ -147,5 +147,4 @@ describe('Dashboard Smoke Test', () => {
         // Now chapter renderer should be active
         expect(screen.getAllByText('Licitación de Prueba Smoke')[0]).toBeInTheDocument();
     });
-
 });

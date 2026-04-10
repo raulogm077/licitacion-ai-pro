@@ -6,7 +6,7 @@ import { PliegoVM } from '../../../model/pliego-vm';
 describe('TechnicalJsonModal', () => {
     it('renders the modal when isOpen is true and copies text', async () => {
         const vm = {
-            result: { test: 'value' }
+            result: { test: 'value' },
         } as unknown as PliegoVM;
 
         Object.assign(navigator, {

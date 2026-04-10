@@ -23,7 +23,7 @@ permissions:
     contents: read
 
 jobs:
-    # 1. Security Audit (Fail Fast but allowing current state)
+    # 1. Security Audit (Fail Fast on high+ vulnerabilities)
     security-audit:
         name: 🛡️ Security Audit
         runs-on: ubuntu-latest
@@ -37,8 +37,8 @@ jobs:
               with:
                   node-version: ${{ env.NODE_VERSION }}
             - name: Audit Dependencies
-              # audit-level=critical to avoid noise, continue-on-error just in case
-              run: pnpm audit --audit-level=critical || true
+              # Fail on high+ vulnerabilities — critical is too permissive
+              run: pnpm audit --audit-level=high
 
     # 2. Quality Checks (Lint, Unit, Build)
     quality-checks:
@@ -68,22 +68,24 @@ jobs:
             - name: Type Check
               run: pnpm typecheck
 
-            - name: Run Unit Tests
-              run: pnpm test -- --run
+            - name: Run Unit Tests with Coverage
+              run: pnpm test -- --run --coverage
+
+            - name: Upload Coverage Report
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-report
+                  path: coverage/
+                  retention-days: 14
 
             - name: Build Project
               run: pnpm build
 
-    # 3. E2E Tests (Informational — does NOT block deployment)
-    # E2E tests verify UI smoke tests against a built preview. They may flake
-    # due to auth mocking timing or Playwright browser cache issues.
-    # Quality-checks (lint, typecheck, unit tests, build) are the deployment gate.
+    # 3. E2E Tests (blocks deployment — must pass before deploy)
     e2e-tests:
         name: 🎭 E2E Tests
         runs-on: ubuntu-latest
         timeout-minutes: 20
-        # Run in parallel with quality-checks but never block deploy
-        continue-on-error: true
         env:
             VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
             VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
@@ -137,10 +139,10 @@ jobs:
                   path: playwright-report/
                   retention-days: 30
 
-    # 4. Deploy to Vercel (Frontend) - Depends on Checks
+    # 4. Deploy to Vercel (Frontend) - Depends on all quality gates including E2E
     deploy-vercel:
         name: 🚀 Deploy to Vercel
-        needs: [quality-checks, security-audit]
+        needs: [quality-checks, security-audit, e2e-tests]
         # Deploy only on main. Allow push or workflow_dispatch.
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         runs-on: ubuntu-latest
@@ -254,10 +256,9 @@ jobs:
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         runs-on: ubuntu-latest
         steps:
-            - name: Verify Production Health
+            - name: Verify Frontend Health
               run: |
                   echo "Checking production URL health..."
-                  # Use deployment URL from Vercel step, or fall back to known production URL
                   PROD_URL="${{ needs.deploy-vercel.outputs.deployment_url }}"
                   if [ -z "$PROD_URL" ]; then
                     PROD_URL="https://licitacion-ai-pro.vercel.app"
@@ -270,7 +271,24 @@ jobs:
                     echo "❌ Smoke Test Failed: HTTP $HTTP_STATUS"
                     exit 1
                   fi
-                  echo "✅ Smoke Test Passed: Site is reachable."
+                  echo "✅ Frontend Smoke Test Passed: Site is reachable."
+
+            - name: Verify Edge Function CORS
+              run: |
+                  SUPABASE_URL="https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co"
+                  echo "Checking Edge Function CORS: $SUPABASE_URL/functions/v1/analyze-with-agents"
+                  HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                      -X OPTIONS \
+                      -H "Origin: https://licitacion-ai-pro.vercel.app" \
+                      -H "Access-Control-Request-Method: POST" \
+                      "$SUPABASE_URL/functions/v1/analyze-with-agents")
+                  echo "CORS preflight Status: $HTTP_STATUS"
+
+                  if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "204" ]; then
+                    echo "❌ Edge Function CORS check failed: HTTP $HTTP_STATUS"
+                    exit 1
+                  fi
+                  echo "✅ Edge Function CORS Passed."
 
     # 7. Docker Build Validation (parallel, does not block deploy)
     docker-build:

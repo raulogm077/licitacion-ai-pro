@@ -10,10 +10,10 @@ describe('RiskSummary', () => {
                 restriccionesYRiesgos: {
                     killCriteria: [],
                     penalizaciones: [],
-                    riesgos: []
-                }
+                    riesgos: [],
+                },
             },
-            counts: { riesgos: 0 }
+            counts: { riesgos: 0 },
         } as unknown as PliegoVM;
 
         render(<RiskSummary vm={emptyVM} />);
@@ -26,10 +26,10 @@ describe('RiskSummary', () => {
                 restriccionesYRiesgos: {
                     killCriteria: [{ criterio: 'Falta de solvencia' }],
                     penalizaciones: [{ causa: 'Retraso en entrega' }],
-                    riesgos: [{ descripcion: 'Presupuesto ajustado' }]
-                }
+                    riesgos: [{ descripcion: 'Presupuesto ajustado' }],
+                },
             },
-            counts: { riesgos: 3 }
+            counts: { riesgos: 3 },
         } as unknown as PliegoVM;
 
         render(<RiskSummary vm={vm} />);

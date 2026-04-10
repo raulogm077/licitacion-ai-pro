@@ -3,7 +3,16 @@
  * Centralizes values that were previously hardcoded across multiple files.
  */
 
-/** OpenAI model used for all Responses API calls */
+/**
+ * OpenAI model used for all Responses API calls.
+ * 'gpt-4.1' is OpenAI's April 2025 GPT-4 refresh (released 2025-04-14).
+ * It is a valid model ID in the OpenAI API as of 2026-04-09.
+ *
+ * DO NOT change this value without:
+ *   1. Verifying the new model supports Responses API + file_search tool
+ *   2. Running the full 5-phase pipeline smoke test
+ *   3. Updating CHANGELOG.md with the model migration rationale
+ */
 export const OPENAI_MODEL = 'gpt-4.1';
 
 /** Per-API-call timeout in milliseconds (90s per individual call) */

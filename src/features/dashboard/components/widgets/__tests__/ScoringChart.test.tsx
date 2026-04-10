@@ -9,9 +9,9 @@ describe('ScoringChart', () => {
             result: {
                 criteriosAdjudicacion: {
                     objetivos: [],
-                    subjetivos: []
-                }
-            }
+                    subjetivos: [],
+                },
+            },
         } as unknown as PliegoVM;
 
         render(<ScoringChart vm={vm} />);
@@ -23,9 +23,9 @@ describe('ScoringChart', () => {
             result: {
                 criteriosAdjudicacion: {
                     objetivos: [{ descripcion: 'Precio', ponderacion: 60 }],
-                    subjetivos: [{ descripcion: 'Calidad', ponderacion: 40 }]
-                }
-            }
+                    subjetivos: [{ descripcion: 'Calidad', ponderacion: 40 }],
+                },
+            },
         } as unknown as PliegoVM;
 
         render(<ScoringChart vm={vm} />);
