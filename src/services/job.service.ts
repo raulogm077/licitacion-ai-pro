@@ -51,9 +51,9 @@ export class JobService {
             throw new Error('Usuario no autenticado');
         }
 
-        // Refresh token proactively if it expires within 60 seconds
+        // Refresh token proactively if it expires within 5 minutes (was 60s — too tight)
         const now = Math.floor(Date.now() / 1000);
-        if ((session.expires_at ?? 0) - now < 60) {
+        if ((session.expires_at ?? 0) - now < 300) {
             logger.debug('[JobService] Token próximo a expirar, refrescando sesión...');
             const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
             if (refreshErr || !refreshed.session) {
@@ -69,21 +69,36 @@ export class JobService {
             const projectUrl = env.VITE_SUPABASE_URL;
             const functionUrl = `${projectUrl}/functions/v1/analyze-with-agents`;
 
-            const response = await fetch(functionUrl, {
+            const buildHeaders = (token: string) => ({
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+                apikey: env.VITE_SUPABASE_ANON_KEY,
+            });
+
+            const body = JSON.stringify({ pdfBase64, filename, template, files });
+
+            let response = await fetch(functionUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${session?.access_token}`,
-                    apikey: env.VITE_SUPABASE_ANON_KEY,
-                },
-                body: JSON.stringify({
-                    pdfBase64,
-                    filename,
-                    template,
-                    files,
-                }),
+                headers: buildHeaders(session.access_token),
+                body,
                 signal,
             });
+
+            // On 401, force a session refresh and retry once before giving up
+            if (response.status === 401) {
+                logger.warn('[JobService] 401 from Edge Function — forcing session refresh and retrying...');
+                const { data: retrySession, error: retryErr } = await supabase.auth.refreshSession();
+                if (retryErr || !retrySession.session) {
+                    throw new Error('Sesión expirada. Por favor, inicia sesión de nuevo.');
+                }
+                session = retrySession.session;
+                response = await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: buildHeaders(session.access_token),
+                    body,
+                    signal,
+                });
+            }
 
             if (!response.ok) {
                 let serverMessage = '';

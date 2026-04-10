@@ -92,7 +92,7 @@ describe('JobService', () => {
         await expect(service.analyzeWithAgents('base64', 'file.pdf')).rejects.toThrow('Usuario no autenticado');
     });
 
-    it('refreshes session when token expires in less than 60 seconds', async () => {
+    it('refreshes session when token expires in less than 300 seconds', async () => {
         const nearlyExpired = { ...validSession, expires_at: NOW + 30 };
         mockSupabase.auth.getSession.mockResolvedValue({
             data: { session: nearlyExpired },
@@ -179,13 +179,64 @@ describe('JobService', () => {
         await expect(service.analyzeWithAgents('base64', 'file.pdf')).rejects.toThrow('Pipeline failed');
     });
 
-    it('rejects when server returns HTTP error', async () => {
+    it('rejects on non-401 HTTP errors without retrying', async () => {
         vi.stubGlobal(
             'fetch',
-            vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }))
+            vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 }))
         );
 
-        await expect(service.analyzeWithAgents('base64', 'file.pdf')).rejects.toThrow('Unauthorized');
+        await expect(service.analyzeWithAgents('base64', 'file.pdf')).rejects.toThrow('Internal Server Error');
+        // refreshSession should NOT be called for non-401 errors
+        expect(mockSupabase.auth.refreshSession).not.toHaveBeenCalled();
+    });
+
+    it('retries with refreshed token on 401 and succeeds', async () => {
+        const completeEvent: StreamEvent = {
+            type: 'complete',
+            result: validContent,
+            workflow: {},
+            timestamp: Date.now(),
+        };
+        const refreshedSession = { ...validSession, access_token: 'new-token-456' };
+        mockSupabase.auth.refreshSession.mockResolvedValue({
+            data: { session: refreshedSession },
+            error: null,
+        });
+        const mockFetch = vi
+            .fn()
+            // First call → 401
+            .mockResolvedValueOnce(
+                new Response(JSON.stringify({ error: 'Token inválido o expirado' }), { status: 401 })
+            )
+            // Second call (retry) → success
+            .mockResolvedValueOnce(buildSseStream([completeEvent]));
+        vi.stubGlobal('fetch', mockFetch);
+
+        const result = await service.analyzeWithAgents('base64', 'file.pdf');
+
+        expect(result.content).toBeDefined();
+        expect(mockSupabase.auth.refreshSession).toHaveBeenCalledTimes(1);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        // Second call must use the new token
+        const [, secondCallOpts] = mockFetch.mock.calls[1] as [string, RequestInit];
+        expect((secondCallOpts.headers as Record<string, string>)['Authorization']).toBe('Bearer new-token-456');
+    });
+
+    it('throws "Sesión expirada" when 401 retry refresh fails', async () => {
+        mockSupabase.auth.refreshSession.mockResolvedValue({
+            data: { session: null },
+            error: new Error('Refresh token expired'),
+        });
+        vi.stubGlobal(
+            'fetch',
+            vi
+                .fn()
+                .mockResolvedValue(
+                    new Response(JSON.stringify({ error: 'Token inválido o expirado' }), { status: 401 })
+                )
+        );
+
+        await expect(service.analyzeWithAgents('base64', 'file.pdf')).rejects.toThrow('Sesión expirada');
     });
 
     it('respects AbortSignal cancellation', async () => {

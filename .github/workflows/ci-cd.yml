@@ -168,6 +168,27 @@ jobs:
             - name: Install Vercel CLI
               run: npm install -g vercel@latest
 
+            - name: Validate Required Secrets
+              run: |
+                  MISSING=""
+                  [ -z "$VERCEL_TOKEN" ]          && MISSING="$MISSING VERCEL_TOKEN"
+                  [ -z "$VERCEL_ORG_ID" ]         && MISSING="$MISSING VERCEL_ORG_ID"
+                  [ -z "$VERCEL_PROJECT_ID" ]     && MISSING="$MISSING VERCEL_PROJECT_ID"
+                  [ -z "$VITE_SUPABASE_URL" ]     && MISSING="$MISSING VITE_SUPABASE_URL"
+                  [ -z "$VITE_SUPABASE_ANON_KEY" ] && MISSING="$MISSING VITE_SUPABASE_ANON_KEY"
+                  if [ -n "$MISSING" ]; then
+                    echo "❌ Missing required GitHub secrets:$MISSING"
+                    echo "   Configure them at: Repo → Settings → Secrets and variables → Actions"
+                    exit 1
+                  fi
+                  echo "✅ All required secrets present."
+              env:
+                  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+                  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+                  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
             - name: Pull Vercel Environment Information
               run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
               env:
@@ -180,6 +201,7 @@ jobs:
               env:
                   VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
                   VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+                  VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
 
             - name: Deploy to Vercel
               id: deploy_step
@@ -252,7 +274,7 @@ jobs:
     # 6. Smoke Test (Post-Deploy Verification)
     smoke-test:
         name: 💨 Smoke Test
-        needs: deploy-supabase
+        needs: [deploy-vercel, deploy-supabase]
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         runs-on: ubuntu-latest
         steps:
