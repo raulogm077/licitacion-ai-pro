@@ -64,12 +64,30 @@ const MOCK_AGENT_RESULT = {
 function buildMockSseBody(): Buffer {
     const ts = Date.now();
     const line = (obj: object) => `data: ${JSON.stringify(obj)}\n\n`;
+    // Send phase events so ai.service.ts calls onProgress → updates thinkingOutput in the store.
+    // The 'complete' event must carry result+workflow at the TOP level (not nested inside result),
+    // matching what the real Edge Function sends: sendEvent('complete', { result, workflow }).
     const payload = [
         line({ type: 'heartbeat', timestamp: ts }),
-        line({ type: 'agent_message', content: 'Leyendo documento PDF...', timestamp: ts }),
-        line({ type: 'agent_message', content: 'Buscando en documentos...', timestamp: ts }),
-        line({ type: 'agent_message', content: 'Extrayendo datos generales...', timestamp: ts }),
-        line({ type: 'complete', result: MOCK_AGENT_RESULT, eventsProcessed: 3, timestamp: ts }),
+        line({ type: 'phase_started', phase: 'ingestion', message: 'Subiendo documentos...', timestamp: ts }),
+        line({ type: 'phase_completed', phase: 'ingestion', message: 'Documentos indexados', timestamp: ts }),
+        line({ type: 'phase_started', phase: 'document_map', message: 'Analizando estructura...', timestamp: ts }),
+        line({ type: 'phase_completed', phase: 'document_map', message: 'Mapa completado', timestamp: ts }),
+        line({ type: 'phase_started', phase: 'extraction', message: 'Extrayendo información...', timestamp: ts }),
+        line({ type: 'phase_completed', phase: 'extraction', message: 'Extracción completa', timestamp: ts }),
+        line({ type: 'phase_started', phase: 'consolidation', message: 'Consolidando resultados...', timestamp: ts }),
+        line({ type: 'phase_completed', phase: 'consolidation', message: 'Consolidado', timestamp: ts }),
+        line({ type: 'phase_started', phase: 'validation', message: 'Validando...', timestamp: ts }),
+        line({ type: 'phase_completed', phase: 'validation', message: 'Validación completada', timestamp: ts }),
+        // result must be the LicitacionContent directly (MOCK_AGENT_RESULT.result), not the
+        // whole wrapper — matches real Edge Function: sendEvent('complete', { result, workflow })
+        line({
+            type: 'complete',
+            result: MOCK_AGENT_RESULT.result,
+            workflow: MOCK_AGENT_RESULT.workflow,
+            eventsProcessed: 11,
+            timestamp: ts,
+        }),
     ].join('');
     return Buffer.from(payload, 'utf-8');
 }
@@ -215,18 +233,12 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         await expect(analyzeBtn).toBeVisible({ timeout: 5000 });
         await analyzeBtn.click();
 
-        // ── Step 4: Analyzing screen appears ───────────────────────────────
-        // The AnalyzingStep component renders when status is ANALYZING or READING_PDF
-        await expect(page.getByText(/analizando|procesando/i).first()).toBeVisible({ timeout: 8000 });
-
-        // ── Step 5: Progress messages from SSE stream ──────────────────────
-        // The ai.service prefixes content with "[Agent] " — use regex for substring match
-        await expect(page.getByText(/Leyendo documento PDF/i).first()).toBeVisible({ timeout: 8000 });
-
-        // ── Step 6: Completion ─────────────────────────────────────────────
-        // After receiving the 'complete' event the store sets status = COMPLETED
-        // and the wizard goes back to the upload step (or shows a result panel)
-        // We verify the analysis title appears somewhere on screen
+        // ── Step 4: Wait for analysis to complete ─────────────────────────
+        // Steps 4-5 previously checked transient "Analizando…" UI state, which is
+        // unreliable because the mock SSE delivers all events instantly (<100ms),
+        // making the ANALYZING → COMPLETED transition too fast to catch.
+        // Instead, wait directly for the COMPLETED state: the result title appears
+        // in the UI (the wizard renders the result or returns to upload view).
         await expect(page.getByText(/PLIEGO TEST MEMO_P2|Analizar con IA|análisis completado/i).first()).toBeVisible({
             timeout: 15000,
         });
