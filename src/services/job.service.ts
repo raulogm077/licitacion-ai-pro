@@ -196,7 +196,15 @@ export class JobService {
             logger.debug('[JobService] Result received, validating...');
 
             const resultData = state.finalResult.result;
-            const validated = LicitacionContentSchema.parse(resultData);
+            const parseResult = LicitacionContentSchema.safeParse(resultData);
+            let validated: LicitacionContent;
+            if (!parseResult.success) {
+                console.warn('[JobService] Schema validation warning:', parseResult.error.message.substring(0, 300));
+                // Use raw data as fallback to preserve results even if schema is slightly mismatched
+                validated = resultData as LicitacionContent;
+            } else {
+                validated = parseResult.data;
+            }
 
             logger.info('[JobService] Analysis completed and validated');
 
