@@ -318,7 +318,11 @@ export class DBService {
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status, err) => {
+                if (err) {
+                    console.warn('[DBService] Realtime channel error:', status, err);
+                }
+            });
     }
 }
 

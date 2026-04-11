@@ -108,12 +108,17 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
 
         let newChannel: RealtimeChannel | null = null;
         if (hash) {
-            newChannel = services.db.subscribeToLicitacion(hash, (remoteData) => {
-                const currentData = get().data;
-                if (JSON.stringify(currentData) !== JSON.stringify(remoteData)) {
-                    set({ data: remoteData });
-                }
-            });
+            try {
+                newChannel = services.db.subscribeToLicitacion(hash, (remoteData) => {
+                    const currentData = get().data;
+                    if (JSON.stringify(currentData) !== JSON.stringify(remoteData)) {
+                        set({ data: remoteData });
+                    }
+                });
+            } catch (realtimeErr) {
+                logger.warn('[LicitacionStore] Realtime subscription unavailable:', realtimeErr);
+                newChannel = null;
+            }
         }
 
         set({
