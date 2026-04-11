@@ -102,9 +102,7 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
     console.log(
         `[Consolidation] Done: ${allWarnings.length} warnings, ${uniqueAmbiguous.length} ambiguous, ${allEvidences.length} evidences`
     );
-    onProgress?.(
-        `Consolidación completada: ${allWarnings.length} warnings, ${uniqueAmbiguous.length} campos ambiguos`
-    );
+    onProgress?.(`Consolidación completada: ${allWarnings.length} warnings, ${uniqueAmbiguous.length} campos ambiguos`);
 
     return { result, allEvidences, allWarnings, allAmbiguousFields: uniqueAmbiguous };
 }

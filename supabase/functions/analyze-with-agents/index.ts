@@ -291,11 +291,13 @@ serve(async (req: Request) => {
                     // ═══ FASE D: CONSOLIDACIÓN ═══
                     sendEvent('phase_started', { phase: 'consolidation', message: 'Consolidando resultados...' });
                     const consolidated = await callWithTimeout(
-                        Promise.resolve(runConsolidation({
-                            blocks: extraction.blocks,
-                            customTemplate: extraction.customTemplate,
-                            onProgress: (msg) => sendProgress('consolidation', msg),
-                        })),
+                        Promise.resolve(
+                            runConsolidation({
+                                blocks: extraction.blocks,
+                                customTemplate: extraction.customTemplate,
+                                onProgress: (msg) => sendProgress('consolidation', msg),
+                            })
+                        ),
                         20_000,
                         'Consolidation'
                     );
@@ -304,10 +306,12 @@ serve(async (req: Request) => {
                     // ═══ FASE E: VALIDACIÓN ═══
                     sendEvent('phase_started', { phase: 'validation', message: 'Validando resultado...' });
                     const { result, workflow } = await callWithTimeout(
-                        Promise.resolve(runValidation({
-                            consolidated,
-                            onProgress: (msg) => sendProgress('validation', msg),
-                        })),
+                        Promise.resolve(
+                            runValidation({
+                                consolidated,
+                                onProgress: (msg) => sendProgress('validation', msg),
+                            })
+                        ),
                         15_000,
                         'Validation'
                     );
