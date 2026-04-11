@@ -79,21 +79,13 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
-  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
-  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
-  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
-  - Dependencias: Ninguna.
-
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
-  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
+  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard. *Nota PM: El bloqueo global de Vitest ha sido resuelto en entorno, validar y continuar con el 80%.*
   - Criterios de aceptación:
     - Ejecutar `pnpm exec vitest run --coverage` debe reportar al menos 80% en statements y 70% en branches.
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
-  - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
+  - Dependencias: Ninguna.
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
   - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
@@ -102,6 +94,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - El archivo `.github/dependabot.yml` existe y es válido.
     - Dependabot ejecuta chequeos semanales.
   - Archivos probables: `.github/dependabot.yml`
+  - Dependencias: Ninguna.
+
+- [ ] [Tipo: Infra] [Área: Infra] Integrar métricas de rendimiento en CI
+  - Objetivo: Automatizar la medición del rendimiento (Lighthouse o tamaño del bundle) en cada PR para prevenir degradación.
+  - Alcance: Añadir un paso en el pipeline de GitHub Actions (`.github/workflows/ci-cd.yml`) para verificar el tamaño del build o usar Lighthouse CI básico.
+  - Criterios de aceptación:
+    - El pipeline falla si el bundle excede un límite razonable o se reporta el tamaño en un comentario.
+  - Archivos probables: `.github/workflows/ci-cd.yml`, `package.json`
   - Dependencias: Ninguna.
 
 ## Deuda Técnica / Refactorización
