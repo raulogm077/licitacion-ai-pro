@@ -97,14 +97,14 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
     const consistencyWarnings = checkCrossBlockConsistency(result);
     allWarnings.push(...consistencyWarnings);
 
-    console.log(
-        `[Consolidation] Done: ${allWarnings.length} warnings, ${allAmbiguousFields.length} ambiguous, ${allEvidences.length} evidences`
-    );
-    onProgress?.(
-        `Consolidación completada: ${allWarnings.length} warnings, ${allAmbiguousFields.length} campos ambiguos`
-    );
+    const uniqueAmbiguous = [...new Set(allAmbiguousFields)];
 
-    return { result, allEvidences, allWarnings, allAmbiguousFields };
+    console.log(
+        `[Consolidation] Done: ${allWarnings.length} warnings, ${uniqueAmbiguous.length} ambiguous, ${allEvidences.length} evidences`
+    );
+    onProgress?.(`Consolidación completada: ${allWarnings.length} warnings, ${uniqueAmbiguous.length} campos ambiguos`);
+
+    return { result, allEvidences, allWarnings, allAmbiguousFields: uniqueAmbiguous };
 }
 
 function ensureMinimalDatosGenerales(datos: unknown): unknown {

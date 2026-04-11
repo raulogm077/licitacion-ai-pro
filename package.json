@@ -9,6 +9,8 @@
         "dev:vercel": "vercel dev",
         "build": "tsc && vite build",
         "test": "vitest",
+        "test:watch": "vitest",
+        "test:run": "vitest --run",
         "test:e2e": "playwright test",
         "typecheck": "tsc --noEmit",
         "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

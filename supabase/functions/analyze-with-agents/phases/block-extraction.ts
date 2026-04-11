@@ -217,7 +217,12 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     if (template && template.schema && template.schema.length > 0) {
         onProgress?.('Extrayendo plantilla personalizada...', totalBlocks, totalBlocks + 1);
         try {
-            customTemplate = await extractCustomTemplate(openai, vectorStoreId, template, guideContent);
+            customTemplate = await retryWithBackoff(
+                () => extractCustomTemplate(openai, vectorStoreId, template, guideContent),
+                2,
+                500,
+                'CustomTemplateExtraction'
+            );
         } catch (error) {
             const errorMsg = mapOpenAIError(error);
             console.error('[Extraction] Custom template extraction failed:', errorMsg);
@@ -337,6 +342,10 @@ async function extractCustomTemplate(
     template: NonNullable<BlockExtractionInput['template']>,
     guideContent: string
 ): Promise<Record<string, unknown>> {
+    if (template.schema.length > 50) {
+        throw new Error(`Template has too many fields (${template.schema.length}). Maximum is 50.`);
+    }
+
     const fieldDescriptions = template.schema
         .map((f) => {
             // Sanitize user-provided descriptions to prevent prompt injection

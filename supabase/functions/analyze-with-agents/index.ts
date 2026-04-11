@@ -38,6 +38,9 @@ const MAX_REQUESTS_MSG = '10 análisis/hora';
 
 // Guide content bundled at deploy time via guide-content.ts
 const guideContent = GUIDE_CONTENT;
+if (!guideContent || guideContent.length < 100) {
+    throw new Error('Guide content failed to load or is too short');
+}
 console.log(`[init] Guía de lectura cargada: ${guideContent.length} chars`);
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -287,19 +290,31 @@ serve(async (req: Request) => {
 
                     // ═══ FASE D: CONSOLIDACIÓN ═══
                     sendEvent('phase_started', { phase: 'consolidation', message: 'Consolidando resultados...' });
-                    const consolidated = runConsolidation({
-                        blocks: extraction.blocks,
-                        customTemplate: extraction.customTemplate,
-                        onProgress: (msg) => sendProgress('consolidation', msg),
-                    });
+                    const consolidated = await callWithTimeout(
+                        Promise.resolve(
+                            runConsolidation({
+                                blocks: extraction.blocks,
+                                customTemplate: extraction.customTemplate,
+                                onProgress: (msg) => sendProgress('consolidation', msg),
+                            })
+                        ),
+                        20_000,
+                        'Consolidation'
+                    );
                     sendEvent('phase_completed', { phase: 'consolidation', message: 'Resultados consolidados' });
 
                     // ═══ FASE E: VALIDACIÓN ═══
                     sendEvent('phase_started', { phase: 'validation', message: 'Validando resultado...' });
-                    const { result, workflow } = runValidation({
-                        consolidated,
-                        onProgress: (msg) => sendProgress('validation', msg),
-                    });
+                    const { result, workflow } = await callWithTimeout(
+                        Promise.resolve(
+                            runValidation({
+                                consolidated,
+                                onProgress: (msg) => sendProgress('validation', msg),
+                            })
+                        ),
+                        15_000,
+                        'Validation'
+                    );
                     sendEvent('phase_completed', {
                         phase: 'validation',
                         message: `Quality: ${workflow.quality?.overall || 'N/A'}`,

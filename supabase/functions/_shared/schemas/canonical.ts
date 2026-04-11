@@ -25,14 +25,38 @@ export const EvidenceSchema = z.object({
     confidence: z.number().min(0).max(1).optional().describe('0..1'),
 });
 
-/** Wrapper para campos críticos con trazabilidad */
+/**
+ * Wrapper para campos críticos con trazabilidad.
+ * Acepta tres formas de entrada del modelo:
+ *   1. TrackedField completo: { value, status, ... }             → pass-through
+ *   2. Valor primitivo/array sin envolver: "texto" / 1000 / []  → wraps automáticamente
+ *   3. Objeto sin .value o null/undefined                       → status: no_encontrado
+ */
 function TrackedField<T extends z.ZodTypeAny>(valueSchema: T) {
-    return z.object({
-        value: valueSchema,
-        evidence: EvidenceSchema.optional(),
-        status: FieldStatusEnum.default('extraido'),
-        warnings: z.array(z.string()).default([]),
-    });
+    return z.preprocess(
+        (input) => {
+            if (input === null || input === undefined) {
+                return { value: null, status: 'no_encontrado', warnings: [] };
+            }
+            // Ya tiene formato TrackedField correcto
+            if (typeof input === 'object' && !Array.isArray(input) && 'value' in (input as object)) {
+                return input;
+            }
+            // Valor primitivo o array sin envolver — el modelo lo devolvió sin wrapper
+            if (typeof input !== 'object' || Array.isArray(input)) {
+                return { value: input, status: 'extraido', warnings: [] };
+            }
+            // Objeto sin .value (p.ej. { status: 'no_encontrado' })
+            const obj = input as Record<string, unknown>;
+            return { ...obj, value: null, status: obj.status ?? 'no_encontrado', warnings: obj.warnings ?? [] };
+        },
+        z.object({
+            value: valueSchema.nullable(),
+            evidence: EvidenceSchema.optional(),
+            status: FieldStatusEnum.default('extraido'),
+            warnings: z.array(z.string()).default([]),
+        })
+    );
 }
 
 export type Evidence = z.infer<typeof EvidenceSchema>;
@@ -40,31 +64,46 @@ export type FieldStatus = z.infer<typeof FieldStatusEnum>;
 
 // ─── Datos Generales ──────────────────────────────────────────────────────────
 
+/**
+ * Extrae el valor de un TrackedField si el modelo lo devolvió envuelto
+ * en campos que el schema espera como strings planos.
+ */
+const unwrapTracked = (v: unknown): unknown =>
+    v !== null &&
+    v !== undefined &&
+    typeof v === 'object' &&
+    !Array.isArray(v) &&
+    'value' in (v as Record<string, unknown>)
+        ? (v as Record<string, unknown>).value
+        : v;
+
 export const DatosGeneralesSchema = z.object({
     titulo: TrackedField(z.string()),
     organoContratacion: TrackedField(z.string()),
-    presupuesto: TrackedField(z.number()),
+    // z.coerce.number() acepta strings numéricas ("1000000" → 1000000)
+    presupuesto: TrackedField(z.coerce.number()),
     moneda: TrackedField(z.string()),
-    plazoEjecucionMeses: TrackedField(z.number()),
+    plazoEjecucionMeses: TrackedField(z.coerce.number()),
     cpv: TrackedField(z.array(z.string())),
-    fechaLimitePresentacion: z.string().optional().nullable(),
-    tipoContrato: z.string().optional().nullable(),
-    procedimiento: z.string().optional().nullable(),
+    // El modelo a veces envuelve estos en TrackedField; unwrapTracked lo normaliza
+    fechaLimitePresentacion: z.preprocess(unwrapTracked, z.string().optional().nullable()),
+    tipoContrato: z.preprocess(unwrapTracked, z.string().optional().nullable()),
+    procedimiento: z.preprocess(unwrapTracked, z.string().optional().nullable()),
 });
 
 // ─── Económico ────────────────────────────────────────────────────────────────
 
 export const EconomicoSchema = z.object({
-    presupuestoBaseLicitacion: z.number().optional().nullable(),
-    valorEstimadoContrato: z.number().optional().nullable(),
-    importeIVA: z.number().optional().nullable(),
-    tipoIVA: z.number().optional().nullable(),
+    presupuestoBaseLicitacion: z.coerce.number().optional().nullable(),
+    valorEstimadoContrato: z.coerce.number().optional().nullable(),
+    importeIVA: z.coerce.number().optional().nullable(),
+    tipoIVA: z.coerce.number().optional().nullable(),
     desglosePorLotes: z
         .array(
             z.object({
                 lote: z.string(),
                 descripcion: z.string().optional(),
-                presupuesto: z.number(),
+                presupuesto: z.coerce.number(),
                 cita: z.string().optional(),
             })
         )
@@ -77,9 +116,9 @@ export const EconomicoSchema = z.object({
 // ─── Duración y Prórrogas ─────────────────────────────────────────────────────
 
 export const DuracionYProrrogasSchema = z.object({
-    duracionMeses: z.number().optional().nullable(),
-    prorrogaMeses: z.number().optional().nullable(),
-    prorrogaMaxima: z.number().optional().nullable(),
+    duracionMeses: z.coerce.number().optional().nullable(),
+    prorrogaMeses: z.coerce.number().optional().nullable(),
+    prorrogaMaxima: z.coerce.number().optional().nullable(),
     fechaInicio: z.string().optional().nullable(),
     fechaFin: z.string().optional().nullable(),
     observaciones: z.string().optional().nullable(),
@@ -90,13 +129,13 @@ export const DuracionYProrrogasSchema = z.object({
 
 export const CriterioSubjetivoSchema = z.object({
     descripcion: z.string(),
-    ponderacion: z.number().default(0),
+    ponderacion: z.coerce.number().default(0),
     detalles: z.string().optional().nullable(),
     subcriterios: z
         .array(
             z.object({
                 descripcion: z.string(),
-                ponderacion: z.number().default(0),
+                ponderacion: z.coerce.number().default(0),
             })
         )
         .optional()
@@ -106,7 +145,7 @@ export const CriterioSubjetivoSchema = z.object({
 
 export const CriterioObjetivoSchema = z.object({
     descripcion: z.string(),
-    ponderacion: z.number().default(0),
+    ponderacion: z.coerce.number().default(0),
     formula: z.string().optional().nullable(),
     cita: z.string().optional(),
 });
@@ -122,15 +161,15 @@ export const CriteriosAdjudicacionSchema = z.object({
 
 export const SolvenciaTecnicaSchema = z.object({
     descripcion: z.string(),
-    proyectosSimilaresRequeridos: z.number().default(0),
-    importeMinimoProyecto: z.number().optional().nullable(),
+    proyectosSimilaresRequeridos: z.coerce.number().default(0),
+    importeMinimoProyecto: z.coerce.number().optional().nullable(),
     cita: z.string().optional(),
 });
 
 export const RequisitosSolvenciaSchema = z.object({
     economica: z
         .object({
-            cifraNegocioAnualMinima: z.number().default(0),
+            cifraNegocioAnualMinima: z.coerce.number().default(0),
             descripcion: z.string().optional().nullable(),
             cita: z.string().optional(),
         })
@@ -205,7 +244,7 @@ export const SLASchema = z.object({
 
 export const EquipoMinimoSchema = z.object({
     rol: z.string(),
-    experienciaAnios: z.number().default(0),
+    experienciaAnios: z.coerce.number().default(0),
     titulacion: z.string().optional().nullable(),
     dedicacion: z.string().optional().nullable(),
     cita: z.string().optional(),
