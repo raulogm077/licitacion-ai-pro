@@ -15,11 +15,16 @@
  */
 export const OPENAI_MODEL = 'gpt-4.1';
 
-/** Per-API-call timeout in milliseconds (90s per individual call) */
-export const API_CALL_TIMEOUT_MS = 90_000;
+/** Per-API-call timeout in milliseconds (50s per individual call) */
+export const API_CALL_TIMEOUT_MS = 50_000;
 
-/** Global pipeline timeout in milliseconds (6 minutes) */
-export const PIPELINE_TIMEOUT_MS = 360_000;
+/**
+ * Global pipeline timeout in milliseconds (140s).
+ * Must be below Supabase Edge Function wall-clock limit (~150s) so our
+ * internal timeout fires first and sends a graceful SSE error to the client
+ * instead of a raw 502 from the infrastructure.
+ */
+export const PIPELINE_TIMEOUT_MS = 140_000;
 
 /** Maximum payload size in bytes (50MB) */
 export const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
@@ -27,8 +32,12 @@ export const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
 /** Maximum concurrent block extractions in Phase C */
 export const BLOCK_CONCURRENCY = 3;
 
-/** Vector store indexing timeout in milliseconds */
-export const VECTOR_STORE_TIMEOUT_MS = 90_000;
+/**
+ * Vector store indexing timeout in milliseconds (45s).
+ * Reduced from 90s to leave budget for subsequent pipeline phases
+ * within the 140s total pipeline timeout.
+ */
+export const VECTOR_STORE_TIMEOUT_MS = 45_000;
 
 /** Guide excerpt length for system prompts (chars) */
 export const GUIDE_EXCERPT_LENGTH = 4000;
