@@ -93,6 +93,41 @@ supabase/migrations/          # SQL migrations (chronological)
 2. `npx supabase functions deploy analyze-with-agents --no-verify-jwt` (JWT validated internally)
 3. Frontend deploys automatically via Vercel on merge to `main`
 
+## Monitoring & Observability
+
+### GitHub Actions (workflow runs, logs)
+Requires `GITHUB_TOKEN` in `.env.local` — fine-grained PAT, Actions=Read + Contents=Read.
+Create at: https://github.com/settings/personal-access-tokens/new
+
+```bash
+# Source vars then query GitHub API
+source .env.local
+
+# List recent workflow runs on main
+curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+  "https://api.github.com/repos/$GITHUB_REPO/actions/runs?branch=main&per_page=5" \
+  | jq '.workflow_runs[] | {id, status, conclusion, created_at, name: .display_title}'
+
+# Get jobs for a specific run (replace RUN_ID)
+curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+  "https://api.github.com/repos/$GITHUB_REPO/actions/runs/RUN_ID/jobs" \
+  | jq '.jobs[] | {name, status, conclusion}'
+
+# Get logs URL for a failed job (replace JOB_ID)
+curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+  "https://api.github.com/repos/$GITHUB_REPO/actions/jobs/JOB_ID/logs"
+```
+
+### Supabase (edge functions, DB logs)
+Use Supabase MCP tools (project_id: `qsohtrvnlimymwdxiokm`):
+- `list_edge_functions` → deployment status and version
+- `get_logs(service: "edge-function")` → real-time invocation logs
+- `get_logs(service: "postgres")` → DB query logs
+- `execute_sql` → direct DB inspection
+
+### Vercel (frontend)
+Deployment status visible via GitHub PR checks ("Deployment has completed").
+
 ## Key Files to Know
 
 - `src/lib/schemas.ts` — Frontend Zod schemas (LicitacionContent, TrackedField)
