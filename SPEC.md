@@ -195,6 +195,13 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - El framework Playwright necesita proporcionar en el evento InputFiles un buffer real o path si se emulan archivos que el componente del frontend leerá localmente en lugar de enviar a un servidor tradicional.
 
 ## Implementación Técnica y Decisiones
+
+### [Infra] Resolver Bloqueo Global de Vitest
+- **Implementación**: Se resolvió el error global de Vitest modificando el archivo `vitest.config.ts`. El array `exclude` de Vitest incluye ahora correctamente la carpeta completa de E2E con el patrón `e2e/**` (además de `src/test/e2e/**` y `node_modules/**`).
+- **Decisiones**: Al analizar el repositorio se observó que la estructura real de E2E estaba en la carpeta raíz `e2e/`, pero `vitest.config.ts` sólo estaba excluyendo la antigua ruta `src/test/e2e/**`. Esto provocaba que Vitest intentara ejecutar las pruebas de Playwright con `jsdom`, fallando repetidamente. Al ajustar el exclude, la suite global de pruebas funciona a la perfección. Además, se limpiaron scripts temporales sobrantes en la raíz.
+- **Riesgos residuales**: Ninguno. La suite de Vitest vuelve a estar operativa.
+- **Evidencia/Validación**: `pnpm typecheck && pnpm test` han pasado satisfactoriamente y las pruebas E2E continúan teniendo su propio comando separado (`pnpm test:e2e`).
+
 ### Auditoría PM: Tareas completadas detectadas
 - **Contexto:** Durante la auditoría del PM, se detectó que la infraestructura base de i18n ya estaba configurada (`src/lib/i18n.ts` existente, dependencias instaladas).
 - **Acción PM:** La tarea se ha cerrado y movido a `Done` para evitar redundancia. El número de tareas activas en el backlog pasa de 4 a 3, permitiendo el flujo normal de trabajo.
@@ -273,3 +280,9 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+### [Infra] Resolver Bloqueo Global de Vitest
+- **Implementación**: Se resolvió el error global de Vitest modificando el archivo `vitest.config.ts`. El array `exclude` de Vitest incluye ahora correctamente la carpeta completa de E2E con el patrón `e2e/**` (además de `src/test/e2e/**` y `node_modules/**`).
+- **Decisiones**: Al analizar el repositorio se observó que la estructura real de E2E estaba en la carpeta raíz `e2e/`, pero `vitest.config.ts` sólo estaba excluyendo la antigua ruta `src/test/e2e/**`. Esto provocaba que Vitest intentara ejecutar las pruebas de Playwright con `jsdom`, fallando repetidamente. Al ajustar el exclude, la suite global de pruebas funciona a la perfección. Además, se limpiaron scripts temporales sobrantes en la raíz.
+- **Riesgos residuales**: Ninguno. La suite de Vitest vuelve a estar operativa.
+- **Evidencia/Validación**: `pnpm typecheck && pnpm test` han pasado satisfactoriamente y las pruebas E2E continúan teniendo su propio comando separado (`pnpm test:e2e`).
