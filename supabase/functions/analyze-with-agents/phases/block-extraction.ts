@@ -271,6 +271,12 @@ async function extractBlock(
     );
 
     const outputText = extractOutputText(response);
+
+    // Debug: log raw LLM text for the first block to diagnose empty-extraction issues
+    if (blockName === 'datosGenerales') {
+        console.log(`[Extraction:${blockName}] Raw LLM output (first 800 chars):`, outputText.substring(0, 800));
+    }
+
     let parsed: { data?: unknown; evidences?: unknown[]; warnings?: string[]; ambiguous_fields?: string[] };
 
     try {
