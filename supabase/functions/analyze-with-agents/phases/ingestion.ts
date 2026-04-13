@@ -150,5 +150,26 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
         console.warn(`[Ingestion] Vector Store indexing timeout (${VECTOR_STORE_TIMEOUT_MS}ms). Proceeding anyway.`);
     }
 
+    // Diagnose: log file_counts so we can detect scanned/unreadable PDFs
+    try {
+        const vsFinal = await openai.vectorStores.retrieve(vectorStoreId);
+        const fc = vsFinal.file_counts;
+        console.log(
+            `[Ingestion] VS file_counts — completed: ${fc.completed}, failed: ${fc.failed}, in_progress: ${fc.in_progress}, total: ${fc.total}`
+        );
+        if (fc.failed > 0) {
+            console.warn(
+                `[Ingestion] ⚠️  ${fc.failed} file(s) FAILED to index. The PDF may be scanned (image-only) or corrupted.`
+            );
+        }
+        if (fc.completed === 0 && fc.in_progress === 0) {
+            console.warn(
+                `[Ingestion] ⚠️  No files completed indexing. Content extraction from this PDF will likely fail.`
+            );
+        }
+    } catch (e) {
+        console.warn('[Ingestion] Could not retrieve final VS file_counts:', e);
+    }
+
     return { vectorStoreId, fileIds: uploadedFileIds, fileNames };
 }
