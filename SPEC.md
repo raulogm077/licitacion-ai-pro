@@ -273,3 +273,6 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+### Iteration Updates (Current)
+- The task "Resolver Bloqueo Global de Vitest" was investigated. The error was due to Vitest failing to find `node_modules` despite `package.json` being present (`vitest: not found`), indicating dependencies were not installed in the workspace. Running `pnpm install` resolved the missing dependencies, and subsequently `pnpm test` successfully completed all 385 tests without fatal initialization errors. There was no need to modify `vitest.config.ts` or `package.json`. The issue was purely environmental within the execution context.
