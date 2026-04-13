@@ -19,6 +19,39 @@ import { z } from 'npm:zod@3.22.4';
 
 export const FieldStatusEnum = z.enum(['extraido', 'ambiguo', 'no_encontrado', 'derivado_tecnico']);
 
+/**
+ * Safely coerce to number. Returns `fallback` (default 0) instead of NaN.
+ * Also unwraps TrackedField-like objects ({ value, status }) to their .value.
+ * Use this everywhere z.coerce.number() would produce NaN for LLM text outputs.
+ */
+function safeCoerceNumber(fallback: number | null = 0) {
+    return z.preprocess((v) => {
+        if (v === null || v === undefined) return fallback;
+        // Unwrap TrackedField if the LLM accidentally wraps a numeric field
+        if (typeof v === 'object' && !Array.isArray(v) && 'value' in (v as object)) {
+            v = (v as Record<string, unknown>).value;
+            if (v === null || v === undefined) return fallback;
+        }
+        const n = Number(v);
+        return isNaN(n) ? fallback : n;
+    }, z.number().nullable());
+}
+
+/**
+ * Safely coerce to string. Unwraps TrackedField objects to their .value.
+ * Converts null/undefined to null.
+ */
+function safeCoerceString() {
+    return z.preprocess((v) => {
+        if (v === null || v === undefined) return null;
+        if (typeof v === 'object' && !Array.isArray(v) && 'value' in (v as object)) {
+            v = (v as Record<string, unknown>).value;
+            if (v === null || v === undefined) return null;
+        }
+        return String(v);
+    }, z.string().nullable().optional());
+}
+
 export const EvidenceSchema = z.object({
     quote: z.string().describe('Extracto literal del pliego (max 240 chars)'),
     pageHint: z.string().optional().describe('Número de página si se puede inferir'),
@@ -94,16 +127,16 @@ export const DatosGeneralesSchema = z.object({
 // ─── Económico ────────────────────────────────────────────────────────────────
 
 export const EconomicoSchema = z.object({
-    presupuestoBaseLicitacion: z.coerce.number().optional().nullable(),
-    valorEstimadoContrato: z.coerce.number().optional().nullable(),
-    importeIVA: z.coerce.number().optional().nullable(),
-    tipoIVA: z.coerce.number().optional().nullable(),
+    presupuestoBaseLicitacion: safeCoerceNumber(null),
+    valorEstimadoContrato: safeCoerceNumber(null),
+    importeIVA: safeCoerceNumber(null),
+    tipoIVA: safeCoerceNumber(null),
     desglosePorLotes: z
         .array(
             z.object({
                 lote: z.string(),
                 descripcion: z.string().optional(),
-                presupuesto: z.coerce.number(),
+                presupuesto: safeCoerceNumber(0),
                 cita: z.string().optional(),
             })
         )
@@ -116,9 +149,9 @@ export const EconomicoSchema = z.object({
 // ─── Duración y Prórrogas ─────────────────────────────────────────────────────
 
 export const DuracionYProrrogasSchema = z.object({
-    duracionMeses: z.coerce.number().optional().nullable(),
-    prorrogaMeses: z.coerce.number().optional().nullable(),
-    prorrogaMaxima: z.coerce.number().optional().nullable(),
+    duracionMeses: safeCoerceNumber(null),
+    prorrogaMeses: safeCoerceNumber(null),
+    prorrogaMaxima: safeCoerceNumber(null),
     fechaInicio: z.string().optional().nullable(),
     fechaFin: z.string().optional().nullable(),
     observaciones: z.string().optional().nullable(),
@@ -129,13 +162,13 @@ export const DuracionYProrrogasSchema = z.object({
 
 export const CriterioSubjetivoSchema = z.object({
     descripcion: z.string(),
-    ponderacion: z.coerce.number().default(0),
+    ponderacion: safeCoerceNumber(0),
     detalles: z.string().optional().nullable(),
     subcriterios: z
         .array(
             z.object({
                 descripcion: z.string(),
-                ponderacion: z.coerce.number().default(0),
+                ponderacion: safeCoerceNumber(0),
             })
         )
         .optional()
@@ -145,7 +178,7 @@ export const CriterioSubjetivoSchema = z.object({
 
 export const CriterioObjetivoSchema = z.object({
     descripcion: z.string(),
-    ponderacion: z.coerce.number().default(0),
+    ponderacion: safeCoerceNumber(0),
     formula: z.string().optional().nullable(),
     cita: z.string().optional(),
 });
@@ -153,7 +186,8 @@ export const CriterioObjetivoSchema = z.object({
 export const CriteriosAdjudicacionSchema = z.object({
     subjetivos: z.array(CriterioSubjetivoSchema).default([]),
     objetivos: z.array(CriterioObjetivoSchema).default([]),
-    umbralAnormalidad: z.string().optional().nullable(),
+    // LLM sometimes returns an object {value, status} here — unwrap it safely
+    umbralAnormalidad: safeCoerceString(),
     cita: z.string().optional(),
 });
 
@@ -161,15 +195,17 @@ export const CriteriosAdjudicacionSchema = z.object({
 
 export const SolvenciaTecnicaSchema = z.object({
     descripcion: z.string(),
-    proyectosSimilaresRequeridos: z.coerce.number().default(0),
-    importeMinimoProyecto: z.coerce.number().optional().nullable(),
+    // LLM may return "N/A" or text → safeCoerceNumber avoids NaN
+    proyectosSimilaresRequeridos: safeCoerceNumber(0),
+    importeMinimoProyecto: safeCoerceNumber(null),
     cita: z.string().optional(),
 });
 
 export const RequisitosSolvenciaSchema = z.object({
     economica: z
         .object({
-            cifraNegocioAnualMinima: z.coerce.number().default(0),
+            // LLM may return "No especificado" or similar → safeCoerceNumber avoids NaN
+            cifraNegocioAnualMinima: safeCoerceNumber(0),
             descripcion: z.string().optional().nullable(),
             cita: z.string().optional(),
         })
@@ -191,7 +227,12 @@ export const RequisitosSolvenciaSchema = z.object({
 export const RequisitoFuncionalSchema = z.object({
     requisito: z.string(),
     obligatorio: z.boolean().default(true),
-    referenciaPagina: z.number().optional().nullable(),
+    // LLM returns strings like "p. 5" or "página 5" — parse to int, null if unparseable
+    referenciaPagina: z.preprocess((v) => {
+        if (v === null || v === undefined) return null;
+        const n = parseInt(String(v).replace(/\D/g, ''), 10);
+        return isNaN(n) ? null : n;
+    }, z.number().optional().nullable()),
     cita: z.string().optional(),
 });
 
@@ -244,7 +285,8 @@ export const SLASchema = z.object({
 
 export const EquipoMinimoSchema = z.object({
     rol: z.string(),
-    experienciaAnios: z.coerce.number().default(0),
+    // LLM may return "No especificado" or similar text → safeCoerceNumber avoids NaN
+    experienciaAnios: safeCoerceNumber(0),
     titulacion: z.string().optional().nullable(),
     dedicacion: z.string().optional().nullable(),
     cita: z.string().optional(),
