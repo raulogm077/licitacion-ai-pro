@@ -31,7 +31,7 @@ export async function cleanupJobResources(
     if (vectorStoreId) {
         tasks.push(
             openai.vectorStores
-                .del(vectorStoreId)
+                .delete(vectorStoreId)
                 .then(() => console.log(`[Cleanup] Vector Store deleted: ${vectorStoreId}`))
                 .catch((error) => console.error(`[Cleanup] Failed to delete vector store ${vectorStoreId}:`, error))
         );
@@ -39,7 +39,7 @@ export async function cleanupJobResources(
 
     if (fileIds && fileIds.length > 0) {
         tasks.push(
-            Promise.allSettled(fileIds.map((fileId) => openai.files.del(fileId))).then((results) => {
+            Promise.allSettled(fileIds.map((fileId) => openai.files.delete(fileId))).then((results) => {
                 for (let i = 0; i < results.length; i++) {
                     if (results[i].status === 'fulfilled') {
                         console.log(`[Cleanup] File deleted: ${fileIds[i]}`);
