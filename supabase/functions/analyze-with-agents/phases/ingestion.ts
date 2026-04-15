@@ -107,7 +107,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     } catch (error) {
         // Cleanup any uploaded files on failure
         for (const fileId of uploadedFileIds) {
-            openai.files.del(fileId).catch((e) => console.warn(`[Ingestion] Cleanup failed for ${fileId}:`, e));
+            openai.files.delete(fileId).catch((e) => console.warn(`[Ingestion] Cleanup failed for ${fileId}:`, e));
         }
         throw error;
     }
@@ -125,7 +125,9 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     const vectorStoreId = vectorStore.id;
     console.log(`[Ingestion] Vector Store created: ${vectorStoreId}`);
 
-    // 4. Wait for indexing with exponential backoff
+    // 4. Wait for indexing — poll file_counts.in_progress, not vs.status.
+    // vs.status becomes 'completed' immediately after VS creation even while
+    // files are still being processed. file_counts reflects actual indexing state.
     onProgress?.('Indexando documentos...');
     let vectorStoreReady = false;
     let delay = 1000;
@@ -134,41 +136,38 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
 
     while (totalTime < VECTOR_STORE_TIMEOUT_MS) {
         const vs = await openai.vectorStores.retrieve(vectorStoreId);
-        if (vs.status === 'completed') {
+        const fc = vs.file_counts;
+        if (fc.in_progress === 0) {
             vectorStoreReady = true;
-            console.log(`[Ingestion] Vector Store indexed in ~${totalTime}ms`);
+            const outcome = fc.failed > 0 ? `${fc.failed} failed, ${fc.completed} ok` : `${fc.completed} ok`;
+            console.log(`[Ingestion] Vector Store indexed in ~${totalTime}ms (${outcome})`);
+            if (fc.failed > 0) {
+                console.warn(
+                    `[Ingestion] ⚠️  ${fc.failed} file(s) FAILED to index. The PDF may be scanned (image-only) or corrupted.`
+                );
+            }
+            if (fc.completed === 0) {
+                console.warn(
+                    `[Ingestion] ⚠️  No files completed indexing. Content extraction will likely return empty results.`
+                );
+            }
             break;
-        } else if (vs.status === 'failed') {
-            throw new Error(`Vector Store indexing failed`);
         }
+        console.log(
+            `[Ingestion] Indexing in progress — completed: ${fc.completed}, in_progress: ${fc.in_progress}, elapsed: ${totalTime}ms`
+        );
         await new Promise((resolve) => setTimeout(resolve, delay));
         totalTime += delay;
         delay = Math.min(Math.round(delay * 1.5), maxDelay);
     }
 
     if (!vectorStoreReady) {
-        console.warn(`[Ingestion] Vector Store indexing timeout (${VECTOR_STORE_TIMEOUT_MS}ms). Proceeding anyway.`);
-    }
-
-    // Diagnose: log file_counts so we can detect scanned/unreadable PDFs
-    try {
-        const vsFinal = await openai.vectorStores.retrieve(vectorStoreId);
-        const fc = vsFinal.file_counts;
-        console.log(
-            `[Ingestion] VS file_counts — completed: ${fc.completed}, failed: ${fc.failed}, in_progress: ${fc.in_progress}, total: ${fc.total}`
+        const vs = await openai.vectorStores.retrieve(vectorStoreId);
+        const fc = vs.file_counts;
+        console.warn(
+            `[Ingestion] Vector Store indexing timeout after ${VECTOR_STORE_TIMEOUT_MS}ms — proceeding with partial index. ` +
+                `file_counts: completed=${fc.completed}, in_progress=${fc.in_progress}, failed=${fc.failed}`
         );
-        if (fc.failed > 0) {
-            console.warn(
-                `[Ingestion] ⚠️  ${fc.failed} file(s) FAILED to index. The PDF may be scanned (image-only) or corrupted.`
-            );
-        }
-        if (fc.completed === 0 && fc.in_progress === 0) {
-            console.warn(
-                `[Ingestion] ⚠️  No files completed indexing. Content extraction from this PDF will likely fail.`
-            );
-        }
-    } catch (e) {
-        console.warn('[Ingestion] Could not retrieve final VS file_counts:', e);
     }
 
     return { vectorStoreId, fileIds: uploadedFileIds, fileNames };

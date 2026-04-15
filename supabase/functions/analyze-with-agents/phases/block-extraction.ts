@@ -18,7 +18,7 @@ import {
 } from '../../_shared/config.ts';
 import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
-import { retryWithBackoff } from '../../_shared/utils/retry.ts';
+import { retryWithBackoff, isRetryableError } from '../../_shared/utils/retry.ts';
 
 export interface BlockExtractionInput {
     openai: OpenAI;
@@ -245,7 +245,9 @@ async function extractBlock(
     const systemPrompt = buildSystemPrompt(blockName, documentMap, guideContent);
     const userPrompt = BLOCK_PROMPTS[blockName];
 
-    // Retry with exponential backoff for transient API errors (rate limits, network issues)
+    // Retry with exponential backoff for transient API errors (rate limits, network).
+    // Timeout errors are NOT retried — a second 90s attempt after a 90s timeout
+    // would burn 180s+ for a single block, collapsing the entire pipeline budget.
     const response = await retryWithBackoff(
         () =>
             callWithTimeout(
@@ -267,7 +269,8 @@ async function extractBlock(
             ),
         2,
         500,
-        `BlockExtraction[${blockName}]`
+        `BlockExtraction[${blockName}]`,
+        isRetryableError
     );
 
     const outputText = extractOutputText(response);

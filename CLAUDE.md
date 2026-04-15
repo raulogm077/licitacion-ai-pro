@@ -30,7 +30,42 @@ pnpm format:check     # Prettier check
 - **TrackedField**: Critical fields use `{ value, status, evidence?, warnings? }` wrapper
 - **`unwrap()`**: Extracts raw value from TrackedField or passes through legacy values
 - **SSE streaming**: Edge Function emits phase events (heartbeat, phase_started, phase_completed, complete, error)
-- **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (3 concurrent) -> D:Consolidation -> E:Validation
+- **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (9 concurrent) -> D:Consolidation -> E:Validation
+
+### Pipeline Timeout Architecture
+
+The full pipeline runs in a single Supabase Edge Function invocation (SSE streaming).
+Constants in `_shared/config.ts` control the timing budget:
+
+| Constant | Value | Notes |
+|---|---|---|
+| `PIPELINE_TIMEOUT_MS` | 280 000 | Requires Supabase function timeout ≥ 300s (set in Dashboard → Project Settings → Edge Functions) |
+| `API_CALL_TIMEOUT_MS` | 90 000 | Per-block OpenAI call — no retry on timeout (timeouts are NOT retried, see `isRetryableError`) |
+| `BLOCK_CONCURRENCY` | 9 | All 9 blocks run simultaneously (1 round), not 3×3 |
+| `VECTOR_STORE_TIMEOUT_MS` | 90 000 | Waits for `file_counts.in_progress === 0`, not `vs.status` |
+
+**Typical timing by document size:**
+
+| Pages | Ingestion | Extraction | Total |
+|---|---|---|---|
+| ~30 | ~20s | ~30-50s | ~70-90s ✅ |
+| ~100 | ~40s | ~50-80s | ~120-150s ✅ |
+| ~300 | ~90s | ~60-90s | ~200-250s ⚠️ needs 300s Supabase limit |
+
+**⚠️ Architecture limitation for very large documents (300+ pages):**
+The synchronous SSE pipeline has a hard ceiling at the Supabase wall-clock limit.
+For documents where ingestion + indexing alone exceeds 90s, the pipeline budget
+is consumed before extraction can complete.
+**Future work**: Migrate to an async job model — edge function creates DB job record
+and returns `job_id` immediately; background processing updates job status; client
+polls `/status/:job_id` instead of SSE streaming.
+
+### Security Audit CI
+
+`pnpm audit` is not used (npm retired the `/v1/security/audits` endpoint).
+Security scanning uses **OSV Scanner** which reads `pnpm-lock.yaml` directly against
+Google's OSV database. Only HIGH/CRITICAL vulnerabilities fail CI.
+The CI step parses JSON output and filters by `database_specific.severity`.
 
 ## Project Structure
 
