@@ -24,6 +24,15 @@ vi.mock('../services/auth.service', () => ({
     },
 }));
 
+// Mock Supabase
+vi.mock('../config/supabase', () => ({
+    supabase: {
+        from: vi.fn().mockReturnValue({
+            select: vi.fn().mockResolvedValue({ data: [], error: null })
+        })
+    }
+}));
+
 // Mock HomePage
 vi.mock('../pages/HomePage', () => ({
     HomePage: () => <div>Home Page Mock</div>,
@@ -44,8 +53,4 @@ describe('App', () => {
         // Use findBy because of useEffect async session check which might trigger lazy load
         expect(await screen.findByText('Home Page Mock')).toBeInTheDocument();
     });
-
-    // Note: Testing authenticated state requires mocking the module return value before render,
-    // which is tricky with hoisted mocks in separate tests without complex setup.
-    // We will focus on unauthed for now to keep it simple and robust.
 });
