@@ -10,6 +10,7 @@ export const SupabaseStatus: React.FC = () => {
     const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
+        let cancelled = false;
         const checkConnection = async () => {
             try {
                 // Check connection
@@ -18,6 +19,7 @@ export const SupabaseStatus: React.FC = () => {
                 // Simple read check regarding if user is logged in
                 const { error } = await supabase.from('licitaciones').select('count', { count: 'exact', head: true });
 
+                if (cancelled) return;
                 if (error) {
                     // 42501 = RLS violation (Auth required) which implies connection works but permissions are strict
                     if (error.code === '42501') {
@@ -29,11 +31,14 @@ export const SupabaseStatus: React.FC = () => {
                     setStatus('connected');
                 }
             } catch (e) {
-                setStatus('error');
+                if (!cancelled) setStatus('error');
             }
         };
 
         checkConnection();
+        return () => {
+            cancelled = true;
+        };
     }, [isAuthenticated]);
 
     if (status === 'connected') return null; // Hide if everything is perfect

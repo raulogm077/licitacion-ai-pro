@@ -24,21 +24,62 @@ permissions:
 
 jobs:
     # 1. Security Audit (Fail Fast on high+ vulnerabilities)
+    # Uses OSV Scanner (reads lockfile directly via Google OSV database) because
+    # pnpm audit relies on a retired npm registry endpoint (410 Gone as of 2026-04).
     security-audit:
         name: 🛡️ Security Audit
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: pnpm/action-setup@v3
-              with:
-                  version: 9.15.9
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
+            - name: Install OSV Scanner
+              run: |
+                  curl -sSfL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 \
+                    -o /usr/local/bin/osv-scanner
+                  chmod +x /usr/local/bin/osv-scanner
+                  osv-scanner --version
             - name: Audit Dependencies
-              # Fail on high+ vulnerabilities — critical is too permissive
-              run: pnpm audit --audit-level=high
+              # Scan pnpm lockfile against Google OSV vulnerability database.
+              # Replicates pnpm audit --audit-level=high: only fail on HIGH or CRITICAL.
+              # OSV Scanner has no built-in severity filter, so we parse the JSON output.
+              run: |
+                  set +e
+                  osv-scanner --format json --lockfile pnpm-lock.yaml > /tmp/osv-report.json 2>/tmp/osv-err.txt
+                  OSV_EXIT=$?
+                  set -e
+
+                  if [ $OSV_EXIT -eq 0 ]; then
+                    echo "✅ No vulnerabilities found."
+                    exit 0
+                  fi
+
+                  # Filter for HIGH or CRITICAL only (matches pnpm audit --audit-level=high)
+                  HIGH_CRITICAL=$(jq '[.results[]?.packages[]?.vulnerabilities[]?
+                    | select(
+                        (.database_specific.severity // "") == "HIGH" or
+                        (.database_specific.severity // "") == "CRITICAL"
+                      )] | length' /tmp/osv-report.json 2>/dev/null || echo "parse-error")
+
+                  if [ "$HIGH_CRITICAL" = "parse-error" ]; then
+                    echo "❌ Could not parse OSV report — treating as failure."
+                    cat /tmp/osv-err.txt || true
+                    cat /tmp/osv-report.json || true
+                    exit 1
+                  fi
+
+                  if [ "$HIGH_CRITICAL" -gt "0" ]; then
+                    echo "❌ Found $HIGH_CRITICAL HIGH/CRITICAL vulnerabilities:"
+                    jq -r '.results[]?.packages[]?.vulnerabilities[]?
+                      | select(
+                          (.database_specific.severity // "") == "HIGH" or
+                          (.database_specific.severity // "") == "CRITICAL"
+                        )
+                      | "\(.database_specific.severity) \(.id): \(.summary // "(no summary)")"' \
+                      /tmp/osv-report.json
+                    exit 1
+                  fi
+
+                  echo "⚠️  Only LOW/MODERATE vulnerabilities found — not blocking (matches pnpm audit --audit-level=high)."
+                  exit 0
 
     # 2. Quality Checks (Lint, Unit, Build)
     quality-checks:
