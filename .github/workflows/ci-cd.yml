@@ -24,21 +24,22 @@ permissions:
 
 jobs:
     # 1. Security Audit (Fail Fast on high+ vulnerabilities)
+    # Uses OSV Scanner (reads lockfile directly via Google OSV database) because
+    # pnpm audit relies on a retired npm registry endpoint (410 Gone as of 2026-04).
     security-audit:
         name: 🛡️ Security Audit
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - uses: pnpm/action-setup@v3
-              with:
-                  version: 9.15.9
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
+            - name: Install OSV Scanner
+              run: |
+                  curl -sSL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 \
+                    -o /usr/local/bin/osv-scanner
+                  chmod +x /usr/local/bin/osv-scanner
             - name: Audit Dependencies
-              # Fail on high+ vulnerabilities — critical is too permissive
-              run: pnpm audit --audit-level=high
+              # Scan pnpm lockfile against Google OSV vulnerability database.
+              # Exits non-zero if any HIGH or CRITICAL vulnerabilities are found.
+              run: osv-scanner --lockfile pnpm-lock.yaml
 
     # 2. Quality Checks (Lint, Unit, Build)
     quality-checks:
