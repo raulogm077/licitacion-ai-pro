@@ -8,7 +8,7 @@ export default defineConfig({
         environment: 'jsdom',
         setupFiles: './src/test/setup.ts',
         include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-        exclude: ['src/test/e2e/**', 'node_modules/**'],
+        exclude: ['src/test/e2e/**', 'node_modules/**', 'e2e/**'],
         coverage: {
             reporter: ['text', 'json', 'html'],
             thresholds: {

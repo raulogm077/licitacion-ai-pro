@@ -273,3 +273,7 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+
+## Hallazgos técnicos y Resoluciones
+- Se resolvió el Bloqueo Global de Vitest actualizando el archivo de configuración `vitest.config.ts` para excluir el directorio `e2e/**` que generaba un conflicto con las dependencias globales y de JSDOM al lanzar pruebas de Playwright de forma concurrente con Vitest. Ahora `pnpm test` se ejecuta sin bloqueos.
