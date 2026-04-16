@@ -57,8 +57,9 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos modificados: `e2e/upload-pdf.spec.ts` (nuevo)
 
 ## Ready for QA
+## To Do (Iteración Actual)
 
-- [x] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
   - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
   - Criterios de aceptación:
@@ -66,18 +67,10 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
   - Dependencias: Ninguna.
 
-- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
-  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
-  - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
-  - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
-  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`, `e2e/upload-pdf.spec.ts`
-  - Dependencias: Ninguna.
-  - Tipo: QA
-  - Área: Analysis
-
-
-
-## To Do (Iteración Actual)
+> Coverage failed requirements:
+> File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+> -------------------|---------|----------|---------|---------|-------------------
+> All files          |   79.68 |    65.58 |    72.9 |   80.53 |
 
 - [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
   - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
@@ -103,7 +96,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Dependabot ejecuta chequeos semanales.
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
-
 ## Deuda Técnica / Refactorización
 
 - (Vacio - Tareas integradas en la iteración actual)
@@ -291,3 +283,12 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - [x] [Tipo: Docs] [Área: Infra] Crear script para inicialización de variables de entorno locales
 - [x] [Tipo: QA] [Área: Analysis] Revisar warnings en tests de UI
 - [x] [Tipo: AI] [Área: Analysis] Implementar soporte completo para PDFs sin anexos o guía
+
+- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
+  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
+  - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
+  - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
+  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`, `e2e/upload-pdf.spec.ts`
+  - Dependencias: Ninguna.
+  - Tipo: QA
+  - Área: Analysis
