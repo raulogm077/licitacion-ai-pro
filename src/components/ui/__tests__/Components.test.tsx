@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { Badge } from '../Badge';
@@ -264,7 +264,7 @@ describe('Common Components', () => {
             // Open dropdown first
             fireEvent.click(screen.getByRole('button'));
             // Click logout
-            fireEvent.click(screen.getByText('Cerrar sesión'));
+            await act(async () => { fireEvent.click(screen.getByText('Cerrar sesión')); });
             expect(mockSignOut).toHaveBeenCalledTimes(1);
         });
     });

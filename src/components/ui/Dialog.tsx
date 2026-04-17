@@ -23,7 +23,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
             />
             <div className="relative w-full max-w-lg scale-100 transition-all z-50">
                 {React.Children.map(children, (child) =>
-                    React.isValidElement(child)
+                    React.isValidElement(child) && typeof child.type !== 'string'
                         ? React.cloneElement(child as React.ReactElement<{ onOpenChange?: (open: boolean) => void }>, {
                               onOpenChange,
                           })

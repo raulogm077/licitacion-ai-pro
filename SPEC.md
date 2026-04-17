@@ -271,5 +271,11 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 - Se solucionaron errores en la ejecución de pruebas de UI (DashboardSmoke.test.tsx) debido al uso de React Router sin mock adecuado.
 - Estas adiciones incrementan la cobertura general y la resiliencia de la interfaz de usuario.
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
+
+### [Tech Lead] Resolución Bloqueo Global de la Suite de Tests (Vitest)
+- **Acción Planificada:** Modificar el código problemático en `src/components/ui/Dialog.tsx` y `src/components/ui/__tests__/Components.test.tsx`.
+- **Implementación:** Se arregló la sintaxis de clonado de elementos en el archivo `Dialog.tsx`. Se arregló un warning relacionado con `act(...)` en `Components.test.tsx`.
+- **Resultado:** Ejecutar `pnpm test` completa la ejecución de todas las suites de prueba de forma exitosa.
+- **Dependencias:** Ninguna.
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
