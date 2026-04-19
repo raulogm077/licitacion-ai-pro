@@ -319,3 +319,9 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+
+### Auditoría PM: Resolución de Bloqueo de Vitest
+- **Contexto:** Se registró un problema crítico de "Bloqueo Global de la Suite de Tests (Vitest)".
+- **Acción:** Tras una auditoría ejecutando `pnpm test`, se comprobó que la suite global se ejecuta correctamente (100% de tests passing) y el problema fue un estado transitorio del lockfile o de caché local que ya fue mitigado mediante la reinstalación/resolución de pnpm (`pnpm install`).
+- **Resultado:** La tarea de resolución se movió a Done, desbloqueando la tarea de QA dependiente (Aumentar cobertura al 80%).

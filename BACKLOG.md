@@ -22,6 +22,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 ```
 
 ## Done
+
+- [x] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
+  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
+  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
+  - Criterios de aceptación:
+    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
+  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
+  - Dependencias: Ninguna.
 - [x] [Tipo: UI] [Área: Infra] Configurar infraestructura base para i18n (ES/EN)
   - Objetivo: Preparar la aplicación para soportar múltiples idiomas, empezando por español e inglés.
   - Alcance: Instalar e inicializar librería de internacionalización (ej. `react-i18next`), crear archivos de traducción base (`es.json`, `en.json`) y configurar el proveedor en la raíz de la app.
@@ -78,14 +86,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 
 ## To Do (Iteración Actual)
-
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
-  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
-  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
-  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
-  - Dependencias: Ninguna.
 
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
