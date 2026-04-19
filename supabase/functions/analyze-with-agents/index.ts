@@ -276,6 +276,18 @@ serve(async (req: Request) => {
                                 message: msg,
                             });
                         },
+                        onRetry: ({ blockName, attempt, maxAttempts, waitMs, reason, blockIndex, totalBlocks }) => {
+                            sendEvent('retry_scheduled', {
+                                phase: 'extraction',
+                                blockName,
+                                attempt,
+                                maxAttempts,
+                                waitMs,
+                                reason,
+                                blockIndex,
+                                totalBlocks,
+                            });
+                        },
                     });
                     sendEvent('phase_completed', {
                         phase: 'extraction',

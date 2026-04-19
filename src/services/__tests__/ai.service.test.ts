@@ -174,6 +174,41 @@ describe('AIService', () => {
         expect(heartbeatCall).toBeUndefined();
     });
 
+    it('surfaces retry_scheduled events with a visible countdown', async () => {
+        vi.useFakeTimers();
+        const onProgress = vi.fn();
+
+        mockAnalyze.mockImplementation(async (_b64, _fn, _tpl, callback) => {
+            callback({ type: 'phase_started', phase: 'extraction', message: 'Extrayendo información...' });
+            callback({
+                type: 'retry_scheduled',
+                phase: 'extraction',
+                blockName: 'datosGenerales',
+                attempt: 2,
+                maxAttempts: 5,
+                waitMs: 3000,
+                reason: 'rate_limit',
+                blockIndex: 1,
+                totalBlocks: 9,
+            });
+            await new Promise((resolve) => setTimeout(resolve, 3200));
+            return validResult;
+        });
+
+        const promise = service.analyzePdfContent('b64', onProgress, undefined, 'f.pdf', 'h1');
+
+        await vi.advanceTimersByTimeAsync(2200);
+
+        const messages = onProgress.mock.calls.map(([, , message]) => String(message));
+        expect(messages.some((message) => message.includes('datosGenerales') && message.includes('3s'))).toBe(true);
+        expect(messages.some((message) => message.includes('2s'))).toBe(true);
+        expect(messages.some((message) => message.includes('1s'))).toBe(true);
+
+        await vi.advanceTimersByTimeAsync(1500);
+        await promise;
+        vi.useRealTimers();
+    });
+
     it('passes files parameter to jobService', async () => {
         mockAnalyze.mockResolvedValue(validResult);
         const files = [{ name: 'annex.pdf', base64: 'abc' }];

@@ -1,22 +1,9 @@
 #!/bin/sh
 
-# =============================================================================
-# Pre-push hook: Full quality gate (mirrors CI quality-checks job)
-# Ensures code that reaches CI will pass lint, typecheck, unit tests, and build.
-# =============================================================================
+echo "🔍 Running pre-push release verification..."
+pnpm verify:release || {
+  echo "❌ verify:release failed. Fix before pushing."
+  exit 1
+}
 
-echo "🔍 Running pre-push quality checks..."
-
-echo "→ Lint..."
-pnpm lint || { echo "❌ Lint failed. Fix before pushing."; exit 1; }
-
-echo "→ TypeScript..."
-pnpm typecheck || { echo "❌ TypeScript errors. Fix before pushing."; exit 1; }
-
-echo "→ Unit tests..."
-pnpm test -- --run || { echo "❌ Tests failed. Fix before pushing."; exit 1; }
-
-echo "→ Build..."
-pnpm build || { echo "❌ Build failed. Fix before pushing."; exit 1; }
-
-echo "✅ All quality checks passed. Pushing..."
+echo "✅ verify:release passed. Pushing..."

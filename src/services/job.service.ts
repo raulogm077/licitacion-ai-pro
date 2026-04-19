@@ -227,6 +227,7 @@ export interface StreamEvent {
         | 'phase_completed'
         | 'phase_progress'
         | 'extraction_progress'
+        | 'retry_scheduled'
         | 'complete'
         | 'error'
         // Legacy event types (backward compat)
@@ -239,6 +240,11 @@ export interface StreamEvent {
     timestamp: number;
     blockIndex?: number;
     totalBlocks?: number;
+    blockName?: string;
+    attempt?: number;
+    maxAttempts?: number;
+    waitMs?: number;
+    reason?: string;
 }
 
 export const jobService = new JobService();

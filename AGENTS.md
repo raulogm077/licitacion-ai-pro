@@ -27,7 +27,24 @@ Reglas del flujo:
   - `jules/ai/<slug-tarea>`
   - `jules/qa/<fecha-o-lote>`
 - El agente debe hacer `submit` sobre su rama efímera.
-- Solo QA puede aprobar el cierre final de una tarea y ejecutar despliegue.
+- Solo QA puede aprobar el cierre final de una tarea.
+- Producción solo se despliega tras fusionar una PR en verde sobre `main`. No se despliega desde ramas efímeras.
+
+<!-- release-contract:start -->
+- No direct work or deploy from `main`.
+- Production deploys only after a green PR is merged into `main`.
+- Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
+- If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+<!-- release-contract:end -->
+
+## 2.1. Cierre obligatorio de sesión
+
+Comandos operativos obligatorios:
+
+- `pnpm verify:integrity` valida deriva de migraciones, workflows, hooks y sincronía documental mínima.
+- `pnpm verify:release` es el cierre obligatorio antes de `git push` cuando la sesión toca código, runtime, CI/CD o despliegue.
+
+La rama no se considera lista para QA ni para PR si `pnpm verify:release` no pasa en local.
 
 ## 3. Máquina de estados del backlog
 
@@ -159,6 +176,7 @@ Criterios mínimos de validación:
    - no debe romper SSE
    - no debe romper schema/Zod
 5. La documentación mínima debe estar actualizada
+6. `pnpm verify:release` debe haber pasado en la rama antes de abrir o actualizar la PR
 
 Reglas de salida:
 - Si **PASS**:
@@ -180,6 +198,7 @@ Checklist documental mínima:
 - `ARCHITECTURE.md` si cambia arquitectura, flujo de análisis, `JobService`, SSE, contratos o integración de plantillas/múltiples documentos
 - `README.md` si cambia stack, setup, flujo de ramas o forma de ejecutar el proyecto
 - `DEPLOYMENT.md` si cambia el proceso real de despliegue
+- `TECHNICAL_DOCS.md` si cambia backend, tablas, contratos técnicos o runtime operativo
 - `DEPRECATED.md` si se retira algo y debe quedar trazabilidad histórica
 
 ## 6. Regla de calidad operativa

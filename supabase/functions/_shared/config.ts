@@ -45,12 +45,11 @@ export const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
 
 /**
  * Maximum concurrent block extractions in Phase C.
- * Set to 9 (= number of blocks) so all blocks run in a single parallel round
- * instead of 3 sequential rounds of 3. This cuts extraction wall-clock time
- * from 3 × API_CALL_TIMEOUT_MS (worst case) to 1 × API_CALL_TIMEOUT_MS.
- * OpenAI rate limits are token-based; concurrent file_search calls are safe.
+ * Kept deliberately below the total number of blocks to reduce OpenAI 429 bursts
+ * on medium/large dossiers. Stability is preferred over the shortest possible
+ * wall-clock time because retries are expensive inside a single SSE request.
  */
-export const BLOCK_CONCURRENCY = 9;
+export const BLOCK_CONCURRENCY = 3;
 
 /**
  * Vector store indexing timeout in milliseconds (90s).

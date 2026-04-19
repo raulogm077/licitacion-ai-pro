@@ -1,22 +1,33 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "Iniciando verificacion Pre-Push (Simulacion de CI)..."
+echo "Iniciando verify:release..."
 
-# 1. Type Check & Lint
-echo "Verificando Tipos y Linting..."
-pnpm typecheck
+echo "→ Integridad del repo..."
+pnpm verify:integrity
+
+echo "→ Lint..."
 pnpm lint
-echo "Codigo estatico correcto."
 
-# 2. Tests Unitarios
-echo "Ejecutando Tests Unitarios..."
-pnpm test -- --run
-echo "Tests unitarios pasados."
+echo "→ TypeScript..."
+pnpm typecheck
 
-# 3. Build
-echo "Intentando build de produccion..."
+echo "→ Unit tests + coverage..."
+pnpm test -- --run --coverage
+
+echo "→ Build..."
 pnpm build
-echo "Build correcto."
 
-echo "TODO LISTO. Puedes hacer 'git push' con confianza."
+echo "→ Edge Functions (deno check)..."
+deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
+deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
+
+echo "→ Edge Functions (deno test)..."
+deno test --node-modules-dir=auto supabase/functions/_shared/schemas/canonical_test.ts
+deno test --node-modules-dir=auto supabase/functions/_shared/utils/retry_test.ts
+deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
+
+echo "→ E2E..."
+pnpm test:e2e
+
+echo "verify:release completado."

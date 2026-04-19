@@ -52,6 +52,35 @@ function safeCoerceString() {
     }, z.string().nullable().optional());
 }
 
+/**
+ * Safely coerce to string array. Accepts arrays, comma/newline/semicolon-separated
+ * strings, or TrackedField wrappers and always returns a normalized string array.
+ */
+function safeCoerceStringArray() {
+    return z.preprocess((v) => {
+        if (v === null || v === undefined) return [];
+        if (typeof v === 'object' && !Array.isArray(v) && 'value' in (v as object)) {
+            v = (v as Record<string, unknown>).value;
+            if (v === null || v === undefined) return [];
+        }
+
+        if (Array.isArray(v)) {
+            return v
+                .map((entry) => String(entry).trim())
+                .filter((entry) => entry.length > 0);
+        }
+
+        if (typeof v === 'string') {
+            return v
+                .split(/[\n,;|]+/)
+                .map((entry) => entry.trim())
+                .filter((entry) => entry.length > 0);
+        }
+
+        return [String(v).trim()].filter((entry) => entry.length > 0);
+    }, z.array(z.string()));
+}
+
 export const EvidenceSchema = z.object({
     quote: z.string().describe('Extracto literal del pliego (max 240 chars)'),
     pageHint: z.string().optional().describe('Número de página si se puede inferir'),
@@ -117,7 +146,7 @@ export const DatosGeneralesSchema = z.object({
     presupuesto: TrackedField(safeCoerceNumber(0)),
     moneda: TrackedField(z.string()),
     plazoEjecucionMeses: TrackedField(safeCoerceNumber(0)),
-    cpv: TrackedField(z.array(z.string())),
+    cpv: TrackedField(safeCoerceStringArray()),
     // El modelo a veces envuelve estos en TrackedField; unwrapTracked lo normaliza
     fechaLimitePresentacion: z.preprocess(unwrapTracked, z.string().optional().nullable()),
     tipoContrato: z.preprocess(unwrapTracked, z.string().optional().nullable()),
