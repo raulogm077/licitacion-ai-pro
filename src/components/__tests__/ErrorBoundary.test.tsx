@@ -17,7 +17,7 @@ function ThrowingComponent({ shouldThrow }: { shouldThrow: boolean }) {
 }
 
 describe('ErrorBoundary', () => {
-    let unhandledExceptionListener: any;
+    let unhandledExceptionListener: (e: ErrorEvent) => void;
     beforeEach(() => {
         consoleError.mockClear();
 
