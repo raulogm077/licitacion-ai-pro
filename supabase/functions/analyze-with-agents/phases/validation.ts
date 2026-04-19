@@ -76,7 +76,7 @@ export function runValidation(input: ValidationInput): ValidationOutput {
 
     bySection['requisitosSolvencia'] = evaluateArraysQuality(
         [result.requisitosSolvencia?.tecnica, result.requisitosSolvencia?.profesional],
-        result.requisitosSolvencia?.economica?.cifraNegocioAnualMinima
+        result.requisitosSolvencia?.economica?.cifraNegocioAnualMinima ?? undefined
     );
 
     bySection['requisitosTecnicos'] = evaluateArraysQuality([

@@ -30,7 +30,7 @@ jobs:
         name: 🛡️ Security Audit
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
             - name: Install OSV Scanner
               run: |
                   curl -sSfL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 \
@@ -81,6 +81,22 @@ jobs:
                   echo "⚠️  Only LOW/MODERATE vulnerabilities found — not blocking (matches pnpm audit --audit-level=high)."
                   exit 0
 
+    edge-checks:
+        name: 🧪 Edge Function Checks
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v6
+            - uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+            - name: Deno Check Existing Edge Function
+              run: deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
+            - name: Deno Check Conversational Edge Function
+              run: deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
+            - name: Deno Test Conversational Tools
+              run: deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
+
     # 2. Quality Checks (Lint, Unit, Build)
     quality-checks:
         name: ⚡ Quality Checks
@@ -90,12 +106,12 @@ jobs:
             VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
             VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
             - uses: pnpm/action-setup@v3
               with:
                   version: 9.15.9
             - name: Setup Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v6
               with:
                   node-version: ${{ env.NODE_VERSION }}
                   cache: 'pnpm'
@@ -131,13 +147,13 @@ jobs:
             VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
             VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - uses: pnpm/action-setup@v3
               with:
                   version: 9.15.9
             - name: Setup Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v6
               with:
                   node-version: ${{ env.NODE_VERSION }}
                   cache: 'pnpm'
@@ -180,10 +196,10 @@ jobs:
                   path: playwright-report/
                   retention-days: 30
 
-    # 4. Deploy to Vercel (Frontend) - Depends on all quality gates including E2E
+    # 5. Deploy to Vercel (Frontend) - Depends on all quality gates including E2E
     deploy-vercel:
         name: 🚀 Deploy to Vercel
-        needs: [quality-checks, security-audit, e2e-tests]
+        needs: [quality-checks, security-audit, edge-checks, e2e-tests]
         # Deploy only on main. Allow push or workflow_dispatch.
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         runs-on: ubuntu-latest
@@ -191,14 +207,14 @@ jobs:
         outputs:
             deployment_url: ${{ steps.deploy_step.outputs.url }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - uses: pnpm/action-setup@v3
               with:
                   version: 9.15.9
 
             - name: Setup Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v6
               with:
                   node-version: ${{ env.NODE_VERSION }}
                   cache: 'pnpm'
@@ -272,7 +288,7 @@ jobs:
                   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
                   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-    # 5. Deploy to Supabase (Backend)
+    # 6. Deploy to Supabase (Backend)
     deploy-supabase:
         name: ⚡ Deploy to Supabase
         needs: deploy-vercel
@@ -280,7 +296,7 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 10
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
             - uses: supabase/setup-cli@v1
               with:
@@ -301,14 +317,16 @@ jobs:
                   SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
                   SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-            - name: Deploy Edge Function
+            - name: Deploy Edge Functions
               # JWT verification is handled manually inside the function code (supabase.auth.getUser(token)).
-              run: supabase functions deploy analyze-with-agents --no-verify-jwt --project-ref $SUPABASE_PROJECT_ID
+              run: |
+                  supabase functions deploy analyze-with-agents --no-verify-jwt --project-ref $SUPABASE_PROJECT_ID
+                  supabase functions deploy chat-with-analysis-agent --no-verify-jwt --project-ref $SUPABASE_PROJECT_ID
               env:
                   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
                   SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
-    # 6. Smoke Test (Post-Deploy Verification)
+    # 7. Smoke Test (Post-Deploy Verification)
     smoke-test:
         name: 💨 Smoke Test
         needs: [deploy-vercel, deploy-supabase]
@@ -349,12 +367,29 @@ jobs:
                   fi
                   echo "✅ Edge Function CORS Passed."
 
-    # 7. Docker Build Validation (parallel, does not block deploy)
+            - name: Verify Conversational Edge Function CORS
+              run: |
+                  SUPABASE_URL="https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co"
+                  echo "Checking Edge Function CORS: $SUPABASE_URL/functions/v1/chat-with-analysis-agent"
+                  HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                      -X OPTIONS \
+                      -H "Origin: https://licitacion-ai-pro.vercel.app" \
+                      -H "Access-Control-Request-Method: POST" \
+                      "$SUPABASE_URL/functions/v1/chat-with-analysis-agent")
+                  echo "CORS preflight Status: $HTTP_STATUS"
+
+                  if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "204" ]; then
+                    echo "❌ Conversational Edge Function CORS check failed: HTTP $HTTP_STATUS"
+                    exit 1
+                  fi
+                  echo "✅ Conversational Edge Function CORS Passed."
+
+    # 8. Docker Build Validation (parallel, does not block deploy)
     docker-build:
         name: 🐳 Docker Build Check
         runs-on: ubuntu-latest
         timeout-minutes: 10
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
             - name: Build Docker Image
               run: docker build -t licitacion-ai-pro:ci-test .

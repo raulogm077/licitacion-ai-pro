@@ -124,7 +124,7 @@ function checkCrossBlockConsistency(result: CanonicalResult): string[] {
     const warnings: string[] = [];
 
     // Check presupuesto consistency between datosGenerales and economico
-    const presupuestoDG = result.datosGenerales.presupuesto.value;
+    const presupuestoDG = result.datosGenerales.presupuesto.value ?? 0;
     const presupuestoEco = result.economico?.presupuestoBaseLicitacion;
     if (presupuestoDG > 0 && presupuestoEco && presupuestoEco > 0 && presupuestoDG !== presupuestoEco) {
         warnings.push(
@@ -133,7 +133,7 @@ function checkCrossBlockConsistency(result: CanonicalResult): string[] {
     }
 
     // Check plazo consistency between datosGenerales and duracion
-    const plazoDG = result.datosGenerales.plazoEjecucionMeses.value;
+    const plazoDG = result.datosGenerales.plazoEjecucionMeses.value ?? 0;
     const plazoDur = result.duracionYProrrogas?.duracionMeses;
     if (plazoDG > 0 && plazoDur && plazoDur > 0 && plazoDG !== plazoDur) {
         warnings.push(`Inconsistencia de plazo: datosGenerales=${plazoDG} meses, duracion=${plazoDur} meses.`);

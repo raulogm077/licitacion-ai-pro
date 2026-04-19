@@ -34,6 +34,12 @@ function inferMimeType(filename: string): string {
     return 'application/pdf';
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(buffer).set(bytes);
+    return buffer;
+}
+
 async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
     const results: T[] = new Array(items.length);
     let nextIndex = 0;
@@ -64,7 +70,9 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
                 throw new Error('El archivo principal no tiene un formato base64 válido');
             }
             const pdfUpload = await openai.files.create({
-                file: new File([pdfBuffer], filename || 'documento.pdf', { type: 'application/pdf' }),
+                file: new File([toArrayBuffer(pdfBuffer)], filename || 'documento.pdf', {
+                    type: 'application/pdf',
+                }),
                 purpose: 'assistants',
             });
             uploadedFileIds.push(pdfUpload.id);
@@ -88,7 +96,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
                     }
                     const mimeType = inferMimeType(extraFile.name);
                     const upload = await openai.files.create({
-                        file: new File([buffer], extraFile.name, { type: mimeType }),
+                        file: new File([toArrayBuffer(buffer)], extraFile.name, { type: mimeType }),
                         purpose: 'assistants',
                     });
                     return { id: upload.id, name: extraFile.name };

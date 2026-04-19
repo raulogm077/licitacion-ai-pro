@@ -18,7 +18,7 @@ Este documento es obligatorio actualizarlo cuando cambie cualquiera de estos pun
 
 ## 3. Vista general
 
-La aplicación analiza documentos PDF de licitaciones usando una Edge Function con **OpenAI Responses API** organizada en un **pipeline de 5 fases**, con streaming de progreso al frontend mediante **Server-Sent Events (SSE)**.
+La aplicación analiza documentos PDF de licitaciones usando una Edge Function con **OpenAI Responses API** organizada en un **pipeline de 5 fases**, con streaming de progreso al frontend mediante **Server-Sent Events (SSE)**. Además, incorpora una capa conversacional productiva con **OpenAI Agents SDK** sobre análisis ya persistidos, sin alterar el flujo batch vigente.
 
 Flujo actual:
 
@@ -101,12 +101,46 @@ Responsabilidades:
 - Constantes centralizadas en `_shared/config.ts` (modelo, timeouts, concurrencia)
 - Errores de OpenAI mapeados a mensajes legibles (`mapOpenAIError`)
 
-### 4.4. Persistencia
+### 4.4. Edge Function `chat-with-analysis-agent`
+
+`chat-with-analysis-agent` es la capa conversacional productiva sobre análisis ya persistidos. Se apoya en OpenAI Agents SDK, pero permanece aislada del pipeline batch principal.
+
+Responsabilidades:
+
+- verificar JWT con el mismo patrón que `analyze-with-agents`
+- cargar un análisis existente por `analysisHash`
+- recuperar y persistir historial conversacional por sesión
+- ejecutar un manager agent con especialistas vía `agent.asTool()`
+- devolver una respuesta estructurada con citas y herramientas utilizadas
+- ser consumida por el dashboard solo cuando existe un análisis persistido seleccionable
+
+Restricciones:
+
+- no relee PDFs ni recrea Vector Stores
+- no modifica `analysis_jobs`
+- no sustituye el flujo SSE principal
+- opera solo sobre resultados ya guardados en `licitaciones`
+
+Persistencia conversacional:
+
+- `analysis_chat_sessions` guarda la sesión por `user_id + analysis_hash`
+- `analysis_chat_messages` guarda el historial serializado
+- la función reconstruye el input conversacional del SDK a partir de ese historial
+- el frontend conserva `sessionId` y mensajes renderizados en `localStorage` bajo la clave `analysis-chat:<hash>` para continuidad de UX sin exponer tablas internas
+
+Integración frontend:
+
+- `Dashboard.tsx` añade la sección `chat` cuando `useLicitacionStore().hash` está disponible
+- `AnalysisChatPanel` usa `AnalysisChatService` para invocar `chat-with-analysis-agent`
+- la UI no accede directamente a `analysis_chat_messages`; todo el intercambio conversacional sigue entrando por la Edge Function
+
+### 4.5. Persistencia
 
 Supabase se usa para:
 
 - autenticación
 - datos de historial con búsqueda full-text (FTS español + ILIKE fallback) y eliminación
+- sesiones de chat conversacional (`analysis_chat_sessions` y `analysis_chat_messages`)
 - plantillas de extracción (`extraction_templates`): permite definir estructuras de extracción configurables por usuario autenticado. La tabla cuenta con políticas RLS (`Row Level Security`) para garantizar que cada usuario gestione exclusivamente sus plantillas, basadas en su `user_id`.
 - otras entidades de soporte del producto
 
@@ -200,6 +234,7 @@ Riesgos principales mitigados por la estrategia actual:
 
 **Decisión: NO migrar.** Razones:
 - Supabase Edge Functions (Deno) tienen soporte limitado para streaming multipart con SSE.
+- La evaluación de OpenAI Agents SDK en Edge Functions debe mantenerse fuera del pipeline batch hasta confirmar compatibilidad real de runtime y despliegue.
 - El contrato actual JSON es compatible con la validación Zod del request body.
 - El cuello de botella real de latencia es OpenAI Files API + Vector Store indexing (~20-60s), no la transferencia.
 - La validación de payload size (50MB máx.) ya limita el riesgo de abuso.
@@ -213,6 +248,12 @@ Riesgos principales mitigados por la estrategia actual:
 
 **Decisión:** Migrar a OpenAI Responses API (`openai.responses.create()`) con pipeline de 5 fases.
 
+### 8.4. Capa conversacional con Agents SDK (Implementado)
+
+**Contexto:** Se quería aprovechar OpenAI Agents SDK sin reescribir ni desestabilizar el pipeline principal.
+
+**Decisión:** Consolidar la capa conversacional productiva en `chat-with-analysis-agent` y retirar del repositorio el spike técnico una vez validado el runtime, evitando mantener dos superficies agentic con distinto nivel de madurez.
+
 **Restricción técnica:** `file_search` y `text.format: json_schema` (structured outputs) NO pueden usarse juntos en Responses API. Se instruye JSON estricto en el prompt y se valida con Zod server-side.
 
 **Beneficios:**
@@ -221,7 +262,7 @@ Riesgos principales mitigados por la estrategia actual:
 - Vector Store persiste para reintentos (cleanup por TTL)
 - Schema canónico rico con TrackedField (value + status + evidence) para campos críticos
 
-**Fecha:** 2026-03-28
+**Fecha:** 2026-04-18
 
 ### 8.3 CORS restrictivo (Implementado)
 

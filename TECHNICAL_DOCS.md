@@ -34,6 +34,7 @@
 | Análisis de PDFs | Procesamiento de pliegos de condiciones con OpenAI Responses API (pipeline por fases) |
 | Extracción estructurada | Output validado con Zod (30+ campos por documento) |
 | Streaming en tiempo real | Progreso de análisis vía Server-Sent Events (SSE) |
+| Chat conversacional | Consultas sobre análisis persistidos con OpenAI Agents SDK |
 | Multi-documento | Análisis de varios archivos en una sola sesión |
 | Plantillas personalizadas | Esquemas de extracción configurables por usuario |
 | Historial y búsqueda | Almacenamiento persistente con FTS (español) + filtros avanzados + eliminación |
@@ -208,8 +209,13 @@ licitacion-ai-pro/
 │   ├── config.toml             # Config Supabase CLI
 │   ├── functions/
 │   │   ├── analyze-with-agents/ # Edge Function principal (pipeline por fases)
-│   │   │   ├── phases/          # Fases del pipeline (ingestion, document-map, etc.)
-│   │   │   └── prompts.ts       # Prompts por fase
+│   │   ├── chat-with-analysis-agent/ # Capa conversacional sobre análisis persistidos
+│   │   │   ├── agents.ts        # Manager agent + especialistas expuestos como tools
+│   │   │   ├── index.ts         # Entry point HTTP + auth + ejecución del agente
+│   │   │   ├── session.ts       # Persistencia manual del historial conversacional
+│   │   │   ├── tools.ts         # Tools de solo lectura sobre análisis persistidos
+│   │   │   ├── tools_test.ts    # Tests Deno de utilidades y extracción de evidencias
+│   │   │   └── types.ts         # Tipos del contrato HTTP y contexto del agente
 │   │   └── _shared/            # Utilidades compartidas (cors, rate-limiter, schemas)
 │   │       └── schemas/         # Schemas canónicos (canonical, blocks, job, etc.)
 │   ├── migrations/             # Migraciones SQL (orden cronológico)
@@ -379,6 +385,41 @@ LicitacionMetadata {
 | `utils/error.utils.ts` | Manejo centralizado de errores OpenAI (type guard + mapeo) |
 | `utils/timeout.ts` | Timeout por llamada API (`callWithTimeout` con `Promise.race`) |
 
+### `chat-with-analysis-agent` (función conversacional)
+
+**Archivo**: `supabase/functions/chat-with-analysis-agent/index.ts`
+
+**Flujo interno**:
+
+```
+1. Validar CORS
+2. Extraer y verificar JWT → user_id
+3. Validar body (`analysisHash`, `message`, `sessionId?`)
+4. Verificar que el análisis existe en `licitaciones`
+5. Crear o recuperar sesión (`analysis_chat_sessions`)
+6. Cargar historial conversacional (`analysis_chat_messages`)
+7. Ejecutar manager agent con tools de solo lectura
+8. Reescribir historial persistido con `result.history`
+9. Devolver `answer`, `citations`, `usedTools` y `sessionId`
+```
+
+**Módulos internos**:
+
+| Archivo | Función |
+|---------|---------|
+| `agents.ts` | Manager agent + specialists (`criteria_agent`, `solvency_agent`, `risk_agent`) |
+| `tools.ts` | Tools de lectura sobre `licitaciones` (`get_analysis_overview`, `get_field_value`, etc.) |
+| `session.ts` | Persistencia manual de historial conversacional en Supabase |
+| `types.ts` | Schemas Zod del request y de la salida estructurada |
+| `tools_test.ts` | Tests Deno de resolución de campos, evidencias y búsqueda |
+
+**Consumo frontend**:
+
+- `src/services/analysis-chat.service.ts` encapsula auth, refresh de sesión y llamada HTTP a `functions/v1/chat-with-analysis-agent`
+- `src/features/analysis-chat/components/AnalysisChatPanel.tsx` renderiza mensajes, evidencias, herramientas usadas y acciones de reset
+- `src/features/dashboard/Dashboard.tsx` expone la sección `Copiloto IA` cuando existe `analysisHash`
+- la UX guarda `sessionId` y mensajes renderizados en `localStorage` para recuperar la conversación al volver al mismo análisis
+
 ---
 
 ## 7. Base de Datos
@@ -415,6 +456,41 @@ search_vector   TSVECTOR GENERATED ALWAYS AS (...)  -- FTS español (weighted A/
 -- search_vector GIN (full-text search)
 
 -- RLS: SELECT/INSERT/UPDATE/DELETE requieren auth.uid() = user_id
+```
+
+#### `public.extraction_templates`
+
+#### `public.analysis_chat_sessions`
+
+Sesiones conversacionales ligadas a un análisis persistido.
+
+```sql
+id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+user_id         UUID NOT NULL REFERENCES auth.users(id)
+analysis_hash   TEXT NOT NULL
+title           TEXT
+created_at      TIMESTAMPTZ DEFAULT NOW()
+updated_at      TIMESTAMPTZ DEFAULT NOW()
+
+-- Índice: (user_id, analysis_hash)
+-- RLS: FOR ALL requiere auth.uid() = user_id
+```
+
+#### `public.analysis_chat_messages`
+
+Historial serializado del chat para reconstruir el input del SDK.
+
+```sql
+id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+session_id      UUID NOT NULL REFERENCES analysis_chat_sessions(id) ON DELETE CASCADE
+user_id         UUID NOT NULL REFERENCES auth.users(id)
+role            TEXT NOT NULL DEFAULT 'item'
+content         JSONB NOT NULL
+metadata        JSONB
+created_at      TIMESTAMPTZ DEFAULT NOW()
+
+-- Índices: (session_id, created_at), (user_id, created_at)
+-- RLS: FOR ALL requiere auth.uid() = user_id
 ```
 
 #### `public.extraction_templates`
@@ -557,6 +633,7 @@ WorkflowState {
 | SSE para streaming | WebSocket | Unidireccional, HTTP-nativo, más simple |
 | TrackedField para campos críticos | Valores planos | Permite status, evidencia y warnings por campo |
 | Procesamiento secuencial multi-doc | Paralelo | Límites de memoria del Edge Runtime |
+| Agents SDK sobre `licitaciones` | Reescribir el pipeline batch con agentes | Mantiene estable la extracción principal y aísla la conversación |
 
 ---
 
@@ -632,7 +709,51 @@ data: {
 
 **Límites**:
 - Rate limit: 10 requests/hora por usuario
-- Timeout de inactividad (frontend): 5 minutos
+
+### Edge Function: `chat-with-analysis-agent`
+
+**Endpoint**: `POST https://<PROJECT>.supabase.co/functions/v1/chat-with-analysis-agent`
+
+**Headers**:
+
+```
+Authorization: Bearer <JWT>
+Content-Type: application/json
+apikey: <VITE_SUPABASE_ANON_KEY>
+```
+
+**Request body**:
+
+```typescript
+{
+  analysisHash: string
+  message: string
+  sessionId?: string
+}
+```
+
+**Response**:
+
+```typescript
+{
+  answer: string
+  citations: Array<{
+    fieldPath?: string
+    quote: string
+    pageHint?: string
+    confidence?: number
+  }>
+  usedTools: string[]
+  sessionId: string
+}
+```
+
+**Comportamiento esperado en frontend**:
+
+- se invoca solo sobre análisis persistidos con `hash`
+- cada respuesta puede actualizar el `sessionId` local que se reutiliza en turnos sucesivos
+- la UI muestra `citations` y `usedTools`, pero no consulta tablas conversacionales directamente
+- resetear la conversación borra el estado local del navegador; la sesión histórica queda persistida en backend
 - CORS: `licitacion-ai-pro.vercel.app`, `localhost:5173`, `localhost:3000`
 
 ### RPC: `search_licitaciones`
@@ -690,6 +811,11 @@ npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
 > La `OPENAI_API_KEY` **nunca** debe exponerse en el frontend. Solo existe como secret de Supabase.
+
+Esta secret se usa en:
+
+- `analyze-with-agents`
+- `chat-with-analysis-agent`
 
 ### Feature Flags (`src/config/features.ts`)
 
@@ -869,6 +995,7 @@ npm run typecheck && npm test && npm run test:e2e
 
 # Deploy:
 npx supabase functions deploy analyze-with-agents --no-verify-jwt
+npx supabase functions deploy chat-with-analysis-agent --no-verify-jwt
 
 # Secrets:
 npx supabase secrets set OPENAI_API_KEY=sk-...

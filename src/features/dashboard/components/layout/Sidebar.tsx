@@ -3,6 +3,7 @@ import {
     FileText,
     Award,
     Shield,
+    MessageSquare,
     Wrench,
     AlertTriangle,
     Settings,
@@ -29,6 +30,11 @@ const baseNavItems: NavItem[] = [
         id: 'resumen',
         label: 'Resumen Ejecutivo',
         icon: LayoutDashboard,
+    },
+    {
+        id: 'chat',
+        label: 'Copiloto IA',
+        icon: MessageSquare,
     },
     {
         id: 'datos',

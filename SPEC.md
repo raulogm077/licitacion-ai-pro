@@ -33,6 +33,7 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 1. Subir cobertura de tests al 80% statements / 70% branches.
 2. Implementar i18n multi-idioma (inglés).
 3. Configurar Dependabot para actualizaciones automáticas.
+4. Validar compatibilidad de OpenAI Agents SDK en Supabase Edge Functions mediante un spike aislado no productivo.
 
 ### 3.3. Criterios de aceptación globales
 
@@ -47,6 +48,7 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 - **Testing (QA):** El test global de Vitest que bloqueaba la suite ha sido resuelto. El objetivo ahora es incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard y los componentes core de UI (`src/components/`), hasta alcanzar el 80% global.
 - **i18n (UI/Infra):** Integrar `react-i18next` u otra librería estándar. Inicializar diccionarios básicos (`es`, `en`) e implementar un selector de idioma en la interfaz. Extraer progresivamente textos hardcodeados.
 - **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
+- **Capa conversacional Agents SDK (AI/Infra):** Mantener operativa la Edge Function `chat-with-analysis-agent` para consultar análisis persistidos desde el dashboard sin alterar el pipeline batch principal.
 
 
 ## 5. Próxima iteración
@@ -76,12 +78,56 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 ## 8. Historial de implementación
 
 ### Implementado previamente
-- migración a OpenAI Agents SDK
+- spike técnico planificado para evaluar OpenAI Agents SDK en Edge Functions sin afectar producción
 - streaming por SSE
 - historial avanzado de licitaciones
 - limpieza principal de arquitectura legacy de colas
 - Plantillas Dinámicas de Extracción (Back, Front, CRUD, AI Integrations)
 - Soporte Multi-documento Backend (Edge Function adaptada para recibir Array de files)
+
+## 9. Capa conversacional con Agents SDK sobre análisis persistidos
+
+### 9.1. Objetivo
+
+Permitir consultas conversacionales sobre análisis ya guardados sin reprocesar PDFs ni alterar el pipeline batch de `analyze-with-agents`.
+
+### 9.2. Alcance
+
+- Edge Function productiva: `supabase/functions/chat-with-analysis-agent/index.ts`
+- autenticación JWT usando el mismo patrón de `analyze-with-agents`
+- tools de solo lectura sobre `licitaciones`
+- persistencia de sesiones en `analysis_chat_sessions` y `analysis_chat_messages`
+- consumo desde dashboard mediante la sección `Copiloto IA`
+
+### 9.3. Restricciones
+
+- no reprocesa PDFs ni recrea Vector Stores
+- no reemplaza `analyze-with-agents`
+- no introduce SSE en el flujo principal
+- no modifica `analysis_jobs`
+- no expone acceso directo del frontend a tablas conversacionales
+
+### 9.4. Criterios de éxito
+
+- `deno check supabase/functions/chat-with-analysis-agent/index.ts` pasa
+- `deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts` pasa
+- el dashboard muestra `Copiloto IA` solo cuando existe `analysisHash`
+- la función responde con `answer`, `citations`, `usedTools` y `sessionId`
+
+### 9.6. Evolución aplicada sobre producto
+
+La validación inicial del runtime con Agents SDK ya se absorbió en la capa productiva `chat-with-analysis-agent`. El spike técnico se retiró del repositorio para evitar duplicidad y mantenimiento muerto.
+
+Alcance aplicado:
+
+- consulta sobre análisis ya persistidos, nunca sobre PDFs sin procesar
+- continuidad conversacional mediante `sessionId`
+- persistencia UX en navegador con `localStorage`
+- evidencias y herramientas utilizadas visibles en la respuesta
+
+### 9.5. Criterios de fallo
+
+Si la capa conversacional introduce incompatibilidades relevantes de Deno/npm o del runtime de Supabase Edge con `@openai/agents`, se debe desactivar su despliegue y rediseñar fuera del camino crítico batch.
 
 ### Implementado previamente
 - Soporte Multi-documento Frontend y QA

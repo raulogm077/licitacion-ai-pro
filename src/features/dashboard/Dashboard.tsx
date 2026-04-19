@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { LicitacionData } from '../../types';
 import { buildPliegoVM } from './model/pliego-vm';
+import { useLicitacionStore } from '../../stores/licitacion.store';
+import { AnalysisChatPanel } from '../analysis-chat/components/AnalysisChatPanel';
 
 // New Sidebar UI Layout Components
 import { Sidebar, Header, MainContent } from './components/layout';
@@ -22,6 +24,7 @@ interface DashboardProps {
 export function Dashboard({ data, isLoading }: DashboardProps) {
     const [activeSection, setActiveSection] = useState('resumen');
     const [isJsonOpen, setIsJsonOpen] = useState(false);
+    const analysisHash = useLicitacionStore((state) => state.hash);
 
     // Build View Model
     const vm = useMemo(() => buildPliegoVM(data), [data]);
@@ -56,6 +59,8 @@ export function Dashboard({ data, isLoading }: DashboardProps) {
                 );
             case 'resumen':
                 return <MainContent vm={vm} onNavigate={setActiveSection} />;
+            case 'chat':
+                return <AnalysisChatPanel analysisHash={analysisHash} analysisTitle={vm.display.titulo} />;
             case 'datos':
             case 'criterios':
             case 'solvencia':
@@ -86,7 +91,10 @@ export function Dashboard({ data, isLoading }: DashboardProps) {
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 alertCount={alertCount}
-                availableSections={vm.chapters.map((c) => c.id)}
+                availableSections={[
+                    ...vm.chapters.map((chapter) => chapter.id),
+                    ...(analysisHash ? ['chat'] : []),
+                ]}
             />
 
             <div className="flex flex-col flex-1 overflow-hidden">

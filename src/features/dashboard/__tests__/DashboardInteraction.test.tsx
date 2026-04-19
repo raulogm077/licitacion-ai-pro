@@ -28,6 +28,7 @@ vi.mock('lucide-react', () => ({
     PinOff: () => <span data-testid="icon-pin-off" />,
     FileSearch: () => <span data-testid="icon-file-search" />,
     LayoutDashboard: () => <span data-testid="icon-layout-dashboard" />,
+    MessageSquare: () => <span data-testid="icon-message-square" />,
     Award: () => <span data-testid="icon-award" />,
     Shield: () => <span data-testid="icon-shield" />,
     Wrench: () => <span data-testid="icon-wrench" />,

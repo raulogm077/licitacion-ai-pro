@@ -8,6 +8,7 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 - ejecuta análisis asistido por IA con streaming en tiempo real
 - valida y transforma la salida a un modelo tipado
 - guarda historial de análisis para su consulta posterior
+- permite consultar un análisis persistido desde el dashboard mediante un copiloto conversacional
 - búsqueda full-text en español (FTS + ILIKE fallback) sobre el historial
 - eliminación de registros del historial con confirmación
 - prepara el terreno para plantillas dinámicas de extracción y soporte multi-documento
@@ -15,6 +16,10 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 ## Arquitectura actual
 
 La arquitectura vigente usa **OpenAI Responses API** con un **pipeline de 5 fases**, **Supabase Edge Functions** y **SSE** para streaming del análisis.
+
+De forma complementaria, el backend incorpora una capa conversacional aislada con **OpenAI Agents SDK** sobre análisis ya persistidos. Esta capa vive en la Edge Function `chat-with-analysis-agent` y no sustituye el pipeline principal.
+
+El frontend consume esa capa desde el dashboard mediante una sección `Copiloto IA`, visible cuando la licitación cargada tiene `analysisHash`. La conversación mantiene continuidad reutilizando `sessionId` y el historial visible en `localStorage`.
 
 Flujo lógico actual:
 
@@ -91,7 +96,7 @@ VITE_SUPABASE_ANON_KEY=<tu-anon-key>
 VITE_ENVIRONMENT=local
 ```
 
-`OPENAI_API_KEY` no debe vivir en el frontend. Debe configurarse como secreto en Supabase para la función `analyze-with-agents`.
+`OPENAI_API_KEY` no debe vivir en el frontend. Debe configurarse como secreto en Supabase para las funciones `analyze-with-agents` y `chat-with-analysis-agent`.
 
 ### Ejecución local
 
@@ -151,6 +156,7 @@ Se debe actualizar como mínimo:
 - `ARCHITECTURE.md` si cambia flujo, contrato, SSE, `JobService` o Edge Function
 - `README.md` si cambia stack, setup o forma de trabajo
 - `DEPLOYMENT.md` si cambia el proceso real de despliegue
+- `TECHNICAL_DOCS.md` si cambia backend, tablas o contratos técnicos
 
 ## Documentación histórica
 

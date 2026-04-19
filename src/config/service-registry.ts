@@ -1,4 +1,5 @@
 import { AIService } from '../services/ai.service';
+import { AnalysisChatService } from '../services/analysis-chat.service';
 import { DBService } from '../services/db.service';
 
 /**
@@ -10,6 +11,7 @@ class ServiceRegistry {
     private static instance: ServiceRegistry;
 
     private _ai: AIService | null = null;
+    private _analysisChat: AnalysisChatService | null = null;
     private _db: DBService | null = null;
 
     private constructor() {}
@@ -24,6 +26,11 @@ class ServiceRegistry {
     public get ai(): AIService {
         if (!this._ai) this._ai = new AIService();
         return this._ai;
+    }
+
+    public get analysisChat(): AnalysisChatService {
+        if (!this._analysisChat) this._analysisChat = new AnalysisChatService();
+        return this._analysisChat;
     }
 
     public get db(): DBService {
