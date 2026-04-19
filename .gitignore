@@ -1,3 +1,6 @@
+# Graphify outputs
+graphify-out/
+
 # Logs
 logs
 *.log
