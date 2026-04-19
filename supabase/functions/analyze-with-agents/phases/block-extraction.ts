@@ -19,6 +19,7 @@ import {
 import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 import { retryWithBackoff, isRetryableError } from '../../_shared/utils/retry.ts';
+import type { RetryReason } from '../../_shared/utils/retry.ts';
 
 export interface BlockExtractionInput {
     openai: OpenAI;
@@ -30,6 +31,7 @@ export interface BlockExtractionInput {
         schema: Array<{ name: string; type: string; description?: string; required?: boolean }>;
     } | null;
     onProgress?: (msg: string, blockIndex: number, totalBlocks: number) => void;
+    onRetry?: (details: RetryNotification) => void;
 }
 
 export interface BlockResult {
@@ -45,6 +47,16 @@ export interface BlockExtractionResult {
     customTemplate?: Record<string, unknown>;
     /** Set when custom template extraction failed — propagate to client as a non-fatal warning */
     templateWarning?: string;
+}
+
+export interface RetryNotification {
+    blockName: BlockName | 'custom_template';
+    attempt: number;
+    maxAttempts: number;
+    waitMs: number;
+    reason: RetryReason;
+    blockIndex?: number;
+    totalBlocks?: number;
 }
 
 // ─── Block-specific prompts ───────────────────────────────────────────────────
@@ -175,7 +187,7 @@ async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: n
 }
 
 export async function runBlockExtraction(input: BlockExtractionInput): Promise<BlockExtractionResult> {
-    const { openai, vectorStoreId, documentMap, guideContent, template, onProgress } = input;
+    const { openai, vectorStoreId, documentMap, guideContent, template, onProgress, onRetry } = input;
     const totalBlocks = BLOCK_NAMES.length;
     let completedCount = 0;
 
@@ -185,7 +197,13 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     const tasks = BLOCK_NAMES.map((blockName, i) => async (): Promise<BlockResult> => {
         onProgress?.(`Extrayendo: ${blockName}...`, i, totalBlocks);
         try {
-            const result = await extractBlock(openai, vectorStoreId, blockName, documentMap, guideSummary);
+            const result = await extractBlock(openai, vectorStoreId, blockName, documentMap, guideSummary, (retry) =>
+                onRetry?.({
+                    ...retry,
+                    blockIndex: i + 1,
+                    totalBlocks,
+                })
+            );
             completedCount++;
             console.log(
                 `[Extraction] Block ${blockName} completed (${completedCount}/${totalBlocks}): ${result.warnings.length} warnings`
@@ -219,9 +237,20 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
         try {
             customTemplate = await retryWithBackoff(
                 () => extractCustomTemplate(openai, vectorStoreId, template, guideContent),
-                2,
-                500,
-                'CustomTemplateExtraction'
+                {
+                    maxRetries: 4,
+                    baseDelayMs: 500,
+                    label: 'CustomTemplateExtraction',
+                    shouldRetry: isRetryableError,
+                    onRetry: ({ attempt, maxAttempts, waitMs, reason }) =>
+                        onRetry?.({
+                            blockName: 'custom_template',
+                            attempt,
+                            maxAttempts,
+                            waitMs,
+                            reason,
+                        }),
+                }
             );
         } catch (error) {
             const errorMsg = mapOpenAIError(error);
@@ -240,7 +269,8 @@ async function extractBlock(
     vectorStoreId: string,
     blockName: BlockName,
     documentMap: DocumentMap,
-    guideContent: string
+    guideContent: string,
+    onRetry?: (details: RetryNotification) => void
 ): Promise<BlockResult> {
     const systemPrompt = buildSystemPrompt(blockName, documentMap, guideContent);
     const userPrompt = BLOCK_PROMPTS[blockName];
@@ -267,10 +297,20 @@ async function extractBlock(
                 API_CALL_TIMEOUT_MS,
                 `Block ${blockName}`
             ),
-        2,
-        500,
-        `BlockExtraction[${blockName}]`,
-        isRetryableError
+        {
+            maxRetries: 4,
+            baseDelayMs: 500,
+            label: `BlockExtraction[${blockName}]`,
+            shouldRetry: isRetryableError,
+            onRetry: ({ attempt, maxAttempts, waitMs, reason }) =>
+                onRetry?.({
+                    blockName,
+                    attempt,
+                    maxAttempts,
+                    waitMs,
+                    reason,
+                }),
+        }
     );
 
     const outputText = extractOutputText(response);

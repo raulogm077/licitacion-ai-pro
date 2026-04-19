@@ -2,6 +2,13 @@
 
 Aplicación interna para analizar pliegos de licitación en PDF, extraer información estructurada y presentar el resultado de forma navegable para acelerar la revisión funcional y técnica.
 
+<!-- release-contract:start -->
+- No direct work or deploy from `main`.
+- Production deploys only after a green PR is merged into `main`.
+- Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
+- If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+<!-- release-contract:end -->
+
 ## Qué hace
 
 - permite subir uno o más documentos PDF relacionados con una licitación
@@ -28,11 +35,11 @@ Usuario → Frontend → Edge Function `analyze-with-agents`
                      ↓
               Fase A: Ingesta (Files API + Vector Store)
               Fase B: Mapa Documental (Responses API)
-              Fase C: Extracción por Bloques (~9 llamadas)
+              Fase C: Extracción por Bloques (~9 llamadas, concurrencia 3)
               Fase D: Consolidación
               Fase E: Validación Final
                      ↓
-                 SSE → Frontend (progreso por fase)
+                 SSE → Frontend (progreso por fase + reintentos visibles)
 ```
 
 Documentación viva del sistema:
@@ -110,6 +117,8 @@ pnpm dev
 pnpm typecheck
 pnpm test
 pnpm test:e2e
+pnpm verify:integrity
+pnpm verify:release
 ```
 
 Notas:
@@ -123,7 +132,17 @@ Este repositorio sigue una política de **rama efímera por tarea**.
 - ningún agente trabaja directamente sobre `main`
 - cada ejecución crea una rama efímera propia
 - el `submit` del agente se hace sobre esa rama
-- **QA** es la única puerta a `Done` y al despliegue
+- **QA** es la única puerta a `Done`
+- el despliegue productivo ocurre solo al fusionar una PR verde sobre `main`
+
+Flujo recomendado:
+
+1. trabajar en rama efímera
+2. ejecutar `pnpm verify:release`
+3. abrir o actualizar PR
+4. esperar CI en verde
+5. fusionar en `main`
+6. dejar que GitHub Actions despliegue producción
 
 Formato recomendado de ramas:
 

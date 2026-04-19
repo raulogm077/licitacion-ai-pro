@@ -28,10 +28,10 @@ Frontend
        └─ Supabase Edge Function: analyze-with-agents
             ├─ Fase A: Ingesta (Files API + Vector Store)
             ├─ Fase B: Mapa Documental (Responses API + file_search)
-            ├─ Fase C: Extracción por Bloques (~9 llamadas Responses API)
+            ├─ Fase C: Extracción por Bloques (~9 llamadas Responses API, concurrencia 3)
             ├─ Fase D: Consolidación (merge + prelación documental)
             └─ Fase E: Validación Final (quality scoring)
-                 └─ SSE → Frontend (progreso por fase + resultado)
+                 └─ SSE → Frontend (progreso por fase + reintentos + resultado)
 ```
 
 ## 4. Componentes principales
@@ -91,13 +91,14 @@ Responsabilidades:
 |------|-------------|--------------|
 | A: Ingesta | Subir archivos a OpenAI Files API, crear Vector Store | 0 (solo REST) |
 | B: Mapa Documental | Identificar documentos (PCAP, PPT, anexos) | 1 |
-| C: Extracción por Bloques | Extraer datos por sección (3 bloques en paralelo) | ~9 |
+| C: Extracción por Bloques | Extraer datos por sección (3 bloques en paralelo + retries agresivos) | ~9 |
 | D: Consolidación | Unificar bloques, resolver conflictos, prelación documental | 0 (local) |
 | E: Validación | Quality scoring, verificar campos críticos, evidencias | 1 |
 
 **Optimizaciones del pipeline:**
 - Fase C usa `runWithConcurrency(tasks, 3)` para ejecutar bloques en paralelo (~3x speedup)
 - Cada llamada API tiene timeout individual de 90s (`callWithTimeout`)
+- Los errores `429` y transitorios se reintentan con backoff agresivo y espera visible
 - Constantes centralizadas en `_shared/config.ts` (modelo, timeouts, concurrencia)
 - Errores de OpenAI mapeados a mensajes legibles (`mapOpenAIError`)
 
@@ -162,6 +163,7 @@ Eventos esperados, a nivel lógico:
 - `heartbeat`
 - `phase_started` — indica inicio de una fase (A, B, C, D, E)
 - `phase_completed` — indica fin de una fase con resultado parcial
+- `retry_scheduled` — indica que un bloque espera antes de un nuevo intento, con `waitMs` visible
 - `agent_message` — progreso dentro de una fase (legacy compat)
 - `complete` — resultado final con `{result, workflow}`
 - `error`

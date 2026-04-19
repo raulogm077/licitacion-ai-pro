@@ -21,6 +21,24 @@ Estado funcional confirmado a fecha de esta especificación:
 - la cobertura actual de tests está en progreso (~66% en statements), el objetivo de la iteración D es 80%.
 - no existen errores críticos globales en la ejecución de pruebas con vitest.
 - los directorios `src/agents/` y `src/llm/` han sido eliminados (código legacy)
+- el flujo de release productivo debe pasar por PR en verde y merge a `main`
+- el runtime de análisis normaliza `cpv` a `string[]` y expone esperas de reintento al usuario
+
+## 2.1. Endurecimiento operativo aplicado (2026-04-19)
+
+Decisiones vigentes:
+
+- `pnpm verify:integrity` pasa a ser validación obligatoria de deriva de migraciones, workflows, hooks y sincronía documental mínima
+- `pnpm verify:release` pasa a ser el cierre obligatorio antes de push/PR para sesiones que toquen código o despliegue
+- el despliegue productivo solo ocurre desde `main` y solo si el commit proviene de una PR fusionada
+- los cambios sobre `analyze-with-agents`, SSE, `JobService`, migraciones o CI/CD deben actualizar la documentación mínima afectada en la misma rama
+
+## 2.2. Hardening del runtime de análisis (2026-04-19)
+
+- `datosGenerales.cpv.value` acepta entrada `string` o `string[]`, pero se normaliza siempre a `string[]`
+- Fase C mantiene concurrencia 3 para reducir ráfagas de rate limit
+- los errores `429` y transitorios usan retries agresivos con backoff visible
+- el contrato SSE incluye `retry_scheduled` para que la UI muestre espera y cuenta atrás en lugar de aparentar bloqueo
 
 ## 3. Iteración activa
 

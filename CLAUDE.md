@@ -15,7 +15,16 @@ pnpm test:e2e         # Playwright E2E tests
 pnpm lint             # ESLint (0 warnings allowed)
 pnpm format           # Prettier auto-fix
 pnpm format:check     # Prettier check
+pnpm verify:integrity # Drift de migraciones + workflows + docs/instructions
+pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 ```
+
+<!-- release-contract:start -->
+- No direct work or deploy from `main`.
+- Production deploys only after a green PR is merged into `main`.
+- Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
+- If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+<!-- release-contract:end -->
 
 ## Architecture
 
@@ -29,8 +38,8 @@ pnpm format:check     # Prettier check
 
 - **TrackedField**: Critical fields use `{ value, status, evidence?, warnings? }` wrapper
 - **`unwrap()`**: Extracts raw value from TrackedField or passes through legacy values
-- **SSE streaming**: Edge Function emits phase events (heartbeat, phase_started, phase_completed, complete, error)
-- **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (9 concurrent) -> D:Consolidation -> E:Validation
+- **SSE streaming**: Edge Function emits `heartbeat`, `phase_started`, `phase_completed`, `phase_progress`, `extraction_progress`, `retry_scheduled`, `complete`, `error`
+- **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (3 concurrent + retries visibles) -> D:Consolidation -> E:Validation
 
 ### Pipeline Timeout Architecture
 
@@ -41,7 +50,7 @@ Constants in `_shared/config.ts` control the timing budget:
 |---|---|---|
 | `PIPELINE_TIMEOUT_MS` | 280 000 | Requires Supabase function timeout ≥ 300s (set in Dashboard → Project Settings → Edge Functions) |
 | `API_CALL_TIMEOUT_MS` | 90 000 | Per-block OpenAI call — no retry on timeout (timeouts are NOT retried, see `isRetryableError`) |
-| `BLOCK_CONCURRENCY` | 9 | All 9 blocks run simultaneously (1 round), not 3×3 |
+| `BLOCK_CONCURRENCY` | 3 | Extraction favors rate-limit stability over max concurrency |
 | `VECTOR_STORE_TIMEOUT_MS` | 90 000 | Waits for `file_counts.in_progress === 0`, not `vs.status` |
 
 **Typical timing by document size:**
@@ -121,12 +130,14 @@ supabase/migrations/          # SQL migrations (chronological)
 - Ephemeral branches per task
 - PRs required with full CI passing
 - QA validates before merge
+- Production deploy runs only from `push` to `main` after merge and is blocked for direct pushes
 
 ## Deployment
 
-1. `npx supabase db push --include-all` (apply migrations)
-2. `npx supabase functions deploy analyze-with-agents --no-verify-jwt` (JWT validated internally)
-3. Frontend deploys automatically via Vercel on merge to `main`
+1. Run `pnpm verify:release` in the working branch before pushing
+2. Open or update a PR and wait for CI green
+3. Merge the PR into `main`
+4. GitHub Actions deploys Supabase + Vercel from `main`
 
 ## Monitoring & Observability
 

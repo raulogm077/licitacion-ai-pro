@@ -1,6 +1,6 @@
 # Documentación Técnica — Analista de Pliegos
 
-> Versión: 2.1.0 | Fecha: 2026-03-29
+> Versión: 2.2.0 | Fecha: 2026-04-19
 
 ---
 
@@ -33,7 +33,7 @@
 |-----------|-------------|
 | Análisis de PDFs | Procesamiento de pliegos de condiciones con OpenAI Responses API (pipeline por fases) |
 | Extracción estructurada | Output validado con Zod (30+ campos por documento) |
-| Streaming en tiempo real | Progreso de análisis vía Server-Sent Events (SSE) |
+| Streaming en tiempo real | Progreso de análisis vía Server-Sent Events (SSE) con reintentos visibles |
 | Chat conversacional | Consultas sobre análisis persistidos con OpenAI Agents SDK |
 | Multi-documento | Análisis de varios archivos en una sola sesión |
 | Plantillas personalizadas | Esquemas de extracción configurables por usuario |
@@ -101,7 +101,7 @@ Fase B: Mapa Documental
   └── Responses API + file_search → identifica PCAP, PPT, anexos
        │
        ▼
-Fase C: Extracción por Bloques (~9 llamadas, 3 en paralelo)
+Fase C: Extracción por Bloques (~9 llamadas, 3 en paralelo con retries agresivos)
   └── Responses API + file_search por sección
       (datosGenerales, criterios, solvencia, técnicos, riesgos, etc.)
       Ejecución con concurrencia limitada (runWithConcurrency)
@@ -115,7 +115,7 @@ Fase E: Validación Final
   └── Quality scoring, evidencias, campos críticos
        │
        ▼
-SSE streaming → cliente (phase events + complete)
+SSE streaming → cliente (phase events + retry_scheduled + complete)
        │
        ▼
 Frontend valida respuesta con Zod (TrackedField para campos críticos)

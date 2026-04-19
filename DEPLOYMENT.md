@@ -2,6 +2,13 @@
 
 Este documento describe el proceso vigente de despliegue. No describe la arquitectura legacy de colas.
 
+<!-- release-contract:start -->
+- No direct work or deploy from `main`.
+- Production deploys only after a green PR is merged into `main`.
+- Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
+- If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+<!-- release-contract:end -->
+
 ## 1. Qué se despliega
 
 Superficies desplegables principales:
@@ -12,25 +19,31 @@ Superficies desplegables principales:
 
 ## 2. Quién puede desplegar
 
-- **Solo QA** puede ejecutar despliegues de la Edge Function dentro del flujo nocturno.
-- PM, Tech Lead y AI Engineer no despliegan.
+- **Solo QA** valida el cierre operativo dentro del flujo nocturno.
+- El despliegue productivo no se lanza manualmente desde ramas efímeras.
+- GitHub Actions despliega producción únicamente tras merge de una PR verde en `main`.
 
 ## 3. Preconditions obligatorias
 
 Antes de desplegar una tarea, QA debe verificar:
 
-1. `pnpm typecheck`
-2. `pnpm test`
-3. `pnpm test:e2e` si la tarea toca UI, flujo de análisis o SSE
-4. si la tarea es IA:
+1. `pnpm verify:release`
+2. PR con CI en verde
+3. si la tarea es IA:
    - compatibilidad con la Guía de lectura de pliegos
    - compatibilidad con SSE
    - compatibilidad con schema/Zod
-5. documentación mínima actualizada
+4. documentación mínima actualizada
 
 ## 4. Migraciones de base de datos
 
-Antes de desplegar código que dependa de nuevas tablas o columnas, aplicar las migraciones pendientes:
+Antes de desplegar código que dependa de nuevas tablas o columnas, la rama debe validar que no hay deriva con producción:
+
+```bash
+pnpm verify:integrity
+```
+
+El despliegue productivo aplica las migraciones pendientes desde GitHub Actions:
 
 ```bash
 npx supabase db push --include-all

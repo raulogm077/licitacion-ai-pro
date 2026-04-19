@@ -157,6 +157,37 @@ describe('JobService', () => {
         expect(progressCalls.length).toBeGreaterThan(0);
     });
 
+    it('processes retry_scheduled events and forwards metadata to onProgress', async () => {
+        const events: StreamEvent[] = [
+            {
+                type: 'retry_scheduled',
+                phase: 'extraction',
+                blockName: 'datosGenerales',
+                attempt: 2,
+                maxAttempts: 5,
+                waitMs: 30000,
+                reason: 'rate_limit',
+                blockIndex: 1,
+                totalBlocks: 9,
+                timestamp: Date.now(),
+            },
+            { type: 'complete', result: validContent, workflow: {}, timestamp: Date.now() },
+        ];
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(buildSseStream(events)));
+
+        const onProgress = vi.fn();
+        await service.analyzeWithAgents('base64', 'file.pdf', null, onProgress);
+
+        const retryEvent = onProgress.mock.calls.find(([event]) => event.type === 'retry_scheduled')?.[0];
+        expect(retryEvent).toMatchObject({
+            blockName: 'datosGenerales',
+            attempt: 2,
+            maxAttempts: 5,
+            waitMs: 30000,
+            reason: 'rate_limit',
+        });
+    });
+
     it('resolves with validated content on complete event', async () => {
         const completeEvent: StreamEvent = {
             type: 'complete',

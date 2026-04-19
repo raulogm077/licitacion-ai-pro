@@ -20,6 +20,48 @@ const PHASE_PROGRESS: Record<string, { start: number; end: number }> = {
     validation: { start: 90, end: 100 },
 };
 
+const formatRetryReason = (reason?: string): string => {
+    switch (reason) {
+        case 'rate_limit':
+            return 'límite temporal de OpenAI';
+        case 'server_error':
+            return 'error temporal del servidor';
+        case 'network':
+            return 'problema transitorio de red';
+        default:
+            return 'error transitorio';
+    }
+};
+
+const shouldEmitRetryCountdown = (secondsLeft: number): boolean => {
+    if (secondsLeft <= 10) return true;
+    if (secondsLeft <= 30) return secondsLeft % 5 === 0;
+    return secondsLeft % 10 === 0;
+};
+
+const getProgressForEvent = (phase: string, blockIndex?: number, totalBlocks?: number): number => {
+    const phaseRange = PHASE_PROGRESS[phase];
+    if (!phaseRange) return 50;
+
+    if (phase === 'extraction' && blockIndex !== undefined && totalBlocks) {
+        const blockProgress = (blockIndex / totalBlocks) * (phaseRange.end - phaseRange.start);
+        return Math.round(phaseRange.start + blockProgress);
+    }
+
+    return Math.round((phaseRange.start + phaseRange.end) / 2);
+};
+
+const buildRetryMessage = (
+    blockName: string | undefined,
+    attempt: number | undefined,
+    maxAttempts: number | undefined,
+    secondsLeft: number,
+    reason?: string
+): string =>
+    `Reintentando ${blockName || 'bloque'} en ${secondsLeft}s (${attempt || 1}/${maxAttempts || 1}, ${formatRetryReason(
+        reason
+    )}).`;
+
 export class AIService {
     async analyzePdfContent(
         base64Content: string,
@@ -44,59 +86,105 @@ export class AIService {
             }
 
             let currentPhase = '';
+            let retryCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
-            const result = await jobService.analyzeWithAgents(
-                base64Content,
-                filename,
-                template || null,
-                (event) => {
-                    if (signal?.aborted) {
-                        throw new LicitacionAIError('Análisis cancelado durante procesamiento');
-                    }
+            const clearRetryCountdown = () => {
+                if (retryCountdownTimer) {
+                    clearInterval(retryCountdownTimer);
+                    retryCountdownTimer = null;
+                }
+            };
 
-                    if (!onProgress) return;
+            const emitProgress = (processed: number, message: string) => {
+                if (!onProgress) return;
+                onProgress(processed, 100, message);
+            };
 
-                    const phase = event.phase || currentPhase;
-
-                    if (event.type === 'phase_started' && event.phase) {
-                        currentPhase = event.phase;
-                        const phaseRange = PHASE_PROGRESS[event.phase];
-                        if (phaseRange) {
-                            onProgress(phaseRange.start, 100, (event.message as string) || `Fase: ${event.phase}`);
+            try {
+                const result = await jobService.analyzeWithAgents(
+                    base64Content,
+                    filename,
+                    template || null,
+                    (event) => {
+                        if (signal?.aborted) {
+                            throw new LicitacionAIError('Análisis cancelado durante procesamiento');
                         }
-                    } else if (event.type === 'phase_completed' && event.phase) {
-                        const phaseRange = PHASE_PROGRESS[event.phase];
-                        if (phaseRange) {
-                            onProgress(phaseRange.end, 100, (event.message as string) || `${event.phase} completada`);
-                        }
-                    } else if (
-                        event.type === 'extraction_progress' &&
-                        event.blockIndex !== undefined &&
-                        event.totalBlocks
-                    ) {
-                        const range = PHASE_PROGRESS['extraction'];
-                        const blockProgress = (event.blockIndex / event.totalBlocks) * (range.end - range.start);
-                        onProgress(
-                            Math.round(range.start + blockProgress),
-                            100,
-                            (event.message as string) || 'Extrayendo...'
-                        );
-                    } else if (event.type === 'phase_progress') {
-                        const phaseRange = PHASE_PROGRESS[phase];
-                        if (phaseRange) {
-                            const mid = (phaseRange.start + phaseRange.end) / 2;
-                            onProgress(Math.round(mid), 100, (event.message as string) || 'Procesando...');
-                        }
-                    } else if (event.type === 'heartbeat') {
-                        // No progress update for heartbeats
-                    }
-                },
-                files,
-                signal
-            );
 
-            if (onProgress) onProgress(100, 100, 'Resultado validado recibido del servidor');
-            return result;
+                        if (!onProgress) return;
+
+                        const phase = event.phase || currentPhase;
+
+                        if (event.type !== 'retry_scheduled' && event.type !== 'heartbeat') {
+                            clearRetryCountdown();
+                        }
+
+                        if (event.type === 'phase_started' && event.phase) {
+                            currentPhase = event.phase;
+                            const phaseRange = PHASE_PROGRESS[event.phase];
+                            if (phaseRange) {
+                                emitProgress(phaseRange.start, (event.message as string) || `Fase: ${event.phase}`);
+                            }
+                        } else if (event.type === 'phase_completed' && event.phase) {
+                            const phaseRange = PHASE_PROGRESS[event.phase];
+                            if (phaseRange) {
+                                emitProgress(phaseRange.end, (event.message as string) || `${event.phase} completada`);
+                            }
+                        } else if (
+                            event.type === 'extraction_progress' &&
+                            event.blockIndex !== undefined &&
+                            event.totalBlocks
+                        ) {
+                            emitProgress(
+                                getProgressForEvent('extraction', event.blockIndex, event.totalBlocks),
+                                (event.message as string) || 'Extrayendo...'
+                            );
+                        } else if (event.type === 'phase_progress') {
+                            emitProgress(getProgressForEvent(phase), (event.message as string) || 'Procesando...');
+                        } else if (event.type === 'retry_scheduled') {
+                            const progress = getProgressForEvent(
+                                phase || 'extraction',
+                                event.blockIndex,
+                                event.totalBlocks
+                            );
+                            let secondsLeft = Math.max(1, Math.ceil((event.waitMs || 1000) / 1000));
+
+                            const emitCountdown = () => {
+                                if (shouldEmitRetryCountdown(secondsLeft)) {
+                                    emitProgress(
+                                        progress,
+                                        buildRetryMessage(
+                                            event.blockName,
+                                            event.attempt,
+                                            event.maxAttempts,
+                                            secondsLeft,
+                                            event.reason
+                                        )
+                                    );
+                                }
+                            };
+
+                            emitCountdown();
+                            retryCountdownTimer = setInterval(() => {
+                                secondsLeft -= 1;
+                                if (secondsLeft <= 0) {
+                                    clearRetryCountdown();
+                                    return;
+                                }
+                                emitCountdown();
+                            }, 1000);
+                        } else if (event.type === 'heartbeat') {
+                            // No progress update for heartbeats
+                        }
+                    },
+                    files,
+                    signal
+                );
+
+                if (onProgress) onProgress(100, 100, 'Resultado validado recibido del servidor');
+                return result;
+            } finally {
+                clearRetryCountdown();
+            }
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Error en análisis';
             logger.error('Error en análisis AI:', err);
