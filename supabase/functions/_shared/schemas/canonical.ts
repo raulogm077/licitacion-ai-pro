@@ -113,10 +113,10 @@ const unwrapTracked = (v: unknown): unknown =>
 export const DatosGeneralesSchema = z.object({
     titulo: TrackedField(z.string()),
     organoContratacion: TrackedField(z.string()),
-    // z.coerce.number() acepta strings numéricas ("1000000" → 1000000)
-    presupuesto: TrackedField(z.coerce.number()),
+    // safeCoerceNumber evita NaN cuando el LLM devuelve texto o valores mal formados
+    presupuesto: TrackedField(safeCoerceNumber(0)),
     moneda: TrackedField(z.string()),
-    plazoEjecucionMeses: TrackedField(z.coerce.number()),
+    plazoEjecucionMeses: TrackedField(safeCoerceNumber(0)),
     cpv: TrackedField(z.array(z.string())),
     // El modelo a veces envuelve estos en TrackedField; unwrapTracked lo normaliza
     fechaLimitePresentacion: z.preprocess(unwrapTracked, z.string().optional().nullable()),
@@ -164,15 +164,18 @@ export const CriterioSubjetivoSchema = z.object({
     descripcion: z.string(),
     ponderacion: safeCoerceNumber(0),
     detalles: z.string().optional().nullable(),
-    subcriterios: z
-        .array(
-            z.object({
-                descripcion: z.string(),
-                ponderacion: safeCoerceNumber(0),
-            })
-        )
-        .optional()
-        .default([]),
+    subcriterios: z.preprocess(
+        (v) => (v === null ? undefined : v),
+        z
+            .array(
+                z.object({
+                    descripcion: z.string(),
+                    ponderacion: safeCoerceNumber(0),
+                })
+            )
+            .optional()
+            .default([])
+    ),
     cita: z.string().optional(),
 });
 
