@@ -38,7 +38,7 @@ npx supabase db push --include-all
 
 Migraciones relevantes recientes:
 - `20260329000000_fulltext_search.sql` — Columna `search_vector` (tsvector español), índice GIN, función RPC `search_licitaciones`
-- `20260418002000_analysis_chat.sql` — tablas `analysis_chat_sessions` y `analysis_chat_messages` con RLS
+- `20260419015401_analysis_chat_tables.sql` — tablas `analysis_chat_sessions` y `analysis_chat_messages` con RLS
 
 > **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
 
