@@ -9,7 +9,7 @@ export default defineConfig({
         setupFiles: './src/test/setup.ts',
         include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         exclude: ['src/test/e2e/**', 'node_modules/**'],
-        onConsoleLog: (log, type) => {
+        onConsoleLog: (log) => {
             if (log.includes('Error: Test error message') || log.includes('The above error occurred in the <ThrowingComponent> component')) {
                 return false;
             }
