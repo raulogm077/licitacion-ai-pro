@@ -5,7 +5,11 @@ import { PliegoVM } from '../../model/pliego-vm';
 export function SummarySection({ vm }: { vm: PliegoVM }) {
     const dg = vm.result.datosGenerales;
     const cpvs = unwrap(dg.cpv) || [];
-    const mainCpv = cpvs.length > 0 ? cpvs.join(' · ') : 'No especificado';
+    const mainCpv = cpvs.length > 0 ? cpvs.join(' · ') : 'No detectado';
+    const procedimiento = (dg as Record<string, unknown>).procedimiento as string | undefined;
+    const tipoContrato = (dg as Record<string, unknown>).tipoContrato as string | undefined;
+    const summarySentences = buildSummarySentences(vm);
+    const qualityChapters = vm.chapters.filter((chapter) => !['plantilla', 'resumen'].includes(chapter.id));
 
     const metadata = [
         {
@@ -16,7 +20,7 @@ export function SummarySection({ vm }: { vm: PliegoVM }) {
         {
             icon: Layers,
             label: 'Procedimiento',
-            value: ((dg as Record<string, unknown>).tipoProcedimiento as string) || 'Abierto',
+            value: procedimiento || 'No detectado',
         },
         {
             icon: Users,
@@ -26,12 +30,15 @@ export function SummarySection({ vm }: { vm: PliegoVM }) {
         {
             icon: Tag,
             label: 'Tipo de Contrato',
-            value: ((dg as Record<string, unknown>).tipoContrato as string) || 'Servicios',
+            value: tipoContrato || 'No detectado',
         },
     ];
-
-    // Mock tags since we don't extract them exactly like this yet, we can use generic or cpv derived ones
-    const tags = cpvs.length > 0 ? ['TIC', 'Servicios', 'Público'] : ['Licita'];
+    const toneClass =
+        vm.guidance?.tone === 'success'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+            : vm.guidance?.tone === 'warning'
+              ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : 'border-cyan/20 bg-cyan/5 text-slate-700';
 
     return (
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
@@ -49,38 +56,45 @@ export function SummarySection({ vm }: { vm: PliegoVM }) {
             </div>
 
             <div className="p-5 space-y-4">
-                {/* Main summary text block (Fallback manually built using VM data) */}
+                {vm.guidance && (
+                    <div className={`rounded-lg border px-4 py-3 ${toneClass}`}>
+                        <p className="text-sm font-semibold">{vm.guidance.title}</p>
+                        <p className="mt-1 text-sm leading-relaxed">{vm.guidance.description}</p>
+                        <p className="mt-2 text-xs font-medium uppercase tracking-wide opacity-80">
+                            Siguiente paso: {vm.guidance.nextStep}
+                        </p>
+                    </div>
+                )}
+
                 <div className="space-y-3 text-sm text-slate-700 leading-relaxed">
-                    <p>
-                        La presente licitación, promovida por{' '}
-                        <strong>{unwrap(dg.organoContratacion) || 'entidad pública'}</strong>, tiene por objeto{' '}
-                        <em>"{unwrap(dg.titulo) || 'contratación de servicios'}"</em>.
-                    </p>
-                    <p>
-                        El presupuesto base de licitación asciende a <strong>{vm.display.presupuesto}</strong>. La
-                        duración prevista es de {vm.display.plazo}.
-                    </p>
-                    {vm.warnings.length > 0 && (
+                    {summarySentences.map((sentence) => (
+                        <p key={sentence}>{sentence}</p>
+                    ))}
+                    {vm.warnings.length > 0 && !vm.isAnalysisEmpty && (
                         <p className="text-slate-500 italic text-xs border-l-2 border-cyan/50 pl-3">
-                            Nota: Se han detectado alertas y riesgos potenciales en la documentación extraída. Consulte
-                            el panel lateral para mayor detalle.
+                            Consulta el panel lateral para revisar alertas, huecos del expediente y secciones que
+                            requieren validación manual.
                         </p>
                     )}
                 </div>
 
-                {/* Tags */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                    {tags.map((tag) => (
+                <div className="flex flex-wrap gap-2 pt-1">
+                    {qualityChapters.map((chapter) => (
                         <span
-                            key={tag}
-                            className="text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 hover:border-cyan/40 hover:text-cyan-muted hover:bg-cyan/5 transition-colors cursor-default select-none"
+                            key={chapter.id}
+                            className={`text-[11px] font-medium px-2 py-1 rounded border ${
+                                chapter.status === 'COMPLETO'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : chapter.status === 'PARCIAL'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}
                         >
-                            {tag}
+                            {chapter.label}: {chapter.status}
                         </span>
                     ))}
                 </div>
 
-                {/* Metadata grid */}
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-4 border-t border-slate-100">
                     {metadata.map(({ icon: Icon, label, value }) => (
                         <div key={label} className="flex items-start gap-2.5">
@@ -99,4 +113,50 @@ export function SummarySection({ vm }: { vm: PliegoVM }) {
             </div>
         </div>
     );
+}
+
+function buildSummarySentences(vm: PliegoVM) {
+    const dg = vm.result.datosGenerales;
+    const titulo = unwrap(dg.titulo) || '';
+    const organo = unwrap(dg.organoContratacion) || '';
+    const sentences: string[] = [];
+
+    if (titulo || organo) {
+        sentences.push(
+            [
+                titulo ? `Se ha identificado el expediente "${titulo}"` : 'Se ha identificado un expediente',
+                organo ? `promovido por ${organo}` : null,
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .concat('.')
+        );
+    }
+
+    if (vm.display.presupuesto !== 'No detectado' || vm.display.plazo !== 'No detectado') {
+        const parts = [];
+        if (vm.display.presupuesto !== 'No detectado') {
+            parts.push(`presupuesto ${vm.display.presupuesto}`);
+        }
+        if (vm.display.plazo !== 'No detectado') {
+            parts.push(`plazo ${vm.display.plazo}`);
+        }
+        sentences.push(`Entre los datos contractuales recuperados figuran ${parts.join(' y ')}.`);
+    }
+
+    if (vm.counts.criterios > 0 || vm.counts.requerimientos > 0 || vm.counts.riesgos > 0) {
+        const highlights = [];
+        if (vm.counts.criterios > 0) highlights.push(`${vm.counts.criterios} criterios`);
+        if (vm.counts.requerimientos > 0) highlights.push(`${vm.counts.requerimientos} requisitos técnicos`);
+        if (vm.counts.riesgos > 0) highlights.push(`${vm.counts.riesgos} riesgos o exclusiones`);
+        sentences.push(`La extracción ha recuperado ${highlights.join(', ')} con trazabilidad a citas del documento.`);
+    }
+
+    if (sentences.length === 0) {
+        sentences.push(
+            'El sistema ha podido procesar el PDF, pero el resultado recuperado es demasiado limitado para construir un resumen fiable sin apoyo documental adicional.'
+        );
+    }
+
+    return sentences;
 }

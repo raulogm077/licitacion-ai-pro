@@ -34,6 +34,8 @@ describe('buildPliegoVM', () => {
         expect(vm.display.presupuesto).toBe('No detectado');
         // Warnings — TrackedField with status 'no_encontrado' generates warning
         expect(vm.warnings.some((w) => w.message.includes('titulo'))).toBe(true);
+        expect(vm.isIncomplete).toBe(true);
+        expect(vm.guidance?.title).toBeTruthy();
     });
 
     it('should correctly map valid data', () => {

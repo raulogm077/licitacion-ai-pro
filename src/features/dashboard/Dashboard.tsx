@@ -66,6 +66,7 @@ export function Dashboard({ data, isLoading }: DashboardProps) {
             case 'solvencia':
             case 'tecnicos':
             case 'riesgos':
+            case 'servicio':
             case 'modelo': {
                 const configId = activeSection === 'modelo' ? 'servicio' : activeSection;
                 const chapterConfig = chapterConfigs.find((c) => c.id === configId);

@@ -148,4 +148,17 @@ describe('Dashboard Smoke Test', () => {
         // Now chapter renderer should be active
         expect(screen.getAllByText('Licitación de Prueba Smoke')[0]).toBeInTheDocument();
     });
+
+    it('allows navigating to modelo de servicio from the sidebar', async () => {
+        const { fireEvent } = await import('@testing-library/react');
+        render(
+            <MemoryRouter>
+                <Dashboard data={mockData} />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(screen.getByText('Modelo de Servicio'));
+
+        expect(screen.getByText('Modelo de Servicio')).toBeInTheDocument();
+    });
 });

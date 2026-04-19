@@ -29,6 +29,9 @@ describe('KpiCards Component', () => {
                 fechaLimitePresentacion: '2024-12-31',
                 presupuesto: 10000,
             },
+            economico: {
+                valorEstimadoContrato: 15000,
+            },
         },
     } as unknown as PliegoVM;
 
@@ -46,7 +49,6 @@ describe('KpiCards Component', () => {
 
         expect(screen.getByText('Valor Estimado Total')).toBeInTheDocument();
 
-        // 10000 * 1.5 = 15000 -> "15.000,00 €" using the Spanish locale which includes a non-breaking space
         const expectedValue = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(15000);
         const elements = screen.getAllByText(new RegExp(expectedValue.replace(/\u00a0/g, ' ')));
         expect(elements[0]).toBeInTheDocument();
@@ -57,16 +59,27 @@ describe('KpiCards Component', () => {
 
         expect(screen.getByTestId('feedback-toggle-datosGenerales.presupuesto')).toBeInTheDocument();
         expect(screen.getByTestId('feedback-toggle-datosGenerales.fechaLimitePresentacion')).toBeInTheDocument();
-        expect(screen.getByTestId('feedback-toggle-datosGenerales.duracionContrato')).toBeInTheDocument();
-        expect(screen.getByTestId('feedback-toggle-datosGenerales.valorEstimado')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-toggle-datosGenerales.plazoEjecucionMeses')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-toggle-economico.valorEstimadoContrato')).toBeInTheDocument();
     });
 
     it('renders default date limit properly when missing', () => {
         const mockVMNoDate = {
             display: { presupuesto: '10.000,00 €', plazo: '12 meses', moneda: 'EUR' },
-            result: { datosGenerales: { fechaLimitePresentacion: null, presupuesto: 10000 } },
+            result: { datosGenerales: { fechaLimitePresentacion: null, presupuesto: 10000 }, economico: {} },
         } as unknown as PliegoVM;
         render(<KpiCards vm={mockVMNoDate} />);
-        expect(screen.getAllByText('No especificada')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('No detectada')[0]).toBeInTheDocument();
+    });
+
+    it('renders "No detectado" when valor estimado is not available', () => {
+        const mockVMNoEstimated = {
+            display: { presupuesto: '10.000,00 €', plazo: '12 meses', moneda: 'EUR' },
+            result: { datosGenerales: { fechaLimitePresentacion: null, presupuesto: 10000 }, economico: {} },
+        } as unknown as PliegoVM;
+        render(<KpiCards vm={mockVMNoEstimated} />);
+        expect(screen.getByTestId('feedback-toggle-economico.valorEstimadoContrato')).toHaveTextContent(
+            'No detectado'
+        );
     });
 });

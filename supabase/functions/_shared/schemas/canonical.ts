@@ -114,7 +114,7 @@ function TrackedField<T extends z.ZodTypeAny>(valueSchema: T) {
         },
         z.object({
             value: valueSchema.nullable(),
-            evidence: EvidenceSchema.optional(),
+            evidence: z.preprocess((v) => (v === null ? undefined : v), EvidenceSchema.optional()),
             status: FieldStatusEnum.default('extraido'),
             warnings: z.array(z.string()).default([]),
         })

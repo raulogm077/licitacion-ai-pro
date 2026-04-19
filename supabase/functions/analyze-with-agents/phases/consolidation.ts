@@ -5,7 +5,18 @@
  * Aplica reglas de prelación documental y marca conflictos.
  * NO inventa valores — solo combina lo extraído.
  */
-import { CanonicalResultSchema } from '../../_shared/schemas/canonical.ts';
+import {
+    CanonicalResultSchema,
+    DatosGeneralesSchema,
+    EconomicoSchema,
+    DuracionYProrrogasSchema,
+    CriteriosAdjudicacionSchema,
+    RequisitosSolvenciaSchema,
+    RequisitosTecnicosSchema,
+    RestriccionesYRiesgosSchema,
+    ModeloServicioSchema,
+    AnexosYObservacionesSchema,
+} from '../../_shared/schemas/canonical.ts';
 import type { CanonicalResult } from '../../_shared/schemas/canonical.ts';
 import type { BlockResult } from './block-extraction.ts';
 
@@ -76,20 +87,16 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
     } else {
         console.warn('[Consolidation] Schema validation failed:', validated.error.message);
         allWarnings.push(`Consolidation schema warning: ${validated.error.message.substring(0, 300)}`);
-        // Retry with ensured minimal datosGenerales
-        const retryResult = CanonicalResultSchema.safeParse({
-            ...rawResult,
-            datosGenerales: ensureMinimalDatosGenerales(rawResult.datosGenerales),
-        });
+
+        // Retry by recovering each section independently so one malformed block
+        // does not wipe the rest of the analysis.
+        const retryResult = CanonicalResultSchema.safeParse(recoverCanonicalResult(rawResult, allWarnings));
         if (retryResult.success) {
             result = retryResult.data;
         } else {
-            // Last resort: force-parse with all defaults to avoid pipeline crash
             console.error('[Consolidation] Schema validation failed even after retry:', retryResult.error.message);
             allWarnings.push('Consolidación forzada: el resultado puede estar incompleto');
-            result = CanonicalResultSchema.parse({
-                datosGenerales: ensureMinimalDatosGenerales({}),
-            });
+            result = CanonicalResultSchema.parse(recoverCanonicalResult({}, allWarnings));
         }
     }
 
@@ -117,6 +124,87 @@ function ensureMinimalDatosGenerales(datos: unknown): unknown {
         moneda: d.moneda ?? { value: 'EUR', status: 'derivado_tecnico' },
         plazoEjecucionMeses: d.plazoEjecucionMeses ?? { value: 0, status: 'no_encontrado' },
         cpv: d.cpv ?? { value: [], status: 'no_encontrado' },
+    };
+}
+
+function recoverSection<T>(
+    sectionName: string,
+    schema: { safeParse: (input: unknown) => { success: true; data: T } | { success: false } },
+    input: unknown,
+    fallback: unknown,
+    warnings: string[]
+): T {
+    const parsed = schema.safeParse(input);
+    if (parsed.success) return parsed.data;
+
+    warnings.push(`Sección ${sectionName} recuperada con fallback por error de schema`);
+    const fallbackParsed = schema.safeParse(fallback);
+    if (!fallbackParsed.success) {
+        throw new Error(`Fallback inválido al recuperar sección ${sectionName}`);
+    }
+    return fallbackParsed.data;
+}
+
+function recoverCanonicalResult(rawResult: Record<string, unknown>, warnings: string[]) {
+    return {
+        plantilla_personalizada: rawResult.plantilla_personalizada,
+        datosGenerales: recoverSection(
+            'datosGenerales',
+            DatosGeneralesSchema,
+            ensureMinimalDatosGenerales(rawResult.datosGenerales),
+            ensureMinimalDatosGenerales({}),
+            warnings
+        ),
+        economico: recoverSection('economico', EconomicoSchema, rawResult.economico, {}, warnings),
+        duracionYProrrogas: recoverSection(
+            'duracionYProrrogas',
+            DuracionYProrrogasSchema,
+            rawResult.duracionYProrrogas,
+            {},
+            warnings
+        ),
+        criteriosAdjudicacion: recoverSection(
+            'criteriosAdjudicacion',
+            CriteriosAdjudicacionSchema,
+            rawResult.criteriosAdjudicacion,
+            {},
+            warnings
+        ),
+        requisitosSolvencia: recoverSection(
+            'requisitosSolvencia',
+            RequisitosSolvenciaSchema,
+            rawResult.requisitosSolvencia,
+            {},
+            warnings
+        ),
+        requisitosTecnicos: recoverSection(
+            'requisitosTecnicos',
+            RequisitosTecnicosSchema,
+            rawResult.requisitosTecnicos,
+            {},
+            warnings
+        ),
+        restriccionesYRiesgos: recoverSection(
+            'restriccionesYRiesgos',
+            RestriccionesYRiesgosSchema,
+            rawResult.restriccionesYRiesgos,
+            {},
+            warnings
+        ),
+        modeloServicio: recoverSection(
+            'modeloServicio',
+            ModeloServicioSchema,
+            rawResult.modeloServicio,
+            {},
+            warnings
+        ),
+        anexosYObservaciones: recoverSection(
+            'anexosYObservaciones',
+            AnexosYObservacionesSchema,
+            rawResult.anexosYObservaciones,
+            {},
+            warnings
+        ),
     };
 }
 

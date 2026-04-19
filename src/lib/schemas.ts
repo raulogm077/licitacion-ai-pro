@@ -49,7 +49,7 @@ export type FieldStatus = z.infer<typeof FieldStatusEnum>;
 function TrackedField<T extends z.ZodTypeAny>(valueSchema: T) {
     const objectForm = z.object({
         value: valueSchema,
-        evidence: EvidenceSchema.optional(),
+        evidence: z.preprocess((val) => (val === null ? undefined : val), EvidenceSchema.optional()),
         status: FieldStatusEnum.default('extraido'),
         warnings: z.array(z.string()).optional(),
     });

@@ -74,6 +74,10 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                 <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-700 delay-100">
                     {t('wizard.subtitle')}
                 </p>
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 max-w-3xl mx-auto">
+                    Para una extracción completa, sube el expediente entero o varios PDFs relacionados. Si solo subes el
+                    PCAP o el PPT, el análisis será parcial por diseño.
+                </p>
             </div>
 
             <StepIndicator currentStep="upload" />
@@ -152,7 +156,7 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                                         onChange={handleFileSelect}
                                     />
                                     <span className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg">
-                                        Seleccionar Archivo
+                                        Seleccionar uno o varios PDF
                                     </span>
                                 </label>
                             ) : (
@@ -214,10 +218,14 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                                 </div>
 
                                 {templates.length > 0 && (
-                                    <div className="w-full text-left mb-6">
-                                        <label
-                                            htmlFor="template-select"
-                                            className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                                <div className="w-full text-left mb-6">
+                                    <div className="mb-4 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm text-brand-900">
+                                        El primer PDF se toma como principal. Añade PCAP, PPT y anexos clave para
+                                        mejorar cobertura en datos generales, solvencia, criterios y requisitos técnicos.
+                                    </div>
+                                    <label
+                                        htmlFor="template-select"
+                                        className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                                         >
                                             Plantilla de Extracción (Opcional)
                                         </label>

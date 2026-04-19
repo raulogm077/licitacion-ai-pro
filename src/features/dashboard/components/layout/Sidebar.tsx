@@ -62,7 +62,7 @@ const baseNavItems: NavItem[] = [
         icon: AlertTriangle,
     },
     {
-        id: 'modelo',
+        id: 'servicio',
         label: 'Modelo de Servicio',
         icon: Settings,
     },
@@ -82,10 +82,7 @@ export function Sidebar({
 }: SidebarProps & { availableSections?: string[] }) {
     const navItems = baseNavItems
         .filter((item) => availableSections.length === 0 || availableSections.includes(item.id))
-        .map((item) => ({
-            ...item,
-            badge: item.id === 'riesgos' ? '3' : null,
-        }));
+        .map((item) => ({ ...item }));
     // Utility to conditionally join classes since we don't have cn utility in scope easily
     const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 

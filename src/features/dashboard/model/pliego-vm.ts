@@ -14,6 +14,12 @@ export interface PliegoVM {
 
     isAnalysisEmpty: boolean;
     isIncomplete: boolean;
+    guidance: {
+        title: string;
+        description: string;
+        nextStep: string;
+        tone: 'info' | 'warning' | 'success';
+    } | null;
 
     quality: {
         overall: 'COMPLETO' | 'PARCIAL' | 'VACIO';
@@ -170,6 +176,8 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
 
     // Quality
     const qualityReport = qualityService.evaluateQuality(content);
+    const backendWarnings = data.workflow?.quality?.warnings || workflowFallback?.quality?.warnings || [];
+    const guidance = buildGuidance(qualityReport, backendWarnings);
 
     // Warnings — combine backend warnings + frontend-generated warnings
     const warnings: Array<{ title?: string; message: string; severity: 'CRITICO' | 'NORMAL' }> = [];
@@ -220,7 +228,6 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     }
 
     // Backend warnings from workflow
-    const backendWarnings = data.workflow?.quality?.warnings || workflowFallback?.quality?.warnings || [];
     for (const w of backendWarnings) {
         if (!warnings.some((existing) => existing.message === w)) {
             warnings.push({ title: 'Aviso del análisis', message: w, severity: 'NORMAL' });
@@ -323,7 +330,8 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         notas: data.notas || [],
         citations,
         isAnalysisEmpty,
-        isIncomplete: isAnalysisEmpty,
+        isIncomplete: qualityReport.overall !== 'COMPLETO',
+        guidance,
         quality: {
             overall: qualityReport.overall,
             bySection: qualityReport.bySection,
@@ -339,6 +347,57 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         chapters,
         getEvidence,
         isAmbiguous,
+    };
+}
+
+function buildGuidance(
+    quality: { overall: 'COMPLETO' | 'PARCIAL' | 'VACIO'; missingCriticalFields?: string[]; bySection: Record<string, string> },
+    backendWarnings: string[]
+) {
+    if (quality.overall === 'COMPLETO') {
+        return {
+            title: 'Expediente analizado con cobertura alta',
+            description: 'La extracción ha recuperado la mayor parte de los campos clave y la información está lista para revisión funcional.',
+            nextStep: 'Valida presupuesto, plazo y criterios contra el portal oficial antes de reutilizar el análisis.',
+            tone: 'success' as const,
+        };
+    }
+
+    const warningsText = backendWarnings.join(' ').toLowerCase();
+    const missingCount = quality.missingCriticalFields?.length || 0;
+
+    if (warningsText.includes('únicamente al ppt') || warningsText.includes('documento ppt') || warningsText.includes('no contiene pcap')) {
+        return {
+            title: 'Documento técnico sin cobertura administrativa',
+            description: 'El sistema ha encontrado sobre todo contenido técnico. Faltan datos que normalmente viven en el PCAP o en la carátula del expediente.',
+            nextStep: 'Sube también el PCAP, la carátula o un PDF completo del expediente para recuperar presupuesto, plazo, CPV y órgano de contratación.',
+            tone: 'warning' as const,
+        };
+    }
+
+    if (warningsText.includes('únicamente al pcap') || warningsText.includes('no se dispone de un pliego de prescripciones técnicas')) {
+        return {
+            title: 'Documento administrativo sin cobertura técnica',
+            description: 'El análisis ha podido leer el PCAP, pero faltan el PPT y los anexos técnicos que suelen contener requisitos funcionales, SLAs y detalles del servicio.',
+            nextStep: 'Añade el PPT y anexos técnicos para completar requisitos, riesgos operativos y equipo mínimo.',
+            tone: 'warning' as const,
+        };
+    }
+
+    if (missingCount >= 4) {
+        return {
+            title: 'Expediente parcial o PDF difícil de leer',
+            description: 'El backend ha terminado, pero siguen faltando varios campos críticos. Esto suele ocurrir con PDFs resumidos, escaneados o con documentación incompleta.',
+            nextStep: 'Prueba con el expediente completo o con varios PDFs relacionados para mejorar cobertura y trazabilidad.',
+            tone: 'warning' as const,
+        };
+    }
+
+    return {
+        title: 'Análisis parcial pero utilizable',
+        description: 'Se ha recuperado parte relevante del expediente, aunque todavía quedan huecos o ambigüedades que requieren contraste manual.',
+        nextStep: 'Revisa primero los avisos y las secciones con estado PARCIAL o VACIO antes de tomar decisiones.',
+        tone: 'info' as const,
     };
 }
 

@@ -1,5 +1,4 @@
 import { Euro, CalendarClock, Timer, TrendingUp } from 'lucide-react';
-import { unwrap } from '../../../../lib/tracked-field';
 import { PliegoVM } from '../../model/pliego-vm';
 import { FeedbackToggle } from '../detail/FeedbackToggle';
 
@@ -13,16 +12,14 @@ export function KpiCards({ vm }: KpiCardProps) {
 
     const budget = vm.display.presupuesto;
     const duration = vm.display.plazo;
-    const dateLimit = vm.result.datosGenerales.fechaLimitePresentacion || 'No especificada';
-
-    // Estimate Total Value roughly (if not present) - just for UI demonstration based on 2x budget (example heuristic if not explicitly found)
-    const rawBudget = unwrap(vm.result.datosGenerales.presupuesto) || 0;
-    const isProrrogable = duration !== 'No detectado' && rawBudget > 0;
-    const estimatedValue = rawBudget * (isProrrogable ? 1.5 : 1);
-    const formattedEstimated = new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: vm.display.moneda,
-    }).format(estimatedValue);
+    const dateLimit = vm.result.datosGenerales.fechaLimitePresentacion || 'No detectada';
+    const estimatedValue =
+        vm.result.economico?.valorEstimadoContrato && vm.result.economico.valorEstimadoContrato > 0
+            ? new Intl.NumberFormat('es-ES', {
+                  style: 'currency',
+                  currency: vm.display.moneda,
+              }).format(vm.result.economico.valorEstimadoContrato)
+            : 'No detectado';
 
     const kpis = [
         {
@@ -42,9 +39,9 @@ export function KpiCards({ vm }: KpiCardProps) {
             id: 'fecha',
             label: 'Fecha Límite de Presentación',
             value: dateLimit,
-            sub: 'Verificar en portal oficial',
+            sub: 'Presentación de ofertas',
             icon: CalendarClock,
-            trend: dateLimit !== 'No especificada' ? 'Urgente' : null,
+            trend: null,
             trendColor: 'text-amber-600 bg-amber-50 border-amber-200',
             color: 'text-amber-700',
             iconBg: 'bg-amber-50',
@@ -56,27 +53,27 @@ export function KpiCards({ vm }: KpiCardProps) {
             id: 'duracion',
             label: 'Duración del Contrato',
             value: duration,
-            sub: 'Prorrogable',
+            sub: 'Duración extraída',
             icon: Timer,
             trend: null,
             color: 'text-navy',
             iconBg: 'bg-navy/10',
             iconColor: 'text-navy',
             accent: 'border-l-navy',
-            fieldPath: 'datosGenerales.duracionContrato',
+            fieldPath: 'datosGenerales.plazoEjecucionMeses',
         },
         {
             id: 'valor',
             label: 'Valor Estimado Total',
-            value: formattedEstimated,
-            sub: 'Aproximación con prórrogas',
+            value: estimatedValue,
+            sub: 'Solo si aparece explícito',
             icon: TrendingUp,
             trend: null,
             color: 'text-navy',
             iconBg: 'bg-cyan/20',
             iconColor: 'text-cyan-muted',
             accent: 'border-l-cyan',
-            fieldPath: 'datosGenerales.valorEstimado',
+            fieldPath: 'economico.valorEstimadoContrato',
         },
     ];
 

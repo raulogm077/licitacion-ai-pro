@@ -55,37 +55,14 @@ const severityConfig: Record<
 export function AlertsPanel({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (section: string) => void }) {
     const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
-    // Map warnings from PliegoVM into alerts UI format
     const alerts: Alert[] = vm.warnings.map((w, idx) => ({
         id: `w-${idx}`,
         severity: w.severity === 'CRITICO' ? 'error' : 'warning',
         title: w.title || 'Alerta extraída',
         description: w.message,
-        section: 'resumen', // Simplification
-        isNew: true,
+        section: inferSection(w.message),
+        isNew: idx < 3,
     }));
-
-    // Add some mock derived ones for visual completeness if there's very few
-    if (alerts.length < 3) {
-        alerts.push({
-            id: 'm-1',
-            severity: 'info',
-            title: 'Subcontratación detectada',
-            description: 'Se permite subcontratar partes del proyecto bajo ciertas condiciones.',
-            section: 'tecnicos',
-            isNew: false,
-        });
-        if (vm.result.restriccionesYRiesgos.penalizaciones.length > 0) {
-            alerts.push({
-                id: 'm-2',
-                severity: 'error',
-                title: 'Penalizaciones por SLA',
-                description: 'El pliego contempla multas por incumplimiento de servicio.',
-                section: 'riesgos',
-                isNew: false,
-            });
-        }
-    }
 
     const errorCount = alerts.filter((a) => a.severity === 'error').length;
     const warningCount = alerts.filter((a) => a.severity === 'warning').length;
@@ -125,7 +102,10 @@ export function AlertsPanel({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (sec
             {/* Alert list */}
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
                 {alerts.length === 0 ? (
-                    <div className="text-center text-slate-400 py-8 text-sm">No hay alertas.</div>
+                    <div className="text-center text-slate-400 py-8 text-sm px-6">
+                        No hay alertas adicionales. Si el análisis sigue siendo parcial, revisa el resumen ejecutivo para
+                        ver qué documentos faltan.
+                    </div>
                 ) : (
                     alerts.map((alert) => {
                         const config = severityConfig[alert.severity];
@@ -180,4 +160,24 @@ export function AlertsPanel({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (sec
             </div>
         </div>
     );
+}
+
+function inferSection(message: string): string {
+    const normalized = message.toLowerCase();
+
+    if (
+        normalized.includes('presupuesto') ||
+        normalized.includes('cpv') ||
+        normalized.includes('órgano') ||
+        normalized.includes('organo') ||
+        normalized.includes('plazo')
+    ) {
+        return 'datos';
+    }
+    if (normalized.includes('criterio') || normalized.includes('anormalidad')) return 'criterios';
+    if (normalized.includes('solvencia')) return 'solvencia';
+    if (normalized.includes('técnic') || normalized.includes('tecnic') || normalized.includes('ppt')) return 'tecnicos';
+    if (normalized.includes('riesgo') || normalized.includes('penaliz') || normalized.includes('garant')) return 'riesgos';
+    if (normalized.includes('sla') || normalized.includes('equipo') || normalized.includes('servicio')) return 'servicio';
+    return 'resumen';
 }
