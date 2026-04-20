@@ -23,7 +23,12 @@ export class DBService {
         };
     }
 
-    async saveLicitacion(hash: string, fileName: string, content: LicitacionContent): Promise<Result<void>> {
+    async saveLicitacion(
+        hash: string,
+        fileName: string,
+        content: LicitacionContent,
+        workflow?: WorkflowState
+    ): Promise<Result<void>> {
         try {
             // 0. Explicit Auth Check
             const {
@@ -36,7 +41,7 @@ export class DBService {
             const now = new Date().toISOString();
 
             // Calculate Quality
-            const qualityReport = qualityService.evaluateQuality(content);
+            const qualityReport = workflow?.quality || qualityService.evaluateQuality(content);
 
             // 1. Fetch existing envelope to manage versioning
             const existingResult = await this.getLicitacion(hash);
@@ -55,25 +60,40 @@ export class DBService {
                     schema_version: 'v1',
                     prompt_version: 'v1',
                     result: content,
-                    workflow: {
-                        steps: [],
-                        status: 'succeeded',
-                    },
+                    workflow: workflow
+                        ? {
+                              steps: workflow.steps || [],
+                          }
+                        : {
+                              steps: [],
+                              status: 'succeeded',
+                          },
                 };
 
                 envelope.versions = [...(envelope.versions || []), newVersion];
                 envelope.result = content;
 
                 // Update Workflow state
-                envelope.workflow = {
-                    ...(envelope.workflow || {}),
-                    current_version: nextVersionNumber,
-                    status: 'succeeded',
-                    steps: envelope.workflow?.steps || [],
-                    updated_at: now,
-                    evidences: envelope.workflow?.evidences || [],
-                    quality: qualityReport,
-                } as WorkflowState;
+                envelope.workflow = workflow
+                    ? ({
+                          ...workflow,
+                          current_version: nextVersionNumber,
+                          created_at: envelope.workflow?.created_at || workflow.created_at || now,
+                          updated_at: now,
+                          quality: {
+                              ...workflow.quality,
+                              partial_reasons: workflow.quality?.partial_reasons || [],
+                          },
+                      } as WorkflowState)
+                    : ({
+                          ...(envelope.workflow || {}),
+                          current_version: nextVersionNumber,
+                          status: 'succeeded',
+                          steps: envelope.workflow?.steps || [],
+                          updated_at: now,
+                          evidences: envelope.workflow?.evidences || [],
+                          quality: qualityReport,
+                      } as WorkflowState);
 
                 // Sync legacy root fields
                 envelope = { ...envelope, ...content };
@@ -93,16 +113,27 @@ export class DBService {
                             result: content,
                         },
                     ],
-                    workflow: {
-                        current_version: 1,
-                        status: 'succeeded',
-                        created_at: now,
-                        updated_at: now,
-                        steps: [],
-                        evidences: [],
-                        phases: {},
-                        quality: qualityReport,
-                    } as WorkflowState,
+                    workflow: workflow
+                        ? ({
+                              ...workflow,
+                              current_version: workflow.current_version || 1,
+                              created_at: workflow.created_at || now,
+                              updated_at: now,
+                              quality: {
+                                  ...workflow.quality,
+                                  partial_reasons: workflow.quality?.partial_reasons || [],
+                              },
+                          } as WorkflowState)
+                        : ({
+                              current_version: 1,
+                              status: 'succeeded',
+                              created_at: now,
+                              updated_at: now,
+                              steps: [],
+                              evidences: [],
+                              phases: {},
+                              quality: qualityReport,
+                          } as WorkflowState),
                     metadata: {
                         tags: [],
                     },

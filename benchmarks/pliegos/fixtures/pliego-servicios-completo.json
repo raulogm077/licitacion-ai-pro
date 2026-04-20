@@ -1,0 +1,474 @@
+{
+  "datosGenerales": {
+    "titulo": {
+      "value": "Servicio integral de soporte y operación de plataforma municipal",
+      "status": "extraido",
+      "evidence": {
+        "quote": "Servicio integral de soporte y operación de plataforma municipal.",
+        "pageHint": "1",
+        "confidence": 0.98
+      }
+    },
+    "organoContratacion": {
+      "value": "Ayuntamiento de la Ciudad Anonimizada",
+      "status": "extraido",
+      "evidence": {
+        "quote": "Órgano de contratación: Ayuntamiento de la Ciudad Anonimizada.",
+        "pageHint": "1",
+        "confidence": 0.95
+      }
+    },
+    "presupuesto": {
+      "value": 133200,
+      "status": "extraido",
+      "evidence": {
+        "quote": "Presupuesto base de licitación: 133.200,00 EUR.",
+        "pageHint": "3",
+        "confidence": 0.97
+      }
+    },
+    "moneda": {
+      "value": "EUR",
+      "status": "extraido",
+      "evidence": {
+        "quote": "Todos los importes se expresan en euros (EUR).",
+        "pageHint": "3",
+        "confidence": 0.9
+      }
+    },
+    "plazoEjecucionMeses": {
+      "value": 24,
+      "status": "extraido",
+      "evidence": {
+        "quote": "Duración inicial del contrato: 24 meses.",
+        "pageHint": "4",
+        "confidence": 0.94
+      }
+    },
+    "cpv": {
+      "value": ["72000000-5", "72250000-2"],
+      "status": "extraido",
+      "evidence": {
+        "quote": "CPV principal 72000000-5 y CPV secundario 72250000-2.",
+        "pageHint": "2",
+        "confidence": 0.91
+      }
+    },
+    "fechaLimitePresentacion": "2026-01-15T23:59:00+01:00",
+    "tipoContrato": "Servicios",
+    "procedimiento": "Abierto"
+  },
+  "economico": {
+    "presupuestoBaseLicitacion": 133200,
+    "valorEstimadoContrato": 266400,
+    "importeIVA": 27972,
+    "tipoIVA": 21,
+    "desglosePorLotes": [],
+    "moneda": "EUR"
+  },
+  "duracionYProrrogas": {
+    "duracionMeses": 24,
+    "prorrogaMeses": 12,
+    "prorrogaMaxima": 24,
+    "observaciones": "Se contempla una prórroga anual adicional."
+  },
+  "criteriosAdjudicacion": {
+    "subjetivos": [
+      {
+        "descripcion": "Memoria técnica",
+        "ponderacion": 35,
+        "detalles": "Cobertura funcional y plan de transición",
+        "subcriterios": [
+          {
+            "descripcion": "Plan de implantación",
+            "ponderacion": 15
+          },
+          {
+            "descripcion": "Cobertura funcional",
+            "ponderacion": 20
+          }
+        ],
+        "cita": "La memoria técnica se valorará hasta 35 puntos."
+      }
+    ],
+    "objetivos": [
+      {
+        "descripcion": "Oferta económica",
+        "ponderacion": 40,
+        "formula": "40 x (oferta mínima / oferta analizada)",
+        "cita": "La oferta económica se valora con una fórmula proporcional."
+      },
+      {
+        "descripcion": "Mejoras de servicio",
+        "ponderacion": 25,
+        "formula": "Asignación lineal por compromisos adicionales",
+        "cita": "Se asignarán hasta 25 puntos por mejoras."
+      }
+    ],
+    "umbralAnormalidad": "Se considerará temeraria la oferta un 10% inferior a la media."
+  },
+  "requisitosSolvencia": {
+    "economica": {
+      "cifraNegocioAnualMinima": 180000,
+      "descripcion": "Volumen anual de negocio mínimo de 180.000 EUR.",
+      "cita": "La solvencia económica exige 180.000 EUR de cifra anual."
+    },
+    "tecnica": [
+      {
+        "descripcion": "Tres contratos similares en los últimos cinco años.",
+        "proyectosSimilaresRequeridos": 3,
+        "importeMinimoProyecto": 50000,
+        "cita": "Se acreditarán al menos tres contratos similares."
+      }
+    ],
+    "profesional": [
+      {
+        "descripcion": "Adscripción de responsable de servicio certificado ITIL.",
+        "cita": "El responsable del servicio deberá acreditar certificación ITIL."
+      }
+    ]
+  },
+  "requisitosTecnicos": {
+    "funcionales": [
+      {
+        "requisito": "Soporte 24x7 para incidencias críticas.",
+        "obligatorio": true,
+        "referenciaPagina": 18,
+        "cita": "El adjudicatario prestará soporte 24x7 para incidencias críticas."
+      },
+      {
+        "requisito": "Panel de monitorización con métricas en tiempo real.",
+        "obligatorio": true,
+        "referenciaPagina": 19,
+        "cita": "Se exige panel de monitorización en tiempo real."
+      }
+    ],
+    "normativa": [
+      {
+        "norma": "ENS",
+        "descripcion": "Cumplimiento del Esquema Nacional de Seguridad.",
+        "cita": "La solución deberá cumplir el ENS."
+      },
+      {
+        "norma": "RGPD",
+        "descripcion": "Cumplimiento del Reglamento General de Protección de Datos.",
+        "cita": "El tratamiento de datos debe ajustarse al RGPD."
+      }
+    ]
+  },
+  "restriccionesYRiesgos": {
+    "killCriteria": [
+      {
+        "criterio": "Presentación fuera de plazo.",
+        "justificacion": "Causa de exclusión automática.",
+        "cita": "Las ofertas fuera de plazo quedarán excluidas."
+      }
+    ],
+    "riesgos": [
+      {
+        "descripcion": "Dependencia de migración inicial sin ventana ampliada.",
+        "impacto": "ALTO",
+        "probabilidad": "MEDIA",
+        "mitigacionSugerida": "Planificar transición por oleadas con pruebas previas.",
+        "cita": "La migración inicial deberá completarse en un único fin de semana."
+      }
+    ],
+    "penalizaciones": [
+      {
+        "causa": "Incumplimiento de SLA de disponibilidad.",
+        "sancion": "Deducción del 2% de la factura mensual.",
+        "cita": "Se aplicará una deducción del 2% por incumplimiento de SLA."
+      }
+    ]
+  },
+  "modeloServicio": {
+    "sla": [
+      {
+        "metrica": "Disponibilidad mensual",
+        "objetivo": "99,9%",
+        "cita": "La disponibilidad mensual no será inferior al 99,9%."
+      }
+    ],
+    "equipoMinimo": [
+      {
+        "rol": "Jefe de servicio",
+        "experienciaAnios": 5,
+        "titulacion": "Ingeniería o equivalente",
+        "dedicacion": "Parcial",
+        "cita": "Se adscribirá un jefe de servicio con cinco años de experiencia."
+      }
+    ]
+  },
+  "anexosYObservaciones": {
+    "anexosIdentificados": [
+      {
+        "nombre": "Anexo I - Oferta económica",
+        "tipo": "ANEXO_ECONOMICO",
+        "relevancia": "Alta"
+      }
+    ],
+    "observaciones": [
+      "Se exige visita técnica previa opcional.",
+      "La transición se coordina con el equipo municipal."
+    ]
+  },
+  "result": {
+    "datosGenerales": {
+      "titulo": {
+        "value": "Servicio integral de soporte y operación de plataforma municipal",
+        "status": "extraido",
+        "evidence": {
+          "quote": "Servicio integral de soporte y operación de plataforma municipal.",
+          "pageHint": "1",
+          "confidence": 0.98
+        }
+      },
+      "organoContratacion": {
+        "value": "Ayuntamiento de la Ciudad Anonimizada",
+        "status": "extraido",
+        "evidence": {
+          "quote": "Órgano de contratación: Ayuntamiento de la Ciudad Anonimizada.",
+          "pageHint": "1",
+          "confidence": 0.95
+        }
+      },
+      "presupuesto": {
+        "value": 133200,
+        "status": "extraido",
+        "evidence": {
+          "quote": "Presupuesto base de licitación: 133.200,00 EUR.",
+          "pageHint": "3",
+          "confidence": 0.97
+        }
+      },
+      "moneda": {
+        "value": "EUR",
+        "status": "extraido",
+        "evidence": {
+          "quote": "Todos los importes se expresan en euros (EUR).",
+          "pageHint": "3",
+          "confidence": 0.9
+        }
+      },
+      "plazoEjecucionMeses": {
+        "value": 24,
+        "status": "extraido",
+        "evidence": {
+          "quote": "Duración inicial del contrato: 24 meses.",
+          "pageHint": "4",
+          "confidence": 0.94
+        }
+      },
+      "cpv": {
+        "value": ["72000000-5", "72250000-2"],
+        "status": "extraido",
+        "evidence": {
+          "quote": "CPV principal 72000000-5 y CPV secundario 72250000-2.",
+          "pageHint": "2",
+          "confidence": 0.91
+        }
+      },
+      "fechaLimitePresentacion": "2026-01-15T23:59:00+01:00",
+      "tipoContrato": "Servicios",
+      "procedimiento": "Abierto"
+    },
+    "economico": {
+      "presupuestoBaseLicitacion": 133200,
+      "valorEstimadoContrato": 266400,
+      "importeIVA": 27972,
+      "tipoIVA": 21,
+      "desglosePorLotes": [],
+      "moneda": "EUR"
+    },
+    "duracionYProrrogas": {
+      "duracionMeses": 24,
+      "prorrogaMeses": 12,
+      "prorrogaMaxima": 24,
+      "observaciones": "Se contempla una prórroga anual adicional."
+    },
+    "criteriosAdjudicacion": {
+      "subjetivos": [
+        {
+          "descripcion": "Memoria técnica",
+          "ponderacion": 35,
+          "detalles": "Cobertura funcional y plan de transición",
+          "subcriterios": [
+            {
+              "descripcion": "Plan de implantación",
+              "ponderacion": 15
+            },
+            {
+              "descripcion": "Cobertura funcional",
+              "ponderacion": 20
+            }
+          ],
+          "cita": "La memoria técnica se valorará hasta 35 puntos."
+        }
+      ],
+      "objetivos": [
+        {
+          "descripcion": "Oferta económica",
+          "ponderacion": 40,
+          "formula": "40 x (oferta mínima / oferta analizada)",
+          "cita": "La oferta económica se valora con una fórmula proporcional."
+        },
+        {
+          "descripcion": "Mejoras de servicio",
+          "ponderacion": 25,
+          "formula": "Asignación lineal por compromisos adicionales",
+          "cita": "Se asignarán hasta 25 puntos por mejoras."
+        }
+      ],
+      "umbralAnormalidad": "Se considerará temeraria la oferta un 10% inferior a la media."
+    },
+    "requisitosSolvencia": {
+      "economica": {
+        "cifraNegocioAnualMinima": 180000,
+        "descripcion": "Volumen anual de negocio mínimo de 180.000 EUR.",
+        "cita": "La solvencia económica exige 180.000 EUR de cifra anual."
+      },
+      "tecnica": [
+        {
+          "descripcion": "Tres contratos similares en los últimos cinco años.",
+          "proyectosSimilaresRequeridos": 3,
+          "importeMinimoProyecto": 50000,
+          "cita": "Se acreditarán al menos tres contratos similares."
+        }
+      ],
+      "profesional": [
+        {
+          "descripcion": "Adscripción de responsable de servicio certificado ITIL.",
+          "cita": "El responsable del servicio deberá acreditar certificación ITIL."
+        }
+      ]
+    },
+    "requisitosTecnicos": {
+      "funcionales": [
+        {
+          "requisito": "Soporte 24x7 para incidencias críticas.",
+          "obligatorio": true,
+          "referenciaPagina": 18,
+          "cita": "El adjudicatario prestará soporte 24x7 para incidencias críticas."
+        },
+        {
+          "requisito": "Panel de monitorización con métricas en tiempo real.",
+          "obligatorio": true,
+          "referenciaPagina": 19,
+          "cita": "Se exige panel de monitorización en tiempo real."
+        }
+      ],
+      "normativa": [
+        {
+          "norma": "ENS",
+          "descripcion": "Cumplimiento del Esquema Nacional de Seguridad.",
+          "cita": "La solución deberá cumplir el ENS."
+        },
+        {
+          "norma": "RGPD",
+          "descripcion": "Cumplimiento del Reglamento General de Protección de Datos.",
+          "cita": "El tratamiento de datos debe ajustarse al RGPD."
+        }
+      ]
+    },
+    "restriccionesYRiesgos": {
+      "killCriteria": [
+        {
+          "criterio": "Presentación fuera de plazo.",
+          "justificacion": "Causa de exclusión automática.",
+          "cita": "Las ofertas fuera de plazo quedarán excluidas."
+        }
+      ],
+      "riesgos": [
+        {
+          "descripcion": "Dependencia de migración inicial sin ventana ampliada.",
+          "impacto": "ALTO",
+          "probabilidad": "MEDIA",
+          "mitigacionSugerida": "Planificar transición por oleadas con pruebas previas.",
+          "cita": "La migración inicial deberá completarse en un único fin de semana."
+        }
+      ],
+      "penalizaciones": [
+        {
+          "causa": "Incumplimiento de SLA de disponibilidad.",
+          "sancion": "Deducción del 2% de la factura mensual.",
+          "cita": "Se aplicará una deducción del 2% por incumplimiento de SLA."
+        }
+      ]
+    },
+    "modeloServicio": {
+      "sla": [
+        {
+          "metrica": "Disponibilidad mensual",
+          "objetivo": "99,9%",
+          "cita": "La disponibilidad mensual no será inferior al 99,9%."
+        }
+      ],
+      "equipoMinimo": [
+        {
+          "rol": "Jefe de servicio",
+          "experienciaAnios": 5,
+          "titulacion": "Ingeniería o equivalente",
+          "dedicacion": "Parcial",
+          "cita": "Se adscribirá un jefe de servicio con cinco años de experiencia."
+        }
+      ]
+    },
+    "anexosYObservaciones": {
+      "anexosIdentificados": [
+        {
+          "nombre": "Anexo I - Oferta económica",
+          "tipo": "ANEXO_ECONOMICO",
+          "relevancia": "Alta"
+        }
+      ],
+      "observaciones": [
+        "Se exige visita técnica previa opcional.",
+        "La transición se coordina con el equipo municipal."
+      ]
+    }
+  },
+  "workflow": {
+    "current_version": 1,
+    "status": "completed",
+    "quality": {
+      "overall": "COMPLETO",
+      "bySection": {
+        "datosGenerales": "COMPLETO",
+        "economico": "COMPLETO",
+        "duracionYProrrogas": "COMPLETO",
+        "criteriosAdjudicacion": "COMPLETO",
+        "requisitosSolvencia": "COMPLETO",
+        "requisitosTecnicos": "COMPLETO",
+        "restriccionesYRiesgos": "COMPLETO",
+        "modeloServicio": "COMPLETO"
+      },
+      "missingCriticalFields": [],
+      "ambiguous_fields": [],
+      "warnings": [],
+      "partial_reasons": []
+    },
+    "evidences": [],
+    "phases": {
+      "ingestion": {
+        "status": "completed"
+      },
+      "document_map": {
+        "status": "completed"
+      },
+      "extraction": {
+        "status": "completed"
+      },
+      "consolidation": {
+        "status": "completed"
+      },
+      "validation": {
+        "status": "completed"
+      }
+    },
+    "created_at": "2026-04-20T00:00:00.000Z",
+    "updated_at": "2026-04-20T00:00:00.000Z"
+  },
+  "metadata": {
+    "tags": []
+  }
+}

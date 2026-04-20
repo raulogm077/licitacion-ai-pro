@@ -1,4 +1,4 @@
-import { CanonicalResultSchema } from './canonical.ts';
+import { CanonicalResultSchema, WorkflowSchema } from './canonical.ts';
 
 Deno.test('CanonicalResultSchema normalizes malformed tracked numbers and null subcriterios', () => {
     const parsed = CanonicalResultSchema.parse({
@@ -40,5 +40,26 @@ Deno.test('CanonicalResultSchema normalizes malformed tracked numbers and null s
         parsed.criteriosAdjudicacion.subjetivos[0].subcriterios.length !== 0
     ) {
         throw new Error('Expected subjetivos[0].subcriterios to normalize to []');
+    }
+});
+
+Deno.test('WorkflowSchema accepts structured partial reasons', () => {
+    const parsed = WorkflowSchema.parse({
+        status: 'completed',
+        quality: {
+            overall: 'PARCIAL',
+            bySection: { datosGenerales: 'PARCIAL' },
+            missingCriticalFields: ['datosGenerales.cpv'],
+            ambiguous_fields: [],
+            warnings: [],
+            partial_reasons: ['document_insufficient', 'missing_administrative_content'],
+        },
+        evidences: [],
+        phases: {},
+        updated_at: new Date().toISOString(),
+    });
+
+    if ((parsed.quality?.partial_reasons?.length || 0) !== 2) {
+        throw new Error('Expected partial_reasons to be preserved in workflow quality');
     }
 });

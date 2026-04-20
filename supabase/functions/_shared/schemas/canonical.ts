@@ -14,10 +14,15 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { z } from 'npm:zod@3.22.4';
+import {
+    ANALYSIS_PARTIAL_REASONS,
+    ANALYSIS_QUALITY_STATUSES,
+    TRACKED_FIELD_STATUSES,
+} from '../../../../src/shared/analysis-contract.ts';
 
 // ─── Field Status & Evidence ──────────────────────────────────────────────────
 
-export const FieldStatusEnum = z.enum(['extraido', 'ambiguo', 'no_encontrado', 'derivado_tecnico']);
+export const FieldStatusEnum = z.enum(TRACKED_FIELD_STATUSES);
 
 /**
  * Safely coerce to number. Returns `fallback` (default 0) instead of NaN.
@@ -363,7 +368,8 @@ export type CanonicalResult = z.infer<typeof CanonicalResultSchema>;
 
 // ─── Quality & Workflow ───────────────────────────────────────────────────────
 
-export const QualityStatusEnum = z.enum(['COMPLETO', 'PARCIAL', 'VACIO']);
+export const QualityStatusEnum = z.enum(ANALYSIS_QUALITY_STATUSES);
+export const AnalysisPartialReasonEnum = z.enum(ANALYSIS_PARTIAL_REASONS);
 
 export const QualitySchema = z.object({
     overall: QualityStatusEnum,
@@ -371,6 +377,7 @@ export const QualitySchema = z.object({
     missingCriticalFields: z.array(z.string()).default([]),
     ambiguous_fields: z.array(z.string()).default([]),
     warnings: z.array(z.string()).default([]),
+    partial_reasons: z.array(AnalysisPartialReasonEnum).default([]),
 });
 
 export const WorkflowSchema = z.object({

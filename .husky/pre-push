@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "🔍 Running pre-push release verification..."
-pnpm verify:release || {
+bash ./scripts/verify-ci.sh || {
   echo "❌ verify:release failed. Fix before pushing."
   exit 1
 }

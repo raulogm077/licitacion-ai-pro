@@ -7,6 +7,7 @@ Este documento describe el proceso vigente de despliegue. No describe la arquite
 - Production deploys only after a green PR is merged into `main`.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+- Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
 <!-- release-contract:end -->
 
 ## 1. Qué se despliega
@@ -28,12 +29,23 @@ Superficies desplegables principales:
 Antes de desplegar una tarea, QA debe verificar:
 
 1. `pnpm verify:release`
-2. PR con CI en verde
-3. si la tarea es IA:
+2. `pnpm benchmark:pliegos` si la tarea toca `analyze-with-agents`, SSE, contrato compartido o dashboard del análisis
+3. PR con CI en verde
+4. si la tarea es IA:
    - compatibilidad con la Guía de lectura de pliegos
    - compatibilidad con SSE
    - compatibilidad con schema/Zod
-4. documentación mínima actualizada
+5. documentación mínima actualizada
+
+## 3.1. Gate funcional de release
+
+El despliegue productivo no se considera seguro solo porque lint, tests unitarios y build estén en verde. Cambios que afecten al análisis deben mantener verde el benchmark funcional:
+
+```bash
+pnpm benchmark:pliegos
+```
+
+Ese benchmark valida fixtures versionados con mínimos por campo y sección. El caso principal soportado para producción es un único PDF completo del expediente; los documentos parciales siguen aceptándose, pero deben quedar clasificados como `PARCIAL` con razones estructuradas.
 
 ## 4. Migraciones de base de datos
 
@@ -95,7 +107,7 @@ Después del despliegue, QA debe comprobar al menos:
 
 - que la función figura en el listado de Supabase
 - que no hay errores inmediatos de ejecución
-- que el flujo principal sigue respondiendo como mínimo en un smoke test
+- que el flujo principal sigue respondiendo como mínimo en un smoke test sobre un pliego representativo del camino principal (PDF completo)
 - si se ha desplegado `chat-with-analysis-agent`, que responde al menos con `401` sin JWT y no afecta al flujo batch existente
 
 Comandos útiles:

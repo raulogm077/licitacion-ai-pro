@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProcessingStatus, AnalysisPhase } from '../types';
+import { ProcessingStatus, AnalysisPhase, WorkflowState } from '../types';
 import { useLicitacionStore } from './licitacion.store';
 import { processFile } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
@@ -134,7 +134,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             }));
 
             // Persist to DB
-            const saveResult = await services.db.saveLicitacion(hash, file.name, content);
+            const saveResult = await services.db.saveLicitacion(hash, file.name, content, workflow as WorkflowState);
             if (isErr(saveResult)) {
                 logger.warn('Fallo en persistencia remota:', saveResult.error);
                 set({

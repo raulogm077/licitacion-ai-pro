@@ -1,22 +1,33 @@
 #!/bin/bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BIN_DIR="$ROOT_DIR/node_modules/.bin"
+
+run_verify_integrity() {
+  node --experimental-strip-types "$ROOT_DIR/scripts/verify-integrity.ts"
+}
+
 echo "Iniciando verify:release..."
 
 echo "→ Integridad del repo..."
-pnpm verify:integrity
+run_verify_integrity
 
 echo "→ Lint..."
-pnpm lint
+"$BIN_DIR/eslint" . --ext ts,tsx --report-unused-disable-directives --max-warnings 0
 
 echo "→ TypeScript..."
-pnpm typecheck
+"$BIN_DIR/tsc" --noEmit
 
 echo "→ Unit tests + coverage..."
-pnpm test -- --run --coverage
+"$BIN_DIR/vitest" --run --coverage
+
+echo "→ Benchmark funcional..."
+node --import tsx benchmarks/pliegos/run.ts
 
 echo "→ Build..."
-pnpm build
+"$BIN_DIR/tsc"
+"$BIN_DIR/vite" build
 
 echo "→ Edge Functions (deno check)..."
 deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
@@ -28,6 +39,6 @@ deno test --node-modules-dir=auto supabase/functions/_shared/utils/retry_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
 
 echo "→ E2E..."
-pnpm test:e2e
+"$BIN_DIR/playwright" test
 
 echo "verify:release completado."

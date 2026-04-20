@@ -62,6 +62,11 @@ const DOC_IMPACT_RULES = [
             !file.endsWith('.test.tsx'),
         requiredDocs: ['SPEC.md'],
     },
+    {
+        name: 'functional-benchmark',
+        matches: (file: string) => file.startsWith('benchmarks/'),
+        requiredDocs: ['SPEC.md', 'DEPLOYMENT.md', 'README.md'],
+    },
 ];
 
 function run(command: string, args: string[], options: { allowFailure?: boolean } = {}): string {
@@ -278,12 +283,44 @@ function validateDocumentationCoverage(changedFiles: string[]): void {
     }
 }
 
+function validateBenchmarkFixtures(): void {
+    const manifestPath = path.join(process.cwd(), 'benchmarks', 'pliegos', 'manifest.json');
+    if (!existsSync(manifestPath)) return;
+
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+        cases?: Array<{ id?: string; fixture?: string; sourcePdf?: string }>;
+    };
+
+    if (!Array.isArray(manifest.cases) || manifest.cases.length === 0) {
+        throw new Error('benchmarks/pliegos/manifest.json must declare at least one benchmark case.');
+    }
+
+    for (const benchmarkCase of manifest.cases) {
+        if (!benchmarkCase.id || !benchmarkCase.fixture) {
+            throw new Error('Each benchmark case must include both "id" and "fixture".');
+        }
+
+        const fixturePath = path.join(process.cwd(), 'benchmarks', 'pliegos', benchmarkCase.fixture);
+        if (!existsSync(fixturePath)) {
+            throw new Error(`Missing benchmark fixture for case "${benchmarkCase.id}": ${benchmarkCase.fixture}`);
+        }
+
+        if (benchmarkCase.sourcePdf) {
+            const sourcePdfPath = path.resolve(path.join(process.cwd(), 'benchmarks', 'pliegos'), benchmarkCase.sourcePdf);
+            if (!existsSync(sourcePdfPath)) {
+                throw new Error(`Missing benchmark sourcePdf for case "${benchmarkCase.id}": ${benchmarkCase.sourcePdf}`);
+            }
+        }
+    }
+}
+
 function main(): void {
     const changedFiles = getChangedFiles();
 
     validateMirroredBlocks();
     validateWorkflowSyntax();
     validateShellSyntax();
+    validateBenchmarkFixtures();
     validateRemoteMigrationHistory();
     validateDocumentationCoverage(changedFiles);
 

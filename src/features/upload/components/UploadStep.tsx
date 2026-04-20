@@ -75,8 +75,8 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                     {t('wizard.subtitle')}
                 </p>
                 <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 max-w-3xl mx-auto">
-                    Para una extracción completa, sube el expediente entero o varios PDFs relacionados. Si solo subes el
-                    PCAP o el PPT, el análisis será parcial por diseño.
+                    El camino más fiable es subir un único PDF completo del expediente. Si solo subes el PCAP, el PPT o
+                    un memo resumido, el análisis será parcial por diseño.
                 </p>
             </div>
 
@@ -220,8 +220,8 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                                 {templates.length > 0 && (
                                 <div className="w-full text-left mb-6">
                                     <div className="mb-4 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm text-brand-900">
-                                        El primer PDF se toma como principal. Añade PCAP, PPT y anexos clave para
-                                        mejorar cobertura en datos generales, solvencia, criterios y requisitos técnicos.
+                                        El primer PDF se toma como principal. Añade PCAP, PPT y anexos clave solo como
+                                        refuerzo cuando no dispongas de un PDF completo del expediente.
                                     </div>
                                     <label
                                         htmlFor="template-select"

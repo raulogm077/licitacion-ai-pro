@@ -1,4 +1,4 @@
-import { LicitacionData, LicitacionContent, Note } from '../../../types';
+import { AnalysisPartialReason, LicitacionData, LicitacionContent, Note, WorkflowState } from '../../../types';
 import { qualityService } from '../../../services/quality.service';
 import { unwrap } from '../../../lib/tracked-field';
 
@@ -24,6 +24,7 @@ export interface PliegoVM {
     quality: {
         overall: 'COMPLETO' | 'PARCIAL' | 'VACIO';
         bySection: Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>;
+        partialReasons: AnalysisPartialReason[];
     };
     counts: {
         riesgos: number;
@@ -175,8 +176,25 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
     };
 
     // Quality
-    const qualityReport = qualityService.evaluateQuality(content);
-    const backendWarnings = data.workflow?.quality?.warnings || workflowFallback?.quality?.warnings || [];
+    const fallbackQuality = qualityService.evaluateQuality(content, [...ambiguousSet]);
+    const workflowQuality =
+        (data.workflow?.quality as WorkflowState['quality'] | undefined) ||
+        (workflowFallback?.quality as WorkflowState['quality'] | undefined);
+    const qualityReport = workflowQuality
+        ? {
+              ...fallbackQuality,
+              ...workflowQuality,
+              bySection: workflowQuality.bySection || fallbackQuality.bySection,
+              missingCriticalFields: workflowQuality.missingCriticalFields || fallbackQuality.missingCriticalFields,
+              ambiguous_fields: workflowQuality.ambiguous_fields || fallbackQuality.ambiguous_fields,
+              warnings: workflowQuality.warnings || fallbackQuality.warnings,
+              partial_reasons: workflowQuality.partial_reasons || [],
+          }
+        : {
+              ...fallbackQuality,
+              partial_reasons: [],
+          };
+    const backendWarnings = qualityReport.warnings || [];
     const guidance = buildGuidance(qualityReport, backendWarnings);
 
     // Warnings — combine backend warnings + frontend-generated warnings
@@ -285,19 +303,19 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         {
             id: 'riesgos',
             label: 'Riesgos',
-            status: isEmptyRiesgos ? 'VACIO' : 'COMPLETO',
+            status: qualityReport.bySection['restriccionesYRiesgos'] || (isEmptyRiesgos ? 'VACIO' : 'COMPLETO'),
             emptyMessage: {
                 title: 'Sin riesgos detectados',
-                text: 'Si el pliego es complejo, reintenta el análisis.',
+                text: 'Puede ser correcto, pero verifica garantías, penalizaciones y criterios excluyentes en el expediente original.',
             },
         },
         {
             id: 'servicio',
             label: 'Servicio',
-            status: isEmptyServicio ? 'VACIO' : 'COMPLETO',
+            status: qualityReport.bySection['modeloServicio'] || (isEmptyServicio ? 'VACIO' : 'COMPLETO'),
             emptyMessage: {
                 title: 'No se han detectado SLAs ni equipo mínimo',
-                text: 'Si el contrato requiere niveles de servicio, reintenta.',
+                text: 'Si el contrato sí define niveles de servicio o perfiles mínimos, falta documentación técnica o la señal extraída es insuficiente.',
             },
         },
     ];
@@ -335,6 +353,7 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
         quality: {
             overall: qualityReport.overall,
             bySection: qualityReport.bySection,
+            partialReasons: qualityReport.partial_reasons || [],
         },
         counts: {
             riesgos: restrictionsCount(restriccionesYRiesgos),
@@ -351,7 +370,12 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
 }
 
 function buildGuidance(
-    quality: { overall: 'COMPLETO' | 'PARCIAL' | 'VACIO'; missingCriticalFields?: string[]; bySection: Record<string, string> },
+    quality: {
+        overall: 'COMPLETO' | 'PARCIAL' | 'VACIO';
+        missingCriticalFields?: string[];
+        bySection: Record<string, string>;
+        partial_reasons?: AnalysisPartialReason[];
+    },
     backendWarnings: string[]
 ) {
     if (quality.overall === 'COMPLETO') {
@@ -363,10 +387,22 @@ function buildGuidance(
         };
     }
 
+    const reasons = new Set(quality.partial_reasons || []);
     const warningsText = backendWarnings.join(' ').toLowerCase();
     const missingCount = quality.missingCriticalFields?.length || 0;
 
-    if (warningsText.includes('únicamente al ppt') || warningsText.includes('documento ppt') || warningsText.includes('no contiene pcap')) {
+    if (reasons.has('ocr_or_indexing_low_signal')) {
+        return {
+            title: 'PDF con señal baja o indexación incompleta',
+            description:
+                'El expediente llegó a procesarse, pero la indexación del documento fue incompleta o el PDF ofrece poca señal textual. Esto suele ocurrir con scans, OCR pobre o anexos mal generados.',
+            nextStep:
+                'Reintenta con un PDF con mejor OCR o exportado directamente desde la plataforma; si puedes, usa un único PDF completo del expediente.',
+            tone: 'warning' as const,
+        };
+    }
+
+    if (reasons.has('missing_administrative_content') || warningsText.includes('únicamente al ppt') || warningsText.includes('documento ppt') || warningsText.includes('no contiene pcap')) {
         return {
             title: 'Documento técnico sin cobertura administrativa',
             description: 'El sistema ha encontrado sobre todo contenido técnico. Faltan datos que normalmente viven en el PCAP o en la carátula del expediente.',
@@ -375,7 +411,7 @@ function buildGuidance(
         };
     }
 
-    if (warningsText.includes('únicamente al pcap') || warningsText.includes('no se dispone de un pliego de prescripciones técnicas')) {
+    if (reasons.has('missing_technical_content') || warningsText.includes('únicamente al pcap') || warningsText.includes('no se dispone de un pliego de prescripciones técnicas')) {
         return {
             title: 'Documento administrativo sin cobertura técnica',
             description: 'El análisis ha podido leer el PCAP, pero faltan el PPT y los anexos técnicos que suelen contener requisitos funcionales, SLAs y detalles del servicio.',
@@ -384,11 +420,21 @@ function buildGuidance(
         };
     }
 
-    if (missingCount >= 4) {
+    if (reasons.has('document_insufficient') || missingCount >= 4) {
         return {
             title: 'Expediente parcial o PDF difícil de leer',
             description: 'El backend ha terminado, pero siguen faltando varios campos críticos. Esto suele ocurrir con PDFs resumidos, escaneados o con documentación incompleta.',
             nextStep: 'Prueba con el expediente completo o con varios PDFs relacionados para mejorar cobertura y trazabilidad.',
+            tone: 'warning' as const,
+        };
+    }
+
+    if (reasons.has('rate_limited_degraded')) {
+        return {
+            title: 'Análisis degradado por saturación temporal',
+            description:
+                'El pipeline se recuperó parcialmente, pero algunos bloques se degradaron por límites temporales del proveedor de IA. El resultado es utilizable con cautela, no definitivo.',
+            nextStep: 'Revisa primero capítulos PARCIAL/VACIO y reintenta si necesitas cobertura total del expediente.',
             tone: 'warning' as const,
         };
     }

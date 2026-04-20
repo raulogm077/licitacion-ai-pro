@@ -1,0 +1,302 @@
+{
+  "datosGenerales": {
+    "titulo": {
+      "value": "Acuerdo marco para servicios de oficina digital",
+      "status": "extraido",
+      "evidence": {
+        "quote": "Acuerdo marco para servicios de oficina digital.",
+        "pageHint": "1",
+        "confidence": 0.97
+      }
+    },
+    "organoContratacion": {
+      "value": "Entidad Pública Anonimizada",
+      "status": "extraido",
+      "evidence": {
+        "quote": "Órgano de contratación: Entidad Pública Anonimizada.",
+        "pageHint": "1",
+        "confidence": 0.94
+      }
+    },
+    "presupuesto": {
+      "value": 80000,
+      "status": "extraido",
+      "evidence": {
+        "quote": "Presupuesto base de licitación: 80.000,00 EUR.",
+        "pageHint": "2",
+        "confidence": 0.96
+      }
+    },
+    "moneda": {
+      "value": "EUR",
+      "status": "extraido",
+      "evidence": {
+        "quote": "Importes expresados en euros.",
+        "pageHint": "2",
+        "confidence": 0.9
+      }
+    },
+    "plazoEjecucionMeses": {
+      "value": 18,
+      "status": "extraido",
+      "evidence": {
+        "quote": "Plazo de ejecución: 18 meses.",
+        "pageHint": "4",
+        "confidence": 0.93
+      }
+    },
+    "cpv": {
+      "value": ["72510000-3"],
+      "status": "extraido",
+      "evidence": {
+        "quote": "CPV 72510000-3.",
+        "pageHint": "2",
+        "confidence": 0.91
+      }
+    },
+    "tipoContrato": "Servicios",
+    "procedimiento": "Abierto simplificado"
+  },
+  "economico": {
+    "presupuestoBaseLicitacion": 80000,
+    "valorEstimadoContrato": 96000,
+    "importeIVA": 16800,
+    "tipoIVA": 21,
+    "desglosePorLotes": [],
+    "moneda": "EUR"
+  },
+  "duracionYProrrogas": {
+    "duracionMeses": 18,
+    "prorrogaMeses": 6,
+    "prorrogaMaxima": 24
+  },
+  "criteriosAdjudicacion": {
+    "subjetivos": [
+      {
+        "descripcion": "Memoria organizativa",
+        "ponderacion": 30,
+        "detalles": "Organización del servicio",
+        "subcriterios": [],
+        "cita": "La memoria organizativa se valorará con hasta 30 puntos."
+      }
+    ],
+    "objetivos": [
+      {
+        "descripcion": "Oferta económica",
+        "ponderacion": 70,
+        "formula": "70 x (oferta mínima / oferta analizada)",
+        "cita": "La oferta económica se valora con una fórmula proporcional."
+      }
+    ]
+  },
+  "requisitosSolvencia": {
+    "economica": {
+      "cifraNegocioAnualMinima": 100000,
+      "descripcion": "Volumen anual de negocio mínimo de 100.000 EUR.",
+      "cita": "La solvencia económica exige 100.000 EUR."
+    },
+    "tecnica": [
+      {
+        "descripcion": "Dos contratos similares en los últimos tres años.",
+        "proyectosSimilaresRequeridos": 2,
+        "importeMinimoProyecto": 30000,
+        "cita": "Se acreditarán dos contratos similares."
+      }
+    ],
+    "profesional": []
+  },
+  "requisitosTecnicos": {
+    "funcionales": [],
+    "normativa": []
+  },
+  "restriccionesYRiesgos": {
+    "killCriteria": [],
+    "riesgos": [],
+    "penalizaciones": []
+  },
+  "modeloServicio": {
+    "sla": [],
+    "equipoMinimo": []
+  },
+  "anexosYObservaciones": {
+    "anexosIdentificados": [],
+    "observaciones": [
+      "El expediente administrativo no incorpora PPT ni anexo técnico detallado."
+    ]
+  },
+  "result": {
+    "datosGenerales": {
+      "titulo": {
+        "value": "Acuerdo marco para servicios de oficina digital",
+        "status": "extraido",
+        "evidence": {
+          "quote": "Acuerdo marco para servicios de oficina digital.",
+          "pageHint": "1",
+          "confidence": 0.97
+        }
+      },
+      "organoContratacion": {
+        "value": "Entidad Pública Anonimizada",
+        "status": "extraido",
+        "evidence": {
+          "quote": "Órgano de contratación: Entidad Pública Anonimizada.",
+          "pageHint": "1",
+          "confidence": 0.94
+        }
+      },
+      "presupuesto": {
+        "value": 80000,
+        "status": "extraido",
+        "evidence": {
+          "quote": "Presupuesto base de licitación: 80.000,00 EUR.",
+          "pageHint": "2",
+          "confidence": 0.96
+        }
+      },
+      "moneda": {
+        "value": "EUR",
+        "status": "extraido",
+        "evidence": {
+          "quote": "Importes expresados en euros.",
+          "pageHint": "2",
+          "confidence": 0.9
+        }
+      },
+      "plazoEjecucionMeses": {
+        "value": 18,
+        "status": "extraido",
+        "evidence": {
+          "quote": "Plazo de ejecución: 18 meses.",
+          "pageHint": "4",
+          "confidence": 0.93
+        }
+      },
+      "cpv": {
+        "value": ["72510000-3"],
+        "status": "extraido",
+        "evidence": {
+          "quote": "CPV 72510000-3.",
+          "pageHint": "2",
+          "confidence": 0.91
+        }
+      },
+      "tipoContrato": "Servicios",
+      "procedimiento": "Abierto simplificado"
+    },
+    "economico": {
+      "presupuestoBaseLicitacion": 80000,
+      "valorEstimadoContrato": 96000,
+      "importeIVA": 16800,
+      "tipoIVA": 21,
+      "desglosePorLotes": [],
+      "moneda": "EUR"
+    },
+    "duracionYProrrogas": {
+      "duracionMeses": 18,
+      "prorrogaMeses": 6,
+      "prorrogaMaxima": 24
+    },
+    "criteriosAdjudicacion": {
+      "subjetivos": [
+        {
+          "descripcion": "Memoria organizativa",
+          "ponderacion": 30,
+          "detalles": "Organización del servicio",
+          "subcriterios": [],
+          "cita": "La memoria organizativa se valorará con hasta 30 puntos."
+        }
+      ],
+      "objetivos": [
+        {
+          "descripcion": "Oferta económica",
+          "ponderacion": 70,
+          "formula": "70 x (oferta mínima / oferta analizada)",
+          "cita": "La oferta económica se valora con una fórmula proporcional."
+        }
+      ]
+    },
+    "requisitosSolvencia": {
+      "economica": {
+        "cifraNegocioAnualMinima": 100000,
+        "descripcion": "Volumen anual de negocio mínimo de 100.000 EUR.",
+        "cita": "La solvencia económica exige 100.000 EUR."
+      },
+      "tecnica": [
+        {
+          "descripcion": "Dos contratos similares en los últimos tres años.",
+          "proyectosSimilaresRequeridos": 2,
+          "importeMinimoProyecto": 30000,
+          "cita": "Se acreditarán dos contratos similares."
+        }
+      ],
+      "profesional": []
+    },
+    "requisitosTecnicos": {
+      "funcionales": [],
+      "normativa": []
+    },
+    "restriccionesYRiesgos": {
+      "killCriteria": [],
+      "riesgos": [],
+      "penalizaciones": []
+    },
+    "modeloServicio": {
+      "sla": [],
+      "equipoMinimo": []
+    },
+    "anexosYObservaciones": {
+      "anexosIdentificados": [],
+      "observaciones": [
+        "El expediente administrativo no incorpora PPT ni anexo técnico detallado."
+      ]
+    }
+  },
+  "workflow": {
+    "current_version": 1,
+    "status": "completed",
+    "quality": {
+      "overall": "PARCIAL",
+      "bySection": {
+        "datosGenerales": "COMPLETO",
+        "economico": "COMPLETO",
+        "duracionYProrrogas": "COMPLETO",
+        "criteriosAdjudicacion": "COMPLETO",
+        "requisitosSolvencia": "COMPLETO",
+        "requisitosTecnicos": "VACIO",
+        "restriccionesYRiesgos": "VACIO",
+        "modeloServicio": "VACIO"
+      },
+      "missingCriticalFields": [],
+      "ambiguous_fields": [],
+      "warnings": [
+        "No se detectaron requisitos técnicos.",
+        "No se detectaron riesgos, penalizaciones ni criterios excluyentes.",
+        "No se han detectado SLAs ni equipo mínimo."
+      ],
+      "partial_reasons": ["missing_technical_content"]
+    },
+    "evidences": [],
+    "phases": {
+      "ingestion": {
+        "status": "completed"
+      },
+      "document_map": {
+        "status": "completed"
+      },
+      "extraction": {
+        "status": "completed"
+      },
+      "consolidation": {
+        "status": "completed"
+      },
+      "validation": {
+        "status": "completed"
+      }
+    },
+    "created_at": "2026-04-20T00:00:00.000Z",
+    "updated_at": "2026-04-20T00:00:00.000Z"
+  },
+  "metadata": {
+    "tags": []
+  }
+}

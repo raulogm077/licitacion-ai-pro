@@ -56,4 +56,45 @@ describe('buildPliegoVM', () => {
         expect(vm.display.presupuesto).toContain('1000,00'); // Formatting might vary by locale
         expect(vm.hash).toBe('abc');
     });
+
+    it('should prefer backend partial reasons to build guidance', () => {
+        const input = createEmptyLicitacionData();
+        input.datosGenerales = {
+            titulo: tf('Expediente administrativo'),
+            presupuesto: tf(1000),
+            moneda: tf('EUR'),
+            plazoEjecucionMeses: tf(12),
+            organoContratacion: tf('Entidad'),
+            cpv: tf(['1234']),
+        };
+        input.workflow = {
+            status: 'completed',
+            steps: [],
+            evidences: [],
+            phases: {},
+            created_at: '2026-04-20T00:00:00.000Z',
+            updated_at: '2026-04-20T00:00:00.000Z',
+            quality: {
+                overall: 'PARCIAL',
+                bySection: {
+                    datosGenerales: 'COMPLETO',
+                    criteriosAdjudicacion: 'PARCIAL',
+                    requisitosSolvencia: 'PARCIAL',
+                    requisitosTecnicos: 'VACIO',
+                    restriccionesYRiesgos: 'VACIO',
+                    modeloServicio: 'VACIO',
+                },
+                missingCriticalFields: [],
+                ambiguous_fields: [],
+                warnings: [],
+                partial_reasons: ['missing_technical_content'],
+            },
+        } as LicitacionData['workflow'];
+
+        const vm = buildPliegoVM(input);
+
+        expect(vm.quality.partialReasons).toContain('missing_technical_content');
+        expect(vm.guidance?.title).toContain('administrativo sin cobertura técnica');
+        expect(vm.chapters.find((chapter) => chapter.id === 'tecnicos')?.status).toBe('VACIO');
+    });
 });

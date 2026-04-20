@@ -6,9 +6,14 @@
  */
 import type { CanonicalResult, Quality, Workflow } from '../../_shared/schemas/canonical.ts';
 import type { ConsolidationResult } from './consolidation.ts';
+import type { IngestionDiagnostics } from './ingestion.ts';
+import type { BlockExtractionDiagnostics } from './block-extraction.ts';
+import type { AnalysisPartialReason } from '../../../../src/shared/analysis-contract.ts';
 
 export interface ValidationInput {
     consolidated: ConsolidationResult;
+    ingestion?: IngestionDiagnostics;
+    extraction?: BlockExtractionDiagnostics;
     onProgress?: (msg: string) => void;
 }
 
@@ -28,7 +33,7 @@ const CRITICAL_FIELDS = [
 ] as const;
 
 export function runValidation(input: ValidationInput): ValidationOutput {
-    const { consolidated, onProgress } = input;
+    const { consolidated, ingestion, extraction, onProgress } = input;
     const { result, allEvidences, allWarnings, allAmbiguousFields } = consolidated;
 
     onProgress?.('Validando resultado...');
@@ -111,7 +116,16 @@ export function runValidation(input: ValidationInput): ValidationOutput {
         allEvidences.some((e) => e.fieldPath === fp || fp.startsWith(e.fieldPath))
     ).length;
 
-    // 5. Build workflow
+    // 5. Structured partial reasons
+    const partialReasons = derivePartialReasons({
+        overall,
+        bySection,
+        missingCriticalFields,
+        ingestion,
+        extraction,
+    });
+
+    // 6. Build workflow
     const now = new Date().toISOString();
     const workflow: Workflow = {
         status: 'completed',
@@ -121,6 +135,7 @@ export function runValidation(input: ValidationInput): ValidationOutput {
             missingCriticalFields,
             ambiguous_fields: [...new Set(allAmbiguousFields)],
             warnings: allWarnings,
+            partial_reasons: partialReasons,
         },
         evidences: allEvidences.map((e) => ({
             ...e,
@@ -142,6 +157,51 @@ export function runValidation(input: ValidationInput): ValidationOutput {
     );
 
     return { result, workflow };
+}
+
+interface PartialReasonContext {
+    overall: Quality['overall'];
+    bySection: Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>;
+    missingCriticalFields: string[];
+    ingestion?: IngestionDiagnostics;
+    extraction?: BlockExtractionDiagnostics;
+}
+
+function derivePartialReasons(context: PartialReasonContext): AnalysisPartialReason[] {
+    const { overall, bySection, missingCriticalFields, ingestion, extraction } = context;
+    const reasons = new Set<AnalysisPartialReason>();
+
+    if (ingestion && (ingestion.indexingTimedOut || ingestion.failedFiles > 0 || ingestion.zeroCompletedFiles)) {
+        reasons.add('ocr_or_indexing_low_signal');
+    }
+
+    if (extraction?.degradedByRateLimit) {
+        reasons.add('rate_limited_degraded');
+    } else if (extraction?.sawRateLimit) {
+        reasons.add('rate_limited_recovered');
+    }
+
+    const adminSections = ['datosGenerales', 'criteriosAdjudicacion', 'requisitosSolvencia'] as const;
+    const technicalSections = ['requisitosTecnicos', 'restriccionesYRiesgos', 'modeloServicio'] as const;
+    const weakAdminSections = adminSections.filter((section) => bySection[section] === 'VACIO').length;
+    const strongAdminSignal = adminSections.some((section) => bySection[section] !== 'VACIO');
+    const weakTechnicalSections = technicalSections.filter((section) => bySection[section] === 'VACIO').length;
+    const strongTechnicalSignal = technicalSections.some((section) => bySection[section] !== 'VACIO');
+
+    if ((weakAdminSections >= 2 || missingCriticalFields.length >= 3) && strongTechnicalSignal) {
+        reasons.add('missing_administrative_content');
+    }
+
+    if (weakTechnicalSections >= 2 && strongAdminSignal) {
+        reasons.add('missing_technical_content');
+    }
+
+    const nonEmptySections = Object.values(bySection).filter((status) => status !== 'VACIO').length;
+    if (overall !== 'COMPLETO' && (missingCriticalFields.length >= 4 || nonEmptySections <= 1)) {
+        reasons.add('document_insufficient');
+    }
+
+    return [...reasons];
 }
 
 // ─── Helper functions ─────────────────────────────────────────────────────────

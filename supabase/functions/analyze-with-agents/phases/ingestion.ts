@@ -8,19 +8,38 @@
  */
 import OpenAI from 'npm:openai@6.33.0';
 import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
+import { callWithTimeout } from '../../_shared/utils/timeout.ts';
+
+export interface IngestionProgressUpdate {
+    message: string;
+    elapsedMs?: number;
+    completedFiles?: number;
+    inProgressFiles?: number;
+    failedFiles?: number;
+}
 
 export interface IngestionInput {
     openai: OpenAI;
     pdfBase64?: string;
     filename: string;
     files?: Array<{ name: string; base64: string }>;
-    onProgress?: (msg: string) => void;
+    onProgress?: (update: IngestionProgressUpdate) => void;
+}
+
+export interface IngestionDiagnostics {
+    completedFiles: number;
+    failedFiles: number;
+    inProgressFiles: number;
+    indexingElapsedMs: number;
+    indexingTimedOut: boolean;
+    zeroCompletedFiles: boolean;
 }
 
 export interface IngestionResult {
     vectorStoreId: string;
     fileIds: string[];
     fileNames: string[];
+    diagnostics: IngestionDiagnostics;
 }
 
 function extractBase64Data(str: string): string {
@@ -54,6 +73,46 @@ async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: n
     return results;
 }
 
+async function waitForVectorStoreIndexing(
+    openai: OpenAI,
+    vectorStoreId: string,
+    onProgress?: (update: IngestionProgressUpdate) => void
+): Promise<IngestionDiagnostics> {
+    let delay = 1000;
+    const maxDelay = 5000;
+    let totalTime = 0;
+
+    while (true) {
+        const vs = await openai.vectorStores.retrieve(vectorStoreId);
+        const fc = vs.file_counts;
+        onProgress?.({
+            message: `Indexando documentos... (${fc.completed} listos, ${fc.in_progress} en proceso, ${fc.failed} fallidos)`,
+            elapsedMs: totalTime,
+            completedFiles: fc.completed,
+            inProgressFiles: fc.in_progress,
+            failedFiles: fc.failed,
+        });
+
+        if (fc.in_progress === 0) {
+            return {
+                completedFiles: fc.completed,
+                failedFiles: fc.failed,
+                inProgressFiles: fc.in_progress,
+                indexingElapsedMs: totalTime,
+                indexingTimedOut: false,
+                zeroCompletedFiles: fc.completed === 0,
+            };
+        }
+
+        console.log(
+            `[Ingestion] Indexing in progress — completed: ${fc.completed}, in_progress: ${fc.in_progress}, elapsed: ${totalTime}ms`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        totalTime += delay;
+        delay = Math.min(Math.round(delay * 1.5), maxDelay);
+    }
+}
+
 export async function runIngestion(input: IngestionInput): Promise<IngestionResult> {
     const { openai, pdfBase64, filename, files, onProgress } = input;
     const uploadedFileIds: string[] = [];
@@ -62,7 +121,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     try {
         // 1. Upload main document
         if (pdfBase64) {
-            onProgress?.('Subiendo documento principal...');
+            onProgress?.({ message: 'Subiendo documento principal...' });
             let pdfBuffer: Uint8Array;
             try {
                 pdfBuffer = Uint8Array.from(atob(extractBase64Data(pdfBase64)), (c) => c.charCodeAt(0));
@@ -84,7 +143,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
         if (files && Array.isArray(files)) {
             const validFiles = files.filter((f) => f?.base64 && f?.name);
             if (validFiles.length > 0) {
-                onProgress?.(`Subiendo ${validFiles.length} archivos adicionales...`);
+                onProgress?.({ message: `Subiendo ${validFiles.length} archivos adicionales...` });
                 const MAX_UPLOAD_CONCURRENCY = 3;
                 const uploadTasks = validFiles.map((extraFile) => async () => {
                     let buffer: Uint8Array;
@@ -125,7 +184,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     }
 
     // 3. Create Vector Store
-    onProgress?.('Creando índice documental...');
+    onProgress?.({ message: 'Creando índice documental...' });
     const vectorStore = await openai.vectorStores.create({
         name: `Análisis ${filename || 'documento'} - ${new Date().toISOString()}`,
         file_ids: uploadedFileIds,
@@ -136,47 +195,51 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     // 4. Wait for indexing — poll file_counts.in_progress, not vs.status.
     // vs.status becomes 'completed' immediately after VS creation even while
     // files are still being processed. file_counts reflects actual indexing state.
-    onProgress?.('Indexando documentos...');
-    let vectorStoreReady = false;
-    let delay = 1000;
-    const maxDelay = 5000;
-    let totalTime = 0;
-
-    while (totalTime < VECTOR_STORE_TIMEOUT_MS) {
-        const vs = await openai.vectorStores.retrieve(vectorStoreId);
-        const fc = vs.file_counts;
-        if (fc.in_progress === 0) {
-            vectorStoreReady = true;
-            const outcome = fc.failed > 0 ? `${fc.failed} failed, ${fc.completed} ok` : `${fc.completed} ok`;
-            console.log(`[Ingestion] Vector Store indexed in ~${totalTime}ms (${outcome})`);
-            if (fc.failed > 0) {
-                console.warn(
-                    `[Ingestion] ⚠️  ${fc.failed} file(s) FAILED to index. The PDF may be scanned (image-only) or corrupted.`
-                );
-            }
-            if (fc.completed === 0) {
-                console.warn(
-                    `[Ingestion] ⚠️  No files completed indexing. Content extraction will likely return empty results.`
-                );
-            }
-            break;
-        }
-        console.log(
-            `[Ingestion] Indexing in progress — completed: ${fc.completed}, in_progress: ${fc.in_progress}, elapsed: ${totalTime}ms`
+    let diagnostics: IngestionDiagnostics;
+    try {
+        diagnostics = await callWithTimeout(
+            waitForVectorStoreIndexing(openai, vectorStoreId, onProgress),
+            VECTOR_STORE_TIMEOUT_MS,
+            'Vector Store Indexing'
         );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        totalTime += delay;
-        delay = Math.min(Math.round(delay * 1.5), maxDelay);
-    }
-
-    if (!vectorStoreReady) {
+        const outcome =
+            diagnostics.failedFiles > 0
+                ? `${diagnostics.failedFiles} failed, ${diagnostics.completedFiles} ok`
+                : `${diagnostics.completedFiles} ok`;
+        console.log(`[Ingestion] Vector Store indexed in ~${diagnostics.indexingElapsedMs}ms (${outcome})`);
+    } catch (error) {
         const vs = await openai.vectorStores.retrieve(vectorStoreId);
         const fc = vs.file_counts;
+        diagnostics = {
+            completedFiles: fc.completed,
+            failedFiles: fc.failed,
+            inProgressFiles: fc.in_progress,
+            indexingElapsedMs: VECTOR_STORE_TIMEOUT_MS,
+            indexingTimedOut: true,
+            zeroCompletedFiles: fc.completed === 0,
+        };
         console.warn(
             `[Ingestion] Vector Store indexing timeout after ${VECTOR_STORE_TIMEOUT_MS}ms — proceeding with partial index. ` +
                 `file_counts: completed=${fc.completed}, in_progress=${fc.in_progress}, failed=${fc.failed}`
         );
+        console.warn('[Ingestion] Timeout details:', error);
+        onProgress?.({
+            message: `Indexación parcial: ${fc.completed} listos, ${fc.in_progress} pendientes, ${fc.failed} fallidos.`,
+            elapsedMs: VECTOR_STORE_TIMEOUT_MS,
+            completedFiles: fc.completed,
+            inProgressFiles: fc.in_progress,
+            failedFiles: fc.failed,
+        });
     }
 
-    return { vectorStoreId, fileIds: uploadedFileIds, fileNames };
+    if (diagnostics.failedFiles > 0) {
+        console.warn(
+            `[Ingestion] ⚠️  ${diagnostics.failedFiles} file(s) FAILED to index. The PDF may be scanned (image-only) or corrupted.`
+        );
+    }
+    if (diagnostics.zeroCompletedFiles) {
+        console.warn(`[Ingestion] ⚠️  No files completed indexing. Content extraction will likely return empty results.`);
+    }
+
+    return { vectorStoreId, fileIds: uploadedFileIds, fileNames, diagnostics };
 }

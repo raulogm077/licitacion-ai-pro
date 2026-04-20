@@ -24,7 +24,7 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'pnpm preview',
+        command: './node_modules/.bin/vite preview --host 127.0.0.1 --port 4173',
         url: 'http://localhost:4173',
         reuseExistingServer: !process.env.CI,
         timeout: 120000,
