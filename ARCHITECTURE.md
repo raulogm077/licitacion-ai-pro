@@ -47,6 +47,7 @@ Responsabilidades principales:
 - visualización de advertencias de calidad (QualityService)
 - gestión de historial de análisis
 - futura gestión de plantillas y multi-documento
+- consumo del contrato compartido `src/shared/analysis-contract.ts` para eventos SSE y calidad estructurada
 
 Superficies típicas:
 
@@ -67,6 +68,7 @@ Responsabilidades:
 - consumir eventos SSE
 - notificar progreso a la UI
 - transformar o encaminar el resultado al flujo de render
+- preservar el contrato wire compartido (`AnalysisStreamEvent`) y mostrar `retry_scheduled` o progreso de indexación sin aparentar congelación
 
 Cualquier cambio relevante en este servicio obliga a revisar este documento.
 
@@ -82,6 +84,7 @@ Responsabilidades:
 - cada fase usa `file_search` sobre Vector Store para acceder al contenido de los documentos
 - la "Guía de lectura de pliegos" se inyecta como contenido en los system prompts (no en Vector Store)
 - emitir eventos SSE por fase (phase_started, phase_completed, heartbeat, complete)
+- emitir `phase_progress` estructurado durante la indexación del Vector Store (contadores + elapsed)
 - devolver resultado en formato canónico rico con evidencias por campo
 - persistir estado del job en `analysis_jobs` para recovery de fallos parciales
 
@@ -93,7 +96,7 @@ Responsabilidades:
 | B: Mapa Documental | Identificar documentos (PCAP, PPT, anexos) | 1 |
 | C: Extracción por Bloques | Extraer datos por sección (3 bloques en paralelo + retries agresivos) | ~9 |
 | D: Consolidación | Unificar bloques, resolver conflictos, prelación documental | 0 (local) |
-| E: Validación | Quality scoring, verificar campos críticos, evidencias | 1 |
+| E: Validación | Quality scoring, verificar campos críticos, evidencias, `partial_reasons` | 1 |
 
 **Optimizaciones del pipeline:**
 - Fase C usa `runWithConcurrency(tasks, 3)` para ejecutar bloques en paralelo (~3x speedup)
@@ -158,11 +161,17 @@ La función RPC `search_licitaciones` combina FTS (`websearch_to_tsquery('spanis
 
 El frontend depende de un contrato SSE estable para mostrar progreso en tiempo real.
 
+La fuente de verdad del wire contract vive en:
+
+- `src/shared/analysis-contract.ts` para tipos compartidos FE/BE (`AnalysisStreamEvent`, `TrackedFieldWire`, `AnalysisPartialReason`)
+- `supabase/functions/_shared/schemas/canonical.ts` para el schema canónico validado del resultado
+
 Eventos esperados, a nivel lógico:
 
 - `heartbeat`
 - `phase_started` — indica inicio de una fase (A, B, C, D, E)
 - `phase_completed` — indica fin de una fase con resultado parcial
+- `phase_progress` — progreso estructurado de una fase; en ingesta incluye `completedFiles`, `inProgressFiles`, `failedFiles`, `elapsedMs`
 - `retry_scheduled` — indica que un bloque espera antes de un nuevo intento, con `waitMs` visible
 - `agent_message` — progreso dentro de una fase (legacy compat)
 - `complete` — resultado final con `{result, workflow}`
@@ -172,6 +181,7 @@ Reglas:
 
 - no romper nombres ni estructura sin coordinar backend y frontend
 - cualquier cambio de contrato exige actualización de tests y de esta arquitectura
+- `workflow.quality.partial_reasons` es contrato backend→frontend; la UI no debe inferir parcialidad crítica si backend ya la emitió
 - QA debe validar el flujo si una tarea toca SSE o el proceso principal de análisis
 
 ## 6. Plantillas dinámicas de extracción

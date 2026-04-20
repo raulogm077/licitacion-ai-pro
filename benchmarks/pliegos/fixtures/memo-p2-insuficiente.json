@@ -1,0 +1,220 @@
+{
+  "datosGenerales": {
+    "titulo": {
+      "value": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+      "status": "extraido",
+      "evidence": {
+        "quote": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+        "pageHint": "1",
+        "confidence": 1
+      }
+    },
+    "organoContratacion": {
+      "value": "Desconocido",
+      "status": "no_encontrado",
+      "warnings": []
+    },
+    "presupuesto": {
+      "value": 50000,
+      "status": "extraido",
+      "evidence": {
+        "quote": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+        "pageHint": "1",
+        "confidence": 1
+      }
+    },
+    "moneda": {
+      "value": "EUR",
+      "status": "extraido",
+      "evidence": {
+        "quote": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+        "pageHint": "1",
+        "confidence": 1
+      }
+    },
+    "plazoEjecucionMeses": {
+      "value": 0,
+      "status": "no_encontrado",
+      "warnings": []
+    },
+    "cpv": {
+      "value": [],
+      "status": "no_encontrado",
+      "warnings": []
+    }
+  },
+  "economico": {
+    "presupuestoBaseLicitacion": 50000,
+    "valorEstimadoContrato": null,
+    "importeIVA": null,
+    "tipoIVA": null,
+    "desglosePorLotes": [],
+    "moneda": "EUR"
+  },
+  "duracionYProrrogas": {},
+  "criteriosAdjudicacion": {
+    "subjetivos": [],
+    "objetivos": []
+  },
+  "requisitosSolvencia": {
+    "economica": {
+      "cifraNegocioAnualMinima": 0
+    },
+    "tecnica": [],
+    "profesional": []
+  },
+  "requisitosTecnicos": {
+    "funcionales": [],
+    "normativa": []
+  },
+  "restriccionesYRiesgos": {
+    "killCriteria": [],
+    "riesgos": [],
+    "penalizaciones": []
+  },
+  "modeloServicio": {
+    "sla": [],
+    "equipoMinimo": []
+  },
+  "anexosYObservaciones": {
+    "anexosIdentificados": [],
+    "observaciones": [
+      "Archivo cargado únicamente es memo_p2.pdf. No se identifican pliegos (PCAP, PPT, cuadro económico)."
+    ]
+  },
+  "result": {
+    "datosGenerales": {
+      "titulo": {
+        "value": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+        "status": "extraido",
+        "evidence": {
+          "quote": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+          "pageHint": "1",
+          "confidence": 1
+        }
+      },
+      "organoContratacion": {
+        "value": "Desconocido",
+        "status": "no_encontrado",
+        "warnings": []
+      },
+      "presupuesto": {
+        "value": 50000,
+        "status": "extraido",
+        "evidence": {
+          "quote": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+          "pageHint": "1",
+          "confidence": 1
+        }
+      },
+      "moneda": {
+        "value": "EUR",
+        "status": "extraido",
+        "evidence": {
+          "quote": "PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOFTWARE 50000 EUR",
+          "pageHint": "1",
+          "confidence": 1
+        }
+      },
+      "plazoEjecucionMeses": {
+        "value": 0,
+        "status": "no_encontrado",
+        "warnings": []
+      },
+      "cpv": {
+        "value": [],
+        "status": "no_encontrado",
+        "warnings": []
+      }
+    },
+    "economico": {
+      "presupuestoBaseLicitacion": 50000,
+      "valorEstimadoContrato": null,
+      "importeIVA": null,
+      "tipoIVA": null,
+      "desglosePorLotes": [],
+      "moneda": "EUR"
+    },
+    "duracionYProrrogas": {},
+    "criteriosAdjudicacion": {
+      "subjetivos": [],
+      "objetivos": []
+    },
+    "requisitosSolvencia": {
+      "economica": {
+        "cifraNegocioAnualMinima": 0
+      },
+      "tecnica": [],
+      "profesional": []
+    },
+    "requisitosTecnicos": {
+      "funcionales": [],
+      "normativa": []
+    },
+    "restriccionesYRiesgos": {
+      "killCriteria": [],
+      "riesgos": [],
+      "penalizaciones": []
+    },
+    "modeloServicio": {
+      "sla": [],
+      "equipoMinimo": []
+    },
+    "anexosYObservaciones": {
+      "anexosIdentificados": [],
+      "observaciones": [
+        "Archivo cargado únicamente es memo_p2.pdf. No se identifican pliegos (PCAP, PPT, cuadro económico)."
+      ]
+    }
+  },
+  "workflow": {
+    "current_version": 1,
+    "status": "completed",
+    "quality": {
+      "overall": "PARCIAL",
+      "bySection": {
+        "datosGenerales": "PARCIAL",
+        "economico": "PARCIAL",
+        "duracionYProrrogas": "VACIO",
+        "criteriosAdjudicacion": "VACIO",
+        "requisitosSolvencia": "VACIO",
+        "requisitosTecnicos": "VACIO",
+        "restriccionesYRiesgos": "VACIO",
+        "modeloServicio": "VACIO"
+      },
+      "missingCriticalFields": [
+        "datosGenerales.organoContratacion",
+        "datosGenerales.plazoEjecucionMeses",
+        "datosGenerales.cpv"
+      ],
+      "ambiguous_fields": [],
+      "warnings": [
+        "Archivo cargado únicamente es memo_p2.pdf. No se identifican pliegos (PCAP, PPT, cuadro económico). La extracción se limita a la información documental disponible."
+      ],
+      "partial_reasons": ["document_insufficient"]
+    },
+    "evidences": [],
+    "phases": {
+      "ingestion": {
+        "status": "completed"
+      },
+      "document_map": {
+        "status": "completed"
+      },
+      "extraction": {
+        "status": "completed"
+      },
+      "consolidation": {
+        "status": "completed"
+      },
+      "validation": {
+        "status": "completed"
+      }
+    },
+    "created_at": "2026-04-20T00:00:00.000Z",
+    "updated_at": "2026-04-20T00:00:00.000Z"
+  },
+  "metadata": {
+    "tags": []
+  }
+}

@@ -254,6 +254,48 @@ describe('DBService', () => {
             expect(result.ok).toBe(false);
             if (!result.ok) expect(result.error.message).toBe('Connection failed');
         });
+
+        it('persists workflow quality emitted by backend when provided', async () => {
+            withSession();
+
+            const getLicitacionBuilder = {
+                select: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
+            };
+
+            const upsertBuilder = {
+                upsert: vi.fn().mockResolvedValue({ error: null }),
+            };
+
+            vi.mocked(mockSupabase.from)
+                .mockReturnValueOnce(getLicitacionBuilder as never)
+                .mockReturnValueOnce(upsertBuilder as never);
+
+            const workflow = {
+                current_version: 1,
+                status: 'completed',
+                steps: [],
+                evidences: [],
+                phases: {},
+                created_at: '2026-04-20T00:00:00.000Z',
+                updated_at: '2026-04-20T00:00:00.000Z',
+                quality: {
+                    overall: 'PARCIAL',
+                    bySection: { requisitosTecnicos: 'VACIO' },
+                    missingCriticalFields: [],
+                    ambiguous_fields: [],
+                    warnings: ['Falta PPT'],
+                    partial_reasons: ['missing_technical_content'],
+                },
+            };
+
+            const result = await service.saveLicitacion('h1', 'f.pdf', mockContent, workflow as never);
+
+            expect(result.ok).toBe(true);
+            const persistedPayload = upsertBuilder.upsert.mock.calls[0][0] as { data: { workflow: { quality: { partial_reasons: string[] } } } };
+            expect(persistedPayload.data.workflow.quality.partial_reasons).toEqual(['missing_technical_content']);
+        });
     });
 
     // ── updateLicitacion ─────────────────────────────────────────────────────

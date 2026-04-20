@@ -112,7 +112,7 @@ export class AIService {
 
                         if (!onProgress) return;
 
-                        const phase = event.phase || currentPhase;
+                        const phase = ('phase' in event ? event.phase : undefined) || currentPhase;
 
                         if (event.type !== 'retry_scheduled' && event.type !== 'heartbeat') {
                             clearRetryCountdown();

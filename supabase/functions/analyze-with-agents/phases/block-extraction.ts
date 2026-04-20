@@ -18,7 +18,7 @@ import {
 } from '../../_shared/config.ts';
 import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
-import { retryWithBackoff, isRetryableError } from '../../_shared/utils/retry.ts';
+import { retryWithBackoff, isRetryableError, getRetryReason } from '../../_shared/utils/retry.ts';
 import type { RetryReason } from '../../_shared/utils/retry.ts';
 
 export interface BlockExtractionInput {
@@ -47,6 +47,13 @@ export interface BlockExtractionResult {
     customTemplate?: Record<string, unknown>;
     /** Set when custom template extraction failed — propagate to client as a non-fatal warning */
     templateWarning?: string;
+    diagnostics: BlockExtractionDiagnostics;
+}
+
+export interface BlockExtractionDiagnostics {
+    sawRateLimit: boolean;
+    degradedByRateLimit: boolean;
+    degradedBlocks: string[];
 }
 
 export interface RetryNotification {
@@ -190,6 +197,9 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     const { openai, vectorStoreId, documentMap, guideContent, template, onProgress, onRetry } = input;
     const totalBlocks = BLOCK_NAMES.length;
     let completedCount = 0;
+    let sawRateLimit = false;
+    let degradedByRateLimit = false;
+    const degradedBlocks = new Set<string>();
 
     // Truncate guide once instead of per-block call
     const guideSummary = guideContent.substring(0, GUIDE_EXCERPT_LENGTH);
@@ -198,11 +208,16 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
         onProgress?.(`Extrayendo: ${blockName}...`, i, totalBlocks);
         try {
             const result = await extractBlock(openai, vectorStoreId, blockName, documentMap, guideSummary, (retry) =>
-                onRetry?.({
-                    ...retry,
-                    blockIndex: i + 1,
-                    totalBlocks,
-                })
+                {
+                    if (retry.reason === 'rate_limit') {
+                        sawRateLimit = true;
+                    }
+                    onRetry?.({
+                        ...retry,
+                        blockIndex: i + 1,
+                        totalBlocks,
+                    });
+                }
             );
             completedCount++;
             console.log(
@@ -217,6 +232,11 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
         } catch (error) {
             completedCount++;
             console.error(`[Extraction] Block ${blockName} failed:`, error);
+            if (getRetryReason(error) === 'rate_limit') {
+                sawRateLimit = true;
+                degradedByRateLimit = true;
+                degradedBlocks.add(blockName);
+            }
             return {
                 blockName,
                 data: {},
@@ -242,26 +262,44 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
                     baseDelayMs: 500,
                     label: 'CustomTemplateExtraction',
                     shouldRetry: isRetryableError,
-                    onRetry: ({ attempt, maxAttempts, waitMs, reason }) =>
+                    onRetry: ({ attempt, maxAttempts, waitMs, reason }) => {
+                        if (reason === 'rate_limit') {
+                            sawRateLimit = true;
+                        }
                         onRetry?.({
                             blockName: 'custom_template',
                             attempt,
                             maxAttempts,
                             waitMs,
                             reason,
-                        }),
+                        });
+                    },
                 }
             );
         } catch (error) {
             const errorMsg = mapOpenAIError(error);
             console.error('[Extraction] Custom template extraction failed:', errorMsg);
+            if (getRetryReason(error) === 'rate_limit') {
+                sawRateLimit = true;
+                degradedByRateLimit = true;
+                degradedBlocks.add('custom_template');
+            }
             templateWarning = `⚠️ Plantilla personalizada: ${errorMsg}`;
             // Notify client via onProgress so the SSE stream reflects the failure
             onProgress?.(templateWarning, totalBlocks, totalBlocks);
         }
     }
 
-    return { blocks, customTemplate, templateWarning };
+    return {
+        blocks,
+        customTemplate,
+        templateWarning,
+        diagnostics: {
+            sawRateLimit,
+            degradedByRateLimit,
+            degradedBlocks: [...degradedBlocks],
+        },
+    };
 }
 
 async function extractBlock(

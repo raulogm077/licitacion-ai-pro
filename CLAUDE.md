@@ -11,6 +11,7 @@ pnpm dev              # Dev server (localhost:5173)
 pnpm build            # TypeScript check + Vite build
 pnpm typecheck        # TypeScript strict check
 pnpm test -- --run    # Run all 236+ tests (single run)
+pnpm benchmark:pliegos # Benchmark funcional del caso principal de producto
 pnpm test:e2e         # Playwright E2E tests
 pnpm lint             # ESLint (0 warnings allowed)
 pnpm format           # Prettier auto-fix
@@ -24,6 +25,7 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 - Production deploys only after a green PR is merged into `main`.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+- Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
 <!-- release-contract:end -->
 
 ## Architecture
@@ -37,9 +39,11 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 ### Key Patterns
 
 - **TrackedField**: Critical fields use `{ value, status, evidence?, warnings? }` wrapper
+- **Shared wire contract**: `src/shared/analysis-contract.ts` is the FE/BE source for SSE events, `TrackedFieldWire`, and `partial_reasons`
 - **`unwrap()`**: Extracts raw value from TrackedField or passes through legacy values
 - **SSE streaming**: Edge Function emits `heartbeat`, `phase_started`, `phase_completed`, `phase_progress`, `extraction_progress`, `retry_scheduled`, `complete`, `error`
 - **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (3 concurrent + retries visibles) -> D:Consolidation -> E:Validation
+- **Primary product path**: The supported release path is one complete expediente PDF; partial docs are accepted but must surface structured `partial_reasons`
 
 ### Pipeline Timeout Architecture
 
@@ -122,6 +126,7 @@ supabase/migrations/          # SQL migrations (chronological)
 
 - **Unit/Integration**: Vitest (236+ tests, coverage thresholds: 65% statements, 50% branches)
 - **E2E**: Playwright (Chromium, base URL localhost:4173)
+- **Functional benchmark**: `pnpm benchmark:pliegos` validates minimum useful extraction over versioned fixtures
 - **Pre-commit**: ESLint + Prettier on staged `.ts/.tsx` files
 
 ## Branch Policy

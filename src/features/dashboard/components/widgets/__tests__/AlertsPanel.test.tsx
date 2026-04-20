@@ -8,43 +8,41 @@ describe('AlertsPanel', () => {
         const vm = {
             warnings: [
                 { severity: 'CRITICO', title: 'Critical Warning', message: 'This is critical' },
-                { severity: 'ADVERTENCIA', title: 'Normal Warning', message: 'This is a warning' },
+                { severity: 'NORMAL', title: 'Normal Warning', message: 'This is a warning' },
             ],
-            result: {
-                restriccionesYRiesgos: {
-                    penalizaciones: [],
-                },
-            },
         } as unknown as PliegoVM;
 
         const mockNavigate = vi.fn();
         render(<AlertsPanel vm={vm} onNavigate={mockNavigate} />);
 
-        // Should render the warnings plus the fallback subcontratación warning
         expect(screen.getByText('Critical Warning')).toBeInTheDocument();
         expect(screen.getByText('Normal Warning')).toBeInTheDocument();
-        expect(screen.getByText('Subcontratación detectada')).toBeInTheDocument();
+        expect(screen.queryByText('Subcontratación detectada')).not.toBeInTheDocument();
 
-        // Click the first warning which has section 'resumen'
         const alertItem = screen.getByText('Critical Warning');
         fireEvent.click(alertItem);
         expect(mockNavigate).toHaveBeenCalledWith('resumen');
     });
 
-    it('renders empty state if no warnings and we mock out the defaults', () => {
-        // Even with 0 warnings, it pushes default ones right now based on length < 3
-        // So we will just test that the badges for critical/warning render
+    it('renders an honest empty state when there are no warnings', () => {
         const vm = {
-            warnings: [{ severity: 'CRITICO', title: 'Critical Warning', message: 'This is critical' }],
-            result: {
-                restriccionesYRiesgos: {
-                    penalizaciones: [{ causa: 'test' }],
-                },
-            },
+            warnings: [],
         } as unknown as PliegoVM;
 
         render(<AlertsPanel vm={vm} onNavigate={vi.fn()} />);
 
-        expect(screen.getByText('Penalizaciones por SLA')).toBeInTheDocument();
+        expect(screen.getByText(/No hay alertas adicionales/i)).toBeInTheDocument();
+    });
+
+    it('routes solvency-related warnings to the solvencia section', () => {
+        const vm = {
+            warnings: [{ severity: 'NORMAL', title: 'Aviso', message: 'No se han encontrado requisitos de solvencia.' }],
+        } as unknown as PliegoVM;
+
+        const mockNavigate = vi.fn();
+        render(<AlertsPanel vm={vm} onNavigate={mockNavigate} />);
+
+        fireEvent.click(screen.getByText('No se han encontrado requisitos de solvencia.'));
+        expect(mockNavigate).toHaveBeenCalledWith('solvencia');
     });
 });

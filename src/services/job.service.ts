@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { LicitacionContent } from '../types';
 import { LicitacionContentSchema } from '../lib/schemas';
 import type { ExtractionTemplate } from '../types';
+import type { AnalysisStreamEvent } from '../shared/analysis-contract';
 import { logger } from './logger';
 
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -39,7 +40,7 @@ export class JobService {
         pdfBase64: string,
         filename: string,
         template: ExtractionTemplate | null = null,
-        onProgress?: (event: StreamEvent) => void,
+        onProgress?: (event: AnalysisStreamEvent) => void,
         files?: { name: string; base64: string }[],
         signal?: AbortSignal
     ): Promise<{ content: LicitacionContent; workflow: unknown }> {
@@ -128,7 +129,7 @@ export class JobService {
             const processLine = (line: string) => {
                 if (!line.trim() || !line.startsWith('data: ')) return;
 
-                let event: StreamEvent;
+                let event: AnalysisStreamEvent;
                 try {
                     event = JSON.parse(line.slice(6));
                 } catch {
@@ -220,31 +221,6 @@ export class JobService {
 }
 
 // SSE event types
-export interface StreamEvent {
-    type:
-        | 'heartbeat'
-        | 'phase_started'
-        | 'phase_completed'
-        | 'phase_progress'
-        | 'extraction_progress'
-        | 'retry_scheduled'
-        | 'complete'
-        | 'error'
-        // Legacy event types (backward compat)
-        | 'agent_message';
-    phase?: string;
-    content?: string | unknown;
-    result?: unknown;
-    workflow?: unknown;
-    message?: string;
-    timestamp: number;
-    blockIndex?: number;
-    totalBlocks?: number;
-    blockName?: string;
-    attempt?: number;
-    maxAttempts?: number;
-    waitMs?: number;
-    reason?: string;
-}
+export type StreamEvent = AnalysisStreamEvent;
 
 export const jobService = new JobService();

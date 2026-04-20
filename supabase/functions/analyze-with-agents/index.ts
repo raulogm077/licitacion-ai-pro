@@ -25,6 +25,8 @@ import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES, API_CALL_TIMEOUT_MS } from '../
 import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../_shared/utils/timeout.ts';
 import { GUIDE_CONTENT } from './guide-content.ts';
+import type { AnalysisPhase, AnalysisStreamEvent } from '../../../src/shared/analysis-contract.ts';
+import type { IngestionProgressUpdate } from './phases/ingestion.ts';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -161,7 +163,10 @@ serve(async (req: Request) => {
                 let completed = false;
 
                 // SSE helpers
-                const sendEvent = (type: string, data: Record<string, unknown>) => {
+                const sendEvent = <T extends AnalysisStreamEvent['type']>(
+                    type: T,
+                    data: Omit<Extract<AnalysisStreamEvent, { type: T }>, 'type' | 'timestamp'>
+                ) => {
                     if (completed) return;
                     try {
                         controller.enqueue(
@@ -172,8 +177,19 @@ serve(async (req: Request) => {
                     }
                 };
 
-                const sendProgress = (phase: string, message: string) => {
-                    sendEvent('phase_progress', { phase, message });
+                const sendProgress = (phase: AnalysisPhase, update: string | IngestionProgressUpdate) => {
+                    if (typeof update === 'string') {
+                        sendEvent('phase_progress', { phase, message: update });
+                        return;
+                    }
+                    sendEvent('phase_progress', {
+                        phase,
+                        message: update.message,
+                        elapsedMs: update.elapsedMs,
+                        completedFiles: update.completedFiles,
+                        inProgressFiles: update.inProgressFiles,
+                        failedFiles: update.failedFiles,
+                    });
                 };
 
                 // Keepalive heartbeat
@@ -218,7 +234,7 @@ serve(async (req: Request) => {
                             pdfBase64,
                             filename: filename || 'documento.pdf',
                             files,
-                            onProgress: (msg) => sendProgress('ingestion', msg),
+                            onProgress: (update) => sendProgress('ingestion', update),
                         }),
                         API_CALL_TIMEOUT_MS * 2, // 3min — uploads + indexing can be slow
                         'Ingestion'
@@ -321,6 +337,8 @@ serve(async (req: Request) => {
                         Promise.resolve(
                             runValidation({
                                 consolidated,
+                                ingestion: ingestion.diagnostics,
+                                extraction: extraction.diagnostics,
                                 onProgress: (msg) => sendProgress('validation', msg),
                             })
                         ),

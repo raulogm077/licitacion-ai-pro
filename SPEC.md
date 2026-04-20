@@ -23,6 +23,10 @@ Estado funcional confirmado a fecha de esta especificación:
 - los directorios `src/agents/` y `src/llm/` han sido eliminados (código legacy)
 - el flujo de release productivo debe pasar por PR en verde y merge a `main`
 - el runtime de análisis normaliza `cpv` a `string[]` y expone esperas de reintento al usuario
+- el camino soportado con mayor fiabilidad para producto es un único PDF completo del expediente
+- frontend y backend comparten contrato wire del análisis en `src/shared/analysis-contract.ts`
+- `workflow.quality` incorpora `partial_reasons` estructurados y el frontend debe priorizarlos frente a heurísticas locales
+- el release de superficies de análisis queda protegido por `pnpm benchmark:pliegos`
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
 
@@ -39,6 +43,13 @@ Decisiones vigentes:
 - Fase C mantiene concurrencia 3 para reducir ráfagas de rate limit
 - los errores `429` y transitorios usan retries agresivos con backoff visible
 - el contrato SSE incluye `retry_scheduled` para que la UI muestre espera y cuenta atrás en lugar de aparentar bloqueo
+
+## 2.3. Contrato funcional de producto (2026-04-20)
+
+- el caso principal de producto y de release es subir un PDF completo de pliego y obtener un dashboard útil sin datos inventados
+- los documentos parciales siguen soportados, pero deben quedar clasificados como `PARCIAL` con `partial_reasons`
+- el benchmark `pnpm benchmark:pliegos` valida mínimos por campos y secciones sobre fixtures versionados
+- cambios que toquen pipeline, contrato SSE, `JobService`, dashboard de análisis o persistencia de `workflow.quality` deben mantener ese benchmark en verde
 
 ## 3. Iteración activa
 

@@ -67,6 +67,7 @@ export class QualityService {
             missingCriticalFields: missingCritical,
             ambiguous_fields: existingAmbiguousFields || [],
             warnings: warnings, // Standard warnings (e.g. empty lists)
+            partial_reasons: [],
             consistencyWarnings: consistencyWarnings, // New semantic warnings
         };
     }

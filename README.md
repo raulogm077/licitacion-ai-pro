@@ -7,11 +7,13 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 - Production deploys only after a green PR is merged into `main`.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+- Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
 <!-- release-contract:end -->
 
 ## Qué hace
 
-- permite subir uno o más documentos PDF relacionados con una licitación
+- permite subir un PDF completo de pliego como camino principal y más fiable
+- acepta documentos adicionales de refuerzo cuando no existe un único PDF completo, pero ese no es el gate principal de release
 - ejecuta análisis asistido por IA con streaming en tiempo real
 - valida y transforma la salida a un modelo tipado
 - guarda historial de análisis para su consulta posterior
@@ -41,6 +43,12 @@ Usuario → Frontend → Edge Function `analyze-with-agents`
                      ↓
                  SSE → Frontend (progreso por fase + reintentos visibles)
 ```
+
+Contrato compartido relevante:
+
+- `src/shared/analysis-contract.ts` define el wire contract común entre frontend y backend para eventos SSE, `TrackedFieldWire` y `partial_reasons`
+- `supabase/functions/_shared/schemas/canonical.ts` sigue siendo la fuente canónica del schema validado del análisis
+- el frontend debe consumir `workflow.quality` emitido por backend antes de aplicar heurísticas locales
 
 Documentación viva del sistema:
 
@@ -116,6 +124,7 @@ pnpm dev
 ```bash
 pnpm typecheck
 pnpm test
+pnpm benchmark:pliegos
 pnpm test:e2e
 pnpm verify:integrity
 pnpm verify:release
@@ -123,6 +132,7 @@ pnpm verify:release
 
 Notas:
 - `pnpm test:e2e` debe usarse cuando una tarea toque UI, flujo principal de análisis o SSE.
+- `pnpm benchmark:pliegos` valida el caso principal de producto con fixtures versionados y es obligatorio cuando cambian contrato, pipeline o dashboard del análisis.
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
 
 ## Flujo de ramas y entrega

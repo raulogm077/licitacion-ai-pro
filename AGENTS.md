@@ -35,6 +35,7 @@ Reglas del flujo:
 - Production deploys only after a green PR is merged into `main`.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+- Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
 <!-- release-contract:end -->
 
 ## 2.1. Cierre obligatorio de sesión
@@ -42,6 +43,7 @@ Reglas del flujo:
 Comandos operativos obligatorios:
 
 - `pnpm verify:integrity` valida deriva de migraciones, workflows, hooks y sincronía documental mínima.
+- `pnpm benchmark:pliegos` valida el caso principal de producto sobre fixtures versionados.
 - `pnpm verify:release` es el cierre obligatorio antes de `git push` cuando la sesión toca código, runtime, CI/CD o despliegue.
 
 La rama no se considera lista para QA ni para PR si `pnpm verify:release` no pasa en local.
@@ -175,6 +177,7 @@ Criterios mínimos de validación:
    - debe respetar la Guía de lectura de pliegos
    - no debe romper SSE
    - no debe romper schema/Zod
+   - debe mantener verde `pnpm benchmark:pliegos` si cambia pipeline, contrato o dashboard de análisis
 5. La documentación mínima debe estar actualizada
 6. `pnpm verify:release` debe haber pasado en la rama antes de abrir o actualizar la PR
 

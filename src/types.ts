@@ -10,6 +10,7 @@ import {
     Evidence as ZodEvidence,
     FieldStatus as ZodFieldStatus,
 } from './lib/schemas';
+import type { AnalysisPartialReason, AnalysisPhase, AnalysisStreamEvent } from './shared/analysis-contract';
 
 export type Note = ZodNote;
 export type LicitacionMetadata = ZodMetadata;
@@ -19,13 +20,11 @@ export type WorkflowState = ZodWorkflow;
 export type AnalysisVersion = ZodVersion;
 export type Evidence = ZodEvidence;
 export type FieldStatus = ZodFieldStatus;
+export type { AnalysisPartialReason, AnalysisPhase, AnalysisStreamEvent };
 
 export type ExtractionTemplate = ZodExtractionTemplate;
 export type TemplateField = ZodTemplateField;
 export type ProcessingStatus = 'IDLE' | 'READING_PDF' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
-
-/** Phase names for the analysis pipeline */
-export type AnalysisPhase = 'ingestion' | 'document_map' | 'extraction' | 'consolidation' | 'validation';
 
 export interface AnalysisState {
     status: ProcessingStatus;

@@ -1,6 +1,6 @@
 # Documentación Técnica — Analista de Pliegos
 
-> Versión: 2.2.0 | Fecha: 2026-04-19
+> Versión: 2.3.0 | Fecha: 2026-04-20
 
 ---
 
@@ -33,9 +33,10 @@
 |-----------|-------------|
 | Análisis de PDFs | Procesamiento de pliegos de condiciones con OpenAI Responses API (pipeline por fases) |
 | Extracción estructurada | Output validado con Zod (30+ campos por documento) |
-| Streaming en tiempo real | Progreso de análisis vía Server-Sent Events (SSE) con reintentos visibles |
+| Streaming en tiempo real | Progreso de análisis vía Server-Sent Events (SSE) con reintentos e indexación visible |
 | Chat conversacional | Consultas sobre análisis persistidos con OpenAI Agents SDK |
-| Multi-documento | Análisis de varios archivos en una sola sesión |
+| Camino principal soportado | Un único PDF completo del expediente como referencia fiable de release |
+| Multi-documento | Análisis de varios archivos en una sola sesión como refuerzo, no como gate principal |
 | Plantillas personalizadas | Esquemas de extracción configurables por usuario |
 | Historial y búsqueda | Almacenamiento persistente con FTS (español) + filtros avanzados + eliminación |
 | Analytics | Dashboard de métricas y estadísticas de licitaciones |
@@ -115,10 +116,10 @@ Fase E: Validación Final
   └── Quality scoring, evidencias, campos críticos
        │
        ▼
-SSE streaming → cliente (phase events + retry_scheduled + complete)
+SSE streaming → cliente (phase events + phase_progress + retry_scheduled + complete)
        │
        ▼
-Frontend valida respuesta con Zod (TrackedField para campos críticos)
+Frontend valida respuesta con Zod y consume `workflow.quality.partial_reasons`
        │
        ▼
 Guarda en Supabase (licitaciones table)
@@ -126,6 +127,14 @@ Guarda en Supabase (licitaciones table)
        ▼
 Dashboard renderiza resultado con evidencias y warnings
 ```
+
+### Contrato compartido FE/BE
+
+La aplicación ya no depende de definiciones wire paralelas para los eventos del análisis:
+
+- `src/shared/analysis-contract.ts` define `AnalysisStreamEvent`, `TrackedFieldWire`, `WorkflowQualityWire` y `AnalysisPartialReason`
+- backend y frontend deben mantenerse alineados con ese contrato antes de aplicar sus validaciones locales
+- `partial_reasons` es el mecanismo estructurado para clasificar análisis `PARCIAL` sin depender de heurísticas de texto libre
 
 ---
 
@@ -199,6 +208,7 @@ licitacion-ai-pro/
 │   ├── hooks/                  # Custom React hooks
 │   ├── stores/                 # Stores de Zustand
 │   ├── lib/                    # Schemas Zod + tracked-field utils + config i18n
+│   ├── shared/                 # Contrato wire compartido (SSE, quality, TrackedFieldWire)
 │   ├── config/                 # Configuración (env, supabase, sentry, features)
 │   ├── locales/es/             # Traducciones en español
 │   ├── test/                   # Setup de tests
@@ -220,6 +230,7 @@ licitacion-ai-pro/
 │   │       └── schemas/         # Schemas canónicos (canonical, blocks, job, etc.)
 │   ├── migrations/             # Migraciones SQL (orden cronológico)
 │   └── tests/database/         # Tests SQL
+├── benchmarks/pliegos/         # Benchmark funcional versionado de pliegos
 ├── e2e/                        # Tests Playwright
 ├── scripts/                    # Scripts de utilidad
 ├── .github/workflows/          # CI/CD (ci-cd.yml, ci-cd-docs.yml)
@@ -884,10 +895,11 @@ const ALLOWED_ORIGINS = [
 ### Tests Unitarios (Vitest)
 
 ```bash
-npm test              # Modo watch
-npm test -- --run     # Single run (CI)
-npm test -- --ui      # UI dashboard
-npm run test:coverage # Con reporte de cobertura
+pnpm test              # Modo watch
+pnpm test -- --run     # Single run (CI)
+pnpm test -- --ui      # UI dashboard
+pnpm test:coverage     # Con reporte de cobertura
+pnpm benchmark:pliegos # Benchmark funcional de extracción mínima útil
 ```
 
 **Umbrales mínimos de cobertura**:
@@ -917,8 +929,8 @@ src/
 ### Tests E2E (Playwright)
 
 ```bash
-npm run test:e2e              # Todos los tests
-npm run test:e2e -- --headed  # Con navegador visible
+pnpm test:e2e              # Todos los tests
+pnpm test:e2e -- --headed  # Con navegador visible
 ```
 
 | Archivo | Cobertura |
@@ -934,10 +946,12 @@ npm run test:e2e -- --headed  # Con navegador visible
 ### Calidad de Código
 
 ```bash
-npm run lint          # ESLint (0 warnings permitidos)
-npm run typecheck     # TypeScript strict check
-npm run format:check  # Prettier
-npm run format        # Prettier con auto-fix
+pnpm lint          # ESLint (0 warnings permitidos)
+pnpm typecheck     # TypeScript strict check
+pnpm format:check  # Prettier
+pnpm format        # Prettier con auto-fix
+pnpm verify:integrity
+pnpm verify:release
 ```
 
 **Git Hooks** (Husky + lint-staged): ESLint + Prettier en pre-commit sobre archivos `.ts/.tsx` staged.
@@ -991,7 +1005,7 @@ pnpm preview     # Preview del build en http://localhost:4173
 
 ```bash
 # Prerrequisitos:
-npm run typecheck && npm test && npm run test:e2e
+pnpm typecheck && pnpm test -- --run && pnpm benchmark:pliegos && pnpm test:e2e
 
 # Deploy:
 npx supabase functions deploy analyze-with-agents --no-verify-jwt
@@ -1007,13 +1021,15 @@ npx supabase secrets set OPENAI_API_KEY=sk-...
 
 ```
 PR → main:
-  1. Lint (ESLint + TypeScript)
-  2. Unit tests (Vitest)
-  3. Build (Vite)
-  4. E2E tests (Playwright)
+  1. Repo integrity (workflows, scripts, docs, drift)
+  2. Lint + typecheck + unit tests
+  3. Functional benchmark (`pnpm benchmark:pliegos`)
+  4. Build (Vite)
+  5. E2E tests (Playwright)
 
 Merge a main:
-  5. Deploy a Vercel (automático)
+  6. Deploy a Supabase + Vercel (automático)
+  7. Smoke test post-deploy
 ```
 
 ### Dockerfile

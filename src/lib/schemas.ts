@@ -13,6 +13,11 @@
  *   via z.preprocess + z.union for backward compat.
  */
 import { z } from 'zod';
+import {
+    ANALYSIS_PARTIAL_REASONS,
+    ANALYSIS_QUALITY_STATUSES,
+    TRACKED_FIELD_STATUSES,
+} from '../shared/analysis-contract';
 
 // ─── Helpers (Robust parsing for backward compat) ─────────────────────────────
 
@@ -31,7 +36,7 @@ const RobustNumber = (defaultValue: number = 0) =>
 
 // ─── Field Status & Evidence ──────────────────────────────────────────────────
 
-export const FieldStatusEnum = z.enum(['extraido', 'ambiguo', 'no_encontrado', 'derivado_tecnico']);
+export const FieldStatusEnum = z.enum(TRACKED_FIELD_STATUSES);
 
 export const EvidenceSchema = z.object({
     quote: z.string(),
@@ -49,7 +54,7 @@ export type FieldStatus = z.infer<typeof FieldStatusEnum>;
 function TrackedField<T extends z.ZodTypeAny>(valueSchema: T) {
     const objectForm = z.object({
         value: valueSchema,
-        evidence: EvidenceSchema.optional(),
+        evidence: z.preprocess((val) => (val === null ? undefined : val), EvidenceSchema.optional()),
         status: FieldStatusEnum.default('extraido'),
         warnings: z.array(z.string()).optional(),
     });
@@ -430,7 +435,8 @@ export type LicitacionContent = z.infer<typeof LicitacionContentSchema>;
 
 // ─── Quality & Workflow ───────────────────────────────────────────────────────
 
-export const QualityStatusEnum = z.enum(['COMPLETO', 'PARCIAL', 'VACIO']);
+export const QualityStatusEnum = z.enum(ANALYSIS_QUALITY_STATUSES);
+export const AnalysisPartialReasonEnum = z.enum(ANALYSIS_PARTIAL_REASONS);
 
 export const QualitySchema = z.object({
     overall: QualityStatusEnum,
@@ -438,6 +444,7 @@ export const QualitySchema = z.object({
     missingCriticalFields: z.array(z.string()).default([]),
     ambiguous_fields: z.array(z.string()).default([]),
     warnings: z.array(z.string()).default([]),
+    partial_reasons: z.array(AnalysisPartialReasonEnum).default([]),
     consistencyWarnings: z.array(z.string()).optional(),
 });
 

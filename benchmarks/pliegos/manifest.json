@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "pliego-servicios-completo",
+      "description": "Expediente completo de servicios con cobertura alta en datos generales, criterios, solvencia, requisitos, riesgos y modelo de servicio.",
+      "fixture": "fixtures/pliego-servicios-completo.json",
+      "expected": {
+        "overall": "COMPLETO",
+        "guidanceTone": "success",
+        "requiredDisplayFields": ["titulo", "presupuesto", "plazo", "organo", "cpv"],
+        "requiredSections": ["datosGenerales", "criteriosAdjudicacion", "requisitosSolvencia", "requisitosTecnicos", "restriccionesYRiesgos", "modeloServicio"],
+        "requiredPartialReasons": []
+      }
+    },
+    {
+      "id": "pliego-admin-parcial",
+      "description": "Expediente administrativo útil pero sin suficiente cobertura técnica; debe quedar parcial con diagnóstico claro.",
+      "fixture": "fixtures/pliego-admin-parcial.json",
+      "expected": {
+        "overall": "PARCIAL",
+        "guidanceTone": "warning",
+        "requiredDisplayFields": ["titulo", "presupuesto", "plazo", "organo", "cpv"],
+        "requiredSections": ["datosGenerales", "criteriosAdjudicacion", "requisitosSolvencia"],
+        "requiredPartialReasons": ["missing_technical_content"]
+      }
+    },
+    {
+      "id": "memo-p2-insuficiente",
+      "description": "Documento resumido con señal limitada; debe aceptarse pero quedar marcado como expediente insuficiente.",
+      "fixture": "fixtures/memo-p2-insuficiente.json",
+      "sourcePdf": "../../memo_p2.pdf",
+      "expected": {
+        "overall": "PARCIAL",
+        "guidanceTone": "warning",
+        "requiredDisplayFields": ["titulo", "presupuesto"],
+        "requiredSections": ["datosGenerales"],
+        "requiredPartialReasons": ["document_insufficient"],
+        "undetectedDisplayFields": ["organo", "plazo", "cpv"]
+      }
+    }
+  ]
+}

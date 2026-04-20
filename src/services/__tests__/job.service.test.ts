@@ -145,7 +145,7 @@ describe('JobService', () => {
 
     it('processes phase_progress events and calls onProgress', async () => {
         const events: StreamEvent[] = [
-            { type: 'phase_progress', phase: 'extraction', blockIndex: 1, totalBlocks: 9, timestamp: Date.now() },
+            { type: 'phase_progress', phase: 'extraction', message: 'Extrayendo bloque 1', timestamp: Date.now() },
             { type: 'complete', result: validContent, workflow: {}, timestamp: Date.now() },
         ];
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(buildSseStream(events)));
