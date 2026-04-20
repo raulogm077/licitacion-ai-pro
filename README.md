@@ -47,6 +47,7 @@ Usuario → Frontend → Edge Function `analyze-with-agents`
 Contrato compartido relevante:
 
 - `src/shared/analysis-contract.ts` define el wire contract común entre frontend y backend para eventos SSE, `TrackedFieldWire` y `partial_reasons`
+- `workflow.quality.section_diagnostics` distingue si una sección está presente, ausente en los documentos subidos o recuperada tras degradación de schema/extracción
 - `supabase/functions/_shared/schemas/canonical.ts` sigue siendo la fuente canónica del schema validado del análisis
 - el frontend debe consumir `workflow.quality` emitido por backend antes de aplicar heurísticas locales
 
@@ -133,6 +134,7 @@ pnpm verify:release
 Notas:
 - `pnpm test:e2e` debe usarse cuando una tarea toque UI, flujo principal de análisis o SSE.
 - `pnpm benchmark:pliegos` valida el caso principal de producto con fixtures versionados y es obligatorio cuando cambian contrato, pipeline o dashboard del análisis.
+- El benchmark también protege regresiones silenciosas de reconciliación canónica, por ejemplo presupuesto/plazo completados desde bloques económicos o diagnósticos por sección.
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
 
 ## Flujo de ramas y entrega

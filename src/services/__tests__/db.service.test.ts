@@ -287,6 +287,7 @@ describe('DBService', () => {
                     ambiguous_fields: [],
                     warnings: ['Falta PPT'],
                     partial_reasons: ['missing_technical_content'],
+                    section_diagnostics: {},
                 },
             };
 

@@ -125,6 +125,7 @@ supabase/migrations/          # SQL migrations (chronological)
 ## Testing
 
 - **Unit/Integration**: Vitest (236+ tests, coverage thresholds: 65% statements, 50% branches)
+- **Worker policy**: `vitest.config.ts` caps workers (`minWorkers: 1`, `maxWorkers: 2`) to keep `pnpm verify:release` stable under coverage and jsdom-heavy suites
 - **E2E**: Playwright (Chromium, base URL localhost:4173)
 - **Functional benchmark**: `pnpm benchmark:pliegos` validates minimum useful extraction over versioned fixtures
 - **Pre-commit**: ESLint + Prettier on staged `.ts/.tsx` files

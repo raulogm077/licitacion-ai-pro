@@ -26,7 +26,10 @@ Estado funcional confirmado a fecha de esta especificación:
 - el camino soportado con mayor fiabilidad para producto es un único PDF completo del expediente
 - frontend y backend comparten contrato wire del análisis en `src/shared/analysis-contract.ts`
 - `workflow.quality` incorpora `partial_reasons` estructurados y el frontend debe priorizarlos frente a heurísticas locales
+- `workflow.quality.section_diagnostics` debe explicar por sección si el dato está presente, falta en los documentos subidos o se recuperó tras degradación de schema/extracción
 - el release de superficies de análisis queda protegido por `pnpm benchmark:pliegos`
+- el backend reconcilia `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` desde bloques fiables (`economico`, `duracionYProrrogas`) solo cuando el dato general venía ausente
+- `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
 

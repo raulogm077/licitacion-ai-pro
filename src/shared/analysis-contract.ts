@@ -13,6 +13,16 @@ export const ANALYSIS_PARTIAL_REASONS = [
 
 export type AnalysisPartialReason = (typeof ANALYSIS_PARTIAL_REASONS)[number];
 
+export const SECTION_DIAGNOSTIC_CODES = [
+    'present',
+    'missing_in_uploaded_docs',
+    'schema_recovered',
+    'extraction_gap',
+    'supplemented_from_official_notice',
+] as const;
+
+export type SectionDiagnosticCode = (typeof SECTION_DIAGNOSTIC_CODES)[number];
+
 export const TRACKED_FIELD_STATUSES = ['extraido', 'ambiguo', 'no_encontrado', 'derivado_tecnico'] as const;
 
 export type TrackedFieldStatus = (typeof TRACKED_FIELD_STATUSES)[number];
@@ -46,6 +56,13 @@ export interface WorkflowQualityWire {
     warnings: string[];
     partial_reasons: AnalysisPartialReason[];
     consistencyWarnings?: string[];
+    section_diagnostics?: Record<string, SectionDiagnosticWire>;
+}
+
+export interface SectionDiagnosticWire {
+    code: SectionDiagnosticCode;
+    message: string;
+    evidenceCount: number;
 }
 
 export interface WorkflowEvidenceWire extends TrackedEvidenceWire {

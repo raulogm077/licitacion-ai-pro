@@ -273,7 +273,49 @@
         "No se detectaron riesgos, penalizaciones ni criterios excluyentes.",
         "No se han detectado SLAs ni equipo mínimo."
       ],
-      "partial_reasons": ["missing_technical_content"]
+      "partial_reasons": ["missing_technical_content"],
+      "section_diagnostics": {
+        "datosGenerales": {
+          "code": "present",
+          "message": "La sección datosGenerales contiene información utilizable para el dashboard.",
+          "evidenceCount": 0
+        },
+        "economico": {
+          "code": "present",
+          "message": "La sección economico contiene información utilizable para el dashboard.",
+          "evidenceCount": 0
+        },
+        "duracionYProrrogas": {
+          "code": "present",
+          "message": "La sección duracionYProrrogas contiene información utilizable para el dashboard.",
+          "evidenceCount": 0
+        },
+        "criteriosAdjudicacion": {
+          "code": "present",
+          "message": "La sección criteriosAdjudicacion contiene información utilizable para el dashboard.",
+          "evidenceCount": 0
+        },
+        "requisitosSolvencia": {
+          "code": "present",
+          "message": "La sección requisitosSolvencia contiene información utilizable para el dashboard.",
+          "evidenceCount": 0
+        },
+        "requisitosTecnicos": {
+          "code": "missing_in_uploaded_docs",
+          "message": "La sección requisitosTecnicos no muestra señal suficiente en los documentos subidos.",
+          "evidenceCount": 0
+        },
+        "restriccionesYRiesgos": {
+          "code": "missing_in_uploaded_docs",
+          "message": "La sección restriccionesYRiesgos no muestra señal suficiente en los documentos subidos.",
+          "evidenceCount": 0
+        },
+        "modeloServicio": {
+          "code": "missing_in_uploaded_docs",
+          "message": "La sección modeloServicio no muestra señal suficiente en los documentos subidos.",
+          "evidenceCount": 0
+        }
+      }
     },
     "evidences": [],
     "phases": {

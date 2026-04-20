@@ -25,6 +25,7 @@ export interface PliegoVM {
         overall: 'COMPLETO' | 'PARCIAL' | 'VACIO';
         bySection: Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>;
         partialReasons: AnalysisPartialReason[];
+        sectionDiagnostics: Record<string, { code: string; message: string; evidenceCount: number }>;
     };
     counts: {
         riesgos: number;
@@ -189,10 +190,12 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
               ambiguous_fields: workflowQuality.ambiguous_fields || fallbackQuality.ambiguous_fields,
               warnings: workflowQuality.warnings || fallbackQuality.warnings,
               partial_reasons: workflowQuality.partial_reasons || [],
+              section_diagnostics: workflowQuality.section_diagnostics || fallbackQuality.section_diagnostics || {},
           }
         : {
               ...fallbackQuality,
               partial_reasons: [],
+              section_diagnostics: fallbackQuality.section_diagnostics || {},
           };
     const backendWarnings = qualityReport.warnings || [];
     const guidance = buildGuidance(qualityReport, backendWarnings);
@@ -268,55 +271,55 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
             id: 'datos',
             label: 'Datos Generales',
             status: qualityReport.bySection['datosGenerales'] || 'VACIO',
-            emptyMessage: {
+            emptyMessage: buildEmptyMessage('datosGenerales', qualityReport.section_diagnostics, {
                 title: 'Datos generales incompletos',
                 text: 'Faltan campos clave como presupuesto, plazo o CPV.',
-            },
+            }),
         },
         {
             id: 'criterios',
             label: 'Criterios',
             status: qualityReport.bySection['criteriosAdjudicacion'] || 'VACIO',
-            emptyMessage: {
+            emptyMessage: buildEmptyMessage('criteriosAdjudicacion', qualityReport.section_diagnostics, {
                 title: 'No se han encontrado criterios de adjudicación',
                 text: 'Suele estar en el PCAP/PPT.',
-            },
+            }),
         },
         {
             id: 'solvencia',
             label: 'Solvencia',
             status: qualityReport.bySection['requisitosSolvencia'] || 'VACIO',
-            emptyMessage: {
+            emptyMessage: buildEmptyMessage('requisitosSolvencia', qualityReport.section_diagnostics, {
                 title: 'No se han detectado requisitos de solvencia técnica',
                 text: 'Verifica si el pliego exige experiencia previa.',
-            },
+            }),
         },
         {
             id: 'tecnicos',
             label: 'Técnicos',
             status: qualityReport.bySection['requisitosTecnicos'] || 'VACIO',
-            emptyMessage: {
+            emptyMessage: buildEmptyMessage('requisitosTecnicos', qualityReport.section_diagnostics, {
                 title: 'No se han detectado requisitos técnicos',
                 text: 'Si el pliego incluye especificaciones técnicas, reintenta el análisis.',
-            },
+            }),
         },
         {
             id: 'riesgos',
             label: 'Riesgos',
             status: qualityReport.bySection['restriccionesYRiesgos'] || (isEmptyRiesgos ? 'VACIO' : 'COMPLETO'),
-            emptyMessage: {
+            emptyMessage: buildEmptyMessage('restriccionesYRiesgos', qualityReport.section_diagnostics, {
                 title: 'Sin riesgos detectados',
                 text: 'Puede ser correcto, pero verifica garantías, penalizaciones y criterios excluyentes en el expediente original.',
-            },
+            }),
         },
         {
             id: 'servicio',
             label: 'Servicio',
             status: qualityReport.bySection['modeloServicio'] || (isEmptyServicio ? 'VACIO' : 'COMPLETO'),
-            emptyMessage: {
+            emptyMessage: buildEmptyMessage('modeloServicio', qualityReport.section_diagnostics, {
                 title: 'No se han detectado SLAs ni equipo mínimo',
                 text: 'Si el contrato sí define niveles de servicio o perfiles mínimos, falta documentación técnica o la señal extraída es insuficiente.',
-            },
+            }),
         },
     ];
 
@@ -354,6 +357,7 @@ export function buildPliegoVM(data: LicitacionData): PliegoVM {
             overall: qualityReport.overall,
             bySection: qualityReport.bySection,
             partialReasons: qualityReport.partial_reasons || [],
+            sectionDiagnostics: qualityReport.section_diagnostics || {},
         },
         counts: {
             riesgos: restrictionsCount(restriccionesYRiesgos),
@@ -445,6 +449,41 @@ function buildGuidance(
         nextStep: 'Revisa primero los avisos y las secciones con estado PARCIAL o VACIO antes de tomar decisiones.',
         tone: 'info' as const,
     };
+}
+
+function buildEmptyMessage(
+    sectionKey: string,
+    diagnostics: Record<string, { code: string; message: string; evidenceCount: number }> | undefined,
+    fallback: { title: string; text: string }
+) {
+    const diagnostic = diagnostics?.[sectionKey];
+
+    if (!diagnostic) {
+        return fallback;
+    }
+
+    if (diagnostic.code === 'missing_in_uploaded_docs') {
+        return {
+            title: fallback.title,
+            text: 'La información no aparece con señal suficiente en los documentos subidos. Sube el PDF completo del expediente o la pieza administrativa/técnica que falte.',
+        };
+    }
+
+    if (diagnostic.code === 'schema_recovered') {
+        return {
+            title: fallback.title,
+            text: 'La sección se recuperó parcialmente tras corregir un bloque mal tipado. Revisa la evidencia y contrasta el resultado final con el documento original.',
+        };
+    }
+
+    if (diagnostic.code === 'extraction_gap') {
+        return {
+            title: fallback.title,
+            text: 'Hay evidencia útil en el documento, pero la extracción final quedó degradada. Conviene revisar la cita asociada o reintentar el análisis.',
+        };
+    }
+
+    return fallback;
 }
 
 function restrictionsCount(section: LicitacionContent['restriccionesYRiesgos']): number {

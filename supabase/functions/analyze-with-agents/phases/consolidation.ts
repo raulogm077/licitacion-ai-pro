@@ -100,6 +100,8 @@ export function runConsolidation(input: ConsolidationInput): ConsolidationResult
         }
     }
 
+    result = reconcileCanonicalResult(result, allWarnings);
+
     // Cross-block consistency checks
     const consistencyWarnings = checkCrossBlockConsistency(result);
     allWarnings.push(...consistencyWarnings);
@@ -166,7 +168,7 @@ function recoverCanonicalResult(rawResult: Record<string, unknown>, warnings: st
         criteriosAdjudicacion: recoverSection(
             'criteriosAdjudicacion',
             CriteriosAdjudicacionSchema,
-            rawResult.criteriosAdjudicacion,
+            sanitizeCriteriosAdjudicacionInput(rawResult.criteriosAdjudicacion),
             {},
             warnings
         ),
@@ -206,6 +208,117 @@ function recoverCanonicalResult(rawResult: Record<string, unknown>, warnings: st
             warnings
         ),
     };
+}
+
+function sanitizeCriteriosAdjudicacionInput(input: unknown): unknown {
+    const section = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+
+    return {
+        ...section,
+        subjetivos: sanitizeCriterioSubjetivoList(section.subjetivos),
+        objetivos: sanitizeCriterioObjetivoList(section.objetivos),
+    };
+}
+
+function sanitizeCriterioSubjetivoList(input: unknown): unknown[] {
+    if (!Array.isArray(input)) return [];
+
+    return input
+        .map((entry) => {
+            if (typeof entry === 'string') {
+                return { descripcion: entry, ponderacion: 0, subcriterios: [] };
+            }
+
+            if (!entry || typeof entry !== 'object') {
+                return null;
+            }
+
+            const criterio = entry as Record<string, unknown>;
+            return {
+                ...criterio,
+                descripcion:
+                    typeof criterio.descripcion === 'string'
+                        ? criterio.descripcion
+                        : typeof criterio.detalles === 'string'
+                          ? criterio.detalles
+                          : '',
+                subcriterios: sanitizeSubcriteriosList(criterio.subcriterios),
+            };
+        })
+        .filter((entry) => entry !== null);
+}
+
+function sanitizeCriterioObjetivoList(input: unknown): unknown[] {
+    if (!Array.isArray(input)) return [];
+
+    return input
+        .map((entry) => {
+            if (typeof entry === 'string') {
+                return { descripcion: entry, ponderacion: 0 };
+            }
+
+            if (!entry || typeof entry !== 'object') {
+                return null;
+            }
+
+            return entry;
+        })
+        .filter((entry) => entry !== null);
+}
+
+function sanitizeSubcriteriosList(input: unknown): unknown[] {
+    if (!Array.isArray(input)) return [];
+
+    return input
+        .map((entry) => {
+            if (typeof entry === 'string') {
+                return { descripcion: entry, ponderacion: 0 };
+            }
+
+            if (!entry || typeof entry !== 'object') {
+                return null;
+            }
+
+            const subcriterio = entry as Record<string, unknown>;
+            return {
+                ...subcriterio,
+                descripcion:
+                    typeof subcriterio.descripcion === 'string'
+                        ? subcriterio.descripcion
+                        : typeof subcriterio.detalles === 'string'
+                          ? subcriterio.detalles
+                          : '',
+            };
+        })
+        .filter((entry) => entry !== null);
+}
+
+function reconcileCanonicalResult(result: CanonicalResult, warnings: string[]): CanonicalResult {
+    const budgetFromDatosGenerales = result.datosGenerales.presupuesto.value ?? 0;
+    const budgetFromEconomico = result.economico?.presupuestoBaseLicitacion ?? 0;
+
+    if (budgetFromDatosGenerales <= 0 && budgetFromEconomico > 0) {
+        result.datosGenerales.presupuesto = {
+            ...result.datosGenerales.presupuesto,
+            value: budgetFromEconomico,
+            status: 'derivado_tecnico',
+        };
+        warnings.push('datosGenerales.presupuesto completado desde economico.presupuestoBaseLicitacion');
+    }
+
+    const durationFromDatosGenerales = result.datosGenerales.plazoEjecucionMeses.value ?? 0;
+    const durationFromSection = result.duracionYProrrogas?.duracionMeses ?? 0;
+
+    if (durationFromDatosGenerales <= 0 && durationFromSection > 0) {
+        result.datosGenerales.plazoEjecucionMeses = {
+            ...result.datosGenerales.plazoEjecucionMeses,
+            value: durationFromSection,
+            status: 'derivado_tecnico',
+        };
+        warnings.push('datosGenerales.plazoEjecucionMeses completado desde duracionYProrrogas.duracionMeses');
+    }
+
+    return result;
 }
 
 function checkCrossBlockConsistency(result: CanonicalResult): string[] {

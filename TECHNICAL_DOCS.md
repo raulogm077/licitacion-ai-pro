@@ -133,6 +133,7 @@ Dashboard renderiza resultado con evidencias y warnings
 La aplicación ya no depende de definiciones wire paralelas para los eventos del análisis:
 
 - `src/shared/analysis-contract.ts` define `AnalysisStreamEvent`, `TrackedFieldWire`, `WorkflowQualityWire` y `AnalysisPartialReason`
+- `WorkflowQualityWire` incluye `section_diagnostics` para explicar por qué una sección queda vacía, parcial o recuperada
 - backend y frontend deben mantenerse alineados con ese contrato antes de aplicar sus validaciones locales
 - `partial_reasons` es el mecanismo estructurado para clasificar análisis `PARCIAL` sin depender de heurísticas de texto libre
 

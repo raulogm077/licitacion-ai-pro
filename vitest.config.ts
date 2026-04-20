@@ -9,6 +9,8 @@ export default defineConfig({
         setupFiles: './src/test/setup.ts',
         include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         exclude: ['src/test/e2e/**', 'node_modules/**'],
+        minWorkers: 1,
+        maxWorkers: 2,
         coverage: {
             reporter: ['text', 'json', 'html'],
             thresholds: {

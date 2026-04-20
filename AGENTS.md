@@ -210,6 +210,7 @@ Checklist documental mínima:
 - No se deben mezclar en una misma noche cambios de plantillas y múltiples documentos salvo ticket explícito.
 - No se deben crear épicas grandes dentro de `## To Do`; deben dividirse en tareas ejecutables en una sola sesión.
 - Si una tarea deja deuda o riesgo residual, debe documentarse explícitamente en `SPEC.md`.
+- `vitest.config.ts` mantiene workers acotados para que `pnpm verify:release` siga siendo estable con cobertura y suites jsdom pesadas; no se deben subir esos límites sin revalidar el cierre completo.
 
 ## 7. Uso de Agent Skills
 
