@@ -43,6 +43,41 @@ Deno.test('CanonicalResultSchema normalizes malformed tracked numbers and null s
     }
 });
 
+Deno.test('CanonicalResultSchema normalizes string subcriterios into structured items', () => {
+    const parsed = CanonicalResultSchema.parse({
+        datosGenerales: {
+            titulo: { value: 'Licitacion de prueba', status: 'extraido' },
+            organoContratacion: { value: 'Organismo X', status: 'extraido' },
+            presupuesto: { value: 100000, status: 'extraido' },
+            moneda: { value: 'EUR', status: 'extraido' },
+            plazoEjecucionMeses: { value: 12, status: 'extraido' },
+            cpv: { value: ['12345678'], status: 'extraido' },
+        },
+        criteriosAdjudicacion: {
+            subjetivos: [
+                {
+                    descripcion: 'Memoria tecnica',
+                    ponderacion: 35,
+                    subcriterios: ['Calidad del equipo', { descripcion: 'Plan de transicion', ponderacion: '10' }],
+                },
+            ],
+            objetivos: [],
+        },
+    });
+
+    if (parsed.criteriosAdjudicacion.subjetivos[0].subcriterios.length !== 2) {
+        throw new Error('Expected subjetivos[0].subcriterios to preserve recoverable entries');
+    }
+
+    if (parsed.criteriosAdjudicacion.subjetivos[0].subcriterios[0].descripcion !== 'Calidad del equipo') {
+        throw new Error('Expected string subcriterios to normalize into descripcion');
+    }
+
+    if (parsed.criteriosAdjudicacion.subjetivos[0].subcriterios[0].ponderacion !== 0) {
+        throw new Error('Expected string subcriterios to default ponderacion to 0');
+    }
+});
+
 Deno.test('WorkflowSchema accepts structured partial reasons', () => {
     const parsed = WorkflowSchema.parse({
         status: 'completed',
@@ -53,6 +88,13 @@ Deno.test('WorkflowSchema accepts structured partial reasons', () => {
             ambiguous_fields: [],
             warnings: [],
             partial_reasons: ['document_insufficient', 'missing_administrative_content'],
+            section_diagnostics: {
+                datosGenerales: {
+                    code: 'present',
+                    message: 'Datos generales recuperados.',
+                    evidenceCount: 3,
+                },
+            },
         },
         evidences: [],
         phases: {},
@@ -61,5 +103,9 @@ Deno.test('WorkflowSchema accepts structured partial reasons', () => {
 
     if ((parsed.quality?.partial_reasons?.length || 0) !== 2) {
         throw new Error('Expected partial_reasons to be preserved in workflow quality');
+    }
+
+    if (parsed.quality?.section_diagnostics?.datosGenerales?.code !== 'present') {
+        throw new Error('Expected section_diagnostics to be preserved in workflow quality');
     }
 });

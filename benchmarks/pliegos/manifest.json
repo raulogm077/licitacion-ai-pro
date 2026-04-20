@@ -22,7 +22,10 @@
         "guidanceTone": "warning",
         "requiredDisplayFields": ["titulo", "presupuesto", "plazo", "organo", "cpv"],
         "requiredSections": ["datosGenerales", "criteriosAdjudicacion", "requisitosSolvencia"],
-        "requiredPartialReasons": ["missing_technical_content"]
+        "requiredPartialReasons": ["missing_technical_content"],
+        "requiredSectionDiagnostics": {
+          "requisitosTecnicos": "missing_in_uploaded_docs"
+        }
       }
     },
     {

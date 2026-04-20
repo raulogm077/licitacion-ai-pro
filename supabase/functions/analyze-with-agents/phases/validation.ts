@@ -8,7 +8,7 @@ import type { CanonicalResult, Quality, Workflow } from '../../_shared/schemas/c
 import type { ConsolidationResult } from './consolidation.ts';
 import type { IngestionDiagnostics } from './ingestion.ts';
 import type { BlockExtractionDiagnostics } from './block-extraction.ts';
-import type { AnalysisPartialReason } from '../../../../src/shared/analysis-contract.ts';
+import type { AnalysisPartialReason, SectionDiagnosticWire } from '../../../../src/shared/analysis-contract.ts';
 
 export interface ValidationInput {
     consolidated: ConsolidationResult;
@@ -124,6 +124,11 @@ export function runValidation(input: ValidationInput): ValidationOutput {
         ingestion,
         extraction,
     });
+    const sectionDiagnostics = deriveSectionDiagnostics({
+        bySection,
+        evidences: allEvidences,
+        warnings: allWarnings,
+    });
 
     // 6. Build workflow
     const now = new Date().toISOString();
@@ -136,6 +141,7 @@ export function runValidation(input: ValidationInput): ValidationOutput {
             ambiguous_fields: [...new Set(allAmbiguousFields)],
             warnings: allWarnings,
             partial_reasons: partialReasons,
+            section_diagnostics: sectionDiagnostics,
         },
         evidences: allEvidences.map((e) => ({
             ...e,
@@ -165,6 +171,12 @@ interface PartialReasonContext {
     missingCriticalFields: string[];
     ingestion?: IngestionDiagnostics;
     extraction?: BlockExtractionDiagnostics;
+}
+
+interface SectionDiagnosticContext {
+    bySection: Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>;
+    evidences: Array<{ fieldPath: string; quote: string; pageHint?: string; confidence?: number }>;
+    warnings: string[];
 }
 
 function derivePartialReasons(context: PartialReasonContext): AnalysisPartialReason[] {
@@ -204,6 +216,54 @@ function derivePartialReasons(context: PartialReasonContext): AnalysisPartialRea
     return [...reasons];
 }
 
+function deriveSectionDiagnostics(
+    context: SectionDiagnosticContext
+): Record<string, SectionDiagnosticWire> {
+    const diagnostics: Record<string, SectionDiagnosticWire> = {};
+
+    for (const [sectionName, status] of Object.entries(context.bySection)) {
+        const evidenceCount = countSectionEvidence(sectionName, context.evidences);
+        const schemaRecovered = context.warnings.some((warning) =>
+            warning.includes(`Sección ${sectionName} recuperada con fallback por error de schema`)
+        );
+
+        if (schemaRecovered) {
+            diagnostics[sectionName] = {
+                code: 'schema_recovered',
+                message: `La sección ${sectionName} se recuperó parcialmente tras corregir un bloque mal tipado.`,
+                evidenceCount,
+            };
+            continue;
+        }
+
+        if (status === 'VACIO' && evidenceCount > 0) {
+            diagnostics[sectionName] = {
+                code: 'extraction_gap',
+                message: `La sección ${sectionName} tiene evidencias útiles, pero el resultado consolidado quedó vacío o degradado.`,
+                evidenceCount,
+            };
+            continue;
+        }
+
+        if (status === 'VACIO') {
+            diagnostics[sectionName] = {
+                code: 'missing_in_uploaded_docs',
+                message: `La sección ${sectionName} no muestra señal suficiente en los documentos subidos.`,
+                evidenceCount,
+            };
+            continue;
+        }
+
+        diagnostics[sectionName] = {
+            code: 'present',
+            message: `La sección ${sectionName} contiene información utilizable para el dashboard.`,
+            evidenceCount,
+        };
+    }
+
+    return diagnostics;
+}
+
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 function evaluateSectionQuality(values: unknown[]): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
@@ -240,4 +300,11 @@ function evaluateObjectQuality(obj: unknown): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
     if (nonEmpty.length === 0) return 'VACIO';
     if (nonEmpty.length >= values.length * 0.7) return 'COMPLETO';
     return 'PARCIAL';
+}
+
+function countSectionEvidence(
+    sectionName: string,
+    evidences: Array<{ fieldPath: string }>
+): number {
+    return evidences.filter((evidence) => evidence.fieldPath.startsWith(`${sectionName}.`)).length;
 }

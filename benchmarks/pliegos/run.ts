@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { LicitacionSchema } from '../../src/lib/schemas';
 import { buildPliegoVM } from '../../src/features/dashboard/model/pliego-vm';
-import type { AnalysisPartialReason } from '../../src/types';
+import type { AnalysisPartialReason, SectionDiagnosticCode } from '../../src/types';
 
 interface BenchmarkCaseExpectation {
     overall: 'COMPLETO' | 'PARCIAL' | 'VACIO';
@@ -11,6 +11,7 @@ interface BenchmarkCaseExpectation {
     undetectedDisplayFields?: Array<'titulo' | 'presupuesto' | 'plazo' | 'organo' | 'cpv' | 'moneda'>;
     requiredSections?: string[];
     requiredPartialReasons?: AnalysisPartialReason[];
+    requiredSectionDiagnostics?: Record<string, SectionDiagnosticCode>;
 }
 
 interface BenchmarkCase {
@@ -80,6 +81,14 @@ function validateCase(testCase: BenchmarkCase): string[] {
     for (const reason of testCase.expected.requiredPartialReasons || []) {
         if (!vm.quality.partialReasons.includes(reason)) {
             failures.push(`partial_reason ausente: ${reason}`);
+        }
+    }
+
+    for (const [section, code] of Object.entries(testCase.expected.requiredSectionDiagnostics || {})) {
+        if (vm.quality.sectionDiagnostics[section]?.code !== code) {
+            failures.push(
+                `section_diagnostics.${section} esperado=${code} recibido=${vm.quality.sectionDiagnostics[section]?.code || 'none'}`
+            );
         }
     }
 

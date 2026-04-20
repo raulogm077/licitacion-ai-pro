@@ -69,6 +69,7 @@ export class QualityService {
             warnings: warnings, // Standard warnings (e.g. empty lists)
             partial_reasons: [],
             consistencyWarnings: consistencyWarnings, // New semantic warnings
+            section_diagnostics: {},
         };
     }
 

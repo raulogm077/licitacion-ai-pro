@@ -88,6 +88,7 @@ describe('buildPliegoVM', () => {
                 ambiguous_fields: [],
                 warnings: [],
                 partial_reasons: ['missing_technical_content'],
+                section_diagnostics: {},
             },
         } as LicitacionData['workflow'];
 
@@ -96,5 +97,61 @@ describe('buildPliegoVM', () => {
         expect(vm.quality.partialReasons).toContain('missing_technical_content');
         expect(vm.guidance?.title).toContain('administrativo sin cobertura técnica');
         expect(vm.chapters.find((chapter) => chapter.id === 'tecnicos')?.status).toBe('VACIO');
+    });
+
+    it('should expose section diagnostics and tailor empty chapter messaging from backend diagnostics', () => {
+        const input = createEmptyLicitacionData();
+        input.datosGenerales = {
+            titulo: tf('Expediente administrativo'),
+            presupuesto: tf(8587086),
+            moneda: tf('EUR'),
+            plazoEjecucionMeses: tf(60),
+            organoContratacion: tf('AENA'),
+            cpv: noEncontrado([] as string[]),
+        };
+        input.workflow = {
+            status: 'completed',
+            steps: [],
+            evidences: [],
+            phases: {},
+            created_at: '2026-04-20T00:00:00.000Z',
+            updated_at: '2026-04-20T00:00:00.000Z',
+            quality: {
+                overall: 'PARCIAL',
+                bySection: {
+                    datosGenerales: 'PARCIAL',
+                    criteriosAdjudicacion: 'PARCIAL',
+                    requisitosSolvencia: 'VACIO',
+                    requisitosTecnicos: 'VACIO',
+                    restriccionesYRiesgos: 'VACIO',
+                    modeloServicio: 'VACIO',
+                },
+                missingCriticalFields: ['datosGenerales.cpv'],
+                ambiguous_fields: [],
+                warnings: [],
+                partial_reasons: ['missing_technical_content'],
+                section_diagnostics: {
+                    requisitosSolvencia: {
+                        code: 'missing_in_uploaded_docs',
+                        message: 'La solvencia no aparece en los documentos subidos.',
+                        evidenceCount: 0,
+                    },
+                    criteriosAdjudicacion: {
+                        code: 'schema_recovered',
+                        message: 'Se conservaron criterios útiles tras recuperar un bloque mal tipado.',
+                        evidenceCount: 3,
+                    },
+                },
+            },
+        } as LicitacionData['workflow'];
+
+        const vm = buildPliegoVM(input);
+        const solvenciaChapter = vm.chapters.find((chapter) => chapter.id === 'solvencia');
+        const criteriosChapter = vm.chapters.find((chapter) => chapter.id === 'criterios');
+
+        expect(vm.display.presupuesto).not.toBe('No detectado');
+        expect(vm.quality.sectionDiagnostics.requisitosSolvencia?.code).toBe('missing_in_uploaded_docs');
+        expect(solvenciaChapter?.emptyMessage?.text).toContain('documentos subidos');
+        expect(criteriosChapter?.emptyMessage?.text).toContain('recuperó parcialmente');
     });
 });

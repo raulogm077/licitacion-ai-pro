@@ -142,3 +142,29 @@ Deno.test('runValidation marks very sparse results as document_insufficient', ()
     assertEquals(workflow.quality?.overall, 'PARCIAL');
     assert(workflow.quality?.partial_reasons?.includes('document_insufficient'));
 });
+
+Deno.test('runValidation attaches structured section diagnostics for present, recovered and missing sections', () => {
+    const consolidated = createConsolidatedResult();
+    consolidated.result.requisitosSolvencia = {
+        economica: { cifraNegocioAnualMinima: null },
+        tecnica: [],
+        profesional: [],
+    };
+    consolidated.allWarnings = ['Sección criteriosAdjudicacion recuperada con fallback por error de schema'];
+    consolidated.allEvidences = [
+        {
+            fieldPath: 'criteriosAdjudicacion.objetivos[0]',
+            quote: 'Criterio económico: 60 puntos',
+            pageHint: '12',
+            confidence: 0.91,
+        },
+    ];
+
+    const { workflow } = runValidation({
+        consolidated,
+    });
+
+    assertEquals(workflow.quality?.section_diagnostics?.datosGenerales?.code, 'present');
+    assertEquals(workflow.quality?.section_diagnostics?.criteriosAdjudicacion?.code, 'schema_recovered');
+    assertEquals(workflow.quality?.section_diagnostics?.requisitosSolvencia?.code, 'missing_in_uploaded_docs');
+});

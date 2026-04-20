@@ -16,6 +16,7 @@ import { z } from 'zod';
 import {
     ANALYSIS_PARTIAL_REASONS,
     ANALYSIS_QUALITY_STATUSES,
+    SECTION_DIAGNOSTIC_CODES,
     TRACKED_FIELD_STATUSES,
 } from '../shared/analysis-contract';
 
@@ -174,7 +175,23 @@ const CriterioSubjetivoSchema = z.object({
     ponderacion: RobustNumber(0),
     detalles: z.string().optional().nullable(),
     subcriterios: z
-        .array(z.object({ descripcion: z.string(), ponderacion: z.number().default(0) }))
+        .array(
+            z.preprocess(
+                (val) => {
+                    if (typeof val === 'string') {
+                        return { descripcion: val, ponderacion: 0 };
+                    }
+                    if (!val || typeof val !== 'object') {
+                        return undefined;
+                    }
+                    return val;
+                },
+                z.object({
+                    descripcion: z.string(),
+                    ponderacion: RobustNumber(0),
+                })
+            )
+        )
         .optional()
         .default([]),
     cita: z.string().optional(),
@@ -437,6 +454,13 @@ export type LicitacionContent = z.infer<typeof LicitacionContentSchema>;
 
 export const QualityStatusEnum = z.enum(ANALYSIS_QUALITY_STATUSES);
 export const AnalysisPartialReasonEnum = z.enum(ANALYSIS_PARTIAL_REASONS);
+export const SectionDiagnosticCodeEnum = z.enum(SECTION_DIAGNOSTIC_CODES);
+
+export const SectionDiagnosticSchema = z.object({
+    code: SectionDiagnosticCodeEnum,
+    message: z.string(),
+    evidenceCount: z.number().int().min(0).default(0),
+});
 
 export const QualitySchema = z.object({
     overall: QualityStatusEnum,
@@ -446,6 +470,7 @@ export const QualitySchema = z.object({
     warnings: z.array(z.string()).default([]),
     partial_reasons: z.array(AnalysisPartialReasonEnum).default([]),
     consistencyWarnings: z.array(z.string()).optional(),
+    section_diagnostics: z.record(SectionDiagnosticSchema).default({}),
 });
 
 export const WorkflowStateSchema = z.object({
