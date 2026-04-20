@@ -91,11 +91,11 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
   - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
   - Criterios de aceptación:
-    - Ejecutar `pnpm exec vitest run --coverage` debe reportar al menos 80% en statements y 70% en branches.
+    - Ejecutar `pnpm test -- --coverage` debe reportar al menos 80% en statements y 70% en branches.
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
   - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
 
-- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
+- [ ] [Tipo: Infra] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
   - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
   - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
   - Criterios de aceptación:
@@ -103,6 +103,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Dependabot ejecuta chequeos semanales.
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
+
+- [ ] [Tipo: UI] [Área: Templates] Implementar idioma inglés en interfaz (i18n)
+  - Objetivo: Completar el soporte multi-idioma permitiendo a los usuarios cambiar entre español e inglés, traduciendo la interfaz principal.
+  - Alcance: Configurar traducciones en `src/locales/en/translation.json`, extraer textos duros del dashboard/sidebar, y añadir selector de idioma en el Header.
+  - Criterios de aceptación:
+    - Existe un selector de idioma visible y funcional.
+    - Cambiar a inglés traduce los menús y KPIs del Dashboard.
+  - Archivos probables: `src/locales/en/translation.json`, `src/features/dashboard/Dashboard.tsx`, `src/components/layout/Header.tsx`
+  - Dependencias: Ninguna.
+
 
 ## Deuda Técnica / Refactorización
 
