@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_DIR="$ROOT_DIR/node_modules/.bin"
 
 run_verify_integrity() {
-  node --experimental-strip-types "$ROOT_DIR/scripts/verify-integrity.ts"
+  node --import tsx "$ROOT_DIR/scripts/verify-integrity.ts"
 }
 
 echo "Iniciando verify:release..."

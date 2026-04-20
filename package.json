@@ -18,7 +18,7 @@
         "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
         "preview": "vite preview",
         "benchmark:pliegos": "node --import tsx benchmarks/pliegos/run.ts",
-        "verify:integrity": "node --experimental-strip-types scripts/verify-integrity.ts",
+        "verify:integrity": "node --import tsx scripts/verify-integrity.ts",
         "verify:release": "bash ./scripts/verify-ci.sh",
         "prepare": "husky",
         "prepare:skills": "npx skills experimental_install"
