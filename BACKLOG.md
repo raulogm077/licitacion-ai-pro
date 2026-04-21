@@ -58,7 +58,9 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
-- [x] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
+## To Do (Iteración Actual)
+
+- [ ] 🐛 BUG: [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
   - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
   - Criterios de aceptación:
@@ -66,18 +68,8 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
   - Dependencias: Ninguna.
 
-- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
-  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
-  - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
-  - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
-  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`, `e2e/upload-pdf.spec.ts`
-  - Dependencias: Ninguna.
-  - Tipo: QA
-  - Área: Analysis
+> FAIL: Statements coverage is 79.95%, missing the 80% requirement.
 
-
-
-## To Do (Iteración Actual)
 
 - [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
   - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
@@ -116,6 +108,19 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Visual regression testing con Playwright screenshots
 
 ## Done
+
+- [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
+  - Objetivo: Asegurar que el componente de feedback registre adecuadamente la interacción y arreglar el fallo en Playwright test `e2e/upload-pdf.spec.ts` debido al uso de `__dirname`.
+  - Alcance: Se añadieron assertions para asegurar que `feedbackService.saveFeedback` y `removeFeedback` se llaman correctamente, y reemplazar `__dirname` por `import.meta.dirname` en `e2e/upload-pdf.spec.ts`.
+  - Criterios de aceptación: Pasa validación de types y `xvfb-run pnpm run test:e2e` pasa correctamente o no falla por este error.
+  - Archivos probables: `src/features/dashboard/components/detail/__tests__/FeedbackToggle.test.tsx`, `e2e/upload-pdf.spec.ts`
+  - Dependencias: Ninguna.
+  - Tipo: QA
+  - Área: Analysis
+
+
+
+
 
 - [x] [Tipo: QA] [Área: Analysis] Fix Fallo en test unitario `AnalyticsDashboard.test.tsx` (Eliminado o resuelto al mover el archivo)
 
