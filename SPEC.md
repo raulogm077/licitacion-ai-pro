@@ -348,3 +348,9 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+
+### Resolving Global Vitest Blocking
+- **Issue:** Running `pnpm test` failed with "vitest: not found" and "node_modules missing" warnings. The CI environment appeared to not have dependencies installed.
+- **Solution:** Cleared node_modules and re-ran `pnpm install` successfully, satisfying the missing `vitest` dependency and resolving the ESM/pnpm-cache resolution issues. We also verified coverage passed properly.
+- **Tools Used:** Local testing with `pnpm install`, `pnpm test`, and `pnpm test:run`. No MCP tools were strictly necessary for this node_modules resolution.
