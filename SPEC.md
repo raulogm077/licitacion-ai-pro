@@ -59,9 +59,10 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 
 ### 3.2. Entregables esperados
 
-1. Subir cobertura de tests al 80% statements / 70% branches.
-2. Implementar i18n multi-idioma (inglés).
-3. Configurar Dependabot para actualizaciones automáticas.
+1. Resolver advertencias de React detectadas en los tests unitarios.
+2. Subir cobertura de tests al 80% statements / 70% branches.
+3. Implementar i18n multi-idioma (inglés).
+4. Configurar Dependabot para actualizaciones automáticas.
 4. Validar compatibilidad de OpenAI Agents SDK en Supabase Edge Functions mediante un spike aislado no productivo.
 
 ### 3.3. Criterios de aceptación globales
@@ -74,7 +75,7 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 
 **Iteración D (Mantenimiento y Observabilidad)**
 
-- **Testing (QA):** El test global de Vitest que bloqueaba la suite ha sido resuelto. El objetivo ahora es incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard y los componentes core de UI (`src/components/`), hasta alcanzar el 80% global.
+- **Testing (QA):** El test global de Vitest que bloqueaba la suite ha sido resuelto. Queda pendiente la resolución de advertencias de React (`Warning: Unknown event handler property onOpenChange` y updates no envueltas en `act(...)`) detectadas en la ejecución de la suite. El objetivo a seguir es incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard y los componentes core de UI (`src/components/`), hasta alcanzar el 80% global.
 - **i18n (UI/Infra):** Integrar `react-i18next` u otra librería estándar. Inicializar diccionarios básicos (`es`, `en`) e implementar un selector de idioma en la interfaz. Extraer progresivamente textos hardcodeados.
 - **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
 - **Capa conversacional Agents SDK (AI/Infra):** Mantener operativa la Edge Function `chat-with-analysis-agent` para consultar análisis persistidos desde el dashboard sin alterar el pipeline batch principal.

@@ -79,12 +79,12 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
-  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
-  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
+- [ ] [Tipo: UI] [Área: Analysis] Solucionar warnings de React detectados durante testing
+  - Objetivo: Corregir advertencias en las pruebas unitarias generadas por estado de React y eventos no manejados.
+  - Alcance: Solucionar `Warning: Unknown event handler property onOpenChange` y `Warning: An update to UserMenu inside a test was not wrapped in act(...)` en `src/components/ui/Dialog.tsx` y `src/components/ui/UserMenu.tsx`.
   - Criterios de aceptación:
-    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
-  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
+    - Ejecutar `pnpm test` no emite warnings relacionadas con React o eventos desconocidos.
+  - Archivos probables: `src/components/ui/Dialog.tsx`, `src/components/ui/UserMenu.tsx`, `src/components/ui/__tests__/Components.test.tsx`
   - Dependencias: Ninguna.
 
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
@@ -93,7 +93,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Criterios de aceptación:
     - Ejecutar `pnpm exec vitest run --coverage` debe reportar al menos 80% en statements y 70% en branches.
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
-  - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
+  - Dependencias: Ninguna.
 
 - [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
   - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
