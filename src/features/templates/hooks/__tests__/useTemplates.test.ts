@@ -15,12 +15,12 @@ vi.mock('../../../../services/template.service', () => ({
 describe('useTemplates', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        (templateService.getTemplates as any).mockResolvedValue({ ok: true, value: [] });
+        vi.mocked(templateService.getTemplates).mockResolvedValue({ ok: true, value: [] });
     });
 
     it('loads templates on mount', async () => {
         const mockTemplates = [{ id: '1', name: 'Test', schema: [] }];
-        (templateService.getTemplates as any).mockResolvedValue({ ok: true, value: mockTemplates });
+        vi.mocked(templateService.getTemplates).mockResolvedValue({ ok: true, value: mockTemplates });
 
         const { result } = renderHook(() => useTemplates());
 
@@ -35,7 +35,7 @@ describe('useTemplates', () => {
     });
 
     it('handles load templates error', async () => {
-        (templateService.getTemplates as any).mockResolvedValue({ ok: false, error: new Error('Failed to load') });
+        vi.mocked(templateService.getTemplates).mockResolvedValue({ ok: false, error: new Error('Failed to load') });
 
         const { result } = renderHook(() => useTemplates());
 
@@ -60,7 +60,7 @@ describe('useTemplates', () => {
     it('handles edit correctly', async () => {
         const { result } = renderHook(() => useTemplates());
 
-        const template = { id: '1', name: 'Test', schema: [] } as any;
+        const template = { id: '1', name: 'Test', schema: [] } as unknown as ExtractionTemplate;
         await act(async () => {
             result.current.handleEdit(template);
         });
@@ -70,11 +70,11 @@ describe('useTemplates', () => {
     });
 
     it('handles duplicate correctly', async () => {
-        (templateService.createTemplate as any).mockResolvedValue({ ok: true });
+        vi.mocked(templateService.createTemplate).mockResolvedValue({ ok: true });
 
         const { result } = renderHook(() => useTemplates());
 
-        const template = { id: '1', name: 'Test', description: 'Desc', schema: [] } as any;
+        const template = { id: '1', name: 'Test', description: 'Desc', schema: [] } as unknown as ExtractionTemplate;
         await act(async () => {
             await result.current.handleDuplicate(template);
         });
@@ -84,11 +84,11 @@ describe('useTemplates', () => {
     });
 
     it('handles duplicate error', async () => {
-        (templateService.createTemplate as any).mockResolvedValue({ ok: false, error: new Error('Duplicate failed') });
+        vi.mocked(templateService.createTemplate).mockResolvedValue({ ok: false, error: new Error('Duplicate failed') });
 
         const { result } = renderHook(() => useTemplates());
 
-        const template = { id: '1', name: 'Test', schema: [] } as any;
+        const template = { id: '1', name: 'Test', schema: [] } as unknown as ExtractionTemplate;
         await act(async () => {
             await result.current.handleDuplicate(template);
         });
@@ -98,7 +98,7 @@ describe('useTemplates', () => {
 
     it('handles delete correctly', async () => {
         vi.spyOn(window, 'confirm').mockReturnValue(true);
-        (templateService.deleteTemplate as any).mockResolvedValue({ ok: true });
+        vi.mocked(templateService.deleteTemplate).mockResolvedValue({ ok: true });
 
         const { result } = renderHook(() => useTemplates());
 
@@ -123,7 +123,7 @@ describe('useTemplates', () => {
     });
 
     it('handles save new template', async () => {
-        (templateService.createTemplate as any).mockResolvedValue({ ok: true });
+        vi.mocked(templateService.createTemplate).mockResolvedValue({ ok: true });
 
         const { result } = renderHook(() => useTemplates());
 
@@ -136,7 +136,7 @@ describe('useTemplates', () => {
         });
 
         await act(async () => {
-            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+            await result.current.handleSave({ preventDefault: vi.fn() } as unknown as ExtractionTemplate);
         });
 
         expect(templateService.createTemplate).toHaveBeenCalledWith('New Template', '', []);
@@ -145,16 +145,16 @@ describe('useTemplates', () => {
     });
 
     it('handles save existing template', async () => {
-        (templateService.updateTemplate as any).mockResolvedValue({ ok: true });
+        vi.mocked(templateService.updateTemplate).mockResolvedValue({ ok: true });
 
         const { result } = renderHook(() => useTemplates());
 
         await act(async () => {
-            result.current.handleEdit({ id: '1', name: 'Test', description: 'Desc', schema: [] } as any);
+            result.current.handleEdit({ id: '1', name: 'Test', description: 'Desc', schema: [] } as unknown as ExtractionTemplate);
         });
 
         await act(async () => {
-            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+            await result.current.handleSave({ preventDefault: vi.fn() } as unknown as ExtractionTemplate);
         });
 
         expect(templateService.updateTemplate).toHaveBeenCalledWith('1', { name: 'Test', description: 'Desc', schema: [] });
@@ -177,7 +177,7 @@ describe('useTemplates', () => {
     });
 
     it('handles save error for new template', async () => {
-        (templateService.createTemplate as any).mockResolvedValue({ ok: false, error: new Error('Save error') });
+        vi.mocked(templateService.createTemplate).mockResolvedValue({ ok: false, error: new Error('Save error') });
 
         const { result } = renderHook(() => useTemplates());
 
@@ -190,23 +190,23 @@ describe('useTemplates', () => {
         });
 
         await act(async () => {
-            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+            await result.current.handleSave({ preventDefault: vi.fn() } as unknown as ExtractionTemplate);
         });
 
         expect(result.current.error).toBe('Save error');
     });
 
     it('handles save error for existing template', async () => {
-        (templateService.updateTemplate as any).mockResolvedValue({ ok: false, error: new Error('Update error') });
+        vi.mocked(templateService.updateTemplate).mockResolvedValue({ ok: false, error: new Error('Update error') });
 
         const { result } = renderHook(() => useTemplates());
 
         await act(async () => {
-            result.current.handleEdit({ id: '1', name: 'Test' } as any);
+            result.current.handleEdit({ id: '1', name: 'Test' } as unknown as ExtractionTemplate);
         });
 
         await act(async () => {
-            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+            await result.current.handleSave({ preventDefault: vi.fn() } as unknown as ExtractionTemplate);
         });
 
         expect(result.current.error).toBe('Update error');
@@ -221,7 +221,7 @@ describe('useTemplates', () => {
         });
 
         await act(async () => {
-            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+            await result.current.handleSave({ preventDefault: vi.fn() } as unknown as ExtractionTemplate);
         });
 
         expect(templateService.createTemplate).not.toHaveBeenCalled();
@@ -240,7 +240,7 @@ describe('useTemplates', () => {
 
     it('handles delete error', async () => {
         vi.spyOn(window, 'confirm').mockReturnValue(true);
-        (templateService.deleteTemplate as any).mockResolvedValue({ ok: false, error: new Error('Delete error') });
+        vi.mocked(templateService.deleteTemplate).mockResolvedValue({ ok: false, error: new Error('Delete error') });
 
         const { result } = renderHook(() => useTemplates());
 
@@ -263,7 +263,7 @@ describe('useTemplates', () => {
         });
 
         expect(result.current.currentTemplate?.schema?.length).toBe(1);
-        const fieldId = result.current.currentTemplate?.schema?.[0].id!;
+        const fieldId = result.current.currentTemplate?.schema?.[0].id || '';
 
         await act(async () => {
             result.current.updateField(fieldId, { name: 'field_name' });

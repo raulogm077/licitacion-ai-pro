@@ -51,7 +51,7 @@ describe('TemplatesPage', () => {
     });
 
     it('renders list view by default', () => {
-        (useTemplates as any).mockReturnValue(baseMockUseTemplatesResult);
+        vi.mocked(useTemplates).mockReturnValue(baseMockUseTemplatesResult);
         render(
             <BrowserRouter>
                 <TemplatesPage />
@@ -62,7 +62,7 @@ describe('TemplatesPage', () => {
     });
 
     it('calls handleCreate when Nueva Plantilla button is clicked', () => {
-        (useTemplates as any).mockReturnValue(baseMockUseTemplatesResult);
+        vi.mocked(useTemplates).mockReturnValue(baseMockUseTemplatesResult);
         render(
             <BrowserRouter>
                 <TemplatesPage />
@@ -73,7 +73,7 @@ describe('TemplatesPage', () => {
     });
 
     it('renders error message if error exists', () => {
-        (useTemplates as any).mockReturnValue({
+        vi.mocked(useTemplates).mockReturnValue({
             ...baseMockUseTemplatesResult,
             error: 'Test error message'
         });
@@ -86,7 +86,7 @@ describe('TemplatesPage', () => {
     });
 
     it('renders form view when isEditing is true', () => {
-        (useTemplates as any).mockReturnValue({
+        vi.mocked(useTemplates).mockReturnValue({
             ...baseMockUseTemplatesResult,
             isEditing: true,
             currentTemplate: { id: '1', name: 'Test Template' }
@@ -101,7 +101,7 @@ describe('TemplatesPage', () => {
     });
 
     it('passes handleDelete with translated confirm message to TemplateList', () => {
-        (useTemplates as any).mockReturnValue({
+        vi.mocked(useTemplates).mockReturnValue({
             ...baseMockUseTemplatesResult,
             templates: [{ id: '1', name: 'Test Template', schema: [] }]
         });

@@ -45,7 +45,7 @@ describe('Templates Integration', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        (useTemplates as any).mockReturnValue({
+        vi.mocked(useTemplates).mockReturnValue({
             templates: mockTemplates,
             loading: false,
             error: null,
@@ -97,7 +97,7 @@ describe('Templates Integration', () => {
     });
 
     it('renders error message when error exists', () => {
-        (useTemplates as any).mockReturnValue({
+        vi.mocked(useTemplates).mockReturnValue({
             ...useTemplates(),
             error: 'Failed to load templates'
         });
@@ -110,7 +110,7 @@ describe('Templates Integration', () => {
     });
 
     it('renders form when isEditing is true', () => {
-        (useTemplates as any).mockReturnValue({
+        vi.mocked(useTemplates).mockReturnValue({
             ...useTemplates(),
             isEditing: true,
             currentTemplate: mockTemplates[0]
