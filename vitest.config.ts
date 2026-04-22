@@ -15,10 +15,10 @@ export default defineConfig({
                 // Raised in iteración E after adding tests for db/ai/template services.
                 // Actual: 79.95% stmt / 66% branches / 72.94% fn / 80.81% lines.
                 // History: baseline(65/50/58/65) → iterD(73/59/69/73) → iterE(79/65/72/80)
-                statements: 79,
-                branches: 65,
-                functions: 72,
-                lines: 80,
+                statements: 81,
+                branches: 68,
+                functions: 77,
+                lines: 81,
             },
         },
     },

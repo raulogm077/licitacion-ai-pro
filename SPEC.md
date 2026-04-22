@@ -345,6 +345,9 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 - Se añadieron pruebas unitarias para `Header.tsx`, `CancelButton.tsx`, `RiskSummary.tsx`, `AlertsPanel.tsx`, `ScoringChart.tsx`, `ChapterComponentsPart2.tsx`, y `EvidenceToggle.tsx`.
 - Se solucionaron errores en la ejecución de pruebas de UI (DashboardSmoke.test.tsx) debido al uso de React Router sin mock adecuado.
 - Estas adiciones incrementan la cobertura general y la resiliencia de la interfaz de usuario.
+
+- **QA:** Se completó exitosamente el incremento de la cobertura de la suite al superar el umbral de 80% global para statements. Se implementaron pruebas unitarias integrales para el módulo de templates (`TemplateFieldEditor`, `TemplateForm`, `TemplateList`, `TemplatesIntegration`, `TemplatesPage`) y se mitigaron warnings de testing de React en componentes de UI comunes como `UserMenu` y `Dialog`. Los thresholds configurados globalmente ahora son `81` statements, `68` branches, `77` functions, `81` lines.
+
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.

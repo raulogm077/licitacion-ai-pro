@@ -5,6 +5,7 @@ import { Badge } from '../Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '../Card';
 import { Button } from '../Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../Dialog';
+import { act } from '@testing-library/react';
 import { PageLoader } from '../PageLoader';
 import { DashboardSkeleton } from '../DashboardSkeleton';
 import { UserMenu } from '../UserMenu';
@@ -264,7 +265,7 @@ describe('Common Components', () => {
             // Open dropdown first
             fireEvent.click(screen.getByRole('button'));
             // Click logout
-            fireEvent.click(screen.getByText('Cerrar sesión'));
+            await act(async () => { fireEvent.click(screen.getByText('Cerrar sesión')); });
             expect(mockSignOut).toHaveBeenCalledTimes(1);
         });
     });

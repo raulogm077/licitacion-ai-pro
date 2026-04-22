@@ -1,8 +1,7 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTemplates } from '../useTemplates';
 import { templateService } from '../../../../services/template.service';
-import { ExtractionTemplate } from '../../../../types';
 
 vi.mock('../../../../services/template.service', () => ({
     templateService: {
@@ -10,161 +9,272 @@ vi.mock('../../../../services/template.service', () => ({
         createTemplate: vi.fn(),
         updateTemplate: vi.fn(),
         deleteTemplate: vi.fn(),
-    },
+    }
 }));
-
-const mockTpl = (overrides: Partial<ExtractionTemplate> = {}): ExtractionTemplate => ({
-    id: '1',
-    name: 'Test',
-    description: '',
-    schema: [],
-    created_at: '2024-01-01',
-    updated_at: '2024-01-01',
-    user_id: 'u1',
-    ...overrides,
-});
 
 describe('useTemplates', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(templateService.getTemplates).mockResolvedValue({ ok: true, value: [] });
+        (templateService.getTemplates as any).mockResolvedValue({ ok: true, value: [] });
     });
 
     it('loads templates on mount', async () => {
-        const templates = [mockTpl()];
-        vi.mocked(templateService.getTemplates).mockResolvedValue({ ok: true, value: templates });
+        const mockTemplates = [{ id: '1', name: 'Test', schema: [] }];
+        (templateService.getTemplates as any).mockResolvedValue({ ok: true, value: mockTemplates });
 
         const { result } = renderHook(() => useTemplates());
 
-        await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(result.current.templates).toEqual(templates);
+        expect(result.current.loading).toBe(true);
+
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        });
+
+        expect(result.current.loading).toBe(false);
+        expect(result.current.templates).toEqual(mockTemplates);
     });
 
-    it('handles load error', async () => {
-        vi.mocked(templateService.getTemplates).mockResolvedValue({
-            ok: false,
-            error: { message: 'Network error' } as unknown as Error,
-        } as unknown as Awaited<ReturnType<typeof templateService.getTemplates>>);
+    it('handles load templates error', async () => {
+        (templateService.getTemplates as any).mockResolvedValue({ ok: false, error: new Error('Failed to load') });
 
         const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(result.current.error).toBe('Network error');
+
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        });
+
+        expect(result.current.error).toBe('Failed to load');
     });
 
-    it('creates a new template', async () => {
+    it('handles create correctly', async () => {
         const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
 
-        act(() => result.current.handleCreate());
+        await act(async () => {
+            result.current.handleCreate();
+        });
+
         expect(result.current.isEditing).toBe(true);
         expect(result.current.currentTemplate).toEqual({ name: '', description: '', schema: [] });
     });
 
-    it('edits an existing template', async () => {
-        const tpl = mockTpl({ name: 'Existing', description: 'Desc' });
+    it('handles edit correctly', async () => {
         const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
 
-        act(() => result.current.handleEdit(tpl));
+        const template = { id: '1', name: 'Test', schema: [] } as any;
+        await act(async () => {
+            result.current.handleEdit(template);
+        });
+
         expect(result.current.isEditing).toBe(true);
-        expect(result.current.currentTemplate).toEqual(tpl);
+        expect(result.current.currentTemplate).toEqual(template);
     });
 
-    it('cancels editing', async () => {
+    it('handles duplicate correctly', async () => {
+        (templateService.createTemplate as any).mockResolvedValue({ ok: true });
+
         const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
 
-        act(() => result.current.handleCreate());
-        act(() => result.current.cancelEditing());
-        expect(result.current.isEditing).toBe(false);
-    });
-
-    it('adds a field', async () => {
-        const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
-
-        act(() => result.current.handleCreate());
-        act(() => result.current.addField());
-        expect(result.current.currentTemplate?.schema).toHaveLength(1);
-        expect(result.current.currentTemplate?.schema?.[0].type).toBe('texto');
-    });
-
-    it('updates a field', async () => {
-        const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
-
-        act(() => result.current.handleCreate());
-        act(() => result.current.addField());
-        const fieldId = result.current.currentTemplate?.schema?.[0].id || '';
-        act(() => result.current.updateField(fieldId, { name: 'NewName' }));
-        expect(result.current.currentTemplate?.schema?.[0].name).toBe('NewName');
-    });
-
-    it('removes a field', async () => {
-        const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
-
-        act(() => result.current.handleCreate());
-        act(() => result.current.addField());
-        const fieldId = result.current.currentTemplate?.schema?.[0].id || '';
-        act(() => result.current.removeField(fieldId));
-        expect(result.current.currentTemplate?.schema).toHaveLength(0);
-    });
-
-    it('duplicates a template', async () => {
-        vi.mocked(templateService.createTemplate).mockResolvedValue({
-            ok: true,
-            value: mockTpl({ id: '2', name: 'Copy' }),
+        const template = { id: '1', name: 'Test', description: 'Desc', schema: [] } as any;
+        await act(async () => {
+            await result.current.handleDuplicate(template);
         });
 
+        expect(templateService.createTemplate).toHaveBeenCalledWith('Test (Copy)', 'Desc', []);
+        expect(templateService.getTemplates).toHaveBeenCalled();
+    });
+
+    it('handles duplicate error', async () => {
+        (templateService.createTemplate as any).mockResolvedValue({ ok: false, error: new Error('Duplicate failed') });
+
         const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        const template = { id: '1', name: 'Test', schema: [] } as any;
+        await act(async () => {
+            await result.current.handleDuplicate(template);
+        });
+
+        expect(result.current.error).toBe('Duplicate failed');
+    });
+
+    it('handles delete correctly', async () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        (templateService.deleteTemplate as any).mockResolvedValue({ ok: true });
+
+        const { result } = renderHook(() => useTemplates());
 
         await act(async () => {
-            await result.current.handleDuplicate(mockTpl({ name: 'Original', description: 'Desc' }));
+            await result.current.handleDelete('1', 'Are you sure?');
         });
 
-        expect(templateService.createTemplate).toHaveBeenCalledWith('Original (Copy)', 'Desc', []);
+        expect(templateService.deleteTemplate).toHaveBeenCalledWith('1');
+        expect(templateService.getTemplates).toHaveBeenCalled();
     });
 
-    it('saves a new template', async () => {
-        vi.mocked(templateService.createTemplate).mockResolvedValue({
-            ok: true,
-            value: mockTpl({ name: 'New' }),
-        });
+    it('does not delete if not confirmed', async () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(false);
 
         const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
 
-        act(() => result.current.handleCreate());
-        act(() => result.current.updateTemplate({ name: 'New Template' }));
-
-        const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
         await act(async () => {
-            await result.current.handleSave(mockEvent);
+            await result.current.handleDelete('1', 'Are you sure?');
+        });
+
+        expect(templateService.deleteTemplate).not.toHaveBeenCalled();
+    });
+
+    it('handles save new template', async () => {
+        (templateService.createTemplate as any).mockResolvedValue({ ok: true });
+
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            result.current.handleCreate();
+        });
+
+        await act(async () => {
+            result.current.updateTemplate({ name: 'New Template', description: '', schema: [] });
+        });
+
+        await act(async () => {
+            await result.current.handleSave({ preventDefault: vi.fn() } as any);
         });
 
         expect(templateService.createTemplate).toHaveBeenCalledWith('New Template', '', []);
         expect(result.current.isEditing).toBe(false);
+        expect(templateService.getTemplates).toHaveBeenCalled();
     });
 
-    it('saves an existing template (update)', async () => {
-        vi.mocked(templateService.updateTemplate).mockResolvedValue({
-            ok: true,
-            value: mockTpl({ name: 'Updated' }),
-        });
+    it('handles save existing template', async () => {
+        (templateService.updateTemplate as any).mockResolvedValue({ ok: true });
 
         const { result } = renderHook(() => useTemplates());
-        await waitFor(() => expect(result.current.loading).toBe(false));
 
-        act(() => result.current.handleEdit(mockTpl({ name: 'Existing', description: 'Old' })));
-        act(() => result.current.updateTemplate({ name: 'Updated' }));
-
-        const mockEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
         await act(async () => {
-            await result.current.handleSave(mockEvent);
+            result.current.handleEdit({ id: '1', name: 'Test', description: 'Desc', schema: [] } as any);
         });
 
-        expect(templateService.updateTemplate).toHaveBeenCalledWith('1', expect.objectContaining({ name: 'Updated' }));
+        await act(async () => {
+            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+        });
+
+        expect(templateService.updateTemplate).toHaveBeenCalledWith('1', { name: 'Test', description: 'Desc', schema: [] });
+        expect(result.current.isEditing).toBe(false);
+        expect(templateService.getTemplates).toHaveBeenCalled();
+    });
+
+    it('handles cancel editing', async () => {
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            result.current.handleCreate();
+        });
+
+        await act(async () => {
+            result.current.cancelEditing();
+        });
+
+        expect(result.current.isEditing).toBe(false);
+    });
+
+    it('handles save error for new template', async () => {
+        (templateService.createTemplate as any).mockResolvedValue({ ok: false, error: new Error('Save error') });
+
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            result.current.handleCreate();
+        });
+
+        await act(async () => {
+            result.current.updateTemplate({ name: 'New Template' });
+        });
+
+        await act(async () => {
+            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+        });
+
+        expect(result.current.error).toBe('Save error');
+    });
+
+    it('handles save error for existing template', async () => {
+        (templateService.updateTemplate as any).mockResolvedValue({ ok: false, error: new Error('Update error') });
+
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            result.current.handleEdit({ id: '1', name: 'Test' } as any);
+        });
+
+        await act(async () => {
+            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+        });
+
+        expect(result.current.error).toBe('Update error');
+    });
+
+    it('does not save if no name', async () => {
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            result.current.handleCreate();
+            result.current.updateTemplate({ name: '' });
+        });
+
+        await act(async () => {
+            await result.current.handleSave({ preventDefault: vi.fn() } as any);
+        });
+
+        expect(templateService.createTemplate).not.toHaveBeenCalled();
+    });
+
+    it('does nothing if updating non-existent field', async () => {
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            result.current.updateField('1', { name: 'test' });
+            result.current.removeField('1');
+        });
+
+        expect(result.current.currentTemplate).toBe(null);
+    });
+
+    it('handles delete error', async () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        (templateService.deleteTemplate as any).mockResolvedValue({ ok: false, error: new Error('Delete error') });
+
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            await result.current.handleDelete('1', 'Are you sure?');
+        });
+
+        expect(result.current.error).toBe('Delete error');
+    });
+
+    it('handles field operations', async () => {
+        const { result } = renderHook(() => useTemplates());
+
+        await act(async () => {
+            result.current.handleCreate();
+        });
+
+        await act(async () => {
+            result.current.addField();
+        });
+
+        expect(result.current.currentTemplate?.schema?.length).toBe(1);
+        const fieldId = result.current.currentTemplate?.schema?.[0].id!;
+
+        await act(async () => {
+            result.current.updateField(fieldId, { name: 'field_name' });
+        });
+
+        expect(result.current.currentTemplate?.schema?.[0].name).toBe('field_name');
+
+        await act(async () => {
+            result.current.removeField(fieldId);
+        });
+
+        expect(result.current.currentTemplate?.schema?.length).toBe(0);
     });
 });
