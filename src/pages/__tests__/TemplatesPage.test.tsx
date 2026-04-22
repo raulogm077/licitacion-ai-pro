@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TemplatesPage } from '../TemplatesPage';
 import { useTemplates } from '../../features/templates/hooks/useTemplates';
+import { ExtractionTemplate } from '../../types';
 import { BrowserRouter } from 'react-router-dom';
 
 vi.mock('../../features/templates/hooks/useTemplates', () => ({
@@ -103,7 +104,7 @@ describe('TemplatesPage', () => {
     it('passes handleDelete with translated confirm message to TemplateList', () => {
         vi.mocked(useTemplates).mockReturnValue({
             ...baseMockUseTemplatesResult,
-            templates: [{ id: '1', name: 'Test Template', schema: [] }]
+            templates: [{ id: '1', name: 'Test Template', schema: [] } as unknown as ExtractionTemplate]
         });
         render(
             <BrowserRouter>
