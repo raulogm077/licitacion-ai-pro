@@ -348,3 +348,9 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+### Auditoría PM: Refinamiento de Backlog y Preparación i18n
+- **Contexto:** Se verificó que el problema de resolución global de Vitest fue mitigado/resuelto (los tests se ejecutan ahora con normalidad) y se corroboró la existencia de la configuración base para internacionalización (`src/lib/i18n.ts` y traducciones en ES).
+- **Acción PM:**
+  - Se marcó como completada la tarea "Resolver Bloqueo Global de Vitest".
+  - Se extrajo de "Ideas de Producto" y se formalizó una nueva tarea accionable en `## To Do` para implementar la internacionalización (`i18n`) completa, enfocándose en la UI y definiendo criterios de aceptación claros y archivos a modificar.

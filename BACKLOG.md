@@ -79,7 +79,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
+- [x] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
   - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
   - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
   - Criterios de aceptación:
@@ -104,13 +104,26 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
 
+- [ ] [Tipo: UI] [Área: UI] Implementar i18n multi-idioma (inglés)
+  - Objetivo: Permitir que la interfaz de la aplicación se pueda visualizar tanto en español como en inglés, utilizando la infraestructura de i18next que ya se encuentra configurada en el proyecto.
+  - Alcance:
+    - Revisar el uso de textos estáticos en los componentes de la interfaz de usuario, priorizando el `Header.tsx` y el Dashboard principal.
+    - Utilizar el hook `useTranslation` de `react-i18next`.
+    - Crear el archivo de traducciones para el idioma inglés (`en/translation.json`) en la carpeta `src/locales/en`.
+    - Integrar un selector de idioma en la interfaz.
+  - Criterios de aceptación:
+    - El usuario puede cambiar el idioma de la interfaz a través de un selector visible.
+    - Los textos clave cambian correctamente al idioma seleccionado sin necesidad de recargar la página.
+  - Archivos probables: `src/components/layout/Header.tsx`, `src/locales/en/translation.json`, archivos de componentes de UI.
+  - Dependencias: Ninguna.
+
+
 ## Deuda Técnica / Refactorización
 
 - (Vacio - Tareas integradas en la iteración actual)
 
 ## Ideas de Producto
 
-- Implementar i18n multi-idioma (inglés)
 - Configurar Dependabot para actualizaciones automáticas de dependencias
 - Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
 - Visual regression testing con Playwright screenshots
