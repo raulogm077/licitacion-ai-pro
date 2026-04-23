@@ -288,6 +288,12 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - **Hallazgos:** La inicialización de la librería de Supabase es estricta con las respuestas CORS (OPTIONS), lo que causaba `net::ERR_NAME_NOT_RESOLVED` si solo se interceptaba parcialmente la ruta.
 
 ### Archivo de Decisiones y Operaciones
+**[Tech Lead] Configurar Dependabot**
+- Se configuró `.github/dependabot.yml` para habilitar las actualizaciones automáticas semanales para dependencias npm y github-actions.
+- Las dependencias de desarrollo y test tooling se agruparon (`dev-dependencies`, `test-tooling`) para reducir el ruido en las pull requests.
+- Se implementaron bloqueos (ignore list) temporales para `react`, `react-dom` y `react-router-dom` para prevenir breaking changes causados por versiones major sin validación.
+- Se cerró la tarea "Configurar Dependabot para actualizaciones automáticas" en el `BACKLOG.md`.
+
 **[Tech Lead] Limpieza Arquitectura Skills**
 - Se realizó una depuración exhaustiva del directorio raíz para mitigar la contaminación de carpetas generadas automáticamente por múltiples agentes de IA.
 - Se eliminaron carpetas no utilizadas (tales como `.adal`, `.agent`, `.claude`, `.roo`, `.qoder`, etc.) promoviendo el principio de **Single Source of Truth** en el directorio de configuración.
