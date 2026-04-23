@@ -348,3 +348,7 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+## 19/04 - Bloqueo Global de Vitest (jules/tech/resolve-vitest-global-block)
+- **Implementación:** Se añadió `onConsoleLog` en `vitest.config.ts` para silenciar el ruido de errores no capturados de JSDOM provenientes de `ErrorBoundary.test.tsx`, lo que bloqueaba la visibilidad de los tests. Se corrigió un warning de `act` en `UserMenu.test.tsx` y un warning de propiedad `onOpenChange` en el componente `Dialog`.
+- **Decisiones:** Se silencian específicamente los errores controlados de los componentes `ThrowingComponent`.

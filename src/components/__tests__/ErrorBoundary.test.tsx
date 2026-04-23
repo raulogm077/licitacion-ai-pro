@@ -1,9 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ErrorBoundary } from '../ErrorBoundary';
 
 // Suppress console.error noise from error boundaries in test output
 const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+// React also logs errors to console.error when a component throws, we need to spy on it and suppress it
+// However jsdom also throws an unhandled exception for React 18 error boundaries we have to suppress
 
 // A component that throws to trigger the error boundary
 function ThrowingComponent({ shouldThrow }: { shouldThrow: boolean }) {
@@ -14,8 +17,19 @@ function ThrowingComponent({ shouldThrow }: { shouldThrow: boolean }) {
 }
 
 describe('ErrorBoundary', () => {
+    let unhandledExceptionListener: (e: ErrorEvent) => void;
     beforeEach(() => {
         consoleError.mockClear();
+
+        // Prevent JSDOM from outputting unhandled rejections to stderr
+        unhandledExceptionListener = (e: ErrorEvent) => {
+            e.preventDefault(); // Stop it from printing to console
+        };
+        window.addEventListener('error', unhandledExceptionListener);
+    });
+
+    afterEach(() => {
+        window.removeEventListener('error', unhandledExceptionListener);
     });
 
     it('renders children when no error occurs', () => {
