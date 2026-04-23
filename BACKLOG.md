@@ -75,17 +75,26 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Tipo: QA
   - Área: Analysis
 
-
-
-## To Do (Iteración Actual)
-
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
+- [x] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
   - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
   - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
   - Criterios de aceptación:
     - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
   - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
   - Dependencias: Ninguna.
+
+- [x] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
+  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
+  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
+  - Criterios de aceptación:
+    - El archivo `.github/dependabot.yml` existe y es válido.
+    - Dependabot ejecuta chequeos semanales.
+  - Archivos probables: `.github/dependabot.yml`
+  - Dependencias: Ninguna.
+
+
+
+## To Do (Iteración Actual)
 
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
@@ -95,14 +104,20 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
   - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
 
-- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
-  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
-  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
+- [ ] [Tipo: UI] [Área: Infra] Implementar selector de idioma y extraer textos a i18n
+  - Objetivo: Completar el soporte multi-idioma permitiendo al usuario cambiar entre Español e Inglés y extrayendo los textos hardcodeados de la interfaz.
+  - Alcance:
+    - Crear componente `LanguageSelector` en el `UserMenu` o `Header`.
+    - Extraer textos hardcodeados de los componentes principales (como el Dashboard, Wizard de subida) a `es/translation.json` y `en/translation.json`.
+    - Usar `useTranslation` de `react-i18next` en los componentes.
   - Criterios de aceptación:
-    - El archivo `.github/dependabot.yml` existe y es válido.
-    - Dependabot ejecuta chequeos semanales.
-  - Archivos probables: `.github/dependabot.yml`
-  - Dependencias: Ninguna.
+    - El usuario puede cambiar de idioma mediante un control en la UI.
+    - Al cambiar de idioma, los textos de la aplicación (o al menos de los flujos principales) cambian inmediatamente.
+    - No hay textos en duro (hardcoded strings) relevantes en los componentes clave modificados.
+  - Archivos probables: `src/components/layout/Header.tsx`, `src/components/ui/UserMenu.tsx`, `src/locales/es/translation.json`, `src/locales/en/translation.json`
+  - Dependencias: La infraestructura base de i18n ya debe estar configurada.
+
+
 
 ## Deuda Técnica / Refactorización
 
@@ -110,7 +125,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ideas de Producto
 
-- Implementar i18n multi-idioma (inglés)
 - Configurar Dependabot para actualizaciones automáticas de dependencias
 - Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
 - Visual regression testing con Playwright screenshots
