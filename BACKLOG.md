@@ -58,6 +58,24 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ready for QA
 
+- [x] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
+  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
+  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
+  - Criterios de aceptación:
+    - El archivo `.github/dependabot.yml` existe y es válido.
+    - Dependabot ejecuta chequeos semanales.
+  - Archivos probables: `.github/dependabot.yml`
+  - Dependencias: Ninguna.
+
+- [x] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
+  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
+  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
+  - Criterios de aceptación:
+    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
+  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
+  - Dependencias: Ninguna.
+
+
 - [x] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
   - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
@@ -79,30 +97,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
-  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
-  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
-  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
-  - Dependencias: Ninguna.
-
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
   - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
   - Criterios de aceptación:
-    - Ejecutar `pnpm exec vitest run --coverage` debe reportar al menos 80% en statements y 70% en branches.
+    - Ejecutar `pnpm test -- --coverage` debe reportar al menos 80% en statements y 70% en branches.
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
-  - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
-
-- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
-  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
-  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
-  - Criterios de aceptación:
-    - El archivo `.github/dependabot.yml` existe y es válido.
-    - Dependabot ejecuta chequeos semanales.
-  - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
+
 
 ## Deuda Técnica / Refactorización
 
