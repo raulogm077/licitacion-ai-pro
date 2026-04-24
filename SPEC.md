@@ -348,3 +348,12 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+
+### PM Audit Refinement: Vitest Global Suite Failure and Dependabot Tasks
+- **Contexto:** Durante la auditoría del backlog, se identificó que el bloqueo global de Vitest se puede resolver eliminando la caché global de vite o actualizando la herramienta correctamente y Dependabot ya está configurado.
+- **Acción:**
+    - Resolví localmente el bloqueo de la suite de tests (`pnpm install` y ejecución comprobada limpia `pnpm run test:run`) y purgué `.vite`.
+    - Moví las tareas "Resolver Bloqueo Global de Vitest" y "Configurar Dependabot para actualizaciones automáticas" de la sección "To Do" a "Ready for QA".
+    - Modifiqué la tarea "Aumentar cobertura de tests a 80%" eliminando la dependencia falsa del bloqueo de vitest y reemplazando `pnpm exec vitest run --coverage` por la instrucción correcta `pnpm test -- --coverage`.
+- **Riesgos Residuales:** Se espera que la cobertura de tests no sea del 80% aún y se deben reanudar los test.
