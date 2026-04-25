@@ -348,3 +348,8 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+### Auditoría PM: Resolución Bloqueo Global de Vitest
+- **Contexto:** Se revisó el estado de las tareas de la "Iteración Actual" donde "Resolver Bloqueo Global de Vitest" aparecía como bloqueante para avanzar con la cobertura de tests.
+- **Acción:** Se verificó empíricamente mediante ejecuciones en el sandbox que `pnpm test -- --run` y `pnpm exec vitest run --coverage` ahora finalizan con éxito. El problema ESM reportado previamente no se reprodujo luego de restaurar los modulos a través de `pnpm install`, o la cache y dependencias se encuentran sanas en el actual entorno.
+- **Resultado:** Se procedió a cerrar la tarea "Resolver Bloqueo Global de Vitest" pasándola a "Done".
+- **Próximos Pasos:** La tarea "Aumentar cobertura de tests a 80%" actualmente reporta ~79.67%, por tanto, sigue requiriendo acción y se mantiene en "To Do" en espera del Tech Lead o QA. A su vez, la nueva tarea de "Configurar Dependabot" queda lista para ejecución en las próximas sesiones.
