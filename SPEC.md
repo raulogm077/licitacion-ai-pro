@@ -348,3 +348,9 @@ Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.s
 ### Auditoría PM: Tests bloqueados por fallo de Vitest
 - **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
 - **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+
+### Fix: Resolver Bloqueo Global de Vitest
+- **Resolución:** Se solucionó el bloqueo general de Vitest, el cual reportaba un error de inicialización debido a falta de directorios o dependencias en el node_modules. Esto se solucionó ejecutando `pnpm install` previo a correr la suite de testing localmente.
+- **Correcciones Secundarias (Warnings):**
+  - Se solucionó una advertencia de React relacionada al pasaje de propiedades no estándar (`onOpenChange`) a elementos del DOM nativos dentro de `src/components/ui/Dialog.tsx`. Se condicionó la inyección mediante `typeof child.type !== 'string'`.
+  - Se corrigió la advertencia de React sobre la mutación de estado fuera del bloque `act` dentro de `src/components/ui/__tests__/Components.test.tsx` envolviendo los `fireEvent.click` en `await act(...)`.

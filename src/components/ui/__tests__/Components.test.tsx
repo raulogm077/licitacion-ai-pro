@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { Badge } from '../Badge';
@@ -240,7 +240,7 @@ describe('Common Components', () => {
             expect(screen.getAllByText('T').length).toBeGreaterThan(0);
         });
 
-        it('opens dropdown when clicked', () => {
+        it('opens dropdown when clicked', async () => {
             vi.mocked(AuthStore.useAuthStore).mockReturnValue({
                 user: { email: 'user@test.com', id: '1' },
                 signOut: mockSignOut,
@@ -248,7 +248,7 @@ describe('Common Components', () => {
 
             render(<UserMenu />);
             const toggleBtn = screen.getByRole('button');
-            fireEvent.click(toggleBtn);
+            await act(async () => { fireEvent.click(toggleBtn); });
             // Dropdown shows email and logout option
             expect(screen.getByText('Cerrar sesión')).toBeInTheDocument();
         });
@@ -262,9 +262,8 @@ describe('Common Components', () => {
 
             render(<UserMenu />);
             // Open dropdown first
-            fireEvent.click(screen.getByRole('button'));
-            // Click logout
-            fireEvent.click(screen.getByText('Cerrar sesión'));
+            await act(async () => { fireEvent.click(screen.getByRole('button')); });
+            await act(async () => { fireEvent.click(screen.getByText('Cerrar sesión')); });
             expect(mockSignOut).toHaveBeenCalledTimes(1);
         });
     });
