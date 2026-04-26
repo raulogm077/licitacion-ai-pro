@@ -22,6 +22,25 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 ```
 
 ## Done
+- [x] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
+  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
+  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
+  - Criterios de aceptación:
+    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
+  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
+  - Dependencias: Ninguna.
+
+
+- [x] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
+  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
+  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
+  - Criterios de aceptación:
+    - El archivo `.github/dependabot.yml` existe y es válido.
+    - Dependabot ejecuta chequeos semanales.
+  - Archivos probables: `.github/dependabot.yml`
+  - Dependencias: Ninguna.
+
+
 - [x] [Tipo: UI] [Área: Infra] Configurar infraestructura base para i18n (ES/EN)
   - Objetivo: Preparar la aplicación para soportar múltiples idiomas, empezando por español e inglés.
   - Alcance: Instalar e inicializar librería de internacionalización (ej. `react-i18next`), crear archivos de traducción base (`es.json`, `en.json`) y configurar el proveedor en la raíz de la app.
@@ -79,29 +98,22 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
-  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
-  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
-  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
-  - Dependencias: Ninguna.
-
 - [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
   - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
   - Criterios de aceptación:
     - Ejecutar `pnpm exec vitest run --coverage` debe reportar al menos 80% en statements y 70% en branches.
   - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
-  - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
+  - Dependencias: Ninguna.
 
-- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
-  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
-  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
+- [ ] [Tipo: UI] [Área: Infra] Implementar selector de idioma y diccionario en inglés (i18n)
+  - Objetivo: Permitir al usuario cambiar el idioma de la aplicación entre Español e Inglés.
+  - Alcance: Crear el archivo `src/locales/en/translation.json`, implementar un selector de idioma en el Header o UserMenu, y extraer textos hardcodeados de los componentes principales para usar las funciones de traducción.
   - Criterios de aceptación:
-    - El archivo `.github/dependabot.yml` existe y es válido.
-    - Dependabot ejecuta chequeos semanales.
-  - Archivos probables: `.github/dependabot.yml`
+    - Existe un selector de idioma visible y funcional en la interfaz.
+    - Al cambiar el idioma, los textos de la interfaz cambian dinámicamente sin recargar.
+    - El archivo de idioma en inglés está creado con las traducciones clave.
+  - Archivos probables: `src/locales/en/translation.json`, `src/components/layout/Header.tsx`, `src/components/ui/UserMenu.tsx`, `src/lib/i18n.ts`
   - Dependencias: Ninguna.
 
 ## Deuda Técnica / Refactorización
@@ -110,8 +122,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Ideas de Producto
 
-- Implementar i18n multi-idioma (inglés)
-- Configurar Dependabot para actualizaciones automáticas de dependencias
 - Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
 - Visual regression testing con Playwright screenshots
 
