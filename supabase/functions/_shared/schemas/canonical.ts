@@ -17,6 +17,7 @@ import { z } from 'npm:zod@3.22.4';
 import {
     ANALYSIS_PARTIAL_REASONS,
     ANALYSIS_QUALITY_STATUSES,
+    SECTION_DIAGNOSTIC_CODES,
     TRACKED_FIELD_STATUSES,
 } from '../../../../src/shared/analysis-contract.ts';
 
@@ -199,7 +200,21 @@ export const CriterioSubjetivoSchema = z.object({
     ponderacion: safeCoerceNumber(0),
     detalles: z.string().optional().nullable(),
     subcriterios: z.preprocess(
-        (v) => (v === null ? undefined : v),
+        (v) => {
+            if (v === null || v === undefined) return undefined;
+            if (!Array.isArray(v)) return v;
+            return v
+                .map((entry) => {
+                    if (typeof entry === 'string') {
+                        return { descripcion: entry, ponderacion: 0 };
+                    }
+                    if (!entry || typeof entry !== 'object') {
+                        return null;
+                    }
+                    return entry;
+                })
+                .filter((entry) => entry !== null);
+        },
         z
             .array(
                 z.object({
@@ -370,6 +385,13 @@ export type CanonicalResult = z.infer<typeof CanonicalResultSchema>;
 
 export const QualityStatusEnum = z.enum(ANALYSIS_QUALITY_STATUSES);
 export const AnalysisPartialReasonEnum = z.enum(ANALYSIS_PARTIAL_REASONS);
+export const SectionDiagnosticCodeEnum = z.enum(SECTION_DIAGNOSTIC_CODES);
+
+export const SectionDiagnosticSchema = z.object({
+    code: SectionDiagnosticCodeEnum,
+    message: z.string(),
+    evidenceCount: z.number().int().min(0).default(0),
+});
 
 export const QualitySchema = z.object({
     overall: QualityStatusEnum,
@@ -378,6 +400,7 @@ export const QualitySchema = z.object({
     ambiguous_fields: z.array(z.string()).default([]),
     warnings: z.array(z.string()).default([]),
     partial_reasons: z.array(AnalysisPartialReasonEnum).default([]),
+    section_diagnostics: z.record(SectionDiagnosticSchema).default({}),
 });
 
 export const WorkflowSchema = z.object({

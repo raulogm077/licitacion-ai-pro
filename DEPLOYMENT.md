@@ -47,6 +47,12 @@ pnpm benchmark:pliegos
 
 Ese benchmark valida fixtures versionados con mínimos por campo y sección. El caso principal soportado para producción es un único PDF completo del expediente; los documentos parciales siguen aceptándose, pero deben quedar clasificados como `PARCIAL` con razones estructuradas.
 
+Cambios recientes protegidos por ese gate:
+
+- reconciliación canónica de `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` cuando la señal fiable está en `economico` o `duracionYProrrogas`
+- preservación de `criteriosAdjudicacion` cuando llegan `subcriterios` mal formados
+- diagnóstico estructurado por sección en `workflow.quality.section_diagnostics` para distinguir ausencia documental frente a degradación del pipeline
+
 ## 4. Migraciones de base de datos
 
 Antes de desplegar código que dependa de nuevas tablas o columnas, la rama debe validar que no hay deriva con producción:

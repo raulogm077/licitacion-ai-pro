@@ -10,7 +10,13 @@ import {
     Evidence as ZodEvidence,
     FieldStatus as ZodFieldStatus,
 } from './lib/schemas';
-import type { AnalysisPartialReason, AnalysisPhase, AnalysisStreamEvent } from './shared/analysis-contract';
+import type {
+    AnalysisPartialReason,
+    AnalysisPhase,
+    AnalysisStreamEvent,
+    SectionDiagnosticCode,
+    SectionDiagnosticWire,
+} from './shared/analysis-contract';
 
 export type Note = ZodNote;
 export type LicitacionMetadata = ZodMetadata;
@@ -20,7 +26,13 @@ export type WorkflowState = ZodWorkflow;
 export type AnalysisVersion = ZodVersion;
 export type Evidence = ZodEvidence;
 export type FieldStatus = ZodFieldStatus;
-export type { AnalysisPartialReason, AnalysisPhase, AnalysisStreamEvent };
+export type {
+    AnalysisPartialReason,
+    AnalysisPhase,
+    AnalysisStreamEvent,
+    SectionDiagnosticCode,
+    SectionDiagnosticWire,
+};
 
 export type ExtractionTemplate = ZodExtractionTemplate;
 export type TemplateField = ZodTemplateField;

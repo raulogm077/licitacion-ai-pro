@@ -165,6 +165,7 @@ La fuente de verdad del wire contract vive en:
 
 - `src/shared/analysis-contract.ts` para tipos compartidos FE/BE (`AnalysisStreamEvent`, `TrackedFieldWire`, `AnalysisPartialReason`)
 - `supabase/functions/_shared/schemas/canonical.ts` para el schema canónico validado del resultado
+- `workflow.quality.section_diagnostics` como diagnóstico estructurado por sección (`present`, `missing_in_uploaded_docs`, `schema_recovered`, `extraction_gap`)
 
 Eventos esperados, a nivel lógico:
 
@@ -182,6 +183,7 @@ Reglas:
 - no romper nombres ni estructura sin coordinar backend y frontend
 - cualquier cambio de contrato exige actualización de tests y de esta arquitectura
 - `workflow.quality.partial_reasons` es contrato backend→frontend; la UI no debe inferir parcialidad crítica si backend ya la emitió
+- la reconciliación de presupuesto y plazo ocurre en backend durante consolidación; el frontend consume el resultado canónico ya reconciliado y no inventa backfills locales
 - QA debe validar el flujo si una tarea toca SSE o el proceso principal de análisis
 
 ## 6. Plantillas dinámicas de extracción
