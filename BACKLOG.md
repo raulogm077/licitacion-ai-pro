@@ -104,6 +104,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
 
+- [ ] [Tipo: UI] [Área: Infra] Implementar selector de idioma en la interfaz
+  - Objetivo: Añadir el control visual para alternar entre español e inglés.
+  - Alcance: Modificar el componente `Header.tsx` u otro apropiado para incorporar el selector, y agregar los archivos de traducción iniciales para inglés (`en.json`).
+  - Criterios de aceptación:
+    - Existe un selector visible en la cabecera.
+    - Al cambiar el idioma, los textos extraídos hasta ahora cambian.
+    - Existe `src/locales/en/translation.json`.
+  - Archivos probables: `src/components/layout/Header.tsx`, `src/lib/i18n.ts`, `src/locales/en/translation.json`
+  - Dependencias: Ninguna.
+
+
 ## Deuda Técnica / Refactorización
 
 - (Vacio - Tareas integradas en la iteración actual)
