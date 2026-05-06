@@ -5,8 +5,12 @@
  *   A. Ingesta → B. Mapa Documental → C. Extracción por Bloques →
  *   D. Consolidación → E. Validación
  *
- * Fases B y C usan @openai/agents (Agent + run()). Fases A, D, E mantienen
- * código imperativo (sin LLM, no se benefician del SDK).
+ * Auth model:
+ *   `verify_jwt = true` (config.toml) means the Supabase platform validates
+ *   the bearer token and rejects unauthenticated requests with 401 before
+ *   this function is invoked. We still need to *resolve the user* from the
+ *   token (for rate-limiting and resource ownership), but we no longer
+ *   need the manual reject-on-missing-token block that used to live here.
  */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
@@ -19,7 +23,6 @@ import { setTraceProcessors } from '../_shared/agents/sdk.ts';
 import { SupabaseLogTraceProcessor } from '../_shared/agents/tracing.ts';
 import { createPipelineContext } from '../_shared/agents/context.ts';
 
-// Phase imports
 import { runIngestion } from './phases/ingestion.ts';
 import { runDocumentMap } from './phases/document-map.ts';
 import { runBlockExtraction } from './phases/block-extraction.ts';
@@ -34,8 +37,6 @@ import { GUIDE_CONTENT } from './guide-content.ts';
 import type { AnalysisPhase, AnalysisStreamEvent } from '../../../src/shared/analysis-contract.ts';
 import type { IngestionProgressUpdate } from './phases/ingestion.ts';
 
-// ─── Configuration ─────────────────────────────────────────────────────────────────────────
-
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 if (!OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY no configurada');
@@ -44,7 +45,6 @@ if (!OPENAI_API_KEY) {
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const MAX_REQUESTS_MSG = '10 análisis/hora';
 
-// Bridge SDK traces into Supabase logs once at module load.
 setTraceProcessors([new SupabaseLogTraceProcessor()]);
 
 const guideContent = GUIDE_CONTENT;
@@ -52,8 +52,6 @@ if (!guideContent || guideContent.length < 100) {
     throw new Error('Guide content failed to load or is too short');
 }
 console.log(`[init] Guía de lectura cargada: ${guideContent.length} chars`);
-
-// ─── Main Handler ─────────────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
@@ -65,15 +63,11 @@ serve(async (req: Request) => {
     try {
         console.log(`[analyze] Request received reqId=${requestId}`);
 
+        // Token is guaranteed present by verify_jwt=true at the platform layer.
+        // We still extract it to resolve the user record for rate-limiting and
+        // resource ownership.
         const authHeader = req.headers.get('authorization') || '';
         const token = authHeader.replace('Bearer ', '');
-
-        if (!token) {
-            return new Response(JSON.stringify({ error: 'Token de autenticación requerido' }), {
-                status: 401,
-                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
-            });
-        }
 
         const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
         const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -85,12 +79,13 @@ serve(async (req: Request) => {
 
         const {
             data: { user },
-            error: authError,
         } = await supabaseClient.auth.getUser(token);
 
-        if (authError || !user) {
-            console.error('[analyze] Auth error:', authError);
-            return new Response(JSON.stringify({ error: 'Token inválido o expirado' }), {
+        if (!user) {
+            // verify_jwt=true should have made this unreachable, but defend in
+            // depth: if Supabase ever forwards a request whose token resolves to
+            // no user, fail closed.
+            return new Response(JSON.stringify({ error: 'No se pudo resolver el usuario' }), {
                 status: 401,
                 headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
             });
@@ -226,7 +221,6 @@ serve(async (req: Request) => {
                 }, PIPELINE_TIMEOUT_MS);
 
                 try {
-                    // ═══ FASE A: INGESTA ═══
                     sendEvent('phase_started', { phase: 'ingestion', message: 'Subiendo documentos...' });
                     const ingestion = await callWithTimeout(
                         runIngestion({
@@ -264,7 +258,6 @@ serve(async (req: Request) => {
                         customTemplate: template ?? null,
                     });
 
-                    // ═══ FASE B: MAPA DOCUMENTAL ═══
                     sendEvent('phase_started', { phase: 'document_map', message: 'Analizando estructura...' });
                     const documentMap = await runDocumentMap({
                         context: pipelineContext,
@@ -282,7 +275,6 @@ serve(async (req: Request) => {
                             .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
-                    // ═══ FASE C: EXTRACCIÓN POR BLOQUES ═══
                     sendEvent('phase_started', { phase: 'extraction', message: 'Extrayendo información...' });
                     const extraction = await runBlockExtraction({
                         openai,
@@ -323,7 +315,6 @@ serve(async (req: Request) => {
                             .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
 
-                    // ═══ FASE D: CONSOLIDACIÓN ═══
                     sendEvent('phase_started', { phase: 'consolidation', message: 'Consolidando resultados...' });
                     const consolidated = await callWithTimeout(
                         Promise.resolve(
@@ -338,7 +329,6 @@ serve(async (req: Request) => {
                     );
                     sendEvent('phase_completed', { phase: 'consolidation', message: 'Resultados consolidados' });
 
-                    // ═══ FASE E: VALIDACIÓN ═══
                     sendEvent('phase_started', { phase: 'validation', message: 'Validando resultado...' });
                     const { result, workflow } = await callWithTimeout(
                         Promise.resolve(

@@ -382,4 +382,9 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.analyze-with-agents]
-verify_jwt = false
+# verify_jwt=true offloads bearer-token validation to the Supabase platform
+# layer. Requests without a valid JWT are rejected with 401 BEFORE the
+# function is invoked, removing the manual auth block that previously lived
+# at the top of index.ts. After deploy, drop --no-verify-jwt from the
+# `supabase functions deploy` command (see DEPLOYMENT.md).
+verify_jwt = true
