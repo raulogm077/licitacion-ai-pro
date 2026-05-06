@@ -31,7 +31,7 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 ## Architecture
 
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + Zustand
-- **Backend**: Supabase Edge Functions (Deno runtime) + OpenAI Responses API
+- **Backend**: Supabase Edge Functions (Deno runtime) + `@openai/agents@0.3.1` SDK on top of OpenAI Responses API
 - **DB**: PostgreSQL (Supabase) with RLS, FTS (Spanish), JSONB
 - **Hosting**: Vercel (frontend), Supabase Cloud (backend)
 - **CI/CD**: GitHub Actions (7-job pipeline)
@@ -43,6 +43,10 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 - **`unwrap()`**: Extracts raw value from TrackedField or passes through legacy values
 - **SSE streaming**: Edge Function emits `heartbeat`, `phase_started`, `phase_completed`, `phase_progress`, `extraction_progress`, `retry_scheduled`, `complete`, `error`
 - **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (3 concurrent + retries visibles) -> D:Consolidation -> E:Validation
+- **`@openai/agents` (Fases B y C)**: cada fase con LLM construye `Agent<PipelineContext>` por request, con `fileSearchTool` y `jsonShapeGuardrail`. Detalles y reglas en [`AGENTS.md`](./AGENTS.md).
+- **Tracing**: `SupabaseLogTraceProcessor` emite `[trace]` JSON por evento del SDK. `grep '\[trace\]'` reconstruye la ejecución completa.
+- **Auth**: `verify_jwt=true` en `supabase/config.toml` — el gateway rechaza requests sin JWT antes de invocar la función. El handler sólo resuelve el usuario para rate-limit y ownership.
+- **Feature flag de rollback**: `USE_AGENTS_SDK=false` (Supabase secret) reactiva el camino legacy de Fase C vía `phases/block-extraction.legacy.ts`. Se elimina cuando la paridad se confirma en producción.
 - **Primary product path**: The supported release path is one complete expediente PDF; partial docs are accepted but must surface structured `partial_reasons`
 
 ### Pipeline Timeout Architecture
@@ -53,7 +57,7 @@ Constants in `_shared/config.ts` control the timing budget:
 | Constant | Value | Notes |
 |---|---|---|
 | `PIPELINE_TIMEOUT_MS` | 280 000 | Requires Supabase function timeout ≥ 300s (set in Dashboard → Project Settings → Edge Functions) |
-| `API_CALL_TIMEOUT_MS` | 90 000 | Per-block OpenAI call — no retry on timeout (timeouts are NOT retried, see `isRetryableError`) |
+| `API_CALL_TIMEOUT_MS` | 90 000 | Per-block agent run — no retry on timeout (timeouts are NOT retried, see `isRetryableError`) |
 | `BLOCK_CONCURRENCY` | 3 | Extraction favors rate-limit stability over max concurrency |
 | `VECTOR_STORE_TIMEOUT_MS` | 90 000 | Waits for `file_counts.in_progress === 0`, not `vs.status` |
 
@@ -93,9 +97,12 @@ src/                          # Frontend (React)
 
 supabase/functions/           # Backend (Deno Edge Functions)
   analyze-with-agents/        # Main pipeline
+    agents/                   # Agent factories (document-map, block-extractor, custom-template)
+    prompts/index.ts          # Prompt strings (1:1 desde la implementación previa)
     phases/                   # Pipeline phases (ingestion, document-map, block-extraction, consolidation, validation)
-    prompts.ts                # Prompts per phase
+    __tests__/                # Tests Deno (deno test)
   _shared/                    # Shared utilities
+    agents/                   # SDK shim, PipelineContext, guardrails, tracing
     config.ts                 # Centralized constants (model, timeouts, concurrency)
     schemas/                  # Canonical schemas (Zod)
     utils/                    # Error handling, timeout utility
@@ -112,8 +119,9 @@ supabase/migrations/          # SQL migrations (chronological)
 - **Linting**: ESLint with 0 warnings tolerance
 - **Schemas**: Zod for both frontend and backend validation
 - **Error handling**: `Result<T>` pattern (`ok`/`err`) in services, `safeParse` chains in consolidation
-- **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`)
+- **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK)
 - **Backend constants**: All in `_shared/config.ts` (never hardcode model names, timeouts, etc.)
+- **Agents**: ver `AGENTS.md` para el patrón de añadir un nuevo Agent o un nuevo guardrail
 
 ## Database
 
@@ -126,6 +134,7 @@ supabase/migrations/          # SQL migrations (chronological)
 
 - **Unit/Integration**: Vitest (236+ tests, coverage thresholds: 65% statements, 50% branches)
 - **Worker policy**: `vitest.config.ts` caps workers (`minWorkers: 1`, `maxWorkers: 2`) to keep `pnpm verify:release` stable under coverage and jsdom-heavy suites
+- **Edge Function unit tests**: `deno test supabase/functions/<feature>/__tests__/*.test.ts` — los tests de guardrails están en `analyze-with-agents/__tests__/agents.test.ts`
 - **E2E**: Playwright (Chromium, base URL localhost:4173)
 - **Functional benchmark**: `pnpm benchmark:pliegos` validates minimum useful extraction over versioned fixtures
 - **Pre-commit**: ESLint + Prettier on staged `.ts/.tsx` files
@@ -180,12 +189,27 @@ Use Supabase MCP tools (project_id: `qsohtrvnlimymwdxiokm`):
 ### Vercel (frontend)
 Deployment status visible via GitHub PR checks ("Deployment has completed").
 
+### SDK trace spans
+Every agent run emits structured `[trace]` lines via `SupabaseLogTraceProcessor`:
+
+```bash
+npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
+```
+
+Filtering by `requestId` (also threaded into `[analyze]` log lines as
+`reqId=...`) correlates SSE events, application logs, and SDK spans for a
+single request.
+
 ## Key Files to Know
 
 - `src/lib/schemas.ts` — Frontend Zod schemas (LicitacionContent, TrackedField)
 - `src/services/job.service.ts` — SSE streaming orchestration
 - `src/services/db.service.ts` — CRUD + search + delete
 - `src/hooks/useHistory.ts` — History hook with debounced search
-- `supabase/functions/analyze-with-agents/index.ts` — Pipeline orchestrator
+- `supabase/functions/analyze-with-agents/index.ts` — Pipeline orchestrator (registra `setTraceProcessors` y construye `PipelineContext`)
+- `supabase/functions/analyze-with-agents/agents/*.agent.ts` — Agent factories
+- `supabase/functions/analyze-with-agents/prompts/index.ts` — Prompt strings
+- `supabase/functions/_shared/agents/{context,guardrails,tracing,sdk}.ts` — Infraestructura compartida del SDK
 - `supabase/functions/_shared/config.ts` — Backend constants
 - `supabase/functions/_shared/schemas/canonical.ts` — Canonical schema (source of truth)
+- `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, etc.)
