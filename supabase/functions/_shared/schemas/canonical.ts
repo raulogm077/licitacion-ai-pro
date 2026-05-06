@@ -13,7 +13,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { z } from 'npm:zod@3.22.4';
+import { z } from 'npm:zod@3.25.76';
 import {
     ANALYSIS_PARTIAL_REASONS,
     ANALYSIS_QUALITY_STATUSES,
@@ -21,7 +21,7 @@ import {
     TRACKED_FIELD_STATUSES,
 } from '../../../../src/shared/analysis-contract.ts';
 
-// ─── Field Status & Evidence ──────────────────────────────────────────────────
+// ─── Field Status & Evidence ────────────────────────────────────────────────────────────
 
 export const FieldStatusEnum = z.enum(TRACKED_FIELD_STATUSES);
 
@@ -130,7 +130,7 @@ function TrackedField<T extends z.ZodTypeAny>(valueSchema: T) {
 export type Evidence = z.infer<typeof EvidenceSchema>;
 export type FieldStatus = z.infer<typeof FieldStatusEnum>;
 
-// ─── Datos Generales ──────────────────────────────────────────────────────────
+// ─── Datos Generales ─────────────────────────────────────────────────────────────────────
 
 /**
  * Extrae el valor de un TrackedField si el modelo lo devolvió envuelto
@@ -159,7 +159,7 @@ export const DatosGeneralesSchema = z.object({
     procedimiento: z.preprocess(unwrapTracked, z.string().optional().nullable()),
 });
 
-// ─── Económico ────────────────────────────────────────────────────────────────
+// ─── Económico ─────────────────────────────────────────────────────────────────────────────
 
 export const EconomicoSchema = z.object({
     presupuestoBaseLicitacion: safeCoerceNumber(null),
@@ -181,7 +181,7 @@ export const EconomicoSchema = z.object({
     cita: z.string().optional(),
 });
 
-// ─── Duración y Prórrogas ─────────────────────────────────────────────────────
+// ─── Duración y Prórrogas ────────────────────────────────────────────────────────────────────
 
 export const DuracionYProrrogasSchema = z.object({
     duracionMeses: safeCoerceNumber(null),
@@ -193,7 +193,7 @@ export const DuracionYProrrogasSchema = z.object({
     cita: z.string().optional(),
 });
 
-// ─── Criterios de Adjudicación ────────────────────────────────────────────────
+// ─── Criterios de Adjudicación ───────────────────────────────────────────────────────────────
 
 export const CriterioSubjetivoSchema = z.object({
     descripcion: z.string(),
@@ -243,7 +243,7 @@ export const CriteriosAdjudicacionSchema = z.object({
     cita: z.string().optional(),
 });
 
-// ─── Requisitos de Solvencia ──────────────────────────────────────────────────
+// ─── Requisitos de Solvencia ───────────────────────────────────────────────────────────────────
 
 export const SolvenciaTecnicaSchema = z.object({
     descripcion: z.string(),
@@ -274,7 +274,7 @@ export const RequisitosSolvenciaSchema = z.object({
         .default([]),
 });
 
-// ─── Requisitos Técnicos ──────────────────────────────────────────────────────
+// ─── Requisitos Técnicos ──────────────────────────────────────────────────────────────────────────
 
 export const RequisitoFuncionalSchema = z.object({
     requisito: z.string(),
@@ -299,7 +299,7 @@ export const RequisitosTecnicosSchema = z.object({
     normativa: z.array(NormativaSchema).default([]),
 });
 
-// ─── Restricciones y Riesgos ──────────────────────────────────────────────────
+// ─── Restricciones y Riesgos ───────────────────────────────────────────────────────────────────
 
 export const KillCriterionSchema = z.object({
     criterio: z.string(),
@@ -327,7 +327,7 @@ export const RestriccionesYRiesgosSchema = z.object({
     penalizaciones: z.array(PenalizacionSchema).default([]),
 });
 
-// ─── Modelo de Servicio ───────────────────────────────────────────────────────
+// ─── Modelo de Servicio ──────────────────────────────────────────────────────────────────────────
 
 export const SLASchema = z.object({
     metrica: z.string(),
@@ -349,7 +349,7 @@ export const ModeloServicioSchema = z.object({
     equipoMinimo: z.array(EquipoMinimoSchema).default([]),
 });
 
-// ─── Anexos y Observaciones ───────────────────────────────────────────────────
+// ─── Anexos y Observaciones ─────────────────────────────────────────────────────────────────────
 
 export const AnexosYObservacionesSchema = z.object({
     anexosIdentificados: z
@@ -364,7 +364,7 @@ export const AnexosYObservacionesSchema = z.object({
     observaciones: z.array(z.string()).default([]),
 });
 
-// ─── Schema Canónico Completo ─────────────────────────────────────────────────
+// ─── Schema Canónico Completo ─────────────────────────────────────────────────────────────────
 
 export const CanonicalResultSchema = z.object({
     plantilla_personalizada: z.record(z.any()).optional(),
@@ -381,7 +381,7 @@ export const CanonicalResultSchema = z.object({
 
 export type CanonicalResult = z.infer<typeof CanonicalResultSchema>;
 
-// ─── Quality & Workflow ───────────────────────────────────────────────────────
+// ─── Quality & Workflow ───────────────────────────────────────────────────────────────────────
 
 export const QualityStatusEnum = z.enum(ANALYSIS_QUALITY_STATUSES);
 export const AnalysisPartialReasonEnum = z.enum(ANALYSIS_PARTIAL_REASONS);
@@ -440,7 +440,7 @@ export const WorkflowSchema = z.object({
 export type Quality = z.infer<typeof QualitySchema>;
 export type Workflow = z.infer<typeof WorkflowSchema>;
 
-// ─── Full Analysis Response (result + workflow) ───────────────────────────────
+// ─── Full Analysis Response (result + workflow) ─────────────────────────────────────────────────────────────────
 
 export const AnalysisResponseSchema = z.object({
     result: CanonicalResultSchema,

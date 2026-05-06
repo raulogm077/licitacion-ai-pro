@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { z } from 'npm:zod@3.22.4';
+import { z } from 'npm:zod@3.25.76';
 import {
     DatosGeneralesSchema,
     EconomicoSchema,
@@ -41,7 +41,7 @@ function BlockOutputSchema<T extends z.ZodTypeAny>(sectionSchema: T) {
     });
 }
 
-// ─── Block Schemas ────────────────────────────────────────────────────────────
+// ─── Block Schemas ───────────────────────────────────────────────────────────────────────────────
 
 export const DatosGeneralesBlockSchema = BlockOutputSchema(DatosGeneralesSchema);
 export const EconomicoBlockSchema = BlockOutputSchema(EconomicoSchema);
@@ -53,7 +53,7 @@ export const RestriccionesBlockSchema = BlockOutputSchema(RestriccionesYRiesgosS
 export const ServicioBlockSchema = BlockOutputSchema(ModeloServicioSchema);
 export const AnexosBlockSchema = BlockOutputSchema(AnexosYObservacionesSchema);
 
-// ─── Block Names (for iteration) ──────────────────────────────────────────────
+// ─── Block Names (for iteration) ───────────────────────────────────────────────────────────────────
 
 export const BLOCK_NAMES = [
     'datosGenerales',

@@ -7,7 +7,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { z } from 'npm:zod@3.22.4';
+import { z } from 'npm:zod@3.25.76';
 
 export const DocumentTypeEnum = z.enum([
     'PCAP',
