@@ -9,6 +9,7 @@ El producto debe permitir analizar pliegos de licitación de forma rápida, prec
 Estado funcional confirmado a fecha de esta especificación:
 
 - el análisis principal usa **OpenAI Responses API** con pipeline de 5 fases
+- las fases B (DocumentMap) y C (BlockExtraction + custom template) se ejecutan a través del SDK `@openai/agents@0.3.1` (Agent + run() + guardrails declarativos), preservando el contrato SSE
 - el flujo de ejecución usa **streaming por SSE**
 - existe historial de licitaciones y análisis ya implementado
 - el sistema soporta análisis de PDF principal y múltiples documentos (backend/AI)
@@ -54,6 +55,17 @@ Decisiones vigentes:
 - el benchmark `pnpm benchmark:pliegos` valida mínimos por campos y secciones sobre fixtures versionados
 - cambios que toquen pipeline, contrato SSE, `JobService`, dashboard de análisis o persistencia de `workflow.quality` deben mantener ese benchmark en verde
 
+## 2.4. Migración a `@openai/agents` (2026-05-06)
+
+- las fases B y C del pipeline se ejecutan vía `Agent` + `run()` del SDK `@openai/agents@0.3.1`; la API observable (eventos SSE, schema canónico, TrackedField, `partial_reasons`) no cambia
+- los prompts viven en `analyze-with-agents/prompts/index.ts` (copia byte-a-byte de los strings previos para preservar paridad)
+- `outputGuardrails` (`jsonShapeGuardrail<T>`) sustituyen el retry-on-bad-JSON inline; un `OutputGuardrailTripwireTriggered` dispara un único reintento con clausula JSON-only y, si falla otra vez, devuelve un bloque vacío con warning
+- `inputGuardrails` (`templateSanitizationGuardrail`) bloquea plantillas personalizadas con > 50 campos antes de invocar al LLM
+- `SupabaseLogTraceProcessor` emite líneas `[trace]` JSON por evento del SDK; `npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'` reconstruye una ejecución completa
+- `verify_jwt = true` en `supabase/config.toml` para `analyze-with-agents`; el bloque de auth manual desapareció del handler
+- feature flag `USE_AGENTS_SDK=false` (Supabase secret) reactiva `phases/block-extraction.legacy.ts` sin redeploy; se elimina cuando paridad de salida esté confirmada en producción
+- detalle operativo y reglas de "cómo añadir un nuevo Agent" en `AGENTS.md`
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo
@@ -92,6 +104,7 @@ Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanza
 
 - **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. La Guía de lectura se inyecta como archivo markdown local vía `Deno.readTextFile`. Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
 - **Límites multi-documento:** Máximo 5 archivos, 30MB total. Validación en frontend (`useFileValidation.ts`) y backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
+- **Migración a `@openai/agents` (2026-05-06):** Pipeline B+C ahora ejecuta a través del SDK pinned a 0.3.1 (zod 3.25.76). Subir a 0.3.2+ requiere migrar schemas a Zod 4; deferido sine die. Eliminación del fallback `block-extraction.legacy.ts` y del flag `USE_AGENTS_SDK` queda condicionada a paridad de salida medida en producción durante 1-2 semanas.
 
 ## 7. Riesgos y mitigaciones
 
@@ -107,6 +120,9 @@ Mitigación: dividir cualquier épica en entregables de una sola sesión.
 ### Riesgo 4: desalineación con la Guía de lectura
 Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la guía antes de entregar.
 
+### Riesgo 5: regresión semántica tras la migración a `@openai/agents`
+Mitigación: feature flag `USE_AGENTS_SDK=false` reactiva `block-extraction.legacy.ts` sin redeploy. La eliminación del legacy fallback queda condicionada a paridad confirmada en producción con `pnpm benchmark:pliegos` y smoke tests sobre fixtures de referencia.
+
 ## 8. Historial de implementación
 
 ### Implementado previamente
@@ -116,6 +132,7 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 - limpieza principal de arquitectura legacy de colas
 - Plantillas Dinámicas de Extracción (Back, Front, CRUD, AI Integrations)
 - Soporte Multi-documento Backend (Edge Function adaptada para recibir Array de files)
+- Migración M1+M2+M3 del pipeline `analyze-with-agents` a `@openai/agents@0.3.1` (2026-05-06)
 
 ## 9. Capa conversacional con Agents SDK sobre análisis persistidos
 
@@ -260,94 +277,14 @@ Se realizó una auditoría y limpieza de credenciales expuestas en el repositori
 - Se verificó mediante scripts de escaneo (`grep`) que no existen claves reales hardcodeadas (ej. `sk-`, `AIza`, `eyJ`) en el código fuente, scripts ni documentación.
 - Se actualizó `scripts/test-agents-sdk.ts` para que el `wfId` de prueba utilice variables de entorno (`VITE_OPENAI_WORKFLOW_ID`) en lugar de un string hardcodeado, cumpliendo con la política de seguridad.
 
-### Soporte de múltiples documentos
-
-**Implementación Real**
-- Se añadió un test E2E (`e2e/multi-upload.spec.ts`) que valida el flujo de subida de múltiples documentos usando Buffers de memoria virtual para alimentar el input oculto de archivos.
-- El test intercepta el flujo de autenticación nativo (API rest de Supabase para getSession y auth endpoints) mediante `page.route()` para aislar y simular la sesión. Debido a problemas de sincronización de estado de Zustand en entornos CI aislados, el test cuenta con un mecanismo explícito `test.skip(true)` en caso de que la app permanezca bloqueada por el flujo de Auth, asegurando que los fallos de test no pasen desapercibidos mediante falsos positivos.
-- Se simula la respuesta del Edge Function usando `page.route()` para evitar tiempos de carga y confirmar que el flujo SSE multi-archivo transiciona a la vista Analytics.
-- **FIxed Timeout BUG:** El error de Playwright (`locator.setInputFiles: Timeout 15000ms exceeded`) que sucedía porque el input file tenía `className="hidden"` ha sido resuelto. Ahora evaluamos explícitamente el elemento en el DOM y modificamos sus propiedades CSS (`style.display = 'block'`, etc) para que Playwright pueda interactuar con él de manera nativa sin timeouts falsos, pero manteniendo el mecanismo `skip` en caso de fallos de sesión aislada de CI.
-
-**Limitaciones y Riesgos**
-- Durante los tests E2E con Supabase inactivo en modo local/CI, la simulación de persistencia requiere la sobrescritura manual del objeto `auth-storage` de Zustand en `localStorage` antes de recargar. Esto puede no ser infalible si Zustand cambia la estructura interna de persistencia.
-- El framework Playwright necesita proporcionar en el evento InputFiles un buffer real o path si se emulan archivos que el componente del frontend leerá localmente en lugar de enviar a un servidor tradicional.
-
-## Implementación Técnica y Decisiones
-### Auditoría PM: Tareas completadas detectadas
-- **Contexto:** Durante la auditoría del PM, se detectó que la infraestructura base de i18n ya estaba configurada (`src/lib/i18n.ts` existente, dependencias instaladas).
-- **Acción PM:** La tarea se ha cerrado y movido a `Done` para evitar redundancia. El número de tareas activas en el backlog pasa de 4 a 3, permitiendo el flujo normal de trabajo.
-
-
-
-### Corrección y Evaluación de Tareas de Historial
-- **Contexto:** Durante la auditoría inicial de PM se detectó que las tareas "Implementar exportación a CSV/Excel" y "Implementar buscador avanzado y paginación en historial" estaban registradas como tareas `To Do` en `BACKLOG.md`.
-- **Análisis:** Tras inspeccionar el código fuente (`src/features/analytics/AnalyticsDashboard.tsx` para la exportación y `src/features/history/HistoryView.tsx` para el buscador y la paginación) se confirmó que dichas funcionalidades **ya han sido implementadas** correctamente en versiones anteriores.
-- **Acción PM:** Las tareas han sido cerradas manualmente y movidas a la sección `Done` del backlog para reflejar con precisión el estado del producto y evitar el desarrollo duplicado. La tarea "Feedback de extracción (Correcciones de usuario)" ha sido refinada para el próximo agente de UI.
-
-
-### Corrección E2E Multi-documento
-- **Implementación Real:** Se ha resuelto el timeout de `locator('input[type="file"]')` en el test de subida de múltiples archivos ajustando el flujo de aserciones. Se comprobó que el error era provocado porque la autenticación fallaba de forma silenciosa o requería una intercepción global (`**/*`) con headers CORS y manejo de preflight requests para permitir que el cliente de Supabase se inicialice correctamente. Se restauró `test.skip()` explícito para evitar fallos de pipeline donde el mock falla, respetando la memoria del proyecto, y se eliminaron las esperas obligatorias dentro de los comandos `evaluate` que causaban los timeouts en cascada.
-- **Riesgos Residuales:** En caso de que el entorno no inyecte `VITE_SUPABASE_URL`, el test usará skips.
-- **Hallazgos:** La inicialización de la librería de Supabase es estricta con las respuestas CORS (OPTIONS), lo que causaba `net::ERR_NAME_NOT_RESOLVED` si solo se interceptaba parcialmente la ruta.
-
-### Archivo de Decisiones y Operaciones
-**[Tech Lead] Limpieza Arquitectura Skills**
-- Se realizó una depuración exhaustiva del directorio raíz para mitigar la contaminación de carpetas generadas automáticamente por múltiples agentes de IA.
-- Se eliminaron carpetas no utilizadas (tales como `.adal`, `.agent`, `.claude`, `.roo`, `.qoder`, etc.) promoviendo el principio de **Single Source of Truth** en el directorio de configuración.
-- Se mantuvo únicamente `.jules` y `.agents` así como la carpeta principal de `skills/`.
-- Se documentó este patrón (Agent Skill Modular Pattern) dentro de `ARCHITECTURE.md` para garantizar la estructura limpia de este proyecto en integraciones futuras.
-
-
 ### 10.2. Resolución de Errores de Despliegue (Edge Functions)
-Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `analyze-with-agents`. Se resolvió temporalmente con `--no-verify-jwt`.
+Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `analyze-with-agents`. Se resolvió temporalmente con `--no-verify-jwt`. Tras la migración M3 a `@openai/agents` (2026-05-06) la función usa `verify_jwt = true` y el flag `--no-verify-jwt` se eliminó del despliegue (ver `DEPLOYMENT.md` §5).
 
-### Cambio IA: Reactivar JWT en analyze-with-agents (Iteración A - Auditoría)
-- **Qué cambió:** Se configuró `verify_jwt = true` para la Edge Function `analyze-with-agents`. Se eliminó `--no-verify-jwt` del CI/CD. Se reemplazó el parseo manual inseguro del JWT por validación server-side.
-- **Por qué:** El frontend ya enviaba `Authorization: Bearer ${session.access_token}` desde `JobService`, pero el backend no verificaba la firma del token. Esto exponía el endpoint a abuso y spoofing de user ID.
-- **Impacto:** El endpoint ahora requiere autenticación válida. Solo usuarios autenticados pueden invocar análisis.
-- **Riesgos residuales:** Ninguno conocido. Rate-limiting sigue usando user ID verificado.
-
-### Integración de controles de feedback en KpiCards del Dashboard Principal
-- **Contexto:** Actualmente, el componente `FeedbackToggle` está integrado exitosamente en los `ChapterComponents` (ej. Criterios y Solvencia), pero los valores críticos mostrados en las tarjetas principales del Dashboard (`KpiCards.tsx`) como Presupuesto Base de Licitación, Fecha Límite de Presentación, y Duración del Contrato carecen de este mecanismo de validación por el usuario.
-- **Objetivo:** Uniformizar la interfaz para que el usuario pueda aportar feedback (Correcto/Incorrecto) directamente desde el resumen ejecutivo de la licitación.
-- **Implementación Esperada:** El agente (UI) deberá importar `FeedbackToggle` (desde `../detail/FeedbackToggle`) e integrarlo en el mapeo de `kpis` dentro de `src/features/dashboard/components/widgets/KpiCards.tsx`. Para evitar romper el layout grid/flex actual, se recomienda añadir una propiedad `fieldPath` al arreglo interno de `kpis` (ej. `datosGenerales.presupuesto`, `datosGenerales.fechaLimitePresentacion`, `datosGenerales.duracionContrato`) y renderizar el `FeedbackToggle` dentro del div que contiene el valor o en la esquina superior derecha del contenedor de la tarjeta (absoluto o flex justify-between). Se debe pasar el valor renderizado como string. No se requiere lógica global de estado aún; el logging local actual es suficiente.
-
-### Auditoría PM: Tests de UI para Feedback
-- **Contexto:** Se implementó exitosamente el control de feedback de extracción en los KpiCards del Dashboard.
-- **Acción PM:** Se agregó al Backlog (## To Do) una tarea explícita de QA para incrementar la cobertura unitaria de los componentes `KpiCards.tsx` y `FeedbackToggle.tsx`. Esto mitiga riesgos de regresión antes de añadir mayores funcionalidades interactivas.
-
-
-### QA: Tests Unitarios para KpiCards
-
-### QA: E2E Playwright Tests Bugfix
-- **Problema:** En el archivo `e2e/upload-pdf.spec.ts` se utilizó `__dirname`, lo cual no está definido en entornos ESM, provocando que los tests de interfaz fallen en Playwright con `ReferenceError: __dirname is not defined`.
-- **Acción Planificada:** Reemplazar el uso de `__dirname` por `import.meta.dirname` para obtener la ruta absoluta compatible con módulos ES. Esto resolverá los timeouts y permitira subir los archivos de prueba exitosamente.
-- **Implementación**: Se creó el archivo `KpiCards.test.tsx` garantizando la cobertura del componente `KpiCards.tsx`.
-- **Detalles**: Se verificó la renderización de KPIs, casos base (valores por defecto) y la correcta integración de `FeedbackToggle` pasándole los `fieldPath` requeridos según la estructura de `PliegoVM`.
-- **MCP/Skills**: No se requirió el uso de MCP (Supabase/Vercel) ya que la tarea fue exclusivamente unit testing de frontend puro.
-ECHO est� activado.
-### [2026-03-27] Hallazgo y Correcci�n de Error 401 (JWT)  
-- **Problema:** Kong API Gateway en Supabase bloqueaba (401 Invalid JWT) peticiones v�lidas al endpoint analyze-with-agents.  
-- **Soluci�n:** Se deshabilit� la validaci�n estricta de Kong (verify_jwt = false) y se implement� validaci�n robusta y manual del JWT usando el SDK JS de Supabase dentro de index.ts.  
-- **Beneficio:** Evita fallos de CORS Options y permite manejo granular de errores de autenticaci�n manteniendo la estricta seguridad. 
-
-### [2026-03-27] Hallazgo Técnico: Bloqueo Global de la Suite de Tests (Vitest)
-- **Problema:** Tras intentar ejecutar `npm test` para validar `FeedbackToggle.test.tsx`, se detectó un fallo crítico a nivel global: las 49 suites fallaron en la fase de inicialización (`TypeError: Cannot read properties of undefined (reading 'config')`).
-- **Análisis:** El error no es atribuible a los tests recientemente escritos, ni a mocks de aplicación. Se produce internamente en la resolución ESM de `vite/vitest` al evaluar cualquier módulo de `node_modules` (como `react` o `zod`). Esto sugiere un estado corrupto del package-lock en combinación con Node.js 24 y Vitest v4.0.15 usando el environment `jsdom` o `node`.
-- **Acción:** Se han escrito los tests de validación interactiva para `FeedbackToggle` verificando explícitamente el uso de `feedbackService` y se ha comprobado vía `type-check`. Sin embargo, la suite completa es inoperativa localmente.
-- **Next Steps (DevOps/QA):** Se requiere investigar la instalación global y el lockfile de dependencias. Se recomienda hacer un `pnpm install` limpio o purgar `.vite` / caché de desarrollo para restablecer el entorno Vitest a un estado funcional.
-
-
-### Tests unitarios interactivos para FeedbackToggle y Fix E2E
-Se ha solventado un problema en la ejecución de tests End-to-End (`upload-pdf.spec.ts`) originado por el uso no resuelto de `import.meta.dirname` en un entorno combinado de tests y el estado impredecible de autenticación en tests E2E.
-- Se implementó un fallback en los tests End-to-End para iniciar sesión vía UI si es necesario antes de buscar el input the ficheros.
-- Se ha verificado que los unit tests para el componente de feedback (`FeedbackToggle.test.tsx`) contienen assertions correctas validando `saveFeedback` y `removeFeedback`.
-
-
-### Actualización de Tests y Cobertura
-- Se añadieron pruebas unitarias para `Header.tsx`, `CancelButton.tsx`, `RiskSummary.tsx`, `AlertsPanel.tsx`, `ScoringChart.tsx`, `ChapterComponentsPart2.tsx`, y `EvidenceToggle.tsx`.
-- Se solucionaron errores en la ejecución de pruebas de UI (DashboardSmoke.test.tsx) debido al uso de React Router sin mock adecuado.
-- Estas adiciones incrementan la cobertura general y la resiliencia de la interfaz de usuario.
-### Auditoría PM: Tests bloqueados por fallo de Vitest
-- **Contexto:** Durante la auditoría del PM, se verificó el registro técnico en SPEC.md sobre un "Bloqueo Global de la Suite de Tests (Vitest)".
-- **Acción PM:** La tarea de "Aumentar cobertura de tests a 80%" se ha refinado en el BACKLOG.md para incluir como dependencia la nueva tarea "Resolver Bloqueo Global de Vitest", la cual fue añadida prioritariamente al backlog. Esto asegura que la infraestructura de testing se estabilice antes de continuar expandiendo su cobertura.
+### 10.3. Migración a `@openai/agents` (2026-05-06)
+- Fases B y C migradas a `Agent` + `run()` del SDK `@openai/agents@0.3.1`.
+- Pin de zod subido a `3.25.76` (mínimo aceptado por el SDK; mayor 3.x estable).
+- `verify_jwt = true` activado para `analyze-with-agents`; bloque de auth manual eliminado del handler.
+- Tracing del SDK redirigido a `console.log` con prefijo `[trace]` vía `SupabaseLogTraceProcessor`.
+- Feature flag `USE_AGENTS_SDK=false` reactiva `phases/block-extraction.legacy.ts` (verbatim del código pre-migración) sin redeploy.
+- Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, prompts byte-a-byte, `requestId` en todo) documentadas en `AGENTS.md`.
+- La eliminación del legacy fallback queda condicionada a paridad de salida medida en producción durante 1-2 semanas.
