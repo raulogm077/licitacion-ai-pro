@@ -5,8 +5,8 @@
  *   A. Ingesta → B. Mapa Documental → C. Extracción por Bloques →
  *   D. Consolidación → E. Validación
  *
- * Fase B usa @openai/agents (Agent + run()). Fases C-E mantienen su
- * implementación previa hasta que M2 las migre.
+ * Fases B y C usan @openai/agents (Agent + run()). Fases A, D, E mantienen
+ * código imperativo (sin LLM, no se benefician del SDK).
  */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
@@ -44,12 +44,9 @@ if (!OPENAI_API_KEY) {
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const MAX_REQUESTS_MSG = '10 análisis/hora';
 
-// Bridge SDK traces into Supabase logs once at module load — the SDK keeps
-// processors in a module-global registry, so registering inside the handler
-// would leak processors on every cold start.
+// Bridge SDK traces into Supabase logs once at module load.
 setTraceProcessors([new SupabaseLogTraceProcessor()]);
 
-// Guide content bundled at deploy time via guide-content.ts
 const guideContent = GUIDE_CONTENT;
 if (!guideContent || guideContent.length < 100) {
     throw new Error('Guide content failed to load or is too short');
@@ -59,18 +56,15 @@ console.log(`[init] Guía de lectura cargada: ${guideContent.length} chars`);
 // ─── Main Handler ─────────────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-    // CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: getCorsHeaders(req) });
     }
 
-    // Per-request id used to correlate SSE events, log lines and SDK trace spans.
     const requestId = crypto.randomUUID();
 
     try {
         console.log(`[analyze] Request received reqId=${requestId}`);
 
-        // 0. Authentication
         const authHeader = req.headers.get('authorization') || '';
         const token = authHeader.replace('Bearer ', '');
 
@@ -102,7 +96,6 @@ serve(async (req: Request) => {
             });
         }
 
-        // Rate limiting
         const rateCheck = checkRateLimit(user.id);
         if (!rateCheck.allowed) {
             const retryAfterSec = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
@@ -121,7 +114,6 @@ serve(async (req: Request) => {
             );
         }
 
-        // 1. Validate payload
         const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
         if (contentLength > MAX_PAYLOAD_BYTES) {
             return new Response(
@@ -132,7 +124,6 @@ serve(async (req: Request) => {
             );
         }
 
-        // 2. Parse request
         const { pdfBase64, filename, template, files } = await req.json();
 
         if (!pdfBase64 && (!files || files.length === 0)) {
@@ -147,7 +138,6 @@ serve(async (req: Request) => {
             console.log(`[analyze] Additional documents: ${files.length}`);
         }
 
-        // Opportunistic cleanup of expired resources (non-blocking)
         runOpportunisticCleanup(openai, async () => {
             const { data } = await supabaseClient
                 .from('analysis_jobs')
@@ -171,13 +161,11 @@ serve(async (req: Request) => {
             })
         );
 
-        // 3. Create SSE stream with pipeline execution
         const encoder = new TextEncoder();
         const readable = new ReadableStream({
             async start(controller) {
                 let completed = false;
 
-                // SSE helpers
                 const sendEvent = <T extends AnalysisStreamEvent['type']>(
                     type: T,
                     data: Omit<Extract<AnalysisStreamEvent, { type: T }>, 'type' | 'timestamp'>
@@ -207,7 +195,6 @@ serve(async (req: Request) => {
                     });
                 };
 
-                // Keepalive heartbeat
                 const keepAlive = setInterval(() => {
                     if (completed) {
                         clearInterval(keepAlive);
@@ -216,13 +203,11 @@ serve(async (req: Request) => {
                     sendEvent('heartbeat', {});
                 }, 10000);
 
-                // Track resources for cleanup on error
                 let vectorStoreId: string | undefined;
                 let fileIds: string[] | undefined;
                 const jobService = new JobService(supabaseClient);
                 let jobId: string | null = null;
 
-                // Timeout with resource cleanup
                 const timeoutId = setTimeout(() => {
                     if (!completed) {
                         console.error(`[analyze] Execution timeout reqId=${requestId}`);
@@ -251,14 +236,13 @@ serve(async (req: Request) => {
                             files,
                             onProgress: (update) => sendProgress('ingestion', update),
                         }),
-                        API_CALL_TIMEOUT_MS * 2, // 3min — uploads + indexing can be slow
+                        API_CALL_TIMEOUT_MS * 2,
                         'Ingestion'
                     );
                     vectorStoreId = ingestion.vectorStoreId;
                     fileIds = ingestion.fileIds;
                     sendEvent('phase_completed', { phase: 'ingestion', message: 'Documentos indexados' });
 
-                    // Persist job via JobService
                     try {
                         jobId = await jobService.createJob(
                             user.id,
@@ -271,12 +255,10 @@ serve(async (req: Request) => {
                         console.warn('[analyze] Failed to persist job:', dbErr);
                     }
 
-                    // Build the per-request PipelineContext now that ingestion finished.
-                    // Phases B and (eventually) C consume this through the SDK's run().
                     const pipelineContext = createPipelineContext({
                         vectorStoreId: ingestion.vectorStoreId,
                         fileNames: ingestion.fileNames,
-                        guideExcerpt: '', // populated per phase
+                        guideExcerpt: '',
                         userId: user.id,
                         requestId,
                         customTemplate: template ?? null,
@@ -301,7 +283,6 @@ serve(async (req: Request) => {
                     }
 
                     // ═══ FASE C: EXTRACCIÓN POR BLOQUES ═══
-                    // (Legacy path until M2 migrates this phase too.)
                     sendEvent('phase_started', { phase: 'extraction', message: 'Extrayendo información...' });
                     const extraction = await runBlockExtraction({
                         openai,
@@ -309,6 +290,7 @@ serve(async (req: Request) => {
                         documentMap,
                         guideContent,
                         template,
+                        context: pipelineContext,
                         onProgress: (msg, idx, total) => {
                             sendProgress('extraction', msg);
                             sendEvent('extraction_progress', {
@@ -375,7 +357,6 @@ serve(async (req: Request) => {
                         message: `Quality: ${workflow.quality?.overall || 'N/A'}`,
                     });
 
-                    // ═══ COMPLETE ═══
                     const finalOutput = { result, workflow };
                     console.log(
                         `[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`
@@ -396,7 +377,6 @@ serve(async (req: Request) => {
                             .failJob(jobId, errMsg)
                             .catch((e) => console.warn('[analyze] Job DB update failed:', e));
                     }
-                    // Cleanup OpenAI resources on pipeline failure (non-blocking)
                     if (vectorStoreId || fileIds) {
                         cleanupJobResources(openai, vectorStoreId, fileIds).catch((e) =>
                             console.warn('[analyze] Error cleanup failed:', e)
