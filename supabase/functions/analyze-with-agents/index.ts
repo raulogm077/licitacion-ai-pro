@@ -5,13 +5,19 @@
  *   A. Ingesta → B. Mapa Documental → C. Extracción por Bloques →
  *   D. Consolidación → E. Validación
  *
- * Usa Responses API de OpenAI con file_search para cada fase.
- * SSE para progreso en tiempo real.
+ * Fase B usa @openai/agents (Agent + run()). Fases C-E mantienen su
+ * implementación previa hasta que M2 las migre.
  */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limiter.ts';
 import OpenAI from 'npm:openai@6.33.0';
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — npm: specifier resolved by Deno
+import { setTraceProcessors } from '../_shared/agents/sdk.ts';
+import { SupabaseLogTraceProcessor } from '../_shared/agents/tracing.ts';
+import { createPipelineContext } from '../_shared/agents/context.ts';
 
 // Phase imports
 import { runIngestion } from './phases/ingestion.ts';
@@ -28,7 +34,7 @@ import { GUIDE_CONTENT } from './guide-content.ts';
 import type { AnalysisPhase, AnalysisStreamEvent } from '../../../src/shared/analysis-contract.ts';
 import type { IngestionProgressUpdate } from './phases/ingestion.ts';
 
-// ─── Configuration ────────────────────────────────────────────────────────────
+// ─── Configuration ─────────────────────────────────────────────────────────────────────────
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 if (!OPENAI_API_KEY) {
@@ -38,6 +44,11 @@ if (!OPENAI_API_KEY) {
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const MAX_REQUESTS_MSG = '10 análisis/hora';
 
+// Bridge SDK traces into Supabase logs once at module load — the SDK keeps
+// processors in a module-global registry, so registering inside the handler
+// would leak processors on every cold start.
+setTraceProcessors([new SupabaseLogTraceProcessor()]);
+
 // Guide content bundled at deploy time via guide-content.ts
 const guideContent = GUIDE_CONTENT;
 if (!guideContent || guideContent.length < 100) {
@@ -45,7 +56,7 @@ if (!guideContent || guideContent.length < 100) {
 }
 console.log(`[init] Guía de lectura cargada: ${guideContent.length} chars`);
 
-// ─── Main Handler ─────────────────────────────────────────────────────────────
+// ─── Main Handler ─────────────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
     // CORS
@@ -53,8 +64,11 @@ serve(async (req: Request) => {
         return new Response('ok', { headers: getCorsHeaders(req) });
     }
 
+    // Per-request id used to correlate SSE events, log lines and SDK trace spans.
+    const requestId = crypto.randomUUID();
+
     try {
-        console.log('[analyze] Request received');
+        console.log(`[analyze] Request received reqId=${requestId}`);
 
         // 0. Authentication
         const authHeader = req.headers.get('authorization') || '';
@@ -128,7 +142,7 @@ serve(async (req: Request) => {
             });
         }
 
-        console.log(`[analyze] Processing: ${filename || 'documento.pdf'}`);
+        console.log(`[analyze] Processing: ${filename || 'documento.pdf'} reqId=${requestId}`);
         if (files && files.length > 0) {
             console.log(`[analyze] Additional documents: ${files.length}`);
         }
@@ -153,6 +167,7 @@ serve(async (req: Request) => {
             console.warn('[analyze] Opportunistic cleanup failed:', {
                 error: err instanceof Error ? err.message : String(err),
                 userId: user.id,
+                requestId,
             })
         );
 
@@ -210,7 +225,7 @@ serve(async (req: Request) => {
                 // Timeout with resource cleanup
                 const timeoutId = setTimeout(() => {
                     if (!completed) {
-                        console.error('[analyze] Execution timeout');
+                        console.error(`[analyze] Execution timeout reqId=${requestId}`);
                         if (vectorStoreId || fileIds) {
                             cleanupJobResources(openai, vectorStoreId, fileIds).catch((e) =>
                                 console.warn('[analyze] Timeout cleanup failed:', e)
@@ -256,12 +271,21 @@ serve(async (req: Request) => {
                         console.warn('[analyze] Failed to persist job:', dbErr);
                     }
 
+                    // Build the per-request PipelineContext now that ingestion finished.
+                    // Phases B and (eventually) C consume this through the SDK's run().
+                    const pipelineContext = createPipelineContext({
+                        vectorStoreId: ingestion.vectorStoreId,
+                        fileNames: ingestion.fileNames,
+                        guideExcerpt: '', // populated per phase
+                        userId: user.id,
+                        requestId,
+                        customTemplate: template ?? null,
+                    });
+
                     // ═══ FASE B: MAPA DOCUMENTAL ═══
                     sendEvent('phase_started', { phase: 'document_map', message: 'Analizando estructura...' });
                     const documentMap = await runDocumentMap({
-                        openai,
-                        vectorStoreId: ingestion.vectorStoreId,
-                        fileNames: ingestion.fileNames,
+                        context: pipelineContext,
                         guideContent,
                         onProgress: (msg) => sendProgress('document_map', msg),
                     });
@@ -277,6 +301,7 @@ serve(async (req: Request) => {
                     }
 
                     // ═══ FASE C: EXTRACCIÓN POR BLOQUES ═══
+                    // (Legacy path until M2 migrates this phase too.)
                     sendEvent('phase_started', { phase: 'extraction', message: 'Extrayendo información...' });
                     const extraction = await runBlockExtraction({
                         openai,
@@ -352,7 +377,9 @@ serve(async (req: Request) => {
 
                     // ═══ COMPLETE ═══
                     const finalOutput = { result, workflow };
-                    console.log(`[analyze] Pipeline completed. Quality: ${workflow.quality?.overall}`);
+                    console.log(
+                        `[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`
+                    );
 
                     if (jobId) {
                         jobService
@@ -363,7 +390,7 @@ serve(async (req: Request) => {
                     sendEvent('complete', finalOutput);
                 } catch (error: unknown) {
                     const errMsg = mapOpenAIError(error);
-                    console.error('[analyze] Pipeline error:', error);
+                    console.error(`[analyze] Pipeline error reqId=${requestId}:`, error);
                     if (jobId) {
                         jobService
                             .failJob(jobId, errMsg)
@@ -398,7 +425,7 @@ serve(async (req: Request) => {
             },
         });
     } catch (error: unknown) {
-        console.error('[analyze] Error:', error);
+        console.error(`[analyze] Error reqId=${requestId}:`, error);
         return new Response(
             JSON.stringify({
                 error: error instanceof Error ? error.message : 'Internal server error',
