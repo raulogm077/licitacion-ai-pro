@@ -18,7 +18,7 @@ Este documento es obligatorio actualizarlo cuando cambie cualquiera de estos pun
 
 ## 3. Vista general
 
-La aplicación analiza documentos PDF de licitaciones usando una Edge Function con **OpenAI Responses API** organizada en un **pipeline de 5 fases**, con streaming de progreso al frontend mediante **Server-Sent Events (SSE)**. Además, incorpora una capa conversacional productiva con **OpenAI Agents SDK** sobre análisis ya persistidos, sin alterar el flujo batch vigente.
+La aplicación analiza documentos PDF de licitaciones usando una Edge Function con **OpenAI Responses API** organizada en un **pipeline de 5 fases**, con streaming de progreso al frontend mediante **Server-Sent Events (SSE)**. Las fases B y C se invocan a través del SDK `@openai/agents@0.3.1` (Agent + run() + guardrails declarativos), que se apoya internamente en Responses API. Además, incorpora una capa conversacional productiva con **OpenAI Agents SDK** sobre análisis ya persistidos, sin alterar el flujo batch vigente.
 
 Flujo actual:
 
@@ -27,8 +27,8 @@ Frontend
   └─ JobService.analyzeWithAgents()
        └─ Supabase Edge Function: analyze-with-agents
             ├─ Fase A: Ingesta (Files API + Vector Store)
-            ├─ Fase B: Mapa Documental (Responses API + file_search)
-            ├─ Fase C: Extracción por Bloques (~9 llamadas Responses API, concurrencia 3)
+            ├─ Fase B: Mapa Documental (Agent + run() + file_search)
+            ├─ Fase C: Extracción por Bloques (~9 Agents + run(), concurrencia 3)
             ├─ Fase D: Consolidación (merge + prelación documental)
             └─ Fase E: Validación Final (quality scoring)
                  └─ SSE → Frontend (progreso por fase + reintentos + resultado)
@@ -74,36 +74,47 @@ Cualquier cambio relevante en este servicio obliga a revisar este documento.
 
 ### 4.3. Edge Function `analyze-with-agents`
 
-Es el núcleo del pipeline de IA. La función requiere autenticación JWT (validado manualmente dentro de la función). El frontend envía el token de sesión en el header `Authorization: Bearer <token>` desde `JobService`.
+Es el núcleo del pipeline de IA. La autenticación está delegada al gateway de Supabase mediante `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin un JWT válido se rechazan con 401 antes de invocar la función; dentro del handler sólo resolvemos el `user` para rate-limiting y ownership.
+
+Fases B y C ya no llaman a `openai.responses.create()` directamente: invocan `run(agent, input, { context })` del SDK `@openai/agents@0.3.1`. La forma JSON se valida con `outputGuardrails` (Zod) y los errores de guardrail se mapean a mensajes de usuario en `_shared/utils/error.utils.ts`. Detalle operativo en `AGENTS.md`.
 
 Responsabilidades:
 
-- verificar la autenticación del usuario (JWT validado internamente con Supabase SDK)
-- recibir la solicitud de análisis
-- ejecutar pipeline de 5 fases usando **OpenAI Responses API** (`openai.responses.create()`)
-- cada fase usa `file_search` sobre Vector Store para acceder al contenido de los documentos
-- la "Guía de lectura de pliegos" se inyecta como contenido en los system prompts (no en Vector Store)
-- emitir eventos SSE por fase (phase_started, phase_completed, heartbeat, complete)
+- recibir la solicitud de análisis (autenticación garantizada por el gateway)
+- ejecutar pipeline de 5 fases:
+  - Fases B y C usan **`@openai/agents`** (`Agent` + `run()` + `fileSearchTool` + `outputGuardrails`)
+  - Fases A, D, E usan código imperativo (sin LLM)
+- la "Guía de lectura de pliegos" se inyecta vía `PipelineContext.guideExcerpt` (no en Vector Store)
+- emitir eventos SSE por fase (phase_started, phase_completed, heartbeat, complete) sin cambios respecto a la implementación previa
 - emitir `phase_progress` estructurado durante la indexación del Vector Store (contadores + elapsed)
+- propagar `requestId` (`crypto.randomUUID()`) en logs y trace spans
 - devolver resultado en formato canónico rico con evidencias por campo
 - persistir estado del job en `analysis_jobs` para recovery de fallos parciales
 
+#### Tracing
+
+`SupabaseLogTraceProcessor` (en `_shared/agents/tracing.ts`) se registra una sola vez al cargar el módulo con `setTraceProcessors([...])`. Emite una línea `[trace]` con JSON por evento (`trace_start|trace_end|span_start|span_end`), legible con `npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'`.
+
+#### Feature flag de rollback
+
+`USE_AGENTS_SDK=false` (Supabase secret) reactiva `phases/block-extraction.legacy.ts`, copia verbatim de la implementación pre-migración basada en Responses API directa. Se elimina junto con la legacy una vez confirmada paridad de salida en producción.
+
 #### Fases del pipeline:
 
-| Fase | Descripción | Llamadas API |
-|------|-------------|--------------|
-| A: Ingesta | Subir archivos a OpenAI Files API, crear Vector Store | 0 (solo REST) |
-| B: Mapa Documental | Identificar documentos (PCAP, PPT, anexos) | 1 |
-| C: Extracción por Bloques | Extraer datos por sección (3 bloques en paralelo + retries agresivos) | ~9 |
-| D: Consolidación | Unificar bloques, resolver conflictos, prelación documental | 0 (local) |
-| E: Validación | Quality scoring, verificar campos críticos, evidencias, `partial_reasons` | 1 |
+| Fase | Descripción | Llamadas API | Implementación |
+|------|-------------|--------------|----------------|
+| A: Ingesta | Subir archivos a OpenAI Files API, crear Vector Store | 0 (solo REST) | imperativa |
+| B: Mapa Documental | Identificar documentos (PCAP, PPT, anexos) | 1 | `Agent` + `run()` + `file_search` |
+| C: Extracción por Bloques | Extraer datos por sección (3 bloques en paralelo + retries agresivos) | ~9 | `buildBlockAgent()` + `run()` por bloque + `OutputGuardrailTripwireTriggered` retry |
+| D: Consolidación | Unificar bloques, resolver conflictos, prelación documental | 0 (local) | imperativa |
+| E: Validación | Quality scoring, verificar campos críticos, evidencias, `partial_reasons` | 1 | imperativa (sin LLM, no se beneficia del SDK) |
 
 **Optimizaciones del pipeline:**
 - Fase C usa `runWithConcurrency(tasks, 3)` para ejecutar bloques en paralelo (~3x speedup)
 - Cada llamada API tiene timeout individual de 90s (`callWithTimeout`)
 - Los errores `429` y transitorios se reintentan con backoff agresivo y espera visible
 - Constantes centralizadas en `_shared/config.ts` (modelo, timeouts, concurrencia)
-- Errores de OpenAI mapeados a mensajes legibles (`mapOpenAIError`)
+- Errores de OpenAI mapeados a mensajes legibles (`mapOpenAIError`), incluyendo `Input/OutputGuardrailTripwireTriggered`
 
 ### 4.4. Edge Function `chat-with-analysis-agent`
 
@@ -111,7 +122,7 @@ Responsabilidades:
 
 Responsabilidades:
 
-- verificar JWT con el mismo patrón que `analyze-with-agents`
+- verificar JWT manualmente (aún no migrado a `verify_jwt=true`; ver DEPLOYMENT.md §5)
 - cargar un análisis existente por `analysisHash`
 - recuperar y persistir historial conversacional por sesión
 - ejecutar un manager agent con especialistas vía `agent.asTool()`
@@ -214,7 +225,7 @@ Impacto técnico:
 
 - frontend: selector de plantilla y gestión CRUD
 - backend: persistencia de plantillas con modelo RLS
-- IA: construcción dinámica de esquema
+- IA: construcción dinámica de esquema; `customTemplateAgent` aplica `templateSanitizationGuardrail` (input) que rechaza > 50 campos y limpia metacaracteres
 - documentación: `SPEC.md` y este archivo
 
 ## 7. Soporte multi-documento
@@ -285,6 +296,23 @@ Riesgos principales mitigados por la estrategia actual:
 **Decisión:** Restringir a orígenes autorizados (`licitacion-ai-pro.vercel.app`, `localhost:5173`, `localhost:3000`). Se usa `Vary: Origin` para compatibilidad con caches.
 
 **Fecha:** 2026-03-22
+
+### 8.5 Migración del pipeline de análisis a `@openai/agents` (Implementado 2026-05)
+
+**Contexto:** Las fases B y C llamaban a `openai.responses.create()` directamente con prompts hardcodeados, retry-on-bad-JSON inline y sin tracing estructurado.
+
+**Decisión:** Migrar Fase B (DocumentMap) y Fase C (BlockExtraction + custom template) al SDK `@openai/agents@0.3.1` con:
+- Prompts externalizados a `analyze-with-agents/prompts/index.ts` (copia byte-a-byte para preservar paridad).
+- `inputGuardrails` y `outputGuardrails` declarativos (`templateSanitizationGuardrail`, `jsonShapeGuardrail<T>`).
+- `SupabaseLogTraceProcessor` registrado vía `setTraceProcessors([...])` que emite `[trace]` JSON por evento del SDK.
+- `verify_jwt = true` en `supabase/config.toml` para `analyze-with-agents` (delegar validación al gateway, eliminar bloque de auth manual).
+- Feature flag `USE_AGENTS_SDK=false` que reactiva `phases/block-extraction.legacy.ts` (verbatim del código pre-migración) sin redeploy. Eliminada en PR de seguimiento tras paridad confirmada.
+
+**Restricciones duras:** `file_search` HostedTool y `outputType` con JSON schema son incompatibles en Responses API; cada Agent mantiene `outputType: 'text'` y la forma JSON se valida con `outputGuardrails`. Comentarios `// DO NOT add outputType` en cada definición. Detalle operativo en `AGENTS.md`.
+
+**SDK version:** 0.3.1 — última compatible con `zod ^3.25.40 \|\| ^4.0`. Subir a 0.3.2+ requiere migrar todos los `z.preprocess`/`.default` de los schemas a Zod 4 (deferido).
+
+**Fecha:** 2026-05-06
 
 ## 9. Responsabilidades técnicas por rol
 

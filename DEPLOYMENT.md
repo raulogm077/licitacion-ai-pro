@@ -76,11 +76,13 @@ Migraciones relevantes recientes:
 ## 5. Comando de despliegue de la Edge Function
 
 ```bash
-npx supabase functions deploy analyze-with-agents --no-verify-jwt
+npx supabase functions deploy analyze-with-agents
 npx supabase functions deploy chat-with-analysis-agent --no-verify-jwt
 ```
 
-> **Nota sobre `--no-verify-jwt`**: Este flag desactiva la validación JWT del Kong API Gateway de Supabase. La función valida el JWT internamente usando el SDK de Supabase (`supabase.auth.getUser()`), lo que permite un manejo granular de errores de autenticación y evita problemas de CORS con preflight requests.
+> **Cambio en `analyze-with-agents` (M3 de la migración a `@openai/agents`)**: la función ya no usa `--no-verify-jwt`. La validación del JWT se hace en el Kong API Gateway de Supabase vía `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin token son rechazadas con 401 antes de invocar la función. La resolución del usuario para rate-limiting y ownership sigue dentro del handler con `supabase.auth.getUser(token)`.
+>
+> **`chat-with-analysis-agent`** sigue usando `--no-verify-jwt` (validación manual interna). Si en el futuro también se migra a `verify_jwt=true`, actualizar este comando y la nota correspondiente.
 
 ### 5.1. Validación de `chat-with-analysis-agent`
 
@@ -97,6 +99,32 @@ Después del despliegue remoto:
 npx supabase functions deploy chat-with-analysis-agent --no-verify-jwt
 ```
 
+### 5.2. Smoke test de seguridad post-deploy de `analyze-with-agents`
+
+Tras desplegar la función, comprobar que `verify_jwt=true` está efectivo:
+
+```bash
+curl -i -X POST "$SUPABASE_URL/functions/v1/analyze-with-agents" \
+  -H 'Content-Type: application/json' \
+  -d '{"pdfBase64":""}'
+```
+
+Debe responder `401` desde el gateway (sin invocar el código de la función). Si responde `400` u otro código, revertir a la rama anterior — la validación JWT no está en su sitio.
+
+## 5.3. Feature flag `USE_AGENTS_SDK` (rollback de Fase C)
+
+La Fase C (extracción por bloques + plantilla personalizada) está migrada a `@openai/agents@0.3.1`. La implementación legacy basada en Responses API directa sigue presente en `supabase/functions/analyze-with-agents/phases/block-extraction.legacy.ts` y se reactiva con un secret de Supabase:
+
+```bash
+# Forzar el camino legacy sin redeploy
+npx supabase secrets set USE_AGENTS_SDK=false
+
+# Volver al camino SDK (default)
+npx supabase secrets unset USE_AGENTS_SDK
+```
+
+El flag se elimina junto con `block-extraction.legacy.ts` cuando la paridad de salida vs `main` se confirma en producción.
+
 ## 6. Secretos y configuración
 
 `OPENAI_API_KEY` debe estar configurada como secreto de Supabase para la Edge Function. No debe exponerse en el frontend.
@@ -107,6 +135,10 @@ Ejemplo de configuración:
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
+Secretos opcionales:
+
+- `USE_AGENTS_SDK=false` — desactiva temporalmente el camino `@openai/agents` en Fase C (ver §5.3).
+
 ## 7. Validación posterior al despliegue
 
 Después del despliegue, QA debe comprobar al menos:
@@ -114,12 +146,14 @@ Después del despliegue, QA debe comprobar al menos:
 - que la función figura en el listado de Supabase
 - que no hay errores inmediatos de ejecución
 - que el flujo principal sigue respondiendo como mínimo en un smoke test sobre un pliego representativo del camino principal (PDF completo)
+- que en los logs aparecen entradas con prefijo `[trace]` (al menos 1 por cada fase B y C) — verifica que el `SupabaseLogTraceProcessor` está activo
 - si se ha desplegado `chat-with-analysis-agent`, que responde al menos con `401` sin JWT y no afecta al flujo batch existente
 
 Comandos útiles:
 
 ```bash
 npx supabase functions list
+npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
 ```
 
 ## 8. Rollback operativo
@@ -129,6 +163,7 @@ Si el despliegue introduce una regresión:
 - la tarea debe volver a `## To Do` con `🐛 BUG:` y log asociado en `BACKLOG.md`
 - se debe preparar una nueva tarea correctiva
 - la documentación debe recoger el riesgo o incidencia si aplica
+- si la regresión es en Fase C → fijar `USE_AGENTS_SDK=false` (§5.3) como mitigación inmediata mientras se diagnostica
 
 ## 9. Regla documental
 
