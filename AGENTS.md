@@ -4,6 +4,14 @@ Esta nota describe cómo el pipeline de análisis usa el SDK `@openai/agents` y
 dónde vive cada pieza. Es la referencia operativa para añadir o modificar
 fases que llamen al modelo.
 
+<!-- release-contract:start -->
+- No direct work or deploy from `main`.
+- Production deploys only after a green PR is merged into `main`.
+- Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
+- If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
+- Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
+<!-- release-contract:end -->
+
 ## SDK + versión
 
 - `npm:@openai/agents@0.3.1` — última versión cuyo `peerDependency` es
@@ -11,9 +19,9 @@ fases que llamen al modelo.
   el bump está deferido (riesgo de breaking changes en `z.preprocess` y
   `.default`).
 - `npm:zod@3.25.76` — mínimo aceptado por el SDK; mayor 3.x estable.
-- Toda importación del SDK pasa por `_shared/agents/sdk.ts`. Mantener un
-  único punto evita el problema silencioso de múltiples instancias del SDK
-  cuando cada archivo pinea su propio especificador `npm:`.
+- Toda importación del SDK pasa por `_shared/agents/sdk.ts` con re-exports
+  nombrados explícitos (no `export *`). El export-* de un especificador `npm:`
+  pierde los nombres en Deno y rompe `deno check` en los consumidores.
 
 ## Layout
 
@@ -57,6 +65,10 @@ supabase/functions/analyze-with-agents/
 4. **`requestId` en todo**. `crypto.randomUUID()` se genera al inicio del
    handler y viaja en logs, en `PipelineContext` y por tanto en cada span
    del SDK. Para correlacionar SSE ↔ logs ↔ trace.
+5. **`// @ts-nocheck` a nivel módulo en consumidores del SDK**. El re-export
+   de `npm:@openai/agents@0.3.1` no expone tipos por el camino de Deno;
+   `// @ts-nocheck` evita falsos positivos de `deno check` sin afectar
+   runtime. Mismo patrón que ya usábamos en `_shared/schemas/*.ts`.
 
 ## Cómo añadir un nuevo Agent
 
@@ -64,6 +76,7 @@ supabase/functions/analyze-with-agents/
 2. Añadir las strings de instructions en `prompts/index.ts` (no inline en el agent).
 3. Crear `agents/<feature>.agent.ts`:
    ```ts
+   // @ts-nocheck
    export function buildMyAgent(vectorStoreId: string) {
      return new Agent<PipelineContext>({
        name: 'myAgent',

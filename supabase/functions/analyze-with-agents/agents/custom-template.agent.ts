@@ -15,10 +15,8 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — npm: specifier resolved by Deno
-import { Agent, fileSearchTool } from '../../_shared/agents/sdk.ts';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
+import { Agent, fileSearchTool } from '../../_shared/agents/sdk.ts';
 import { z } from 'npm:zod@3.25.76';
 import type { PipelineContext } from '../../_shared/agents/context.ts';
 import { jsonShapeGuardrail, templateSanitizationGuardrail } from '../../_shared/agents/guardrails.ts';

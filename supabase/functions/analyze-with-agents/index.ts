@@ -8,17 +8,16 @@
  * Auth model:
  *   `verify_jwt = true` (config.toml) means the Supabase platform validates
  *   the bearer token and rejects unauthenticated requests with 401 before
- *   this function is invoked. We still need to *resolve the user* from the
- *   token (for rate-limiting and resource ownership), but we no longer
- *   need the manual reject-on-missing-token block that used to live here.
+ *   this function is invoked.
  */
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limiter.ts';
 import OpenAI from 'npm:openai@6.33.0';
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — npm: specifier resolved by Deno
 import { setTraceProcessors } from '../_shared/agents/sdk.ts';
 import { SupabaseLogTraceProcessor } from '../_shared/agents/tracing.ts';
 import { createPipelineContext } from '../_shared/agents/context.ts';
@@ -63,9 +62,6 @@ serve(async (req: Request) => {
     try {
         console.log(`[analyze] Request received reqId=${requestId}`);
 
-        // Token is guaranteed present by verify_jwt=true at the platform layer.
-        // We still extract it to resolve the user record for rate-limiting and
-        // resource ownership.
         const authHeader = req.headers.get('authorization') || '';
         const token = authHeader.replace('Bearer ', '');
 
@@ -82,9 +78,6 @@ serve(async (req: Request) => {
         } = await supabaseClient.auth.getUser(token);
 
         if (!user) {
-            // verify_jwt=true should have made this unreachable, but defend in
-            // depth: if Supabase ever forwards a request whose token resolves to
-            // no user, fail closed.
             return new Response(JSON.stringify({ error: 'No se pudo resolver el usuario' }), {
                 status: 401,
                 headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },

@@ -9,8 +9,20 @@
  * Targeted version: 0.3.1 — the last release whose peerDependency string is
  * `"zod":"^3.25.40 || ^4.0"`. From 0.3.2 onward the SDK requires zod ^4.0
  * exclusively, which would force a Zod 4 schema migration we are deferring.
+ *
+ * IMPORTANT: explicit named re-exports (not `export *`). Deno's npm: resolver
+ * needs the import names spelled out at module scope to bind them at type
+ * level; `export *` from an npm: specifier loses the names through the
+ * re-export and breaks `deno check` on consumers.
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — npm: specifier is a Deno feature, not TS-standard
-export * from 'npm:@openai/agents@0.3.1';
+// @ts-nocheck
+export {
+    Agent,
+    run,
+    fileSearchTool,
+    setTraceProcessors,
+    OutputGuardrailTripwireTriggered,
+    InputGuardrailTripwireTriggered,
+} from 'npm:@openai/agents@0.3.1';

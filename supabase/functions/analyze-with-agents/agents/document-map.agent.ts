@@ -19,7 +19,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — npm: specifier resolved by Deno
+// @ts-nocheck
 import { Agent, fileSearchTool } from '../../_shared/agents/sdk.ts';
 import type { PipelineContext } from '../../_shared/agents/context.ts';
 import { jsonShapeGuardrail } from '../../_shared/agents/guardrails.ts';

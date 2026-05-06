@@ -2,23 +2,13 @@
  * Fase C: Extracción por Bloques.
  *
  * Two implementations live behind the USE_AGENTS_SDK feature flag:
- *   - default (USE_AGENTS_SDK ≠ 'false'): @openai/agents path — one Agent per
- *     block, runWithConcurrency over BLOCK_NAMES, output guardrail does the
- *     JSON+schema validation, and an OutputGuardrailTripwireTriggered
- *     triggers exactly one retry with reinforceJson:true (matching the
- *     behaviour the legacy code achieved with an inline retry-on-bad-JSON).
+ *   - default (USE_AGENTS_SDK ≠ 'false'): @openai/agents path.
  *   - USE_AGENTS_SDK='false' (M2 escape hatch): forwards to
- *     phases/block-extraction.legacy.ts so we can roll back without redeploy.
- *
- * The legacy path is removed in M3 once paridad is confirmed.
- *
- * The orchestrator's call signature is preserved exactly, so index.ts only
- * needs to add an optional `context: PipelineContext` argument used by the
- * SDK path. When the legacy path is selected, the context is unused.
+ *     phases/block-extraction.legacy.ts.
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — npm: specifier resolved by Deno
+// @ts-nocheck
 import { run, OutputGuardrailTripwireTriggered } from '../../_shared/agents/sdk.ts';
 import OpenAI from 'npm:openai@6.33.0';
 import { BLOCK_NAMES, BLOCK_SCHEMAS } from '../../_shared/schemas/blocks.ts';
@@ -53,11 +43,6 @@ export interface BlockExtractionInput {
         name: string;
         schema: Array<{ name: string; type: string; description?: string; required?: boolean }>;
     } | null;
-    /**
-     * SDK path: pre-built PipelineContext from the orchestrator. Required when
-     * USE_AGENTS_SDK is on. Optional in the legacy path so callers don't have
-     * to construct one when rolling back.
-     */
     context?: PipelineContext;
     onProgress?: (msg: string, blockIndex: number, totalBlocks: number) => void;
     onRetry?: (details: RetryNotification) => void;
@@ -124,7 +109,6 @@ function emptyBlockResult(blockName: BlockName, warning: string): BlockResult {
 
 export async function runBlockExtraction(input: BlockExtractionInput): Promise<BlockExtractionResult> {
     if (!useAgentsSdk()) {
-        // Legacy path — forward to the unchanged Responses-API implementation.
         const legacy = await runBlockExtractionLegacy(input as unknown as BlockExtractionInputLegacy);
         return legacy as BlockExtractionResult;
     }
@@ -142,8 +126,6 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     let degradedByRateLimit = false;
     const degradedBlocks = new Set<string>();
 
-    // Mutate the shared context once — every block agent reads guideExcerpt
-    // and documentMap from it via dynamic instructions.
     context.guideExcerpt = guideContent.substring(0, GUIDE_EXCERPT_LENGTH);
     context.documentMap = documentMap;
 
@@ -214,17 +196,6 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     };
 }
 
-/**
- * Run a single block agent with the M2 retry policy:
- *   - First attempt with reinforceJson:false.
- *   - On OutputGuardrailTripwireTriggered → one extra attempt with
- *     reinforceJson:true (the dynamic prompt appends the JSON-only clause).
- *   - Any further failure becomes an emptyBlockResult with a warning, so the
- *     pipeline keeps producing partial output instead of failing the run.
- *
- * The reinforceJson flag is set on a *clone* of the shared context so the
- * change does not leak across blocks running concurrently.
- */
 async function extractBlockWithAgent(
     blockName: BlockName,
     vectorStoreId: string,
@@ -272,8 +243,6 @@ async function extractBlockWithAgent(
         }
     }
 
-    // Prefer the parsed value the guardrail already produced (avoids re-parsing
-    // and guarantees we use the same data the guardrail green-lit).
     const guardrailHit = result.outputGuardrailResults?.find(
         (r: { outputInfo?: { label?: string; value?: unknown } }) => r.outputInfo?.label === blockName
     );

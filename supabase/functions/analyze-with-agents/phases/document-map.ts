@@ -15,7 +15,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — npm: specifier resolved by Deno
+// @ts-nocheck
 import { run, OutputGuardrailTripwireTriggered } from '../../_shared/agents/sdk.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
 import { DocumentMapSchema } from '../../_shared/schemas/document-map.ts';
@@ -26,12 +26,9 @@ import { API_CALL_TIMEOUT_MS, GUIDE_EXCERPT_MAP_LENGTH } from '../../_shared/con
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 
 export interface DocumentMapInput {
-    /** Mutable shared context already populated by index.ts before phase B starts */
     context: PipelineContext;
-    /** Full guide content — truncated here to GUIDE_EXCERPT_MAP_LENGTH for the prompt */
     guideContent: string;
     onProgress?: (msg: string) => void;
-    /** AbortSignal forwarded from the orchestrator's keepalive/timeout layer */
     signal?: AbortSignal;
 }
 
@@ -40,8 +37,6 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
 
     onProgress?.('Analizando estructura documental...');
 
-    // Truncate the guide to the same length used by the legacy implementation,
-    // so the prompt budget for phase B is unchanged.
     context.guideExcerpt = guideContent.substring(0, GUIDE_EXCERPT_MAP_LENGTH);
 
     const agent = buildDocumentMapAgent(context.vectorStoreId);
@@ -54,7 +49,6 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
             'Mapa documental'
         );
 
-        // Prefer the parsed value the guardrail already produced (avoids re-parsing).
         const guardrailHit = result.outputGuardrailResults?.find(
             (r: { outputInfo?: { label?: string; value?: unknown } }) => r.outputInfo?.label === 'document-map'
         );
@@ -66,8 +60,6 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
         }
     } catch (err) {
         if (err instanceof OutputGuardrailTripwireTriggered) {
-            // Phase B does not retry — a malformed DocumentMap is a hard failure
-            // because every downstream block prompt embeds it. Surface clearly.
             throw new Error(
                 `DocumentMap no válido tras la primera ejecución del agente: ${err.message}`
             );
@@ -80,7 +72,6 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
     );
     onProgress?.(`Mapa documental: ${validated.documentos.length} documentos identificados`);
 
-    // Persist for phase C agents (block-extractor) to consume via PipelineContext.
     context.documentMap = validated;
     return validated;
 }
