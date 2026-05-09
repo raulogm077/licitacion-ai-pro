@@ -1,6 +1,6 @@
 # Documentación Técnica — Analista de Pliegos
 
-> Versión: 2.5.0 | Fecha: 2026-05-09
+> Versión: 2.6.0 | Fecha: 2026-05-09
 
 ---
 
@@ -72,7 +72,7 @@ Usuario sube PDF
 
 **Auth model**: `verify_jwt = true` en `supabase/config.toml`. El gateway rechaza requests sin JWT válido con 401 antes de invocar la función. El handler sólo resuelve `user` para rate-limit y ownership. El bloque de auth manual fue eliminado en M3.
 
-**Pipeline**: 5 fases. B y C vía `Agent` + `run()`; D y E sin LLM. Detalle en `ARCHITECTURE.md`.
+**Pipeline**: 5 fases. B y C vía `Agent` + `run()` (camino único tras la eliminación del legacy fallback el 2026-05-09); D y E sin LLM. Detalle en `ARCHITECTURE.md`.
 
 ### `chat-with-analysis-agent`
 
@@ -180,14 +180,12 @@ Contrato HTTP y SSE sin cambios respecto a la implementación previa:
 # Prerrequisitos:
 pnpm typecheck && pnpm test -- --run && pnpm benchmark:pliegos && pnpm test:e2e
 
-# Deploy (NOTA: ninguna función usa --no-verify-jwt desde 2026-05-09):
+# Deploy (desde 2026-05-09 ninguna función usa --no-verify-jwt):
 npx supabase functions deploy analyze-with-agents
 npx supabase functions deploy chat-with-analysis-agent
 
 # Secrets:
 npx supabase secrets set OPENAI_API_KEY=sk-...
-# (opcional) rollback de Fase C al camino legacy:
-npx supabase secrets set USE_AGENTS_SDK=false
 ```
 
 El workflow `ci-cd.yml` (job `deploy-supabase`) ejecuta exactamente estos comandos tras un merge a `main`. El job `smoke-test` posterior valida que las dos funciones responden 401 a peticiones sin JWT.
@@ -226,9 +224,9 @@ Protege paridad semántica del pipeline tras la migración a `@openai/agents`.
 | Pin de zod | 3.25.76 | Mínimo aceptado por el SDK |
 | Auth | `verify_jwt=true` (gateway) en ambas funciones | Rechazo en gateway, menos código en handlers, postura uniforme |
 | Construcción de Agents | Per-request | `fileSearchTool` enlaza vectorStoreIds en construcción |
-| Rollback de Fase C | Feature flag `USE_AGENTS_SDK=false` | Sin redeploy |
+| Path único Fase C | `git revert` para revertir | Sin flag inline ni legacy fallback (eliminados 2026-05-09) |
 | Rollback de auth | `verify_jwt=false` + `--no-verify-jwt` | Cambio coordinado en config + comando |
 
 ---
 
-*Documentación actualizada el 2026-05-09 tras la migración de auth a gateway en ambas Edge Functions.*
+*Documentación actualizada el 2026-05-09 tras la eliminación del legacy fallback de Fase C.*

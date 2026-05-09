@@ -111,20 +111,6 @@ curl -i -X POST "$SUPABASE_URL/functions/v1/chat-with-analysis-agent" \
 
 Las dos deben responder `401` desde el gateway (sin invocar el código de la función). Si responden `400` u otro código, revertir a la rama anterior — la validación JWT no está en su sitio. El job `Smoke Test` del workflow `ci-cd.yml` automatiza esta verificación en cada deploy a `main`.
 
-## 5.3. Feature flag `USE_AGENTS_SDK` (rollback de Fase C)
-
-La Fase C (extracción por bloques + plantilla personalizada) está migrada a `@openai/agents@0.3.1`. La implementación legacy basada en Responses API directa sigue presente en `supabase/functions/analyze-with-agents/phases/block-extraction.legacy.ts` y se reactiva con un secret de Supabase:
-
-```bash
-# Forzar el camino legacy sin redeploy
-npx supabase secrets set USE_AGENTS_SDK=false
-
-# Volver al camino SDK (default)
-npx supabase secrets unset USE_AGENTS_SDK
-```
-
-El flag se elimina junto con `block-extraction.legacy.ts` cuando la paridad de salida vs `main` se confirma en producción.
-
 ## 6. Secretos y configuración
 
 `OPENAI_API_KEY` debe estar configurada como secreto de Supabase para ambas Edge Functions. No debe exponerse en el frontend.
@@ -134,10 +120,6 @@ Ejemplo de configuración:
 ```bash
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
-
-Secretos opcionales:
-
-- `USE_AGENTS_SDK=false` — desactiva temporalmente el camino `@openai/agents` en Fase C (ver §5.3).
 
 ## 7. Validación posterior al despliegue
 
@@ -164,7 +146,7 @@ Si el despliegue introduce una regresión:
 - la tarea debe volver a `## To Do` con `🐛 BUG:` y log asociado en `BACKLOG.md`
 - se debe preparar una nueva tarea correctiva
 - la documentación debe recoger el riesgo o incidencia si aplica
-- si la regresión es en Fase C → fijar `USE_AGENTS_SDK=false` (§5.3) como mitigación inmediata mientras se diagnostica
+- si la regresión es del pipeline `analyze-with-agents` (Fase B o C) → `git revert` del PR responsable y abrir issue inmediatamente. Ya no existe el flag `USE_AGENTS_SDK` que permitía alternar entre el camino SDK y el legacy sin redeploy.
 - si la regresión es de auth (peticiones legítimas rechazadas con 401) → cambiar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml`, redesplegar con `--no-verify-jwt`, y abrir issue para diagnosticar antes de revertir
 
 ## 9. Regla documental
