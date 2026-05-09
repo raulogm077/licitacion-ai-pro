@@ -113,6 +113,9 @@ supabase/functions/           # Backend (Deno Edge Functions)
     services/                 # Job service
 
 supabase/migrations/          # SQL migrations (chronological)
+scripts/                      # Repo automation invoked from package.json / CI
+  verify-ci.sh                # `pnpm verify:release` entry point
+  verify-integrity.ts         # `pnpm verify:integrity` (drift + doc coverage)
 ```
 
 ## Code Conventions
@@ -127,6 +130,8 @@ supabase/migrations/          # SQL migrations (chronological)
 - **Backend constants**: All in `_shared/config.ts` (never hardcode model names, timeouts, etc.)
 - **Agents**: ver `AGENTS.md` para el patrón de añadir un nuevo Agent o un nuevo guardrail
 - **Auth en Edge Functions**: NO reintroducir validación manual del token. Las dos funciones se apoyan en `verify_jwt = true` del gateway. Añadir `--no-verify-jwt` al `supabase functions deploy` invalida silenciosamente esta postura (sobrescribe `config.toml`).
+- **Sin docs históricos sueltos**: el repo no mantiene archivos históricos no operativos (ej. `DEPRECATED.md`, `AUDIT.md`). El historial de cambios cerrados vive como entradas fechadas en `SPEC.md`, `ARCHITECTURE.md` (§8.x) y `CHANGELOG.md`.
+- **Sin scripts de conveniencia muertos en `scripts/`**: cada `.sh` o `.ts` bajo `scripts/` debe estar invocado desde `package.json`, `.github/workflows/` o `.husky/`. Si no se usa desde uno de esos sitios, debe eliminarse en lugar de mantenerse "por si acaso".
 
 ## Database
 

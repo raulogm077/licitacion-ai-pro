@@ -121,6 +121,8 @@ Ejemplo de configuración:
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
+No hay otros secretos backend operativos. Cualquier secret remoto huérfano (ej. `USE_AGENTS_SDK`, eliminado del código el 2026-05-09) puede borrarse con `supabase secrets unset <NAME>` sin afectar runtime.
+
 ## 7. Validación posterior al despliegue
 
 Después del despliegue, QA debe comprobar al menos:
@@ -152,3 +154,12 @@ Si el despliegue introduce una regresión:
 ## 9. Regla documental
 
 Si cambia el proceso real de despliegue, este archivo debe actualizarse antes de cerrar la tarea correspondiente.
+
+## 10. Disciplina de archivos en `scripts/`
+
+Cualquier script bajo `scripts/` debe ser invocado desde `package.json`, `.github/workflows/` o `.husky/`. La verificación mínima:
+
+- `verify-ci.sh` → invocado por `pnpm verify:release` (entry point del cierre obligatorio antes de push/PR).
+- `verify-integrity.ts` → invocado por `pnpm verify:integrity` y por el job `Repo Integrity` del workflow.
+
+Si un script futuro deja de usarse desde alguno de esos sitios, debe eliminarse en lugar de mantenerse "por si acaso". El repo no conserva scripts de conveniencia muertos.

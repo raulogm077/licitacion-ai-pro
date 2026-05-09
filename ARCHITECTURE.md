@@ -345,10 +345,10 @@ Documentos operativos vigentes:
 - `BACKLOG.md`
 - `AGENTS.md`
 - `DEPLOYMENT.md`
+- `TECHNICAL_DOCS.md`
+- `CHANGELOG.md`
 
-Documento histórico no operativo:
-
-- `DEPRECATED.md`
+No existen documentos históricos no operativos en el repo. El historial de migraciones cerradas se conserva como entradas fechadas dentro de `SPEC.md` (§2.x, §10.x), `ARCHITECTURE.md` (§8.x) y `CHANGELOG.md`.
 
 ## Agent Skill Modular Pattern (Infraestructura AI)
 Para asegurar que la integración de *skills* en Jules siga principios de arquitectura limpia y evite la contaminación del proyecto raíz, el sistema adopta un modelo estricto de carpetas:

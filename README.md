@@ -60,7 +60,8 @@ Documentación viva del sistema:
 - `BACKLOG.md`: cola operativa de trabajo nocturno
 - `AGENTS.md`: reglas de funcionamiento de la fábrica de agentes (incluye postura de auth)
 - `DEPLOYMENT.md`: proceso actual de despliegue
-- `DEPRECATED.md`: referencia histórica, no operativa
+- `TECHNICAL_DOCS.md`: contratos técnicos detallados
+- `CHANGELOG.md`: historial de cambios por release
 
 ## Stack real
 
@@ -107,7 +108,7 @@ pnpm install
 
 ### Variables de entorno
 
-Crea `.env.local` a partir de la plantilla del proyecto y completa al menos:
+Crea `.env.local` a partir de `.env.example` y completa al menos:
 
 ```env
 VITE_SUPABASE_URL=https://<tu-proyecto>.supabase.co
@@ -191,7 +192,3 @@ Se debe actualizar como mínimo:
 - `README.md` si cambia stack, setup o forma de trabajo
 - `DEPLOYMENT.md` si cambia el proceso real de despliegue
 - `TECHNICAL_DOCS.md` si cambia backend, tablas o contratos técnicos
-
-## Documentación histórica
-
-`DEPRECATED.md` conserva trazabilidad de componentes retirados o migraciones antiguas. No debe usarse como fuente operativa para los agentes.

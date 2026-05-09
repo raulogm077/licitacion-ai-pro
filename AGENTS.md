@@ -96,6 +96,12 @@ supabase/functions/analyze-with-agents/
    producción. Si en el futuro hay que revertir a Responses API directa,
    el path correcto es `git revert` del PR responsable, no reanimar el
    archivo legacy ni reintroducir un flag.
+8. **Sin docs ni scripts históricos sueltos**. El repo no mantiene
+   archivos históricos no operativos (`DEPRECATED.md`, `AUDIT.md`) ni
+   scripts de conveniencia que no se invoquen desde `package.json`,
+   `.github/workflows/` o `.husky/`. La trazabilidad histórica vive como
+   entradas fechadas en `SPEC.md` (§2.x, §10.x), `ARCHITECTURE.md`
+   (§8.x) y `CHANGELOG.md`.
 
 ## Cómo añadir un nuevo Agent
 
