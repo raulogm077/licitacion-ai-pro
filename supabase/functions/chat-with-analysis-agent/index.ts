@@ -26,18 +26,25 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error('SUPABASE_URL o SUPABASE_ANON_KEY no configuradas');
 }
 
+/**
+ * Auth model:
+ *   `verify_jwt = true` (config.toml) means the Supabase platform validates
+ *   the bearer token and rejects unauthenticated requests with 401 before
+ *   this function is invoked. We still need to *resolve the user* from the
+ *   token (for ownership checks against `licitaciones` and
+ *   `analysis_chat_sessions`), but we no longer need the manual
+ *   reject-on-missing-token block that used to live here.
+ */
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(req) });
   }
 
   try {
+    // Token is guaranteed present by verify_jwt=true at the platform layer.
+    // We still extract it to resolve the user record for ownership.
     const authHeader = req.headers.get('authorization') || '';
     const token = authHeader.replace('Bearer ', '').trim();
-
-    if (!token) {
-      return jsonError(req, 401, 'Token de autenticación requerido');
-    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: `Bearer ${token}` } },
@@ -45,12 +52,13 @@ serve(async (req: Request) => {
 
     const {
       data: { user },
-      error: authError,
     } = await supabase.auth.getUser(token);
 
-    if (authError || !user) {
-      console.error('[chat-with-analysis-agent] Auth error:', authError);
-      return jsonError(req, 401, 'Token inválido o expirado');
+    if (!user) {
+      // verify_jwt=true should have made this unreachable, but defend in
+      // depth: if Supabase ever forwards a request whose token resolves to
+      // no user, fail closed.
+      return jsonError(req, 401, 'No se pudo resolver el usuario');
     }
 
     const body = ChatRequestSchema.parse(await req.json()) as ChatRequest;

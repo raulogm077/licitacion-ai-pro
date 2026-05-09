@@ -23,6 +23,24 @@ fases que llamen al modelo.
   nombrados explícitos (no `export *`). El export-* de un especificador `npm:`
   pierde los nombres en Deno y rompe `deno check` en los consumidores.
 
+## Auth model (ambas Edge Functions)
+
+Tanto `analyze-with-agents` como `chat-with-analysis-agent` usan
+`verify_jwt = true` en `supabase/config.toml`. El gateway de Supabase
+rechaza con 401 las peticiones sin JWT válido antes de invocar el
+código de la función. Esto significa:
+
+- los handlers ya no contienen el bloque "si no hay token → 401"; eso lo
+  hace el gateway.
+- los handlers sí siguen llamando a `supabase.auth.getUser(token)` para
+  resolver el `user` que se necesita para rate-limiting y ownership
+  contra `licitaciones` / `analysis_chat_sessions`.
+- el comando de despliegue NO lleva `--no-verify-jwt`. Si se añade ese
+  flag, sobrescribe la config y la función queda abierta. Detalles en
+  `DEPLOYMENT.md` §5 y §5.2.
+- el job `Smoke Test` de `ci-cd.yml` valida tras cada deploy que un POST
+  sin JWT recibe 401 desde el gateway en ambas funciones.
+
 ## Layout
 
 ```
@@ -69,6 +87,10 @@ supabase/functions/analyze-with-agents/
    de `npm:@openai/agents@0.3.1` no expone tipos por el camino de Deno;
    `// @ts-nocheck` evita falsos positivos de `deno check` sin afectar
    runtime. Mismo patrón que ya usábamos en `_shared/schemas/*.ts`.
+6. **Auth en el gateway**. NO reintroducir validación manual del token en
+   los handlers. El gateway rechaza con 401 si falta el JWT; el handler
+   sólo resuelve `user` para ownership/rate-limit. Añadir `--no-verify-jwt`
+   al despliegue invalida esta postura.
 
 ## Cómo añadir un nuevo Agent
 

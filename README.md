@@ -24,11 +24,13 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 
 ## Arquitectura actual
 
-La arquitectura vigente usa **OpenAI Responses API** con un **pipeline de 5 fases**, **Supabase Edge Functions** y **SSE** para streaming del análisis.
+La arquitectura vigente usa **OpenAI Responses API** con un **pipeline de 5 fases**, **Supabase Edge Functions** y **SSE** para streaming del análisis. Las fases B y C de `analyze-with-agents` se ejecutan a través del SDK `@openai/agents@0.3.1`.
 
 De forma complementaria, el backend incorpora una capa conversacional aislada con **OpenAI Agents SDK** sobre análisis ya persistidos. Esta capa vive en la Edge Function `chat-with-analysis-agent` y no sustituye el pipeline principal.
 
-El frontend consume esa capa desde el dashboard mediante una sección `Copiloto IA`, visible cuando la licitación cargada tiene `analysisHash`. La conversación mantiene continuidad reutilizando `sessionId` y el historial visible en `localStorage`.
+**Postura de auth**: ambas Edge Functions usan `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin un JWT válido son rechazadas con `401` por el gateway de Supabase antes de invocar el código de la función. Detalle operativo en `DEPLOYMENT.md` §5 y `AGENTS.md`.
+
+El frontend consume la capa conversacional desde el dashboard mediante una sección `Copiloto IA`, visible cuando la licitación cargada tiene `analysisHash`. La conversación mantiene continuidad reutilizando `sessionId` y el historial visible en `localStorage`.
 
 Flujo lógico actual:
 
@@ -36,8 +38,8 @@ Flujo lógico actual:
 Usuario → Frontend → Edge Function `analyze-with-agents`
                      ↓
               Fase A: Ingesta (Files API + Vector Store)
-              Fase B: Mapa Documental (Responses API)
-              Fase C: Extracción por Bloques (~9 llamadas, concurrencia 3)
+              Fase B: Mapa Documental (Agent + run() + file_search)
+              Fase C: Extracción por Bloques (~9 Agents, concurrencia 3)
               Fase D: Consolidación
               Fase E: Validación Final
                      ↓
@@ -56,7 +58,7 @@ Documentación viva del sistema:
 - `ARCHITECTURE.md`: arquitectura vigente y contratos técnicos
 - `SPEC.md`: iteración activa, criterios y decisiones
 - `BACKLOG.md`: cola operativa de trabajo nocturno
-- `AGENTS.md`: reglas de funcionamiento de la fábrica de agentes
+- `AGENTS.md`: reglas de funcionamiento de la fábrica de agentes (incluye postura de auth)
 - `DEPLOYMENT.md`: proceso actual de despliegue
 - `DEPRECATED.md`: referencia histórica, no operativa
 
@@ -75,6 +77,7 @@ Documentación viva del sistema:
 - Supabase
 - Supabase Edge Functions (Deno runtime)
 - OpenAI Responses API (pipeline por fases)
+- `@openai/agents@0.3.1` para fases B y C de `analyze-with-agents`
 - OpenAI Files API / Vector Store
 - Vercel para hosting frontend
 
