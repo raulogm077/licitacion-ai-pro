@@ -19,8 +19,6 @@ Estado funcional confirmado a fecha de esta especificación:
 - el schema canónico vive en `supabase/functions/_shared/schemas/canonical.ts`
 - la cobertura actual de tests está en progreso (~66% en statements), el objetivo de la iteración D es 80%.
 - no existen errores críticos globales en la ejecución de pruebas con vitest.
-- la cobertura actual de tests está en progreso (~66% en statements), el objetivo de la iteración D es 80%.
-- no existen errores críticos globales en la ejecución de pruebas con vitest.
 - los directorios `src/agents/` y `src/llm/` han sido eliminados (código legacy)
 - el flujo de release productivo debe pasar por PR en verde y merge a `main`
 - el runtime de análisis normaliza `cpv` a `string[]` y expone esperas de reintento al usuario
@@ -31,6 +29,7 @@ Estado funcional confirmado a fecha de esta especificación:
 - el release de superficies de análisis queda protegido por `pnpm benchmark:pliegos`
 - el backend reconcilia `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` desde bloques fiables (`economico`, `duracionYProrrogas`) solo cuando el dato general venía ausente
 - `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
+- ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
 
@@ -65,6 +64,13 @@ Decisiones vigentes:
 - `verify_jwt = true` en `supabase/config.toml` para `analyze-with-agents`; el bloque de auth manual desapareció del handler
 - feature flag `USE_AGENTS_SDK=false` (Supabase secret) reactiva `phases/block-extraction.legacy.ts` sin redeploy; se elimina cuando paridad de salida esté confirmada en producción
 - detalle operativo y reglas de "cómo añadir un nuevo Agent" en `AGENTS.md`
+
+## 2.5. Auth uniforme en Edge Functions (2026-05-09)
+
+- `chat-with-analysis-agent` migrada a `verify_jwt = true` (mismo patrón que `analyze-with-agents`). El gateway rechaza con 401 las peticiones sin JWT antes de invocar la función; el handler sólo resuelve `user` para ownership contra `licitaciones` / `analysis_chat_sessions`.
+- `.github/workflows/ci-cd.yml` ya no pasa `--no-verify-jwt` al `supabase functions deploy` para ninguna de las dos funciones. La versión previa lo seguía usando para `analyze-with-agents` incluso después de M3, lo que sobrescribía silenciosamente `config.toml` — esa regresión queda cerrada.
+- el job `Smoke Test` del workflow valida con `curl -X POST` sin Authorization que ambas funciones devuelven 401 desde el gateway tras el deploy. Si una de las dos responde otro código, el deploy falla.
+- detalle operativo en `DEPLOYMENT.md` §5 y `AGENTS.md` (Auth model).
 
 ## 3. Iteración activa
 
@@ -105,6 +111,7 @@ Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanza
 - **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. La Guía de lectura se inyecta como archivo markdown local vía `Deno.readTextFile`. Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
 - **Límites multi-documento:** Máximo 5 archivos, 30MB total. Validación en frontend (`useFileValidation.ts`) y backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
 - **Migración a `@openai/agents` (2026-05-06):** Pipeline B+C ahora ejecuta a través del SDK pinned a 0.3.1 (zod 3.25.76). Subir a 0.3.2+ requiere migrar schemas a Zod 4; deferido sine die. Eliminación del fallback `block-extraction.legacy.ts` y del flag `USE_AGENTS_SDK` queda condicionada a paridad de salida medida en producción durante 1-2 semanas.
+- **Auth uniforme (2026-05-09):** ambas Edge Functions usan `verify_jwt = true`. NO reintroducir validación manual del token en los handlers; NO añadir `--no-verify-jwt` al despliegue (sobrescribe `config.toml`). Smoke automático en `Smoke Test` del workflow protege la postura.
 
 ## 7. Riesgos y mitigaciones
 
@@ -123,6 +130,9 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 ### Riesgo 5: regresión semántica tras la migración a `@openai/agents`
 Mitigación: feature flag `USE_AGENTS_SDK=false` reactiva `block-extraction.legacy.ts` sin redeploy. La eliminación del legacy fallback queda condicionada a paridad confirmada en producción con `pnpm benchmark:pliegos` y smoke tests sobre fixtures de referencia.
 
+### Riesgo 6: regresión de auth (peticiones legítimas rechazadas con 401)
+Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la función afectada y redesplegar con `--no-verify-jwt`. El smoke automático bloquea el deploy si la postura cambia involuntariamente, evitando que el repo y producción se desincronicen.
+
 ## 8. Historial de implementación
 
 ### Implementado previamente
@@ -133,6 +143,7 @@ Mitigación: feature flag `USE_AGENTS_SDK=false` reactiva `block-extraction.lega
 - Plantillas Dinámicas de Extracción (Back, Front, CRUD, AI Integrations)
 - Soporte Multi-documento Backend (Edge Function adaptada para recibir Array de files)
 - Migración M1+M2+M3 del pipeline `analyze-with-agents` a `@openai/agents@0.3.1` (2026-05-06)
+- Auth uniforme: `chat-with-analysis-agent` migrada a `verify_jwt=true` + cierre de regresión del workflow para `analyze-with-agents` (2026-05-09)
 
 ## 9. Capa conversacional con Agents SDK sobre análisis persistidos
 
@@ -143,7 +154,7 @@ Permitir consultas conversacionales sobre análisis ya guardados sin reprocesar 
 ### 9.2. Alcance
 
 - Edge Function productiva: `supabase/functions/chat-with-analysis-agent/index.ts`
-- autenticación JWT usando el mismo patrón de `analyze-with-agents`
+- autenticación delegada al gateway de Supabase vía `verify_jwt = true` (mismo patrón que `analyze-with-agents`)
 - tools de solo lectura sobre `licitaciones`
 - persistencia de sesiones en `analysis_chat_sessions` y `analysis_chat_messages`
 - consumo desde dashboard mediante la sección `Copiloto IA`
@@ -162,6 +173,7 @@ Permitir consultas conversacionales sobre análisis ya guardados sin reprocesar 
 - `deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts` pasa
 - el dashboard muestra `Copiloto IA` solo cuando existe `analysisHash`
 - la función responde con `answer`, `citations`, `usedTools` y `sessionId`
+- un POST sin Authorization recibe 401 desde el gateway (validado en `Smoke Test` post-deploy)
 
 ### 9.6. Evolución aplicada sobre producto
 
@@ -192,93 +204,10 @@ Si la capa conversacional introduce incompatibilidades relevantes de Deno/npm o 
 - Limpieza de código muerto (config `analyze-licitacion` eliminada)
 - Actualización de documentación (BACKLOG, SPEC, ARCHITECTURE, AUDIT)
 
-### Iteración completada: Rendimiento y DX (Iteración C - Auditoría)
-- ChapterComponents refactorizados: data-driven rendering con `chapter-config.ts` + `ChapterRenderer.tsx` (~90 líneas)
-- ChapterComponents.tsx limpiado de 265→80 líneas (solo ChapterSummary), ChapterComponentsPart2.tsx de 261→50 líneas (solo TechnicalJsonModal)
-- Caching implementado: `SimpleCache` en `src/lib/cache.ts`, integrado en `db.service.ts` y `template.service.ts` con invalidación por mutaciones
-- Feature flag `enableCaching` activado por defecto
-- Docker Compose configurado: `docker-compose.yml` + `Dockerfile` para desarrollo local (PostgreSQL + Vite dev)
-- Feedback de extracción conectado a base de datos: tabla `extraction_feedback` con RLS, `FeedbackService`, `FeedbackToggle` actualizado
-- Decisiones abiertas de SPEC.md §6 resueltas (composición multi-doc, límites)
-- Tests: 251 tests en 48 suites (cache, ChapterRenderer, feedback.service)
-- Documentación actualizada: AUDIT.md, BACKLOG.md, SPEC.md
-
-### Iteración completada: Calidad de Código y Testing (Iteración B - Auditoría)
-- ESLint `no-explicit-any` escalado de "warn" a "error", 11 violaciones corregidas
-- Refactorización TemplatesPage.tsx: 417→80 líneas + useTemplates hook + TemplateForm/TemplateList/TemplateFieldEditor
-- Refactorización AnalysisWizard.tsx: 406→80 líneas + useFileValidation hook + UploadStep/AnalyzingStep/StepIndicator
-- Eliminado `eslint-disable @typescript-eslint/no-explicit-any` de Dashboard.tsx y todos los test files
-- E2E multi-upload test estabilizado: eliminado test.skip, mejorado mocking de auth
-- Cobertura de tests: 56% → 67% statements, 44% → 50% branches (231 tests, 45 suites)
-- Thresholds de cobertura subidos a 65/50/58/65
-- Tests añadidos: useFileValidation, useTemplates, auth.store, licitacion.store, analysis.store, useKeyboardShortcut, Result, file-utils, llmFactory, logger, perfTracker
-
-### 4.2. Refinamiento Multi-Documento (Frontend)
-
-El flujo de carga en `AnalysisWizard.tsx` debe modificarse de la siguiente manera:
-1.  **Estado:** Reemplazar `selectedFile` (tipo `File | null`) por `selectedFiles` (tipo `File[]`).
-2.  **Límite:** Validar que `selectedFiles.length <= 5`. Mostrar mensaje de error claro si se excede.
-3.  **Tamaño total:** Sumar el tamaño de todos los archivos en `selectedFiles` y validar contra `MAX_PDF_SIZE_BYTES` (30MB).
-4.  **UI de Listado:** Reemplazar el bloque que muestra el único archivo seleccionado por un listado mapeando `selectedFiles`. Cada elemento debe tener su botón para eliminarlo del array.
-5.  **Store:**
-    - Modificar `analyzeFile` en `analysis.store.ts` para que reciba un array `files: File[]`.
-    - Actualizar llamadas a `processFile(file)` para iterar y extraer `{ name, base64 }` de todos los documentos, pasando el primero como principal y el resto en el array `files`.
-    - Enviar el objeto o parámetros correspondientes a `services.ai.analyzePdfContent`.
-
-6.  **AI Service / Job Service:**
-    - `analyzePdfContent` en `ai.service.ts` debe recibir `files` y pasarlo a `JobService.analyzeWithAgents`.
-    - Asegurarse que el backend (`analyze-with-agents`) está preparado para el array de `files` extra que recibe `JobService`.
-
-*Nota de implementación: Es crucial que el archivo principal se pase como `pdfBase64` y los adicionales en el array `files` para mantener retrocompatibilidad con la Edge Function, o refactorizar el backend para que todo entre por `files`.*
-
-### 4.2. Refinamiento Multi-Documento (Frontend) - Implementado
-- **Estado:** Se reemplazó `selectedFile` por `selectedFiles: File[]` en `AnalysisWizard.tsx`.
-- **Límite:** Se implementó límite de 5 archivos y validación de 30MB en total de archivos.
-- **UI de Listado:** Se lista ahora un div scrolleable mostrando los nombres, tamaños y un botón de borrar para cada archivo; el primer archivo se resalta como Principal.
-- **Store:** `analyzeFile` se migró a `analyzeFiles`, procesando cada archivo secuencialmente para extracción de `base64` en `useAnalysisStore`.
-- **Servicios:** Se modificó la firma `analyzePdfContent` en `ai.service.ts` para aceptar la inyección del parámetro `files?: {name: string, base64: string}[]` que es pasado de forma íntegra a `JobService.analyzeWithAgents`.
-
-### 4.3. Refinamiento Multi-Documento (Backend AI) - Implementado
-- **Ingesta:** La Edge Function `analyze-with-agents` ingiere los documentos adicionales de forma *secuencial* para evitar picos de uso de memoria (Límite 256MB/512MB en Vercel/Supabase Edge Functions).
-- **Prompt Dinámico:** El contexto enviado a la IA declara explícitamente el documento principal y enumera los nombres de todos los archivos adicionales que configuran el "expediente".
-- **Polling:** El chequeo del estado del Vector Store de OpenAI usa ahora *Exponential Backoff* para minimizar solicitudes a la API durante la indexación.
-
-
-
-### 4.4. Refinamiento Guía de Lectura (Backend AI) - Implementado
-Se ha detectado un hueco funcional en la inyección de la **Guía de lectura de pliegos**. Actualmente el modelo instruye al agente a buscar la "Guía" con `file_search`, pero ésta no forma parte del Vector Store que la Edge Function aprovisiona en runtime.
-- **Acción Doc:** Convertida la "Guia Lectura de Pliegos .pdf" a formato `.md` y depositada directamente en `supabase/functions/analyze-with-agents/`.
-- **Acción AI:** Se ha refactorizado `analyze-with-agents/index.ts` para que lea el archivo markdown local (`Guía de lectura de pliegos.md`) usando `Deno.readTextFile`, y se inyecte de forma programática y explícita subiéndolo al Vector Store de OpenAI (`purpose: 'assistants'`) durante la ejecución de la función por cada análisis. Esto garantiza que el Agente siempre tenga acceso a las directrices de negocio para el análisis de pliegos.
-- **Acción Doc:** Convertir la "Guia Lectura de Pliegos .pdf" a formato `.md` y depositarla directamente en `supabase/functions/analyze-with-agents/`.
-- **Acción AI:** Refactorizar `analyze-with-agents/index.ts` para que incluya de forma programática y explícita el archivo markdown local en la creación del Vector Store por cada análisis.
-  - *Detalle técnico:* Se reemplazó la inyección via base64 desde el frontend (`guiaBase64`) por una lectura asíncrona local del Edge Function usando `Deno.readTextFile`, construyendo un `File` tipo `text/markdown` para subir a la API Files de OpenAI.
-
-
-## 9. Security & Secrets Management
-
-Dado que este repositorio es **público**, el manejo de secretos y variables de entorno es un área de nivel crítico.
-
-### Políticas de Seguridad
-- **Cero Secretos Hardcodeados:** Nunca incluir API keys reales (Google Gemini, OpenAI, Supabase, Vercel, Github, etc.) en texto plano dentro de código, scripts de inicialización (`.sh`, `.ts`, `.py`), archivos JSON, o documentación.
-- **Inyección Dinámica:** Todo token o secreto debe inyectarse estrictamente a través del sistema de variables de entorno de la infraestructura subyacente (ej. Variables de entorno de Vercel, Supabase Secrets, o GitHub Secrets para CI/CD).
-- **Uso de Entornos de Ejemplo:** Todo ejemplo o template (ej. `.env.example`) debe utilizar *placeholders* genéricos (`your-api-key-here`, `sk-XXXXX...`).
-- **Prevención proactiva:** Utilizar herramientas pre-commit o CI (como detect-secrets o hooks similares) para prevenir y alertar la inclusión accidental de material sensible en futuras modificaciones del repositorio.
-El incumplimiento de esta política expone infraestructura de producción de manera global y detendrá el pase a los entornos correspondientes.
-
 ## 10. Hallazgos Técnicos y Mantenimiento
 
-### QA: E2E Playwright Tests Bugfix
-- **Problema:** En el archivo `e2e/upload-pdf.spec.ts` se utilizó `__dirname`, lo cual no está definido en entornos ESM, provocando que los tests de interfaz fallen en Playwright con `ReferenceError: __dirname is not defined`.
-- **Acción Planificada:** Reemplazar el uso de `__dirname` por `import.meta.dirname` para obtener la ruta absoluta compatible con módulos ES. Esto resolverá los timeouts y permitira subir los archivos de prueba exitosamente.
-
-### 10.1. Limpieza de Credenciales (Sentinel)
-Se realizó una auditoría y limpieza de credenciales expuestas en el repositorio:
-- Se eliminaron las referencias directas y prompts para solicitar `GEMINI_KEY` / `VITE_GEMINI_API_KEY` en `scripts/setup-vercel-env.sh`, ya que Gemini ha sido reemplazado por la arquitectura server-side de OpenAI y el código no debe incitar a configurar variables obsoletas o exponer claves.
-- Se verificó mediante scripts de escaneo (`grep`) que no existen claves reales hardcodeadas (ej. `sk-`, `AIza`, `eyJ`) en el código fuente, scripts ni documentación.
-- Se actualizó `scripts/test-agents-sdk.ts` para que el `wfId` de prueba utilice variables de entorno (`VITE_OPENAI_WORKFLOW_ID`) en lugar de un string hardcodeado, cumpliendo con la política de seguridad.
-
 ### 10.2. Resolución de Errores de Despliegue (Edge Functions)
-Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `analyze-with-agents`. Se resolvió temporalmente con `--no-verify-jwt`. Tras la migración M3 a `@openai/agents` (2026-05-06) la función usa `verify_jwt = true` y el flag `--no-verify-jwt` se eliminó del despliegue (ver `DEPLOYMENT.md` §5).
+Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `analyze-with-agents`. Se resolvió temporalmente con `--no-verify-jwt`. Tras la migración M3 a `@openai/agents` (2026-05-06) la función usa `verify_jwt = true` y el flag `--no-verify-jwt` se eliminó del comando documentado de despliegue. La regresión latente en el workflow de CI (que seguía pasando `--no-verify-jwt` y sobrescribía silenciosamente la config) quedó cerrada el 2026-05-09 junto con la migración equivalente de `chat-with-analysis-agent`.
 
 ### 10.3. Migración a `@openai/agents` (2026-05-06)
 - Fases B y C migradas a `Agent` + `run()` del SDK `@openai/agents@0.3.1`.
@@ -288,3 +217,9 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 - Feature flag `USE_AGENTS_SDK=false` reactiva `phases/block-extraction.legacy.ts` (verbatim del código pre-migración) sin redeploy.
 - Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, prompts byte-a-byte, `requestId` en todo) documentadas en `AGENTS.md`.
 - La eliminación del legacy fallback queda condicionada a paridad de salida medida en producción durante 1-2 semanas.
+
+### 10.4. Auth uniforme en ambas Edge Functions (2026-05-09)
+- `chat-with-analysis-agent` migrada a `verify_jwt = true` con el mismo patrón que `analyze-with-agents`. El handler retira el bloque "if (!token) → 401" y se queda con `auth.getUser(token)` para resolver el `user` y un `if (!user)` defensivo.
+- `.github/workflows/ci-cd.yml`: `deploy-supabase` deja de pasar `--no-verify-jwt` para ambas funciones. La versión previa lo seguía pasando para `analyze-with-agents`, lo que sobrescribía silenciosamente la config y dejaba la función abierta tras los deploys de producción.
+- `Smoke Test` del workflow gana un nuevo paso que verifica con `curl -X POST` sin `Authorization` que ambas funciones devuelven 401 desde el gateway tras cada deploy a `main`. Si la respuesta no es 401, el deploy falla.
+- Documentación: `DEPLOYMENT.md` §5 (comando sin `--no-verify-jwt`), §5.2 (smoke), §8 (rollback de auth); `AGENTS.md` (Auth model + regla dura nº 6); `README.md` (postura de auth en la sección Arquitectura).

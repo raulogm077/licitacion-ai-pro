@@ -45,7 +45,7 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 - **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (3 concurrent + retries visibles) -> D:Consolidation -> E:Validation
 - **`@openai/agents` (Fases B y C)**: cada fase con LLM construye `Agent<PipelineContext>` por request, con `fileSearchTool` y `jsonShapeGuardrail`. Detalles y reglas en [`AGENTS.md`](./AGENTS.md).
 - **Tracing**: `SupabaseLogTraceProcessor` emite `[trace]` JSON por evento del SDK. `grep '\[trace\]'` reconstruye la ejecución completa.
-- **Auth**: `verify_jwt=true` en `supabase/config.toml` — el gateway rechaza requests sin JWT antes de invocar la función. El handler sólo resuelve el usuario para rate-limit y ownership.
+- **Auth**: `verify_jwt = true` en `supabase/config.toml` para **AMBAS** Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`). El gateway rechaza con 401 las peticiones sin JWT válido antes de invocar la función; el handler sólo resuelve `user` para rate-limit (analyze) y ownership (chat). El comando de despliegue NO debe llevar `--no-verify-jwt`. Detalle en `AGENTS.md` (Auth model) y `DEPLOYMENT.md` §5.
 - **Feature flag de rollback**: `USE_AGENTS_SDK=false` (Supabase secret) reactiva el camino legacy de Fase C vía `phases/block-extraction.legacy.ts`. Se elimina cuando la paridad se confirma en producción.
 - **Primary product path**: The supported release path is one complete expediente PDF; partial docs are accepted but must surface structured `partial_reasons`
 
@@ -83,6 +83,11 @@ polls `/status/:job_id` instead of SSE streaming.
 Security scanning uses **OSV Scanner** which reads `pnpm-lock.yaml` directly against
 Google's OSV database. Only HIGH/CRITICAL vulnerabilities fail CI.
 The CI step parses JSON output and filters by `database_specific.severity`.
+
+The `Smoke Test` job in `.github/workflows/ci-cd.yml` also asserts post-deploy
+that `verify_jwt=true` is actually effective on both Edge Functions (a POST
+without `Authorization` must return 401 from the gateway, otherwise the
+deploy fails).
 
 ## Project Structure
 
@@ -122,6 +127,7 @@ supabase/migrations/          # SQL migrations (chronological)
 - **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK)
 - **Backend constants**: All in `_shared/config.ts` (never hardcode model names, timeouts, etc.)
 - **Agents**: ver `AGENTS.md` para el patrón de añadir un nuevo Agent o un nuevo guardrail
+- **Auth en Edge Functions**: NO reintroducir validación manual del token. Las dos funciones se apoyan en `verify_jwt = true` del gateway. Añadir `--no-verify-jwt` al `supabase functions deploy` invalida silenciosamente esta postura (sobrescribe `config.toml`).
 
 ## Database
 
@@ -209,7 +215,8 @@ single request.
 - `supabase/functions/analyze-with-agents/index.ts` — Pipeline orchestrator (registra `setTraceProcessors` y construye `PipelineContext`)
 - `supabase/functions/analyze-with-agents/agents/*.agent.ts` — Agent factories
 - `supabase/functions/analyze-with-agents/prompts/index.ts` — Prompt strings
+- `supabase/functions/chat-with-analysis-agent/index.ts` — Conversational layer (verify_jwt=true en gateway)
 - `supabase/functions/_shared/agents/{context,guardrails,tracing,sdk}.ts` — Infraestructura compartida del SDK
 - `supabase/functions/_shared/config.ts` — Backend constants
 - `supabase/functions/_shared/schemas/canonical.ts` — Canonical schema (source of truth)
-- `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, etc.)
+- `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, Auth model, etc.)
