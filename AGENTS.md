@@ -60,8 +60,7 @@ supabase/functions/analyze-with-agents/
   phases/
     ingestion.ts                        — Fase A (sin LLM)
     document-map.ts                     — wrapper de Agent + run()
-    block-extraction.ts                 — wrapper de Agent + run() + flag legacy
-    block-extraction.legacy.ts          — camino legacy (eliminar tras paridad)
+    block-extraction.ts                 — wrapper de Agent + run() (single path; legacy fallback eliminado)
     consolidation.ts                    — Fase D (sin LLM)
     validation.ts                       — Fase E (sin LLM)
   __tests__/agents.test.ts              — tests unitarios de guardrails
@@ -78,8 +77,9 @@ supabase/functions/analyze-with-agents/
    que se construyen 1 + 9 + 1 agents por petición. Coste despreciable
    (objetos JS planos, ~µs).
 3. **Prompts byte-a-byte**. Las strings en `prompts/index.ts` son copia
-   literal de las que vivían en `phases/*.ts`. No reescribirlas mientras la
-   migración no haya pasado el gate de paridad contra `main`.
+   literal de las que vivían en `phases/*.ts` antes de la migración. Si se
+   reescriben hace falta justificarlo y validar paridad semántica con
+   `pnpm benchmark:pliegos`.
 4. **`requestId` en todo**. `crypto.randomUUID()` se genera al inicio del
    handler y viaja en logs, en `PipelineContext` y por tanto en cada span
    del SDK. Para correlacionar SSE ↔ logs ↔ trace.
@@ -91,6 +91,11 @@ supabase/functions/analyze-with-agents/
    los handlers. El gateway rechaza con 401 si falta el JWT; el handler
    sólo resuelve `user` para ownership/rate-limit. Añadir `--no-verify-jwt`
    al despliegue invalida esta postura.
+7. **Sin fallback inline**. El antiguo `phases/block-extraction.legacy.ts`
+   y el flag `USE_AGENTS_SDK` se eliminaron una vez confirmada paridad en
+   producción. Si en el futuro hay que revertir a Responses API directa,
+   el path correcto es `git revert` del PR responsable, no reanimar el
+   archivo legacy ni reintroducir un flag.
 
 ## Cómo añadir un nuevo Agent
 

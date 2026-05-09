@@ -30,6 +30,7 @@ Estado funcional confirmado a fecha de esta especificación:
 - el backend reconcilia `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` desde bloques fiables (`economico`, `duracionYProrrogas`) solo cuando el dato general venía ausente
 - `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
 - ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
+- el camino @openai/agents para Fase C es único; el antiguo fallback `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
 
@@ -62,7 +63,6 @@ Decisiones vigentes:
 - `inputGuardrails` (`templateSanitizationGuardrail`) bloquea plantillas personalizadas con > 50 campos antes de invocar al LLM
 - `SupabaseLogTraceProcessor` emite líneas `[trace]` JSON por evento del SDK; `npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'` reconstruye una ejecución completa
 - `verify_jwt = true` en `supabase/config.toml` para `analyze-with-agents`; el bloque de auth manual desapareció del handler
-- feature flag `USE_AGENTS_SDK=false` (Supabase secret) reactiva `phases/block-extraction.legacy.ts` sin redeploy; se elimina cuando paridad de salida esté confirmada en producción
 - detalle operativo y reglas de "cómo añadir un nuevo Agent" en `AGENTS.md`
 
 ## 2.5. Auth uniforme en Edge Functions (2026-05-09)
@@ -71,6 +71,12 @@ Decisiones vigentes:
 - `.github/workflows/ci-cd.yml` ya no pasa `--no-verify-jwt` al `supabase functions deploy` para ninguna de las dos funciones. La versión previa lo seguía usando para `analyze-with-agents` incluso después de M3, lo que sobrescribía silenciosamente `config.toml` — esa regresión queda cerrada.
 - el job `Smoke Test` del workflow valida con `curl -X POST` sin Authorization que ambas funciones devuelven 401 desde el gateway tras el deploy. Si una de las dos responde otro código, el deploy falla.
 - detalle operativo en `DEPLOYMENT.md` §5 y `AGENTS.md` (Auth model).
+
+## 2.6. Eliminación del legacy fallback de Fase C (2026-05-09)
+
+- `phases/block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` (Supabase secret) **eliminados**. Paridad de salida ya confirmada en producción tras los deploys de PR #275 y #276.
+- `phases/block-extraction.ts` queda como camino único: lee de `BlockExtractionInput.context` (ahora obligatorio) y llama directamente a `buildBlockAgent(...)` + `run()`.
+- Si en el futuro hay que revertir la migración, el path correcto es `git revert` del PR responsable; **no** reanimar `block-extraction.legacy.ts` ni reintroducir el flag inline.
 
 ## 3. Iteración activa
 
@@ -110,7 +116,7 @@ Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanza
 
 - **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. La Guía de lectura se inyecta como archivo markdown local vía `Deno.readTextFile`. Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
 - **Límites multi-documento:** Máximo 5 archivos, 30MB total. Validación en frontend (`useFileValidation.ts`) y backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
-- **Migración a `@openai/agents` (2026-05-06):** Pipeline B+C ahora ejecuta a través del SDK pinned a 0.3.1 (zod 3.25.76). Subir a 0.3.2+ requiere migrar schemas a Zod 4; deferido sine die. Eliminación del fallback `block-extraction.legacy.ts` y del flag `USE_AGENTS_SDK` queda condicionada a paridad de salida medida en producción durante 1-2 semanas.
+- **Migración a `@openai/agents` (2026-05-06):** Pipeline B+C ejecuta a través del SDK pinned a 0.3.1 (zod 3.25.76). Subir a 0.3.2+ requiere migrar schemas a Zod 4; deferido sine die. Tras confirmar paridad en producción (PR #275 + #276) se eliminaron `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` (2026-05-09).
 - **Auth uniforme (2026-05-09):** ambas Edge Functions usan `verify_jwt = true`. NO reintroducir validación manual del token en los handlers; NO añadir `--no-verify-jwt` al despliegue (sobrescribe `config.toml`). Smoke automático en `Smoke Test` del workflow protege la postura.
 
 ## 7. Riesgos y mitigaciones
@@ -127,8 +133,8 @@ Mitigación: dividir cualquier épica en entregables de una sola sesión.
 ### Riesgo 4: desalineación con la Guía de lectura
 Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la guía antes de entregar.
 
-### Riesgo 5: regresión semántica tras la migración a `@openai/agents`
-Mitigación: feature flag `USE_AGENTS_SDK=false` reactiva `block-extraction.legacy.ts` sin redeploy. La eliminación del legacy fallback queda condicionada a paridad confirmada en producción con `pnpm benchmark:pliegos` y smoke tests sobre fixtures de referencia.
+### Riesgo 5: regresión semántica del pipeline @openai/agents
+Mitigación: tras eliminar el legacy fallback, la única reversión disponible es `git revert` del PR responsable. `pnpm benchmark:pliegos` sigue siendo el gate de paridad y debe quedar verde antes de cada merge a `main` que toque el pipeline.
 
 ### Riesgo 6: regresión de auth (peticiones legítimas rechazadas con 401)
 Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la función afectada y redesplegar con `--no-verify-jwt`. El smoke automático bloquea el deploy si la postura cambia involuntariamente, evitando que el repo y producción se desincronicen.
@@ -144,6 +150,7 @@ Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la
 - Soporte Multi-documento Backend (Edge Function adaptada para recibir Array de files)
 - Migración M1+M2+M3 del pipeline `analyze-with-agents` a `@openai/agents@0.3.1` (2026-05-06)
 - Auth uniforme: `chat-with-analysis-agent` migrada a `verify_jwt=true` + cierre de regresión del workflow para `analyze-with-agents` (2026-05-09)
+- Eliminación del legacy fallback de Fase C: `block-extraction.legacy.ts` + flag `USE_AGENTS_SDK` retirados (2026-05-09)
 
 ## 9. Capa conversacional con Agents SDK sobre análisis persistidos
 
@@ -190,20 +197,6 @@ Alcance aplicado:
 
 Si la capa conversacional introduce incompatibilidades relevantes de Deno/npm o del runtime de Supabase Edge con `@openai/agents`, se debe desactivar su despliegue y rediseñar fuera del camino crítico batch.
 
-### Implementado previamente
-- Soporte Multi-documento Frontend y QA
-- Integrar advertencias de consistencia semántica en la interfaz (`AlertsPanel`, `pliego-vm.ts`)
-- Implementar UI de feedback de extracción de usuario (`FeedbackToggle` en componentes de resultados)
-
-### Iteración completada: Consolidación de Seguridad (Iteración A - Auditoría)
-- Habilitar verificación JWT en Edge Function `analyze-with-agents`
-- Implementar detección pre-commit de secretos
-- Pre-commit hook con lint-staged
-- Configurar CSP headers y security headers en Vercel
-- Integrar FeedbackToggle en KpiCards del Dashboard
-- Limpieza de código muerto (config `analyze-licitacion` eliminada)
-- Actualización de documentación (BACKLOG, SPEC, ARCHITECTURE, AUDIT)
-
 ## 10. Hallazgos Técnicos y Mantenimiento
 
 ### 10.2. Resolución de Errores de Despliegue (Edge Functions)
@@ -214,12 +207,16 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 - Pin de zod subido a `3.25.76` (mínimo aceptado por el SDK; mayor 3.x estable).
 - `verify_jwt = true` activado para `analyze-with-agents`; bloque de auth manual eliminado del handler.
 - Tracing del SDK redirigido a `console.log` con prefijo `[trace]` vía `SupabaseLogTraceProcessor`.
-- Feature flag `USE_AGENTS_SDK=false` reactiva `phases/block-extraction.legacy.ts` (verbatim del código pre-migración) sin redeploy.
 - Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, prompts byte-a-byte, `requestId` en todo) documentadas en `AGENTS.md`.
-- La eliminación del legacy fallback queda condicionada a paridad de salida medida en producción durante 1-2 semanas.
 
 ### 10.4. Auth uniforme en ambas Edge Functions (2026-05-09)
 - `chat-with-analysis-agent` migrada a `verify_jwt = true` con el mismo patrón que `analyze-with-agents`. El handler retira el bloque "if (!token) → 401" y se queda con `auth.getUser(token)` para resolver el `user` y un `if (!user)` defensivo.
 - `.github/workflows/ci-cd.yml`: `deploy-supabase` deja de pasar `--no-verify-jwt` para ambas funciones. La versión previa lo seguía pasando para `analyze-with-agents`, lo que sobrescribía silenciosamente la config y dejaba la función abierta tras los deploys de producción.
 - `Smoke Test` del workflow gana un nuevo paso que verifica con `curl -X POST` sin `Authorization` que ambas funciones devuelven 401 desde el gateway tras cada deploy a `main`. Si la respuesta no es 401, el deploy falla.
 - Documentación: `DEPLOYMENT.md` §5 (comando sin `--no-verify-jwt`), §5.2 (smoke), §8 (rollback de auth); `AGENTS.md` (Auth model + regla dura nº 6); `README.md` (postura de auth en la sección Arquitectura).
+
+### 10.5. Eliminación del legacy fallback de Fase C (2026-05-09)
+- `phases/block-extraction.legacy.ts` retirado (~12.5 KB) tras confirmar paridad.
+- `phases/block-extraction.ts` queda como camino único: el `if (!useAgentsSdk()) { ... }` y el helper `useAgentsSdk()` desaparecen; `BlockExtractionInput.context` pasa a obligatorio.
+- Flag `USE_AGENTS_SDK` (Supabase secret) ya no se lee en código. Si quedan secrets remotos con ese nombre se pueden borrar con `supabase secrets unset USE_AGENTS_SDK` (no afecta runtime).
+- Documentación: referíncias eliminadas en DEPLOYMENT.md (§5.3 retirada, §6, §8), CLAUDE.md (key patterns), AGENTS.md (regla dura nº 7 nueva), ARCHITECTURE.md (§4.3), TECHNICAL_DOCS.md (§8, §10, §13).

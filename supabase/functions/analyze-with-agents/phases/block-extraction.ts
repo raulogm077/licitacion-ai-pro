@@ -1,10 +1,11 @@
 /**
  * Fase C: Extracción por Bloques.
  *
- * Two implementations live behind the USE_AGENTS_SDK feature flag:
- *   - default (USE_AGENTS_SDK ≠ 'false'): @openai/agents path.
- *   - USE_AGENTS_SDK='false' (M2 escape hatch): forwards to
- *     phases/block-extraction.legacy.ts.
+ * Cada bloque se ejecuta a través del SDK `@openai/agents` (Agent + run() +
+ * outputGuardrails). El fallback legacy basado en Responses API directa fue
+ * eliminado una vez confirmada la paridad de salida en producción. Si en el
+ * futuro hubiera que revertir, el path correcto es `git revert` del PR de
+ * migración M2 — no reintroducir un flag inline.
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -29,10 +30,6 @@ import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 import { getRetryReason } from '../../_shared/utils/retry.ts';
 import type { RetryReason } from '../../_shared/utils/retry.ts';
-import {
-    runBlockExtractionLegacy,
-    type BlockExtractionInputLegacy,
-} from './block-extraction.legacy.ts';
 
 export interface BlockExtractionInput {
     openai: OpenAI;
@@ -43,7 +40,11 @@ export interface BlockExtractionInput {
         name: string;
         schema: Array<{ name: string; type: string; description?: string; required?: boolean }>;
     } | null;
-    context?: PipelineContext;
+    /**
+     * Pre-built PipelineContext from the orchestrator. Now mandatory (the
+     * legacy fallback that allowed undefined was removed).
+     */
+    context: PipelineContext;
     onProgress?: (msg: string, blockIndex: number, totalBlocks: number) => void;
     onRetry?: (details: RetryNotification) => void;
 }
@@ -79,10 +80,6 @@ export interface RetryNotification {
     totalBlocks?: number;
 }
 
-function useAgentsSdk(): boolean {
-    return Deno.env.get('USE_AGENTS_SDK') !== 'false';
-}
-
 async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
     const results: T[] = new Array(items.length);
     let nextIndex = 0;
@@ -108,17 +105,7 @@ function emptyBlockResult(blockName: BlockName, warning: string): BlockResult {
 }
 
 export async function runBlockExtraction(input: BlockExtractionInput): Promise<BlockExtractionResult> {
-    if (!useAgentsSdk()) {
-        const legacy = await runBlockExtractionLegacy(input as unknown as BlockExtractionInputLegacy);
-        return legacy as BlockExtractionResult;
-    }
-
     const { vectorStoreId, documentMap, guideContent, template, context, onProgress, onRetry } = input;
-    if (!context) {
-        throw new Error(
-            'runBlockExtraction (SDK path) requires PipelineContext. Set USE_AGENTS_SDK=false to fall back to legacy.'
-        );
-    }
 
     const totalBlocks = BLOCK_NAMES.length;
     let completedCount = 0;

@@ -76,7 +76,7 @@ Cualquier cambio relevante en este servicio obliga a revisar este documento.
 
 Es el núcleo del pipeline de IA. La autenticación está delegada al gateway de Supabase mediante `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin un JWT válido se rechazan con 401 antes de invocar la función; dentro del handler sólo resolvemos el `user` para rate-limiting y ownership.
 
-Fases B y C ya no llaman a `openai.responses.create()` directamente: invocan `run(agent, input, { context })` del SDK `@openai/agents@0.3.1`. La forma JSON se valida con `outputGuardrails` (Zod) y los errores de guardrail se mapean a mensajes de usuario en `_shared/utils/error.utils.ts`. Detalle operativo en `AGENTS.md`.
+Fases B y C ya no llaman a `openai.responses.create()` directamente: invocan `run(agent, input, { context })` del SDK `@openai/agents@0.3.1`. La forma JSON se valida con `outputGuardrails` (Zod) y los errores de guardrail se mapean a mensajes de usuario en `_shared/utils/error.utils.ts`. Detalle operativo en `AGENTS.md`. Tras confirmar paridad en producción se eliminó `phases/block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK`; el camino SDK queda como único y la única vía de revertir la migración es `git revert` del PR responsable.
 
 Responsabilidades:
 
@@ -94,10 +94,6 @@ Responsabilidades:
 #### Tracing
 
 `SupabaseLogTraceProcessor` (en `_shared/agents/tracing.ts`) se registra una sola vez al cargar el módulo con `setTraceProcessors([...])`. Emite una línea `[trace]` con JSON por evento (`trace_start|trace_end|span_start|span_end`), legible con `npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'`.
-
-#### Feature flag de rollback
-
-`USE_AGENTS_SDK=false` (Supabase secret) reactiva `phases/block-extraction.legacy.ts`, copia verbatim de la implementación pre-migración basada en Responses API directa. Se elimina junto con la legacy una vez confirmada paridad de salida en producción.
 
 #### Fases del pipeline:
 
@@ -122,7 +118,7 @@ Responsabilidades:
 
 Responsabilidades:
 
-- verificar JWT manualmente (aún no migrado a `verify_jwt=true`; ver DEPLOYMENT.md §5)
+- delegar la verificación del JWT al gateway (mismo patrón que `analyze-with-agents`, `verify_jwt = true`)
 - cargar un análisis existente por `analysisHash`
 - recuperar y persistir historial conversacional por sesión
 - ejecutar un manager agent con especialistas vía `agent.asTool()`
@@ -306,13 +302,14 @@ Riesgos principales mitigados por la estrategia actual:
 - `inputGuardrails` y `outputGuardrails` declarativos (`templateSanitizationGuardrail`, `jsonShapeGuardrail<T>`).
 - `SupabaseLogTraceProcessor` registrado vía `setTraceProcessors([...])` que emite `[trace]` JSON por evento del SDK.
 - `verify_jwt = true` en `supabase/config.toml` para `analyze-with-agents` (delegar validación al gateway, eliminar bloque de auth manual).
-- Feature flag `USE_AGENTS_SDK=false` que reactiva `phases/block-extraction.legacy.ts` (verbatim del código pre-migración) sin redeploy. Eliminada en PR de seguimiento tras paridad confirmada.
+
+Tras confirmar paridad de salida en producción (PRs #275 y #276), el 2026-05-09 se eliminan `phases/block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK`. Si hay que revertir la migración, el path correcto es `git revert` del PR responsable, no reanimar el archivo legacy ni reintroducir un flag inline.
 
 **Restricciones duras:** `file_search` HostedTool y `outputType` con JSON schema son incompatibles en Responses API; cada Agent mantiene `outputType: 'text'` y la forma JSON se valida con `outputGuardrails`. Comentarios `// DO NOT add outputType` en cada definición. Detalle operativo en `AGENTS.md`.
 
 **SDK version:** 0.3.1 — última compatible con `zod ^3.25.40 \|\| ^4.0`. Subir a 0.3.2+ requiere migrar todos los `z.preprocess`/`.default` de los schemas a Zod 4 (deferido).
 
-**Fecha:** 2026-05-06
+**Fecha:** 2026-05-06 (migración) + 2026-05-09 (eliminación del legacy fallback)
 
 ## 9. Responsabilidades técnicas por rol
 
