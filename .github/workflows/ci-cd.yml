@@ -79,7 +79,7 @@ jobs:
                   exit 0
 
     repo-integrity:
-        name: 🧱 Repo Integrity
+        name: 🧭🧭 Repo Integrity
         runs-on: ubuntu-latest
         timeout-minutes: 15
         steps:
@@ -433,10 +433,12 @@ jobs:
                   SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
             - name: Deploy Edge Functions
-              # JWT verification is handled manually inside the function code (supabase.auth.getUser(token)).
+              # JWT verification is delegated to the Supabase API gateway via
+              # `verify_jwt = true` in supabase/config.toml for both functions.
+              # The CLI honours that config when --no-verify-jwt is omitted.
               run: |
-                  supabase functions deploy analyze-with-agents --no-verify-jwt --project-ref "$SUPABASE_PROJECT_ID"
-                  supabase functions deploy chat-with-analysis-agent --no-verify-jwt --project-ref "$SUPABASE_PROJECT_ID"
+                  supabase functions deploy analyze-with-agents --project-ref "$SUPABASE_PROJECT_ID"
+                  supabase functions deploy chat-with-analysis-agent --project-ref "$SUPABASE_PROJECT_ID"
               env:
                   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
                   SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
@@ -498,6 +500,37 @@ jobs:
                     exit 1
                   fi
                   echo "✅ Conversational Edge Function CORS Passed."
+
+            - name: Verify Edge Function rejects unauthenticated requests
+              run: |
+                  SUPABASE_URL="https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co"
+                  echo "Verifying analyze-with-agents rejects unauthenticated requests at the gateway"
+                  HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                      -X POST \
+                      -H "Content-Type: application/json" \
+                      -d '{"pdfBase64":""}' \
+                      "$SUPABASE_URL/functions/v1/analyze-with-agents")
+                  echo "Unauthenticated POST Status: $HTTP_STATUS"
+
+                  if [ "$HTTP_STATUS" != "401" ]; then
+                    echo "❌ verify_jwt=true is not effective: expected 401, got $HTTP_STATUS"
+                    exit 1
+                  fi
+                  echo "✅ analyze-with-agents rejected unauthenticated request with 401 (gateway)."
+
+                  echo "Verifying chat-with-analysis-agent rejects unauthenticated requests at the gateway"
+                  HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                      -X POST \
+                      -H "Content-Type: application/json" \
+                      -d '{"analysisHash":"x","message":"x"}' \
+                      "$SUPABASE_URL/functions/v1/chat-with-analysis-agent")
+                  echo "Unauthenticated POST Status: $HTTP_STATUS"
+
+                  if [ "$HTTP_STATUS" != "401" ]; then
+                    echo "❌ verify_jwt=true is not effective: expected 401, got $HTTP_STATUS"
+                    exit 1
+                  fi
+                  echo "✅ chat-with-analysis-agent rejected unauthenticated request with 401 (gateway)."
 
     # 8. Docker Build Validation (parallel, does not block deploy)
     docker-build:

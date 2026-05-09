@@ -388,3 +388,10 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # at the top of index.ts. After deploy, drop --no-verify-jwt from the
 # `supabase functions deploy` command (see DEPLOYMENT.md).
 verify_jwt = true
+
+[functions.chat-with-analysis-agent]
+# Same auth posture as analyze-with-agents: gateway rejects unauthenticated
+# requests with 401 before invoking the function. The handler still calls
+# supabase.auth.getUser(token) to resolve the user record needed for
+# ownership checks against `licitaciones` and `analysis_chat_sessions`.
+verify_jwt = true

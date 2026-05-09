@@ -77,39 +77,39 @@ Migraciones relevantes recientes:
 
 ```bash
 npx supabase functions deploy analyze-with-agents
-npx supabase functions deploy chat-with-analysis-agent --no-verify-jwt
+npx supabase functions deploy chat-with-analysis-agent
 ```
 
-> **Cambio en `analyze-with-agents` (M3 de la migración a `@openai/agents`)**: la función ya no usa `--no-verify-jwt`. La validación del JWT se hace en el Kong API Gateway de Supabase vía `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin token son rechazadas con 401 antes de invocar la función. La resolución del usuario para rate-limiting y ownership sigue dentro del handler con `supabase.auth.getUser(token)`.
+> **Ambas funciones usan `verify_jwt = true`** en `supabase/config.toml`. El gateway de Supabase rechaza con 401 las peticiones sin JWT válido antes de invocar el código de la función. Dentro de cada handler sólo se resuelve el `user` con `supabase.auth.getUser(token)` para rate-limiting (en `analyze-with-agents`) y ownership sobre `licitaciones` / `analysis_chat_sessions` (en `chat-with-analysis-agent`).
 >
-> **`chat-with-analysis-agent`** sigue usando `--no-verify-jwt` (validación manual interna). Si en el futuro también se migra a `verify_jwt=true`, actualizar este comando y la nota correspondiente.
+> Si en algún caso futuro hubiera que rebajar la postura para una función concreta, fijar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml` y añadir `--no-verify-jwt` al comando — nunca con un solo cambio sin el otro.
 
-### 5.1. Validación de `chat-with-analysis-agent`
+### 5.1. Validación local de las Edge Functions
 
-Antes de desplegar la función conversacional:
+Antes de desplegar:
 
 ```bash
+deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
 deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
+deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
 ```
 
-Después del despliegue remoto:
+### 5.2. Smoke test de seguridad post-deploy
 
-```bash
-npx supabase functions deploy chat-with-analysis-agent --no-verify-jwt
-```
-
-### 5.2. Smoke test de seguridad post-deploy de `analyze-with-agents`
-
-Tras desplegar la función, comprobar que `verify_jwt=true` está efectivo:
+Tras desplegar, comprobar que `verify_jwt=true` está efectivo en ambas funciones:
 
 ```bash
 curl -i -X POST "$SUPABASE_URL/functions/v1/analyze-with-agents" \
   -H 'Content-Type: application/json' \
   -d '{"pdfBase64":""}'
+
+curl -i -X POST "$SUPABASE_URL/functions/v1/chat-with-analysis-agent" \
+  -H 'Content-Type: application/json' \
+  -d '{"analysisHash":"x","message":"x"}'
 ```
 
-Debe responder `401` desde el gateway (sin invocar el código de la función). Si responde `400` u otro código, revertir a la rama anterior — la validación JWT no está en su sitio.
+Las dos deben responder `401` desde el gateway (sin invocar el código de la función). Si responden `400` u otro código, revertir a la rama anterior — la validación JWT no está en su sitio. El job `Smoke Test` del workflow `ci-cd.yml` automatiza esta verificación en cada deploy a `main`.
 
 ## 5.3. Feature flag `USE_AGENTS_SDK` (rollback de Fase C)
 
@@ -127,7 +127,7 @@ El flag se elimina junto con `block-extraction.legacy.ts` cuando la paridad de s
 
 ## 6. Secretos y configuración
 
-`OPENAI_API_KEY` debe estar configurada como secreto de Supabase para la Edge Function. No debe exponerse en el frontend.
+`OPENAI_API_KEY` debe estar configurada como secreto de Supabase para ambas Edge Functions. No debe exponerse en el frontend.
 
 Ejemplo de configuración:
 
@@ -143,17 +143,18 @@ Secretos opcionales:
 
 Después del despliegue, QA debe comprobar al menos:
 
-- que la función figura en el listado de Supabase
+- que ambas funciones figuran en el listado de Supabase
 - que no hay errores inmediatos de ejecución
 - que el flujo principal sigue respondiendo como mínimo en un smoke test sobre un pliego representativo del camino principal (PDF completo)
-- que en los logs aparecen entradas con prefijo `[trace]` (al menos 1 por cada fase B y C) — verifica que el `SupabaseLogTraceProcessor` está activo
-- si se ha desplegado `chat-with-analysis-agent`, que responde al menos con `401` sin JWT y no afecta al flujo batch existente
+- que en los logs de `analyze-with-agents` aparecen entradas con prefijo `[trace]` (al menos 1 por cada fase B y C) — verifica que el `SupabaseLogTraceProcessor` está activo
+- que tanto `analyze-with-agents` como `chat-with-analysis-agent` responden `401` ante un POST sin JWT (smoke automático en §5.2)
 
 Comandos útiles:
 
 ```bash
 npx supabase functions list
 npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
+npx supabase functions logs chat-with-analysis-agent --tail
 ```
 
 ## 8. Rollback operativo
@@ -164,6 +165,7 @@ Si el despliegue introduce una regresión:
 - se debe preparar una nueva tarea correctiva
 - la documentación debe recoger el riesgo o incidencia si aplica
 - si la regresión es en Fase C → fijar `USE_AGENTS_SDK=false` (§5.3) como mitigación inmediata mientras se diagnostica
+- si la regresión es de auth (peticiones legítimas rechazadas con 401) → cambiar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml`, redesplegar con `--no-verify-jwt`, y abrir issue para diagnosticar antes de revertir
 
 ## 9. Regla documental
 
