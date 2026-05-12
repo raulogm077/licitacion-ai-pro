@@ -17,8 +17,7 @@ Estado funcional confirmado a fecha de esta especificación:
 - la arquitectura legacy de colas/polling quedó fuera del flujo operativo principal
 - campos críticos (titulo, presupuesto, moneda, plazo, cpv, organo) usan **TrackedField** con status y evidencias
 - el schema canónico vive en `supabase/functions/_shared/schemas/canonical.ts`
-- la cobertura actual de tests está en progreso (~66% en statements), el objetivo de la iteración D es 80%.
-- no existen errores críticos globales en la ejecución de pruebas con vitest.
+- la **iteración E** quedó cerrada el 2026-05-12 con cobertura real 79.95% statements / 80.81% lines / 66% branches / 72.94% functions, fijada por `vitest.config.ts` (thresholds 79/65/72/80). No hay regresión activa de la suite Vitest.
 - los directorios `src/agents/` y `src/llm/` han sido eliminados (código legacy)
 - el flujo de release productivo debe pasar por PR en verde y merge a `main`
 - el runtime de análisis normaliza `cpv` a `string[]` y expone esperas de reintento al usuario
@@ -82,42 +81,51 @@ Decisiones vigentes:
 
 ### 3.1. Objetivo
 
-Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento y observabilidad).
+**Iteración F** — Claridad UX del Detalle, endurecimiento del flujo de auth y completar i18n EN.
+
+La iteración E (cobertura ≥79% statements + i18n base ES + Dependabot pendiente) quedó cerrada el 2026-05-12. La iteración F se centra en valor de usuario observable: que el Detalle del análisis sea visualmente más claro, que el login no tenga huecos críticos y que la app pueda mostrarse en inglés.
 
 ### 3.2. Entregables esperados
 
-1. Subir cobertura de tests al 80% statements / 70% branches.
-2. Implementar i18n multi-idioma (inglés).
-3. Configurar Dependabot para actualizaciones automáticas.
-4. Validar compatibilidad de OpenAI Agents SDK en Supabase Edge Functions mediante un spike aislado no productivo.
+1. **Banner "Análisis incompleto" + normalización de defaults a "No detectado"** en KPIs (Issue #6, entregable 1/6).
+2. **Flujo "Olvidé mi contraseña"** (`resetPasswordForEmail` + UI + ruta `/reset-password`) (Issue #4, entregable 1/2).
+3. **Diccionario EN + LanguageSwitcher** visible en la UI.
+4. **Dependabot** semanal para npm y github-actions.
+
+Los 7 entregables restantes (ProtectedRoute, StickyHeader/Subnav, RightDrawer, JsonModal, KillCriteria/Risk, Empty states con microcopy, extracción de strings del Dashboard) quedan refinados en `BACKLOG.md` bajo "Próximas iteraciones".
 
 ### 3.3. Criterios de aceptación globales
 
-- `pnpm exec vitest run --coverage` ≥80% statements, ≥70% branches.
-- La app puede cambiar entre ES y EN.
-- Dependabot crea PRs semanales.
+- Cada entregable cumple sus criterios definidos en `BACKLOG.md`.
+- Ningún entregable rompe el contrato SSE, el schema canónico ni la postura de auth `verify_jwt = true`.
+- La suite Vitest sigue verde y respeta los thresholds vigentes (79/65/72/80).
+- `pnpm benchmark:pliegos` no se ejecuta a menos que algún entregable toque pipeline o dashboard del análisis; si lo toca, debe quedar verde.
+- La app puede cambiarse entre ES y EN sin errores y la selección persiste.
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
-**Iteración D (Mantenimiento y Observabilidad)**
+**Iteración F (Claridad UX + Auth + i18n EN)**
 
-- **Testing (QA):** El test global de Vitest que bloqueaba la suite ha sido resuelto. El objetivo ahora es incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard y los componentes core de UI (`src/components/`), hasta alcanzar el 80% global.
-- **i18n (UI/Infra):** Integrar `react-i18next` u otra librería estándar. Inicializar diccionarios básicos (`es`, `en`) e implementar un selector de idioma en la interfaz. Extraer progresivamente textos hardcodeados.
-- **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
-- **Capa conversacional Agents SDK (AI/Infra):** Mantener operativa la Edge Function `chat-with-analysis-agent` para consultar análisis persistidos desde el dashboard sin alterar el pipeline batch principal.
+- **UX del Detalle (UI):** la base ya está. `src/features/dashboard/model/pliego-vm.ts` expone `isAnalysisEmpty`, `quality.bySection`, `missingCriticalFields`, `warnings[]` y `guidance`. La iteración F entrega valor sumando capa visual sobre ese ViewModel: banner cuando el análisis es vacío, KPIs que muestran "No detectado" en lugar de `0` o `[]`, y posteriormente sticky nav, drawer y empty states con microcopy aprobado en el Issue #6.
+- **Auth (Backend + UI):** el flujo actual permite login y signup, pero falta recovery y protección de rutas. La tarea de mayor valor inmediato es "Olvidé mi contraseña". La protección de rutas (`ProtectedRoute`) entra en "Próximas iteraciones".
+- **i18n EN (UI/Infra):** la infra `react-i18next` ya inicializa ES. Falta diccionario inglés, selector visible y extracción progresiva de strings hardcoded del Dashboard.
+- **Higiene (Infra):** Dependabot semanal, sin impacto runtime.
 
+El pipeline de análisis y la capa conversacional no son objetivo de esta iteración.
 
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
-Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanzados, optimización de bundle.
+
+A definir tras observar el impacto de la iteración F. Candidatos serios: completar los entregables restantes del rediseño del Detalle (Issue #6: sticky nav, drawer, JSON modal, kill criteria, empty states, extracción de strings) y endurecer auth (ProtectedRoute + UI de sesión expirada + resend de email confirmation). También: observabilidad de uso (Lighthouse en CI, visual regression con Playwright screenshots).
 
 ## 6. Decisiones cerradas
 
-- **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. La Guía de lectura se inyecta como archivo markdown local vía `Deno.readTextFile`. Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
+- **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. **La Guía de lectura se inyecta vía `PipelineContext.guideExcerpt` tras la migración M3 (ya no se sube al Vector Store; ver `ARCHITECTURE.md §4.3`).** Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
 - **Límites multi-documento:** Máximo 5 archivos, 30MB total. Validación en frontend (`useFileValidation.ts`) y backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
 - **Migración a `@openai/agents` (2026-05-06):** Pipeline B+C ejecuta a través del SDK pinned a 0.3.1 (zod 3.25.76). Subir a 0.3.2+ requiere migrar schemas a Zod 4; deferido sine die. Tras confirmar paridad en producción (PR #275 + #276) se eliminaron `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` (2026-05-09).
 - **Auth uniforme (2026-05-09):** ambas Edge Functions usan `verify_jwt = true`. NO reintroducir validación manual del token en los handlers; NO añadir `--no-verify-jwt` al despliegue (sobrescribe `config.toml`). Smoke automático en `Smoke Test` del workflow protege la postura.
+- **Cierre de iteración E (2026-05-12):** la cobertura objetivo (≥79% statements) quedó cumplida y los thresholds del proyecto se elevaron a 79/65/72/80 en `vitest.config.ts`. No reabrir como "objetivo de cobertura" en futuras iteraciones; cualquier elevación adicional pasa por nueva decisión de producto.
 
 ## 7. Riesgos y mitigaciones
 
@@ -139,6 +147,9 @@ Mitigación: tras eliminar el legacy fallback, la única reversión disponible e
 ### Riesgo 6: regresión de auth (peticiones legítimas rechazadas con 401)
 Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la función afectada y redesplegar con `--no-verify-jwt`. El smoke automático bloquea el deploy si la postura cambia involuntariamente, evitando que el repo y producción se desincronicen.
 
+### Riesgo 7: ampliar el flujo de auth sin proteger rutas existentes
+Mitigación: la tarea de "reset password" (iteración F) y la de `ProtectedRoute` (próxima iteración) están separadas. No mezclarlas en la misma sesión; introducir `ProtectedRoute` requiere validación específica de rutas públicas vs privadas y no debe colarse como side-effect del reset password.
+
 ## 8. Historial de implementación
 
 ### Implementado previamente
@@ -151,6 +162,15 @@ Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la
 - Migración M1+M2+M3 del pipeline `analyze-with-agents` a `@openai/agents@0.3.1` (2026-05-06)
 - Auth uniforme: `chat-with-analysis-agent` migrada a `verify_jwt=true` + cierre de regresión del workflow para `analyze-with-agents` (2026-05-09)
 - Eliminación del legacy fallback de Fase C: `block-extraction.legacy.ts` + flag `USE_AGENTS_SDK` retirados (2026-05-09)
+- Cobertura de tests iteración E cerrada al 79.95% statements / 80.81% lines (2026-05-12)
+
+### 2026-05-12 — Sesión PO: saneamiento de backlog + apertura de iteración F
+- `BACKLOG.md` reescrito: se consolida `## Done` en una sola sección, se eliminan duplicados (la tarea "Aumentar cobertura a 80%" aparecía simultáneamente en Done, Ready for QA y To Do), se cierran tareas obsoletas ("Resolver Bloqueo Global de Vitest" ya estaba resuelta según `§4`).
+- Se refinan 11 tareas con el formato obligatorio del rol PO: 4 activas en `To Do (Iteración F)` + 7 en `Próximas iteraciones`.
+- Se descompone el Issue #6 (rediseño Apple-like del Detalle) en 6 entregables pequeños (#2, #6, #7, #8, #9, #10 del backlog).
+- Se refina el Issue #4 (login) en 2 tareas accionables (#3 reset password, #5 ProtectedRoute) + 3 notas de deuda técnica (resend confirmation, sesión expirada, hash recovery vs subscription).
+- Issue #5 ("mejorar arquitectura") devuelto al autor por falta de contenido textual concreto (solo enlace a chat externo).
+- Corrección de §6: la Guía de lectura se inyecta vía `PipelineContext.guideExcerpt` (post-M3), no vía Vector Store como decía la redacción previa. ARCHITECTURE.md §4.3 era la fuente correcta.
 
 ## 9. Capa conversacional con Agents SDK sobre análisis persistidos
 
@@ -220,3 +240,9 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 - `phases/block-extraction.ts` queda como camino único: el `if (!useAgentsSdk()) { ... }` y el helper `useAgentsSdk()` desaparecen; `BlockExtractionInput.context` pasa a obligatorio.
 - Flag `USE_AGENTS_SDK` (Supabase secret) ya no se lee en código. Si quedan secrets remotos con ese nombre se pueden borrar con `supabase secrets unset USE_AGENTS_SDK` (no afecta runtime).
 - Documentación: referíncias eliminadas en DEPLOYMENT.md (§5.3 retirada, §6, §8), CLAUDE.md (key patterns), AGENTS.md (regla dura nº 7 nueva), ARCHITECTURE.md (§4.3), TECHNICAL_DOCS.md (§8, §10, §13).
+
+### 10.6. Cierre de iteración E + apertura de iteración F (2026-05-12)
+- `vitest.config.ts` consolida thresholds 79/65/72/80 con cobertura real 79.95% statements / 80.81% lines / 66% branches / 72.94% functions; no hay regresión de la suite.
+- `BACKLOG.md` saneado: una sola sección `## Done`, sin duplicados, sin tareas obsoletas activas; 11 tareas refinadas (4 activas en iteración F + 7 en próximas iteraciones).
+- La iteración F se abre con foco en UX del Detalle (#6 descompuesto), auth (#4 descompuesto) y i18n EN.
+- Issue #5 ("mejorar arquitectura") sin contenido accionable; devuelto al autor.
