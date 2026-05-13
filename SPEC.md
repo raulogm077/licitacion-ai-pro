@@ -30,6 +30,7 @@ Estado funcional confirmado a fecha de esta especificación:
 - `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
 - ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
 - el camino @openai/agents para Fase C es único; el antiguo fallback `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción
+- **Bug abierto (2026-05-12)**: existe asimetría de límites de tamaño entre el drop zone (`useFileValidation`: 5 archivos, 30MB total) y el inicio del análisis (`analysis.store.ts`: 4MB por archivo, no documentado). Archivos aceptados por el drop zone son rechazados con error fatal al pulsar "Analizar". Tarea en `BACKLOG.md` (To Do #1).
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
 
@@ -77,22 +78,35 @@ Decisiones vigentes:
 - `phases/block-extraction.ts` queda como camino único: lee de `BlockExtractionInput.context` (ahora obligatorio) y llama directamente a `buildBlockAgent(...)` + `run()`.
 - Si en el futuro hay que revertir la migración, el path correcto es `git revert` del PR responsable; **no** reanimar `block-extraction.legacy.ts` ni reintroducir el flag inline.
 
+## 2.7. Política de límites de Upload (auditoría 2026-05-12)
+
+Decisión recomendada (a confirmar en la implementación del bug #1):
+
+- **Límite por número de archivos**: 5 (sin cambios).
+- **Límite por tamaño total**: 30MB (sin cambios).
+- **Límite por archivo individual**: eliminado. La constante `MAX_PDF_SIZE_MB = 4` de `src/config/constants.ts` era incompatible con pliegos reales de licitación (5-20MB típicos) y rompe el upload silenciosamente.
+- Si por motivos técnicos (timeout del backend, OOM del Vector Store) hay que mantener un límite individual, fijarlo en 30MB (igual al total) para que sea coherente con la validación del drop zone.
+- El backend debe validar `files.length <= 5` y `payload <= 30MB`, no solo el `MAX_PAYLOAD_BYTES = 50MB` actual.
+- La UI debe mostrar los límites en el drop zone (hint o tooltip) y el tamaño acumulado en tiempo real (`X.X MB de 30MB`).
+
+Detalle operativo: ver tarea #1 en `BACKLOG.md` (`To Do (Iteración F)`).
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo
 
-**Iteración F** — Claridad UX del Detalle, endurecimiento del flujo de auth y completar i18n EN.
+**Iteración F** — Bug crítico de Upload + claridad UX del Detalle + endurecimiento del flujo de auth + completar i18n EN.
 
-La iteración E (cobertura ≥79% statements + i18n base ES + Dependabot pendiente) quedó cerrada el 2026-05-12. La iteración F se centra en valor de usuario observable: que el Detalle del análisis sea visualmente más claro, que el login no tenga huecos críticos y que la app pueda mostrarse en inglés.
+La iteración E (cobertura ≥79% statements + i18n base ES + Dependabot pendiente) quedó cerrada el 2026-05-12. La iteración F se centra en valor de usuario observable: resolver el bug de límites que rompe el upload, que el Detalle del análisis sea visualmente más claro, que el login no tenga huecos críticos y que la app pueda mostrarse en inglés.
 
 ### 3.2. Entregables esperados
 
-1. **Banner "Análisis incompleto" + normalización de defaults a "No detectado"** en KPIs (Issue #6, entregable 1/6).
-2. **Flujo "Olvidé mi contraseña"** (`resetPasswordForEmail` + UI + ruta `/reset-password`) (Issue #4, entregable 1/2).
-3. **Diccionario EN + LanguageSwitcher** visible en la UI.
-4. **Dependabot** semanal para npm y github-actions.
+1. **Bug: asimetría de límites de Upload** (§2.7 + tarea #1 del backlog). Prioridad máxima (regla: bugs sobre features).
+2. **Banner "Análisis incompleto" + normalización de defaults a "No detectado"** en KPIs (Issue #6, entregable 1/6).
+3. **Flujo "Olvidé mi contraseña"** (`resetPasswordForEmail` + UI + ruta `/reset-password`) (Issue #4, entregable 1/2).
+4. **Diccionario EN + LanguageSwitcher** visible en la UI.
 
-Los 7 entregables restantes (ProtectedRoute, StickyHeader/Subnav, RightDrawer, JsonModal, KillCriteria/Risk, Empty states con microcopy, extracción de strings del Dashboard) quedan refinados en `BACKLOG.md` bajo "Próximas iteraciones".
+Dependabot baja a `Próximas iteraciones` por entrada del bug crítico. Los 7 entregables visuales/auth restantes siguen en `Próximas iteraciones` con orden de prioridad.
 
 ### 3.3. Criterios de aceptación globales
 
@@ -101,15 +115,17 @@ Los 7 entregables restantes (ProtectedRoute, StickyHeader/Subnav, RightDrawer, J
 - La suite Vitest sigue verde y respeta los thresholds vigentes (79/65/72/80).
 - `pnpm benchmark:pliegos` no se ejecuta a menos que algún entregable toque pipeline o dashboard del análisis; si lo toca, debe quedar verde.
 - La app puede cambiarse entre ES y EN sin errores y la selección persiste.
+- El bug de límites queda cerrado con tests E2E que cubran el caso de PDF de 20MB (no solo `memo_p2.pdf` de 496 bytes).
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
-**Iteración F (Claridad UX + Auth + i18n EN)**
+**Iteración F (Bug Upload + UX Detalle + Auth + i18n EN)**
 
+- **Bug Upload (UI/Backend):** unificar la política de límites entre `useFileValidation`, `analysis.store.ts` y la Edge Function. Eliminar `MAX_PDF_SIZE_MB = 4`. Validar conteo de archivos en backend. Mostrar límites en UI.
 - **UX del Detalle (UI):** la base ya está. `src/features/dashboard/model/pliego-vm.ts` expone `isAnalysisEmpty`, `quality.bySection`, `missingCriticalFields`, `warnings[]` y `guidance`. La iteración F entrega valor sumando capa visual sobre ese ViewModel: banner cuando el análisis es vacío, KPIs que muestran "No detectado" en lugar de `0` o `[]`, y posteriormente sticky nav, drawer y empty states con microcopy aprobado en el Issue #6.
 - **Auth (Backend + UI):** el flujo actual permite login y signup, pero falta recovery y protección de rutas. La tarea de mayor valor inmediato es "Olvidé mi contraseña". La protección de rutas (`ProtectedRoute`) entra en "Próximas iteraciones".
 - **i18n EN (UI/Infra):** la infra `react-i18next` ya inicializa ES. Falta diccionario inglés, selector visible y extracción progresiva de strings hardcoded del Dashboard.
-- **Higiene (Infra):** Dependabot semanal, sin impacto runtime.
+- **Higiene (Infra):** Dependabot semanal, sin impacto runtime. Desplazado a próximas iteraciones por entrada del bug.
 
 El pipeline de análisis y la capa conversacional no son objetivo de esta iteración.
 
@@ -117,12 +133,12 @@ El pipeline de análisis y la capa conversacional no son objetivo de esta iterac
 
 ### 5.1. Objetivo
 
-A definir tras observar el impacto de la iteración F. Candidatos serios: completar los entregables restantes del rediseño del Detalle (Issue #6: sticky nav, drawer, JSON modal, kill criteria, empty states, extracción de strings) y endurecer auth (ProtectedRoute + UI de sesión expirada + resend de email confirmation). También: observabilidad de uso (Lighthouse en CI, visual regression con Playwright screenshots).
+A definir tras observar el impacto de la iteración F. Candidatos serios: completar los entregables restantes del rediseño del Detalle (Issue #6: sticky nav, drawer, JSON modal, kill criteria, empty states, extracción de strings) y endurecer auth (ProtectedRoute + UI de sesión expirada + resend de email confirmation). También: observabilidad de uso (Lighthouse en CI, visual regression con Playwright screenshots), recovery del análisis tras recarga, progreso por archivo durante Fase A.
 
 ## 6. Decisiones cerradas
 
 - **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. **La Guía de lectura se inyecta vía `PipelineContext.guideExcerpt` tras la migración M3 (ya no se sube al Vector Store; ver `ARCHITECTURE.md §4.3`).** Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
-- **Límites multi-documento:** Máximo 5 archivos, 30MB total. Validación en frontend (`useFileValidation.ts`) y backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
+- **Límites multi-documento (revisión 2026-05-12):** Máximo 5 archivos, 30MB total. **Sin límite individual por archivo** (decisión recomendada en §2.7; se confirma con la implementación del bug #1). La constante `MAX_PDF_SIZE_MB = 4` de `src/config/constants.ts` queda marcada para retirada porque era incompatible con pliegos reales. Validación preventiva en frontend (`useFileValidation.ts`) y validación defensiva en backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
 - **Migración a `@openai/agents` (2026-05-06):** Pipeline B+C ejecuta a través del SDK pinned a 0.3.1 (zod 3.25.76). Subir a 0.3.2+ requiere migrar schemas a Zod 4; deferido sine die. Tras confirmar paridad en producción (PR #275 + #276) se eliminaron `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` (2026-05-09).
 - **Auth uniforme (2026-05-09):** ambas Edge Functions usan `verify_jwt = true`. NO reintroducir validación manual del token en los handlers; NO añadir `--no-verify-jwt` al despliegue (sobrescribe `config.toml`). Smoke automático en `Smoke Test` del workflow protege la postura.
 - **Cierre de iteración E (2026-05-12):** la cobertura objetivo (≥79% statements) quedó cumplida y los thresholds del proyecto se elevaron a 79/65/72/80 en `vitest.config.ts`. No reabrir como "objetivo de cobertura" en futuras iteraciones; cualquier elevación adicional pasa por nueva decisión de producto.
@@ -150,6 +166,9 @@ Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la
 ### Riesgo 7: ampliar el flujo de auth sin proteger rutas existentes
 Mitigación: la tarea de "reset password" (iteración F) y la de `ProtectedRoute` (próxima iteración) están separadas. No mezclarlas en la misma sesión; introducir `ProtectedRoute` requiere validación específica de rutas públicas vs privadas y no debe colarse como side-effect del reset password.
 
+### Riesgo 8: subir límite individual a 30MB produce timeouts del backend
+Mitigación: si tras aplicar el bug #1 (sin límite individual) el pipeline empieza a fallar por timeout en archivos grandes, mantener el conteo máximo de 5 archivos y reducir el total a un valor seguro (p.ej. 20MB) o introducir límite individual en 15MB. Documentar en `§2.7`.
+
 ## 8. Historial de implementación
 
 ### Implementado previamente
@@ -164,13 +183,20 @@ Mitigación: la tarea de "reset password" (iteración F) y la de `ProtectedRoute
 - Eliminación del legacy fallback de Fase C: `block-extraction.legacy.ts` + flag `USE_AGENTS_SDK` retirados (2026-05-09)
 - Cobertura de tests iteración E cerrada al 79.95% statements / 80.81% lines (2026-05-12)
 
-### 2026-05-12 — Sesión PO: saneamiento de backlog + apertura de iteración F
+### 2026-05-12 — Sesión PO #1: saneamiento de backlog + apertura de iteración F
 - `BACKLOG.md` reescrito: se consolida `## Done` en una sola sección, se eliminan duplicados (la tarea "Aumentar cobertura a 80%" aparecía simultáneamente en Done, Ready for QA y To Do), se cierran tareas obsoletas ("Resolver Bloqueo Global de Vitest" ya estaba resuelta según `§4`).
 - Se refinan 11 tareas con el formato obligatorio del rol PO: 4 activas en `To Do (Iteración F)` + 7 en `Próximas iteraciones`.
-- Se descompone el Issue #6 (rediseño Apple-like del Detalle) en 6 entregables pequeños (#2, #6, #7, #8, #9, #10 del backlog).
-- Se refina el Issue #4 (login) en 2 tareas accionables (#3 reset password, #5 ProtectedRoute) + 3 notas de deuda técnica (resend confirmation, sesión expirada, hash recovery vs subscription).
-- Issue #5 ("mejorar arquitectura") devuelto al autor por falta de contenido textual concreto (solo enlace a chat externo).
-- Corrección de §6: la Guía de lectura se inyecta vía `PipelineContext.guideExcerpt` (post-M3), no vía Vector Store como decía la redacción previa. ARCHITECTURE.md §4.3 era la fuente correcta.
+- Se descompone el Issue #6 (rediseño Apple-like del Detalle) en 6 entregables pequeños.
+- Se refina el Issue #4 (login) en 2 tareas accionables + 3 notas de deuda técnica.
+- Issue #5 ("mejorar arquitectura") devuelto al autor por falta de contenido textual concreto.
+- Corrección de §6: la Guía de lectura se inyecta vía `PipelineContext.guideExcerpt` (post-M3), no vía Vector Store como decía la redacción previa.
+
+### 2026-05-12 — Sesión PO #2: auditoría de Upload + bug crítico
+- Auditoría funcional del flujo de upload y multi-documento detecta **asimetría de límites** entre `useFileValidation` (drop zone: 5 archivos, 30MB total) y `analysis.store.ts` (rechaza individual > 4MB según `MAX_PDF_SIZE_MB` de `src/config/constants.ts`). Esa constante no estaba documentada en SPEC y rompe el upload silenciosamente con pliegos reales de 5-20MB.
+- Bug registrado como tarea #1 de `To Do (Iteración F)` en `BACKLOG.md` con criterios de aceptación verificables.
+- Dependabot desplazado de `To Do` a `Próximas iteraciones` para respetar el límite de 4 tareas activas (regla: bugs sobre features).
+- Nueva sección `§2.7` define la política de límites recomendada (5 archivos, 30MB total, sin límite individual). `§6` actualiza la decisión cerrada de límites multi-documento. Nuevo `Riesgo 8` en `§7` cubre el caso de que el backend no aguante archivos grandes.
+- Fricciones menores adicionales registradas en `BACKLOG.md → Deuda Técnica`: sin display de límites pre-upload, sin progreso por archivo en Fase A, sin recovery post-reload, contradicción entre `ARCHITECTURE.md §7` ("carga secuencial") y el `runWithConcurrency(..., 3)` real de la ingesta.
 
 ## 9. Capa conversacional con Agents SDK sobre análisis persistidos
 
@@ -231,18 +257,24 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 
 ### 10.4. Auth uniforme en ambas Edge Functions (2026-05-09)
 - `chat-with-analysis-agent` migrada a `verify_jwt = true` con el mismo patrón que `analyze-with-agents`. El handler retira el bloque "if (!token) → 401" y se queda con `auth.getUser(token)` para resolver el `user` y un `if (!user)` defensivo.
-- `.github/workflows/ci-cd.yml`: `deploy-supabase` deja de pasar `--no-verify-jwt` para ambas funciones. La versión previa lo seguía pasando para `analyze-with-agents`, lo que sobrescribía silenciosamente la config y dejaba la función abierta tras los deploys de producción.
+- `.github/workflows/ci-cd.yml`: `deploy-supabase` deja de pasar `--no-verify-jwt` para ambas funciones.
 - `Smoke Test` del workflow gana un nuevo paso que verifica con `curl -X POST` sin `Authorization` que ambas funciones devuelven 401 desde el gateway tras cada deploy a `main`. Si la respuesta no es 401, el deploy falla.
-- Documentación: `DEPLOYMENT.md` §5 (comando sin `--no-verify-jwt`), §5.2 (smoke), §8 (rollback de auth); `AGENTS.md` (Auth model + regla dura nº 6); `README.md` (postura de auth en la sección Arquitectura).
+- Documentación: `DEPLOYMENT.md` §5, §5.2, §8; `AGENTS.md`; `README.md`.
 
 ### 10.5. Eliminación del legacy fallback de Fase C (2026-05-09)
 - `phases/block-extraction.legacy.ts` retirado (~12.5 KB) tras confirmar paridad.
-- `phases/block-extraction.ts` queda como camino único: el `if (!useAgentsSdk()) { ... }` y el helper `useAgentsSdk()` desaparecen; `BlockExtractionInput.context` pasa a obligatorio.
-- Flag `USE_AGENTS_SDK` (Supabase secret) ya no se lee en código. Si quedan secrets remotos con ese nombre se pueden borrar con `supabase secrets unset USE_AGENTS_SDK` (no afecta runtime).
-- Documentación: referíncias eliminadas en DEPLOYMENT.md (§5.3 retirada, §6, §8), CLAUDE.md (key patterns), AGENTS.md (regla dura nº 7 nueva), ARCHITECTURE.md (§4.3), TECHNICAL_DOCS.md (§8, §10, §13).
+- `phases/block-extraction.ts` queda como camino único.
+- Flag `USE_AGENTS_SDK` (Supabase secret) ya no se lee en código.
 
 ### 10.6. Cierre de iteración E + apertura de iteración F (2026-05-12)
-- `vitest.config.ts` consolida thresholds 79/65/72/80 con cobertura real 79.95% statements / 80.81% lines / 66% branches / 72.94% functions; no hay regresión de la suite.
-- `BACKLOG.md` saneado: una sola sección `## Done`, sin duplicados, sin tareas obsoletas activas; 11 tareas refinadas (4 activas en iteración F + 7 en próximas iteraciones).
+- `vitest.config.ts` consolida thresholds 79/65/72/80 con cobertura real 79.95% statements / 80.81% lines.
+- `BACKLOG.md` saneado: una sola sección `## Done`, sin duplicados, sin tareas obsoletas activas; 11 tareas refinadas.
 - La iteración F se abre con foco en UX del Detalle (#6 descompuesto), auth (#4 descompuesto) y i18n EN.
 - Issue #5 ("mejorar arquitectura") sin contenido accionable; devuelto al autor.
+
+### 10.7. Auditoría de Upload y bug de límites (2026-05-12)
+- Auditoría funcional del flujo Upload + multi-documento revela bug crítico de asimetría de límites: `useFileValidation` acepta archivos que `analysis.store.ts` rechaza con `Error` fatal.
+- `src/config/constants.ts` define `MAX_PDF_SIZE_MB = 4` que no está documentado en SPEC ni se respeta en el drop zone, y es incompatible con pliegos reales de 5-20MB.
+- Tarea registrada como #1 de `To Do (Iteración F)` con criterios verificables y archivos probables. Dependabot desplazado a `Próximas iteraciones`.
+- Documentación: nueva `§2.7` (política de límites recomendada), `§6` (decisión de límites multi-documento actualizada), `§8` (entrada de la sesión PO #2), `§7 Riesgo 8` (mitigación si los archivos grandes producen timeout backend).
+- Fricciones menores registradas en Deuda Técnica: sin display de límites pre-upload, sin progreso por archivo en Fase A, sin recovery post-reload, posible contradicción `ARCHITECTURE.md §7` (carga secuencial) vs `runWithConcurrency(..., 3)` real.

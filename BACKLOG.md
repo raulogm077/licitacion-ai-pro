@@ -6,10 +6,11 @@ Iteración E **completada**. Cobertura de tests fijada al 79.95% statements / 80
 
 Iteración F **activa**. Foco operativo:
 
+- **Bug crítico en Upload** detectado en auditoría PO del 2026-05-12: asimetría de límites entre `useFileValidation` (30MB total) y `analysis.store.ts` (4MB por archivo). Promovido a tarea #1 del To Do (regla de priorización: bugs sobre features).
 - Claridad UX del Detalle (Issue #6 descompuesto en 6 entregables pequeños).
 - Endurecimiento del flujo de autenticación (Issue #4 descompuesto en 2 entregables + deuda técnica).
 - Completar i18n EN (diccionario inglés, selector visible y extracción progresiva de strings hardcoded).
-- Higiene de plataforma (Dependabot heredado de la iteración previa).
+- Higiene de plataforma (Dependabot heredado de la iteración previa, desplazado a Próximas iteraciones por el bug).
 
 La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-agent`) está estable tras la migración M1+M2+M3 a `@openai/agents@0.3.1` y la eliminación del legacy fallback. No hay trabajo activo sobre el pipeline en esta iteración.
 
@@ -34,15 +35,39 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
 
 ## To Do (Iteración F — máx 4 activas)
 
-- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot semanal para npm y github-actions
-  - Objetivo: Automatizar la detección de dependencias vulnerables u obsoletas.
-  - Alcance: Crear `.github/dependabot.yml` con dos ecosistemas (`npm` en `/`, `github-actions` en `/`), interval `weekly`, agrupar minor/patch en un único PR cuando sea posible para reducir ruido.
+- [ ] 🐛 BUG: [Tipo: UI/Backend] [Área: Upload] Asimetría de límites de tamaño rompe el upload silenciosamente
+  - Objetivo: Eliminar el bug por el cual archivos aceptados por la validación del drop zone son rechazados con error fatal al iniciar el análisis, porque el límite individual (4MB) y el límite total (30MB) son incompatibles entre sí y con los pliegos reales (5-20MB).
+  - Reproducción:
+    1. El usuario abre el wizard de análisis.
+    2. Suelta un PDF de pliego de 5MB. `useFileValidation` lo acepta (1 archivo, 5MB ≤ 30MB total, MIME `application/pdf`). El listado muestra el archivo listo.
+    3. El usuario pulsa "Analizar".
+    4. `analysis.store.ts:56` lanza `Error: "El archivo supera el tamaño máximo permitido de 4MB. Tamaño actual: 5.00MB"`.
+    5. La UX aparenta que la app falló sin razón: no hubo advertencia previa al usuario.
+  - Evidencia:
+    - `src/features/upload/hooks/useFileValidation.ts:3-4` — `MAX_FILES = 5`, `MAX_TOTAL_SIZE = 30MB`, sin validación individual.
+    - `src/config/constants.ts:6` — `MAX_PDF_SIZE_MB = 4` (límite individual no documentado en SPEC).
+    - `src/stores/analysis.store.ts:56` (principal) y `:72` (adicionales) — lanza `Error` si el archivo supera 4MB.
+    - `supabase/functions/analyze-with-agents/index.ts` — valida `MAX_PAYLOAD_BYTES = 50MB` sobre el body, sin validar número de archivos.
+    - `SPEC.md §6` — dice "Máximo 5 archivos, 30MB total" sin mencionar límite individual.
+  - Alcance:
+    - Decidir política funcional unificada. **Recomendación PO**: eliminar el límite individual y dejar únicamente el límite total (30MB) + el límite de conteo (5 archivos). Coherente con SPEC §6 y con el tamaño real de los pliegos de licitación.
+    - Aplicar la decisión:
+      - Frontend: `useFileValidation.ts` valida cada archivo y total contra los límites unificados antes de añadirlo. Mensaje claro ("PDFs deben ser de tipo `application/pdf`, máximo 5 archivos, 30MB en total").
+      - Store: eliminar las dos checks redundantes de `MAX_PDF_SIZE_BYTES` en `analysis.store.ts` (o ajustar para que coincidan con la política del hook — nunca lanzar `Error` por algo que ya pasó la validación del drop zone).
+      - Backend: añadir validación de `files.length <= 5` y `payload <= 30MB` en la Edge Function `analyze-with-agents` (defense in depth). Devolver `400` con mensaje claro cuando se exceda.
+      - Constantes: si la decisión es eliminar el individual, retirar `MAX_PDF_SIZE_MB` y `MAX_PDF_SIZE_BYTES` de `src/config/constants.ts`. Si la decisión es mantener un límite individual razonable, fijarlo a 30MB (igual al total) y documentarlo.
+    - Mostrar los límites en la UI **antes** de que el usuario intente excederlos (hint en drop zone o tooltip en botón de adjuntar).
   - Criterios de aceptación:
-    - `.github/dependabot.yml` existe, es válido y pasa el lint del propio Dependabot.
-    - Tras merge, aparece al menos un primer PR de Dependabot dentro de 7 días.
-    - No se modifica ningún workflow existente.
-  - Archivos probables: `.github/dependabot.yml`
-  - Dependencias: Ninguna.
+    - Un único PDF de 20MB se sube y se analiza correctamente end-to-end.
+    - 5 PDFs de 6MB cada uno (30MB total) se aceptan en frontend, se envían a backend y se procesan.
+    - 6 PDFs se rechazan en frontend con mensaje claro (no se llega a invocar a la Edge Function).
+    - 31MB totales (1 PDF de 31MB) se rechazan en frontend con mensaje claro **antes** del click de "Analizar".
+    - El backend rechaza con `400` si recibe > 5 archivos o `payload > 30MB`.
+    - El listado de archivos en el wizard muestra el tamaño acumulado en tiempo real (`X.X MB de 30MB`).
+    - Sin regresión en `e2e/upload-pdf.spec.ts` ni `e2e/multi-upload.spec.ts`.
+    - SPEC.md §6 queda actualizada con la política de límites elegida.
+  - Archivos probables: `src/features/upload/hooks/useFileValidation.ts`, `src/features/upload/components/UploadStep.tsx`, `src/stores/analysis.store.ts`, `src/config/constants.ts`, `supabase/functions/analyze-with-agents/index.ts`, `SPEC.md` (§6).
+  - Dependencias: Ninguna. Es bug crítico, tiene prioridad sobre las features de la iteración.
 
 - [ ] [Tipo: UI] [Área: Analysis] Banner "Análisis incompleto" + normalización de defaults a "No detectado" en KPIs
   - Objetivo: Que el usuario distinga visualmente un análisis válido pero vacío (todos los críticos sin extraer) de un análisis con datos, evitando que valores `0`, `[]` o `"Desconocido"` se rendericen como datos reales en los KPIs principales.
@@ -94,6 +119,16 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
 
 ## Próximas iteraciones (refinadas, orden de prioridad)
 
+- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot semanal para npm y github-actions
+  - Objetivo: Automatizar la detección de dependencias vulnerables u obsoletas.
+  - Alcance: Crear `.github/dependabot.yml` con dos ecosistemas (`npm` en `/`, `github-actions` en `/`), interval `weekly`, agrupar minor/patch en un único PR cuando sea posible para reducir ruido.
+  - Criterios de aceptación:
+    - `.github/dependabot.yml` existe, es válido y pasa el lint del propio Dependabot.
+    - Tras merge, aparece al menos un primer PR de Dependabot dentro de 7 días.
+    - No se modifica ningún workflow existente.
+  - Archivos probables: `.github/dependabot.yml`
+  - Dependencias: Ninguna. Desplazada desde To Do por entrada del bug crítico de Upload (2026-05-12).
+
 - [ ] [Tipo: UI] [Área: Auth] Proteger rutas autenticadas con `ProtectedRoute`
   - Objetivo: Que las rutas que dependen de sesión (`/history`, `/analytics`, `/templates`, dashboard de análisis) no sean accesibles sin autenticación.
   - Alcance:
@@ -137,7 +172,7 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
     - Los 4 tabs muestran datos reales del análisis cargado, no mocks.
     - Tests unitarios mínimos por cada tab (al menos render condicional con/sin datos).
   - Archivos probables: nuevos `src/features/dashboard/components/drawer/RightDrawer.tsx`, `EvidencesTab.tsx`, `WarningsTab.tsx`, `ProgressTab.tsx`, `NotesTab.tsx`, integración en `Dashboard.tsx`.
-  - Dependencias: Tarea #6 (StickyHeader incluye el toggle del drawer).
+  - Dependencias: Tarea StickyHeader (provee el toggle del drawer).
 
 - [ ] [Tipo: UI] [Área: Analysis] TechnicalJsonModal (mover JSON crudo fuera del flujo principal)
   - Objetivo: Sacar la vista del JSON crudo del Detalle principal sin perder la capacidad de inspeccionarlo.
@@ -150,7 +185,7 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
     - Modal se abre desde el menú `⋯`, muestra JSON legible y copia funciona.
     - Pasa typecheck y lint.
   - Archivos probables: nuevo `src/features/dashboard/components/TechnicalJsonModal.tsx`, `src/features/dashboard/components/StickyHeader.tsx`, `src/features/dashboard/Dashboard.tsx`.
-  - Dependencias: Tarea #6 (StickyHeader provee el menú `⋯`).
+  - Dependencias: Tarea StickyHeader (provee el menú `⋯`).
 
 - [ ] [Tipo: UI] [Área: Analysis] KillCriteriaBlock + RiskCards (visualización dedicada de criterios excluyentes y riesgos)
   - Objetivo: Visibilizar los criterios excluyentes y los riesgos con un layout específico (badges ALTO/MEDIO/BAJO) en lugar de listas neutras.
@@ -162,7 +197,7 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
     - Con análisis sin estos datos, ambos muestran empty state con microcopy aprobado.
     - No se rompe el resto del capítulo donde se integran.
   - Archivos probables: nuevos `src/features/dashboard/components/blocks/KillCriteriaBlock.tsx`, `RiskCards.tsx`, capítulos existentes en `src/features/dashboard/components/detail/`.
-  - Dependencias: Ninguna fuerte (puede entrar antes o después de #6, pero gana valor con StickySubnav).
+  - Dependencias: Ninguna fuerte.
 
 - [ ] [Tipo: UI] [Área: Analysis] Empty states con microcopy en capítulos vacíos
   - Objetivo: Que cada capítulo del Detalle vacío explique por qué está vacío y qué puede hacer el usuario.
@@ -174,7 +209,7 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
     - El componente `EmptyState` se reutiliza desde todos los capítulos sin duplicar markup.
     - Tests unitarios mínimos del componente y de al menos dos capítulos.
   - Archivos probables: nuevo `src/features/dashboard/components/EmptyState.tsx`, capítulos existentes en `src/features/dashboard/components/detail/`.
-  - Dependencias: Ninguna técnica. Se beneficia de #2 (banner) y #9 (KillCriteria/Risk) si ya están.
+  - Dependencias: Ninguna técnica.
 
 - [ ] [Tipo: UI] [Área: Infra] Extracción de strings hardcoded del Dashboard a i18n (es + en)
   - Objetivo: Que el Dashboard también respete el idioma seleccionado por el usuario.
@@ -183,19 +218,24 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
     - Extraer strings al `translation.json` (es y en).
     - Reemplazar literales por `t(...)` con `useTranslation`.
   - Criterios de aceptación:
-    - Al cambiar idioma con el `LanguageSwitcher` (tarea #4), el Dashboard muestra los textos en el idioma seleccionado.
+    - Al cambiar idioma con el `LanguageSwitcher`, el Dashboard muestra los textos en el idioma seleccionado.
     - No quedan literales castellanos en los componentes del Dashboard tocados.
     - Sin regresiones visuales (layout intacto).
   - Archivos probables: `src/locales/es/translation.json`, `src/locales/en/translation.json`, archivos del Dashboard bajo `src/features/dashboard/`.
-  - Dependencias: Tarea #4 (diccionario EN + selector).
+  - Dependencias: Tarea "Diccionario EN + LanguageSwitcher" debe estar completada antes.
 
 ## Deuda Técnica
 
-- **Auth — signup sin resend de email confirmation**: `AuthModal` muestra "Revisa tu email para confirmar tu cuenta" pero no hay forma de reenviar el email ni recuperar el flujo si el usuario cierra el modal. Convertir en tarea si se confirma que Supabase exige confirmación en producción.
-- **Auth — sin UI explícita de "sesión expirada"**: cuando el token expira, las acciones fallan silenciosamente. Sería una mejora UX pequeña: detectar 401 a nivel servicio y emitir un evento de sesión expirada que abra `AuthModal` con mensaje claro.
+- **Upload — backend permisivo sobre conteo de archivos**: la Edge Function `analyze-with-agents` valida `MAX_PAYLOAD_BYTES = 50MB` pero no valida `files.length`. Si el frontend se evita (POST directo), el backend acepta más archivos de los que SPEC §6 permite. Queda cubierto por la tarea #1 (bug Upload).
+- **Upload — sin display de límites pre-upload**: hoy el usuario descubre los límites por error, no preventivamente. Queda cubierto por la tarea #1 como criterio de aceptación ("hint en drop zone").
+- **Upload — sin progreso por archivo en Fase A**: la ingestión emite `phase_progress` con `completedFiles` / `inProgressFiles` / `failedFiles`, pero `AnalyzingStep.tsx` no los renderiza. Resultado: durante la indexación del Vector Store la UI puede aparentar bloqueo. Convertir en tarea si se confirma fricción real.
+- **Upload — sin recovery post-reload**: si el usuario recarga durante el análisis, el `analysis_jobs` queda huérfano. No hay UI para retomar. Convertir en tarea si se confirma uso real.
+- **Docs — contradicción ARCHITECTURE §7 sobre concurrencia**: el documento dice "carga secuencial" pero `ingestion.ts` usa `runWithConcurrency(..., 3)`. Revisar y armonizar en próxima sesión PO o tras resolver el bug #1.
+- **Auth — signup sin resend de email confirmation**: `AuthModal` muestra "Revisa tu email para confirmar tu cuenta" pero no hay forma de reenviar el email ni recuperar el flujo si el usuario cierra el modal.
+- **Auth — sin UI explícita de "sesión expirada"**: cuando el token expira, las acciones fallan silenciosamente. Detectar 401 a nivel servicio y abrir `AuthModal` con mensaje claro.
 - **Auth — convivencia hash-based recovery + onAuthStateChange**: `src/stores/auth.store.ts:56-62` parsea `window.location.hash` manualmente además de la suscripción al state change. Funciona pero conviene documentar o consolidar.
 - **Docs — `ARCHITECTURE.md` lista `.claude` como carpeta dot prohibida**: la sección "Agent Skill Modular Pattern" prohíbe explícitamente carpetas como `.claude`, pero la carpeta sigue presente en el repo y es de uso operativo. Decidir en próxima sesión PO si se ajusta el lenguaje de `ARCHITECTURE.md` o si la carpeta debe retirarse.
-- **Docs — corrección de `SPEC.md §6` realizada en esta sesión**: la decisión sobre composición multi-documento citaba inyección de Guía vía `Deno.readTextFile` al Vector Store; la realidad tras M3 es `PipelineContext.guideExcerpt`. Trazabilidad para el changelog.
+- **Docs — corrección de `SPEC.md §6` realizada en sesión PO previa**: la decisión sobre composición multi-documento citaba inyección de Guía vía `Deno.readTextFile` al Vector Store; la realidad tras M3 es `PipelineContext.guideExcerpt`. Trazabilidad para el changelog.
 
 ## Ideas de Producto (no refinadas)
 
@@ -204,7 +244,9 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
 - E2E coverage del flujo de auth (login, signup, recover, logout).
 - Resend de email confirmation tras signup.
 - UI explícita de "sesión expirada".
-- Rediseño completo "Apple-like" del Detalle (Issue #6) — el grueso de los entregables visuales ya está descompuesto en tareas #2, #6, #7, #8, #9, #10 de este backlog.
+- Recovery del análisis tras recarga/cierre del navegador (consumir `analysis_jobs` persistido).
+- Progreso por archivo durante Fase A en `AnalyzingStep`.
+- Rediseño completo "Apple-like" del Detalle (Issue #6) — el grueso de los entregables visuales ya está descompuesto en tareas de este backlog.
 
 ## Done
 
@@ -216,20 +258,18 @@ La arquitectura del pipeline IA (`analyze-with-agents` + `chat-with-analysis-age
   - Confirmado por `SPEC.md §4`: "El test global de Vitest que bloqueaba la suite ha sido resuelto." No hay menciones de crash actual en código ni docs. Sin trabajo adicional necesario.
 
 - [x] [Tipo: UI] [Área: Infra] Configurar infraestructura base para i18n (ES/EN)
-  - Implementación: `react-i18next` + `i18next-browser-languagedetector` instalados, `src/lib/i18n.ts` inicializa el idioma ES por defecto. Falta diccionario EN, selector visible y extracción de strings (cubierto por tareas #4 y #11 de este backlog).
+  - Implementación: `react-i18next` + `i18next-browser-languagedetector` instalados, `src/lib/i18n.ts` inicializa el idioma ES por defecto. Falta diccionario EN, selector visible y extracción de strings (cubierto por tareas pendientes de la iteración F).
   - Archivos: `src/main.tsx`, `src/lib/i18n.ts`, `package.json`, `src/locales/es/translation.json`.
 
 - [x] [Tipo: QA] [Área: Upload] Test E2E completo de upload con `memo_p2.pdf`
-  - Implementación: `e2e/upload-pdf.spec.ts` con tests end-to-end usando el PDF real del repositorio, mockeando SSE y auth para CI.
+  - Implementación: `e2e/upload-pdf.spec.ts` con tests end-to-end usando el PDF real del repositorio, mockeando SSE y auth para CI. Nota: el PDF usado pesa solo 496 bytes; no cubre el caso del bug de límites de tamaño (tarea #1 actual).
 
 - [x] [Tipo: AI|QA] [Área: Analysis] Fix Error 401 Unauthorized en `analyze-with-agents` (JWT expirado)
   - Implementación: refresh proactivo del token en `job.service.ts` antes de llamar a la Edge Function.
 
 - [x] [Tipo: Infra] [Área: Infra] Fix drift de migraciones en CI/CD (`supabase db push`)
-  - Implementación: flag `--include-all` y `continue-on-error: true` para que el fallo de migraciones no bloquee el deploy de la Edge Function.
 
 - [x] [Tipo: Infra] [Área: Infra] Fix autenticación de Postgres en CI/CD (`SQLSTATE 28P01`)
-  - Implementación: separado el paso de `db push` (no-crítico) del paso `functions deploy` (crítico).
 
 - [x] [Tipo: AI] [Área: Analysis] Actualizar `@openai/agents` a 0.8.1 y modelo a `gpt-4o`
   - Posteriormente revertido al pin `@openai/agents@0.3.1` por compatibilidad con Zod 3; ver §10.5 de `SPEC.md`.
