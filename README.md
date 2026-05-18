@@ -15,6 +15,7 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 - permite subir un PDF completo de pliego como camino principal y más fiable
 - acepta documentos adicionales de refuerzo cuando no existe un único PDF completo, pero ese no es el gate principal de release
 - ejecuta análisis asistido por IA con streaming en tiempo real
+- detecta PDFs escaneados / sin texto seleccionable mediante un pre-pass local y avisa al usuario en lugar de devolver un análisis en blanco
 - valida y transforma la salida a un modelo tipado
 - guarda historial de análisis para su consulta posterior
 - permite consultar un análisis persistido desde el dashboard mediante un copiloto conversacional

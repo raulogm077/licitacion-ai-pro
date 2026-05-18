@@ -126,7 +126,9 @@ scripts/                      # Repo automation invoked from package.json / CI
 - **Linting**: ESLint with 0 warnings tolerance
 - **Schemas**: Zod for both frontend and backend validation
 - **Error handling**: `Result<T>` pattern (`ok`/`err`) in services, `safeParse` chains in consolidation
-- **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK)
+- **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK). Esto aplica a **ambas** Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`).
+- **HTTP server en Edge Functions**: usar el `Deno.serve` nativo; no importar `serve` de `deno.land/std` (dependencia externa frágil tras proxies TLS).
+- **Lectura de PDF**: la Fase A ejecuta un pre-pass local de texto (`_shared/services/pdf-extract.ts`, `unpdf`) antes de subir a OpenAI; un PDF escaneado se marca `looksScanned` y la validación emite `ocr_or_indexing_low_signal`. El módulo es defensivo y nunca lanza.
 - **Backend constants**: All in `_shared/config.ts` (never hardcode model names, timeouts, etc.)
 - **Agents**: ver `AGENTS.md` para el patrón de añadir un nuevo Agent o un nuevo guardrail
 - **Auth en Edge Functions**: NO reintroducir validación manual del token. Las dos funciones se apoyan en `verify_jwt = true` del gateway. Añadir `--no-verify-jwt` al `supabase functions deploy` invalida silenciosamente esta postura (sobrescribe `config.toml`).
