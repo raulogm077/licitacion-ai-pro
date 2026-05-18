@@ -13,7 +13,6 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limiter.ts';
 import OpenAI from 'npm:openai@6.33.0';
@@ -52,7 +51,7 @@ if (!guideContent || guideContent.length < 100) {
 }
 console.log(`[init] Guía de lectura cargada: ${guideContent.length} chars`);
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: getCorsHeaders(req) });
     }
@@ -341,9 +340,7 @@ serve(async (req: Request) => {
                     });
 
                     const finalOutput = { result, workflow };
-                    console.log(
-                        `[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`
-                    );
+                    console.log(`[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`);
 
                     if (jobId) {
                         jobService

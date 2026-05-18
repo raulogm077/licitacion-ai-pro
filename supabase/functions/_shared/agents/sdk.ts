@@ -14,6 +14,10 @@
  * needs the import names spelled out at module scope to bind them at type
  * level; `export *` from an npm: specifier loses the names through the
  * re-export and breaks `deno check` on consumers.
+ *
+ * Both Edge Functions (`analyze-with-agents` and `chat-with-analysis-agent`)
+ * import the SDK from this module. Importing `npm:@openai/agents@x` directly
+ * anywhere else risks a second cached SDK instance in the same process.
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -21,8 +25,12 @@
 export {
     Agent,
     run,
+    tool,
+    user,
     fileSearchTool,
     setTraceProcessors,
     OutputGuardrailTripwireTriggered,
     InputGuardrailTripwireTriggered,
 } from 'npm:@openai/agents@0.3.1';
+
+export type { AgentInputItem } from 'npm:@openai/agents@0.3.1';

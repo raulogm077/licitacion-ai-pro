@@ -14,7 +14,7 @@
  * follow-up integration test that runs against a sandbox vector store.
  */
 
-import { assertEquals, assert } from 'https://deno.land/std@0.168.0/testing/asserts.ts';
+import { assertEquals, assert } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { z } from 'npm:zod@3.25.76';
