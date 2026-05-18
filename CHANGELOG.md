@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased] - 2026-05-18
+
+### Fixed
+- **SDK `@openai/agents` desalineado entre Edge Functions** (`supabase/functions/chat-with-analysis-agent/*`): la función de chat importaba `npm:@openai/agents@0.1.0` directamente en 4 ficheros mientras `analyze-with-agents` usa `0.3.1` vía `_shared/agents/sdk.ts`. Dos especificadores `npm:` distintos producen dos instancias del SDK en el mismo proceso (rompe el registro del trace processor y el estado global). Ahora ambas funciones importan desde el shim compartido `_shared/agents/sdk.ts`, extendido con `tool`, `user` y `AgentInputItem`.
+
+- **Dependencia frágil `deno.land/std@0.168.0`** (`analyze-with-agents/index.ts`, `chat-with-analysis-agent/index.ts`): se sustituye el `import { serve }` de `deno.land/std` por el `Deno.serve` nativo. Elimina una dependencia externa que falla tras proxies TLS restrictivos.
+
+### Added
+- **Pre-pass local de texto del PDF** (`supabase/functions/_shared/services/pdf-extract.ts`): antes de subir el documento a OpenAI, la ingesta extrae el texto localmente con `unpdf`. Detecta PDFs escaneados / sin texto seleccionable y expone `pageCount`, `localTextChars` y `looksScanned` en `IngestionDiagnostics`. `runValidation` usa `looksScanned` para emitir el `partial_reason` `ocr_or_indexing_low_signal` aunque la indexación de OpenAI parezca correcta. El módulo es defensivo: cualquier fallo de parseo degrada con gracia sin abortar la ingesta.
+
+### Changed
+- **Test E2E `upload-pdf.spec.ts` endurecido**: la aserción final aceptaba `Analizar con IA` como alternativa, por lo que pasaba aunque el dashboard no se pintara. Ahora exige que el título y el órgano de contratación del resultado aparezcan pintados, y se elimina el escape silencioso (`expect(true).toBe(true)`) cuando no se encontraba el input de fichero. El test es ahora evidencia real del flujo subida → análisis → pintado.
+
+---
+
 ## [Unreleased] - 2026-03-28
 
 ### Fixed

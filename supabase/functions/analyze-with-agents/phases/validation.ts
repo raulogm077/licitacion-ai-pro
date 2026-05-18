@@ -183,7 +183,13 @@ function derivePartialReasons(context: PartialReasonContext): AnalysisPartialRea
     const { overall, bySection, missingCriticalFields, ingestion, extraction } = context;
     const reasons = new Set<AnalysisPartialReason>();
 
-    if (ingestion && (ingestion.indexingTimedOut || ingestion.failedFiles > 0 || ingestion.zeroCompletedFiles)) {
+    if (
+        ingestion &&
+        (ingestion.indexingTimedOut ||
+            ingestion.failedFiles > 0 ||
+            ingestion.zeroCompletedFiles ||
+            ingestion.looksScanned)
+    ) {
         reasons.add('ocr_or_indexing_low_signal');
     }
 
@@ -216,9 +222,7 @@ function derivePartialReasons(context: PartialReasonContext): AnalysisPartialRea
     return [...reasons];
 }
 
-function deriveSectionDiagnostics(
-    context: SectionDiagnosticContext
-): Record<string, SectionDiagnosticWire> {
+function deriveSectionDiagnostics(context: SectionDiagnosticContext): Record<string, SectionDiagnosticWire> {
     const diagnostics: Record<string, SectionDiagnosticWire> = {};
 
     for (const [sectionName, status] of Object.entries(context.bySection)) {
@@ -302,9 +306,6 @@ function evaluateObjectQuality(obj: unknown): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
     return 'PARCIAL';
 }
 
-function countSectionEvidence(
-    sectionName: string,
-    evidences: Array<{ fieldPath: string }>
-): number {
+function countSectionEvidence(sectionName: string, evidences: Array<{ fieldPath: string }>): number {
     return evidences.filter((evidence) => evidence.fieldPath.startsWith(`${sectionName}.`)).length;
 }

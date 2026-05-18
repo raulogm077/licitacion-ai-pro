@@ -9,6 +9,7 @@
 import OpenAI from 'npm:openai@6.33.0';
 import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
+import { extractPdfText } from '../../_shared/services/pdf-extract.ts';
 
 export interface IngestionProgressUpdate {
     message: string;
@@ -33,6 +34,12 @@ export interface IngestionDiagnostics {
     indexingElapsedMs: number;
     indexingTimedOut: boolean;
     zeroCompletedFiles: boolean;
+    /** Pages reported by the local PDF text pre-pass on the main document. */
+    pageCount?: number;
+    /** Extractable characters found locally in the main document. */
+    localTextChars?: number;
+    /** True when the main document looks image-only / scanned. */
+    looksScanned?: boolean;
 }
 
 export interface IngestionResult {
@@ -117,6 +124,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
     const { openai, pdfBase64, filename, files, onProgress } = input;
     const uploadedFileIds: string[] = [];
     const fileNames: string[] = [];
+    let mainPdfExtraction: Awaited<ReturnType<typeof extractPdfText>> | null = null;
 
     try {
         // 1. Upload main document
@@ -128,6 +136,22 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
             } catch {
                 throw new Error('El archivo principal no tiene un formato base64 válido');
             }
+
+            // Local text pre-pass: detect scanned/unreadable PDFs before the
+            // expensive OpenAI round-trip so diagnostics can flag them clearly.
+            mainPdfExtraction = await extractPdfText(pdfBuffer);
+            if (mainPdfExtraction.looksScanned) {
+                console.warn(
+                    `[Ingestion] ⚠️  Main PDF looks scanned: ${mainPdfExtraction.pageCount} pages, ` +
+                        `~${Math.round(mainPdfExtraction.charsPerPage)} chars/page.`
+                );
+                onProgress?.({
+                    message:
+                        'El documento principal parece escaneado (sin texto seleccionable); ' +
+                        'la extracción puede quedar incompleta.',
+                });
+            }
+
             const pdfUpload = await openai.files.create({
                 file: new File([toArrayBuffer(pdfBuffer)], filename || 'documento.pdf', {
                     type: 'application/pdf',
@@ -238,7 +262,17 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
         );
     }
     if (diagnostics.zeroCompletedFiles) {
-        console.warn(`[Ingestion] ⚠️  No files completed indexing. Content extraction will likely return empty results.`);
+        console.warn(
+            `[Ingestion] ⚠️  No files completed indexing. Content extraction will likely return empty results.`
+        );
+    }
+
+    // Merge the local text pre-pass results so validation can surface a
+    // low-signal / scanned-document diagnostic to the user.
+    if (mainPdfExtraction) {
+        diagnostics.pageCount = mainPdfExtraction.pageCount;
+        diagnostics.localTextChars = mainPdfExtraction.text.length;
+        diagnostics.looksScanned = mainPdfExtraction.looksScanned;
     }
 
     return { vectorStoreId, fileIds: uploadedFileIds, fileNames, diagnostics };

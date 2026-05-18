@@ -22,6 +22,12 @@ fases que llamen al modelo.
 - Toda importación del SDK pasa por `_shared/agents/sdk.ts` con re-exports
   nombrados explícitos (no `export *`). El export-* de un especificador `npm:`
   pierde los nombres en Deno y rompe `deno check` en los consumidores.
+- **Ambas** Edge Functions importan el SDK desde `_shared/agents/sdk.ts`.
+  `chat-with-analysis-agent` NO debe volver a importar `npm:@openai/agents@x`
+  directamente: un especificador `npm:` distinto crea una segunda instancia
+  del SDK en el proceso y rompe el registro del trace processor.
+- Ambas funciones sirven HTTP con el `Deno.serve` nativo (no se importa
+  `serve` de `deno.land/std`).
 
 ## Auth model (ambas Edge Functions)
 

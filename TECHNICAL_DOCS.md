@@ -98,11 +98,12 @@ Usuario sube PDF
 
 | Archivo | Función |
 |---|---|
-| `agents/sdk.ts` | Re-export nombrado explícito de `@openai/agents@0.3.1` |
+| `agents/sdk.ts` | Re-export nombrado explícito de `@openai/agents@0.3.1` (`Agent`, `run`, `tool`, `user`, `fileSearchTool`, guardrails, `AgentInputItem`). Único import surface del SDK para **ambas** Edge Functions |
 | `agents/context.ts` | `PipelineContext` + `createPipelineContext()` |
 | `agents/guardrails.ts` | `jsonShapeGuardrail<T>` + `templateSanitizationGuardrail` + parsers |
 | `agents/tracing.ts` | `SupabaseLogTraceProcessor` |
-| `config.ts` | Constantes (modelo, timeouts, concurrencia) |
+| `services/pdf-extract.ts` | `extractPdfText()` — pre-pass local de texto del PDF con `unpdf`; detecta PDFs escaneados (`looksScanned`) antes de subir a OpenAI. Defensivo: nunca lanza |
+| `config.ts` | Constantes (modelo, timeouts, concurrencia, `SCANNED_PDF_CHARS_PER_PAGE_THRESHOLD`) |
 | `cors.ts` | Whitelist de orígenes |
 | `rate-limiter.ts` | 10 req/hora por usuario |
 | `schemas/canonical.ts` | Schema canónico con TrackedField (zod 3.25.76) |

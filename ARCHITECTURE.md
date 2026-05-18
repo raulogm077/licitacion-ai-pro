@@ -311,6 +311,36 @@ Tras confirmar paridad de salida en producción (PRs #275 y #276), el 2026-05-09
 
 **Fecha:** 2026-05-06 (migración) + 2026-05-09 (eliminación del legacy fallback)
 
+### 8.6 Endurecimiento de ingesta y unificación del SDK (Implementado 2026-05-18)
+
+**Contexto:** la lectura del PDF estaba 100% delegada a OpenAI (Files API +
+Vector Store). Un PDF escaneado / sin texto seleccionable se indexaba "en
+vacío" y producía un análisis en blanco sin señal clara para el usuario.
+Además, `chat-with-analysis-agent` importaba `npm:@openai/agents@0.1.0`
+directamente mientras `analyze-with-agents` usaba `0.3.1` vía el shim — dos
+especificadores `npm:` distintos cargan dos instancias del SDK en el proceso.
+
+**Decisión:**
+
+- **Pre-pass local de texto** en la Fase A: `_shared/services/pdf-extract.ts`
+  (`extractPdfText()`, basado en `unpdf`) extrae el texto del documento
+  principal antes de subirlo. La ingesta expone `pageCount`, `localTextChars`
+  y `looksScanned` en `IngestionDiagnostics`; la Fase E (`runValidation`)
+  añade el `partial_reason` `ocr_or_indexing_low_signal` cuando
+  `looksScanned` es cierto, incluso si la indexación de OpenAI parece
+  completa. El módulo es defensivo: cualquier fallo de parseo degrada con
+  gracia sin abortar la ingesta.
+- **SDK unificado**: ambas Edge Functions importan `@openai/agents`
+  únicamente desde `_shared/agents/sdk.ts` (extendido con `tool`, `user`,
+  `AgentInputItem`).
+- **`Deno.serve` nativo** sustituye a `serve` de `deno.land/std@0.168.0` en
+  ambas funciones, eliminando una dependencia externa frágil.
+
+**API observable:** sin cambios. El contrato SSE, el schema canónico y el
+conjunto de `partial_reasons` no se modifican.
+
+**Fecha:** 2026-05-18
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

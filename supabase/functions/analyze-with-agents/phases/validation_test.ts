@@ -38,7 +38,9 @@ function createConsolidatedResult(): ConsolidationResult {
             },
             requisitosSolvencia: {
                 economica: { cifraNegocioAnualMinima: 100000 },
-                tecnica: [{ descripcion: 'Contrato similar', proyectosSimilaresRequeridos: 2, importeMinimoProyecto: 30000 }],
+                tecnica: [
+                    { descripcion: 'Contrato similar', proyectosSimilaresRequeridos: 2, importeMinimoProyecto: 30000 },
+                ],
                 profesional: [],
             },
             requisitosTecnicos: {
@@ -100,6 +102,27 @@ Deno.test('runValidation surfaces ingestion and retry degradation reasons', () =
     assertEquals(workflow.quality?.overall, 'PARCIAL');
     assert(workflow.quality?.partial_reasons?.includes('ocr_or_indexing_low_signal'));
     assert(workflow.quality?.partial_reasons?.includes('rate_limited_degraded'));
+});
+
+Deno.test('runValidation flags a scanned main PDF as low-signal even when indexing succeeded', () => {
+    const consolidated = createConsolidatedResult();
+
+    const { workflow } = runValidation({
+        consolidated,
+        ingestion: {
+            completedFiles: 1,
+            failedFiles: 0,
+            inProgressFiles: 0,
+            indexingElapsedMs: 4000,
+            indexingTimedOut: false,
+            zeroCompletedFiles: false,
+            pageCount: 40,
+            localTextChars: 120,
+            looksScanned: true,
+        },
+    });
+
+    assert(workflow.quality?.partial_reasons?.includes('ocr_or_indexing_low_signal'));
 });
 
 Deno.test('runValidation marks very sparse results as document_insufficient', () => {

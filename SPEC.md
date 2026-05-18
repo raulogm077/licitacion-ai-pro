@@ -78,6 +78,24 @@ Decisiones vigentes:
 - `phases/block-extraction.ts` queda como camino único: lee de `BlockExtractionInput.context` (ahora obligatorio) y llama directamente a `buildBlockAgent(...)` + `run()`.
 - Si en el futuro hay que revertir la migración, el path correcto es `git revert` del PR responsable; **no** reanimar `block-extraction.legacy.ts` ni reintroducir el flag inline.
 
+## 2.7. Endurecimiento de ingesta y unificación del SDK (2026-05-18)
+
+- **Detección de PDF escaneado**: la Fase A ejecuta un pre-pass local de
+  texto (`_shared/services/pdf-extract.ts`, `unpdf`) sobre el documento
+  principal. Un PDF multipágina sin texto seleccionable se marca como
+  `looksScanned` y la Fase E emite el `partial_reason`
+  `ocr_or_indexing_low_signal`. El usuario recibe una guía clara ("PDF con
+  señal baja…") en lugar de un análisis en blanco sin explicación.
+- El contrato observable no cambia: mismos eventos SSE, mismo schema
+  canónico y mismo conjunto de `partial_reasons`.
+- **SDK unificado**: `chat-with-analysis-agent` ya no importa
+  `@openai/agents` con un especificador `npm:` propio; ambas Edge Functions
+  usan el shim `_shared/agents/sdk.ts`. Ambas sirven con `Deno.serve` nativo.
+- El test E2E `upload-pdf.spec.ts` se endurece: exige que el dashboard
+  pinte el resultado (título y órgano), de modo que el flujo subida →
+  análisis → pintado quede cubierto por evidencia real y no por una
+  aserción que pasaba en falso.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo

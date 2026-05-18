@@ -199,16 +199,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         }
 
         const fileInput = page.locator('input[type="file"]').first();
-        const fileInputAttached = await fileInput
-            .waitFor({ state: 'attached', timeout: 10000 })
-            .then(() => true)
-            .catch(() => false);
-
-        if (!fileInputAttached) {
-            console.log('File input not found. Auth mock may not have established a session. Skipping upload test.');
-            expect(true).toBe(true);
-            return;
-        }
+        await fileInput.waitFor({ state: 'attached', timeout: 10000 });
 
         // Make the (visually hidden) file input interactable
         await fileInput.evaluate((el: HTMLInputElement) => {
@@ -233,15 +224,19 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         await expect(analyzeBtn).toBeVisible({ timeout: 5000 });
         await analyzeBtn.click();
 
-        // ── Step 4: Wait for analysis to complete ─────────────────────────
-        // Steps 4-5 previously checked transient "Analizando…" UI state, which is
-        // unreliable because the mock SSE delivers all events instantly (<100ms),
-        // making the ANALYZING → COMPLETED transition too fast to catch.
-        // Instead, wait directly for the COMPLETED state: the result title appears
-        // in the UI (the wizard renders the result or returns to upload view).
-        await expect(page.getByText(/PLIEGO TEST MEMO_P2|Analizar con IA|análisis completado/i).first()).toBeVisible({
+        // ── Step 4: Wait for analysis to complete and the dashboard to paint ──
+        // The mock SSE delivers all events instantly, so the transient
+        // "Analizando…" state is too fast to catch. Assert the COMPLETED state
+        // directly: the extracted title from the mock result must be painted in
+        // the dashboard. This text only exists in the analysis result, so its
+        // presence proves the upload → analyze → paint flow end to end.
+        await expect(page.getByText(/PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOF/i).first()).toBeVisible({
             timeout: 15000,
         });
+
+        // The organo de contratación from the mock result is also painted,
+        // confirming the dashboard renders extracted fields, not just the title.
+        await expect(page.getByText(/Organismo de Prueba/i).first()).toBeVisible({ timeout: 5000 });
     });
 
     test('muestra error si el servidor devuelve 401', async ({ page }) => {
@@ -289,16 +284,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         }
 
         const fileInput = page.locator('input[type="file"]').first();
-        const fileInputAttached = await fileInput
-            .waitFor({ state: 'attached', timeout: 10000 })
-            .then(() => true)
-            .catch(() => false);
-
-        if (!fileInputAttached) {
-            console.log('File input not found. Auth mock may not have established a session. Skipping upload test.');
-            expect(true).toBe(true);
-            return;
-        }
+        await fileInput.waitFor({ state: 'attached', timeout: 10000 });
         await fileInput.evaluate((el: HTMLInputElement) => {
             el.style.display = 'block';
             el.style.visibility = 'visible';

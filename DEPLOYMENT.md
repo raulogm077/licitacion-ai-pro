@@ -91,9 +91,19 @@ Antes de desplegar:
 ```bash
 deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
 deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
-deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
-deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
+deno test --allow-env --allow-read --node-modules-dir=auto supabase/functions/
 ```
+
+Notas:
+
+- Ambas Edge Functions sirven HTTP con `Deno.serve` nativo e importan el SDK
+  `@openai/agents` exclusivamente desde `_shared/agents/sdk.ts` (un único
+  especificador `npm:` evita instancias duplicadas del SDK en el proceso).
+- `_shared/services/pdf-extract.ts` añade `unpdf` como dependencia `npm:` de
+  la Edge Function; Deno la resuelve automáticamente al desplegar. Sus tests
+  necesitan `--allow-read` (leen `memo_p2.pdf`).
+- Detrás de un proxy TLS, `deno` puede necesitar `DENO_TLS_CA_STORE=system`
+  para resolver los `npm:` specifiers.
 
 ### 5.2. Smoke test de seguridad post-deploy
 

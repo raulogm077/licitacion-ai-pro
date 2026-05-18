@@ -67,3 +67,11 @@ export const GUIDE_EXCERPT_MAP_LENGTH = 3000;
 
 /** Guide excerpt length for custom template extraction (chars) */
 export const GUIDE_EXCERPT_TEMPLATE_LENGTH = 2000;
+
+/**
+ * Average extractable characters per page below which a multi-page PDF is
+ * considered image-only / scanned. A real text pliego yields hundreds to
+ * thousands of chars per page; a scanned PDF yields close to zero. Used by
+ * the ingestion pre-pass to flag documents OpenAI file_search cannot read.
+ */
+export const SCANNED_PDF_CHARS_PER_PAGE_THRESHOLD = 50;
