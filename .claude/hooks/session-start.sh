@@ -87,7 +87,24 @@ else
   fi
 fi
 
-# ── 4. Variables de entorno de sesión ─────────────────────────────────────────
+# ── 4. Skills del proyecto ────────────────────────────────────────────────────
+# Claude Code solo descubre skills en .claude/skills/. El CLI `npx skills` las
+# instala en .agents/skills/. Linkeamos cada SKILL.md a .claude/skills/<name>.
+if [ -d ".agents/skills" ]; then
+  mkdir -p .claude/skills
+  # Limpiar symlinks rotos (skills desinstaladas)
+  find .claude/skills -maxdepth 1 -type l ! -exec test -e {} \; -delete 2>/dev/null || true
+  linked=0
+  for skill_dir in .agents/skills/*/; do
+    name=$(basename "$skill_dir")
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    ln -sfn "../../$skill_dir" ".claude/skills/$name"
+    linked=$((linked + 1))
+  done
+  echo "✓ Skills del proyecto expuestas a Claude Code: $linked"
+fi
+
+# ── 5. Variables de entorno de sesión ─────────────────────────────────────────
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   echo "export PLAYWRIGHT_BROWSERS_PATH=${PW_BROWSERS}" >> "$CLAUDE_ENV_FILE"
 fi
