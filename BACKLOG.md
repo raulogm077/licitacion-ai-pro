@@ -110,9 +110,47 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `.github/dependabot.yml`
   - Dependencias: Ninguna.
 
+- [ ] [Tipo: AI] [Área: Analysis] Inyectar metodología específica por bloque en el prompt de extracción
+  - Objetivo: Aprovechar la "Guía de lectura" en cada bloque en vez de repetir un prefijo genérico. Hoy solo llegan ~4000 chars de la §1–§2.1 de la Guía (34 KB) idénticos en los 9 bloques; la metodología útil (§3–§7) nunca entra en el prompt.
+  - Alcance: En `prompts/index.ts` sustituir el `guideSummary` genérico por un mapa bloque→extracto de metodología (p. ej. `criteriosAdjudicacion`→§4 scoring; `restriccionesYRiesgos`→§3/§7; `requisitosSolvencia`→§3.1/§3.2). Mantener el excerpt como metodología, NUNCA como fuente de datos. Sin cambios en el schema canónico ni en el contrato SSE.
+  - Criterios de aceptación:
+    - Cada bloque recibe un extracto de metodología distinto y pertinente (test unitario sobre el builder de prompt lo verifica).
+    - Tests de contrato del schema canónico y SSE siguen en verde; `pnpm benchmark:pliegos` en verde (sin regresión de extracción mínima útil).
+    - No aumenta el nº de tokens de contexto por bloque respecto al baseline.
+  - Archivos probables: `supabase/functions/analyze-with-agents/prompts/index.ts`, `supabase/functions/_shared/config.ts`, `supabase/functions/analyze-with-agents/__tests__/`
+  - Dependencias: Ninguna.
+
 ## Deuda Técnica / Refactorización
 
-- (Vacio - Tareas integradas en la iteración actual)
+- [ ] [Tipo: AI] [Área: Analysis] Model tiering por bloque (coste)
+  - Objetivo: Reducir coste sin perder calidad donde importa. Hoy los 9 bloques usan `gpt-4.1`, incluidos triviales (`anexosYObservaciones`, `duracionYProrrogas`).
+  - Alcance: Parametrizar el modelo por bloque en `config.ts` (bloque→modelo), reservando el tier alto para `criteriosAdjudicacion`, `economico`, `requisitosSolvencia` y usando un tier menor (p. ej. `gpt-4.1-mini`) en los simples. Verificar que el modelo elegido soporta Responses API + `file_search`.
+  - Criterios de aceptación:
+    - El modelo por bloque es configurable y trazable en logs `[trace]`.
+    - `pnpm benchmark:pliegos` en verde con los mismos umbrales de extracción mínima útil.
+    - Tests de contrato (schema canónico, SSE) en verde.
+  - Archivos probables: `supabase/functions/_shared/config.ts`, `supabase/functions/analyze-with-agents/agents/block-extractor.agent.ts`, `supabase/functions/analyze-with-agents/__tests__/`
+  - Dependencias: Ninguna.
+
+- [ ] [Tipo: AI] [Área: Analysis] Extender `TrackedField` a importes y ponderaciones críticos (grounding §6.3)
+  - Objetivo: Cumplir la regla de grounding de la Guía (§6.3) en todo dato numérico crítico. Hoy solo 6 campos de `datosGenerales` usan `TrackedField`; `presupuestoBaseLicitacion`, ponderaciones de criterios y `umbralAnormalidad` van sin `status/evidence`.
+  - Alcance: Envolver en `TrackedField` los importes económicos clave y la `ponderacion` de criterios, preservando compatibilidad hacia atrás (unwrap legacy) y la transformación a frontend. Actualizar `canonical_test.ts`.
+  - Criterios de aceptación:
+    - Golden/contract tests nuevos que verifican `value/evidence/status` en los campos añadidos.
+    - Frontend (`unwrap()`) sigue renderizando valores legacy y nuevos sin romper.
+    - `pnpm benchmark:pliegos` y contrato SSE en verde.
+  - Archivos probables: `supabase/functions/_shared/schemas/canonical.ts`, `supabase/functions/_shared/schemas/canonical_test.ts`, `src/lib/tracked-field.ts`, `src/lib/schemas.ts`
+  - Dependencias: Ninguna.
+
+- [ ] [Tipo: AI] [Área: Analysis] Motor de simulación de scoring (fórmula de precio + baja temeraria)
+  - Objetivo: Dar el primer salto de "extractor" a "analista": interpretar la fórmula de precio y el umbral de anormalidad para permitir simulaciones what-if (§4 de la Guía).
+  - Alcance: Parsear `criteriosAdjudicacion.objetivos[].formula` y `umbralAnormalidad` (hoy strings) a una representación evaluable; añadir cálculo de puntuación para un precio hipotético y detección de riesgo de baja temeraria. Capa post-extracción; no altera el contrato de extracción existente.
+  - Criterios de aceptación:
+    - Golden tests con fórmulas lineales y no lineales y con umbral fijo y dinámico.
+    - Manejo explícito de fórmulas no parseables (status/omisión, sin inventar).
+    - Contrato SSE y `pnpm benchmark:pliegos` en verde.
+  - Archivos probables: `supabase/functions/_shared/schemas/canonical.ts`, `supabase/functions/analyze-with-agents/phases/`, nuevo módulo de scoring + tests
+  - Dependencias: Recomendable tras "Extender TrackedField" para grounding de ponderaciones.
 
 ## Ideas de Producto
 
@@ -120,6 +158,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Configurar Dependabot para actualizaciones automáticas de dependencias
 - Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
 - Visual regression testing con Playwright screenshots
+- **Perfil de empresa licitadora** (decisión de producto pendiente): base de datos del licitador (VAN, CPVs de proyectos pasados, certificaciones ISO/ENS, seguros). Es el prerequisito que desbloquea las capacidades de la Guía §3 (Go/No-Go: solvencia VAN≥1.5×VAM, similitud CPV a 3 dígitos, sugerencia de UTE) y §5 (Win Themes desde la memoria justificativa). Sin este dato, la app queda como extractor y no como analista estratégico. Requiere decisión de PM: cambia modelo de datos y onboarding.
 
 ## Done
 
