@@ -1,0 +1,47 @@
+name: 'Agente: Product Manager'
+
+on:
+    schedule:
+        - cron: '30 5 * * 1-5' # 07:30 Madrid (verano). Cron es UTC.
+    workflow_dispatch:
+
+concurrency:
+    group: agent-pm
+    cancel-in-progress: false
+
+permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+    id-token: write
+
+jobs:
+    run:
+        if: vars.AGENTS_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.AGENTS_PAT }} # PAT: sus pushes/PRs SÍ disparan CI
+
+            - id: guard
+              run: bash scripts/agents/guard.sh pm
+              env:
+                  GH_TOKEN: ${{ secrets.AGENTS_PAT }}
+
+            - if: steps.guard.outputs.run == 'true'
+              uses: anthropics/claude-code-action@v1
+              with:
+                  anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+                  prompt: |
+                      Ejecuta de forma estricta y no interactiva las instrucciones del
+                      fichero .claude/commands/agent-pm.md. Ese fichero define tu rol,
+                      reglas y flujo de trabajo completos.
+                  claude_args: |
+                      --model claude-sonnet-4-6
+                      --max-turns 30
+                      --allowedTools "Read,Glob,Grep,Write,Edit,Bash(git:*),Bash(gh pr:*)"
+              env:
+                  GH_TOKEN: ${{ secrets.AGENTS_PAT }}

@@ -163,3 +163,63 @@ Cualquier script bajo `scripts/` debe ser invocado desde `package.json`, `.githu
 - `verify-integrity.ts` → invocado por `pnpm verify:integrity` y por el job `Repo Integrity` del workflow.
 
 Si un script futuro deja de usarse desde alguno de esos sitios, debe eliminarse en lugar de mantenerse "por si acaso". El repo no conserva scripts de conveniencia muertos.
+
+## Fábrica de agentes autónomos (Claude Code en GitHub Actions)
+
+El repo ejecuta cuatro agentes autónomos con `anthropics/claude-code-action@v1`,
+coordinados por `BACKLOG.md` y sin intervención humana. Cada rol tiene un
+workflow en `.github/workflows/` (`agent-pm.yml`, `agent-tech.yml`,
+`agent-ia.yml`, `agent-qa.yml`) y su prompt operativo en
+`.claude/commands/agent-<rol>.md`.
+
+| Workflow | Rol | Qué hace | Cron (UTC) |
+|---|---|---|---|
+| `agent-pm.yml` | Product Manager | Audita, refina y prioriza el backlog; nunca programa ni despliega. | `30 5 * * 1-5` |
+| `agent-tech.yml` | Tech Lead | Implementa la primera tarea **no** `[Tipo: AI]` de `## To Do`; TDD + `verify:release`. | `0 7` y `30 11 * * 1-5` |
+| `agent-ia.yml` | Senior IA | Implementa la primera tarea `[Tipo: AI]` (prompts, schemas, SSE, `analyze-with-agents`). | `15 7 * * 1-5` |
+| `agent-qa.yml` | QA | Valida `## Ready for QA` sobre `main` y confirma que el pipeline quedó verde. | `30 15 * * 1-5` |
+
+**Coordinación vía `BACKLOG.md`.** Los agentes se pasan el trabajo por las
+secciones del backlog: `## To Do (Iteración Actual)` → `## In Progress` →
+`## Ready for QA` → `## Done`. El tag `[Tipo: AI]` enruta una tarea al agente IA
+(el resto las toma Tech). `scripts/agents/guard.sh <rol>` decide antes de
+arrancar si la sesión merece la pena: **no** lanza si ya hay un PR abierto de ese
+rol (serialización sin humanos) ni si no hay tareas elegibles en su sección
+(ahorro directo de tokens), escribiendo `run=true|false` en `GITHUB_OUTPUT`.
+
+**Integración (auto-merge) apoyada en el CI existente.** Cada agente abre su PR y
+ejecuta `gh pr merge --auto --squash`; GitHub integra el PR **solo cuando el
+pipeline `Productive CI/CD Pipeline` (`.github/workflows/ci-cd.yml`) termina en
+verde**. Ningún agente despliega a mano: el propio pipeline despliega Vercel y
+Supabase tras el merge a `main` (con `release-guard` exigiendo que venga de un PR
+mergeado). El check de integridad que debe exigir la protección de rama es el job
+`repo-integrity` de ese pipeline (más `e2e-tests` cuando se active E2E).
+
+**Kill switch: variable de repositorio `AGENTS_ENABLED`.** Los jobs corren solo
+si `vars.AGENTS_ENABLED == 'true'` **o** el disparo es `workflow_dispatch`
+(manual). Con `AGENTS_ENABLED=false` la fábrica se detiene en el siguiente cron;
+`Run workflow` desde la pestaña Actions salta el kill switch para pruebas
+controladas. Para parar algo ya en marcha: Actions → Cancel.
+
+**MCP.** `.mcp.json` declara `supabase` (en `--read-only`; los agentes investigan,
+no mutan) y `context7` (documentación versionada). El único camino de escritura a
+producción sigue siendo el deploy del pipeline tras el merge.
+
+### Configuración de repositorio requerida (manual, fuera de esta rama)
+
+Estos ajustes tocan secretos y protección de rama y **no** se aplican por PR:
+
+- **Secrets** (Settings → Secrets and variables → Actions): `ANTHROPIC_API_KEY`,
+  `AGENTS_PAT`, `SUPABASE_ACCESS_TOKEN`, `VERCEL_TOKEN`.
+- **Variables**: `AGENTS_ENABLED` (arranque en frío en `false`) y
+  `SUPABASE_PROJECT_REF`.
+- **`AGENTS_PAT` (crítico)**: GitHub no dispara workflows sobre eventos creados
+  con el `GITHUB_TOKEN` por defecto (protección anti-recursión). Los agentes
+  hacen `checkout` y `gh pr create/merge` con un fine-grained PAT (Contents,
+  Pull requests y Workflows en RW, idealmente de una cuenta-bot) para que su PR
+  **sí** dispare el CI y el auto-merge funcione.
+- **Pull Requests**: Settings → General → ✅ Allow auto-merge (+ Allow squash
+  merging).
+- **Branch protection de `main`**: Require PR before merging y Require status
+  checks → `repo-integrity` (añade `e2e-tests` al activar E2E). Workflow
+  permissions en Read and write.

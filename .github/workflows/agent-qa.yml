@@ -1,0 +1,61 @@
+name: 'Agente: QA'
+
+on:
+    schedule:
+        - cron: '30 15 * * 1-5' # 17:30 Madrid (verano), tras merges y deploy del pipeline
+    workflow_dispatch:
+
+concurrency:
+    group: agent-qa
+    cancel-in-progress: false
+
+permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+    id-token: write
+
+jobs:
+    run:
+        if: vars.AGENTS_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.AGENTS_PAT }}
+
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+            - run: pnpm install --frozen-lockfile
+
+            - id: guard
+              run: bash scripts/agents/guard.sh qa
+              env:
+                  GH_TOKEN: ${{ secrets.AGENTS_PAT }}
+
+            - if: steps.guard.outputs.run == 'true'
+              uses: anthropics/claude-code-action@v1
+              with:
+                  anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+                  prompt: |
+                      Ejecuta de forma estricta y no interactiva las instrucciones del
+                      fichero .claude/commands/agent-qa.md. Ese fichero define tu rol,
+                      reglas y flujo de trabajo completos.
+                  claude_args: |
+                      --model claude-sonnet-4-6
+                      --max-turns 60
+                      --mcp-config .mcp.json
+                      --allowedTools "Read,Glob,Grep,Write,Edit,Bash(pnpm:*),Bash(deno:*),Bash(git:*),Bash(gh pr:*),Bash(gh run:*),Bash(npx vercel:*),Bash(npx playwright:*),mcp__supabase"
+              env:
+                  GH_TOKEN: ${{ secrets.AGENTS_PAT }}
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+                  SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+                  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

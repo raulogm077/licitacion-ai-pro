@@ -224,3 +224,16 @@ single request.
 - `supabase/functions/_shared/config.ts` — Backend constants
 - `supabase/functions/_shared/schemas/canonical.ts` — Canonical schema (source of truth)
 - `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, Auth model, etc.)
+
+## Fábrica de agentes autónomos
+
+Cuatro agentes (PM, Tech, IA, QA) corren en GitHub Actions
+(`.github/workflows/agent-*.yml`) con `anthropics/claude-code-action@v1`, guiados
+por los prompts de `.claude/commands/agent-*.md` y coordinados por `BACKLOG.md`
+(`## To Do` → `## In Progress` → `## Ready for QA` → `## Done`; el tag `[Tipo: AI]`
+enruta al agente IA). `scripts/agents/guard.sh` serializa por rol y evita sesiones
+sin tareas. El auto-merge (`gh pr merge --auto --squash`) depende del CI existente
+`Productive CI/CD Pipeline`; el kill switch es la variable de repositorio
+`AGENTS_ENABLED`. Cualquier cambio en `.github/workflows/agent-*.yml` o en
+`scripts/agents/` arrastra los cuatro docs de release (`verify:integrity` lo
+exige). Detalle en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
