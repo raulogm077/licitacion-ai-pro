@@ -220,3 +220,13 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 - `phases/block-extraction.ts` queda como camino único: el `if (!useAgentsSdk()) { ... }` y el helper `useAgentsSdk()` desaparecen; `BlockExtractionInput.context` pasa a obligatorio.
 - Flag `USE_AGENTS_SDK` (Supabase secret) ya no se lee en código. Si quedan secrets remotos con ese nombre se pueden borrar con `supabase secrets unset USE_AGENTS_SDK` (no afecta runtime).
 - Documentación: referíncias eliminadas en DEPLOYMENT.md (§5.3 retirada, §6, §8), CLAUDE.md (key patterns), AGENTS.md (regla dura nº 7 nueva), ARCHITECTURE.md (§4.3), TECHNICAL_DOCS.md (§8, §10, §13).
+
+### 10.6. Análisis de arquitectura de IA: gap Guía ↔ extracción (2026-07-03)
+Auditoría del diseño de IA (prompts, contexto, costes) contra la "Guía de lectura de pliegos". Conclusión: el pipeline actual es un **extractor estructurado con trazabilidad**, no el **analista estratégico** que describe la Guía (§3–§7). Hallazgos:
+
+- **La Guía casi no llega al modelo.** `guide-content.ts` embebe solo los primeros ~4900 chars de una Guía de 34.857 (su propia cabecera lo declara), y cada fase corta a `substring(0, N)` (`GUIDE_EXCERPT_LENGTH=4000` extracción, `3000` mapa, `2000` template). Solo sobreviven §1 y el arranque de §2.1.1; la metodología operativa (Go/No-Go, ingeniería inversa del scoring, contaminación de sobres, Win Themes) nunca entra en el prompt. La "inteligencia" real vive en `BLOCK_USER_PROMPTS`, no en el excerpt de Guía.
+- **Grounding asimétrico.** Solo 6 campos críticos de `datosGenerales` usan `TrackedField`; importes (`presupuestoBaseLicitacion`), ponderaciones de criterios y `umbralAnormalidad` van sin `status/evidence`, contra la regla §6.3 de la Guía.
+- **Coste input-bound por RAG y tier único.** ~10–11 llamadas LLM por análisis (1 mapa + 9 bloques + reintentos guardrail + template opcional), todas a `gpt-4.1`, con 9 recuperaciones `file_search` independientes. El coste dominante es el contexto de entrada repetido, no la generación.
+- **Capa de decisión ausente.** El schema canónico no modela Go/No-Go, simulación de scoring/baja temeraria, matriz de cumplimiento trazable, Win Themes ni validación de solvencia contra la empresa (que además requiere un dato inexistente: el perfil del licitador).
+
+Acciones derivadas en `BACKLOG.md`: metodología por bloque (`## To Do`), model tiering + `TrackedField` extendido + motor de scoring (`## Deuda Técnica`), y perfil de empresa licitadora como decisión de producto (`## Ideas de Producto`). Relacionado con Riesgo 4 (§7, desalineación con la Guía).
