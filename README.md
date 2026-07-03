@@ -192,3 +192,13 @@ Se debe actualizar como mínimo:
 - `README.md` si cambia stack, setup o forma de trabajo
 - `DEPLOYMENT.md` si cambia el proceso real de despliegue
 - `TECHNICAL_DOCS.md` si cambia backend, tablas o contratos técnicos
+
+## Fábrica de agentes autónomos
+
+El repo incluye cuatro agentes autónomos (PM, Tech, IA, QA) que corren en GitHub
+Actions con `anthropics/claude-code-action@v1`, se coordinan por `BACKLOG.md` e
+integran sus PRs vía auto-merge cuando el CI `Productive CI/CD Pipeline` está en
+verde. El kill switch global es la variable de repositorio `AGENTS_ENABLED`
+(arranque en frío en `false`; `workflow_dispatch` lo salta). Detalle operativo
+—workflows, prompts en `.claude/commands/`, `scripts/agents/guard.sh`, secrets y
+protección de rama— en [`DEPLOYMENT.md`](./DEPLOYMENT.md).

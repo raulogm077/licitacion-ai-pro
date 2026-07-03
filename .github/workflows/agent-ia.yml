@@ -1,0 +1,60 @@
+name: 'Agente: Senior IA'
+
+on:
+    schedule:
+        - cron: '15 7 * * 1-5' # 09:15 Madrid (verano)
+    workflow_dispatch:
+
+concurrency:
+    group: agent-ia
+    cancel-in-progress: false
+
+permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+    id-token: write
+
+jobs:
+    run:
+        if: vars.AGENTS_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.AGENTS_PAT }}
+
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+            - run: pnpm install --frozen-lockfile
+
+            - id: guard
+              run: bash scripts/agents/guard.sh ia
+              env:
+                  GH_TOKEN: ${{ secrets.AGENTS_PAT }}
+
+            - if: steps.guard.outputs.run == 'true'
+              uses: anthropics/claude-code-action@v1
+              with:
+                  anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+                  prompt: |
+                      Ejecuta de forma estricta y no interactiva las instrucciones del
+                      fichero .claude/commands/agent-ia.md. Ese fichero define tu rol,
+                      reglas y flujo de trabajo completos.
+                  claude_args: |
+                      --model claude-sonnet-4-6
+                      --max-turns 80
+                      --mcp-config .mcp.json
+                      --allowedTools "Read,Glob,Grep,Write,Edit,Bash(pnpm:*),Bash(deno:*),Bash(git:*),Bash(gh pr:*),mcp__supabase,mcp__context7"
+              env:
+                  GH_TOKEN: ${{ secrets.AGENTS_PAT }}
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+                  SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}

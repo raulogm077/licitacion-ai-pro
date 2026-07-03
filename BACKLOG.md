@@ -77,6 +77,12 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 
 
+## In Progress
+
+<!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
+     - [ ] <tarea> — <rol> — agents/<rol>/<slug> — <fecha ISO>
+     y la sacan a "## Ready for QA" al entregar. Mantener vacía en reposo. -->
+
 ## To Do (Iteración Actual)
 
 - [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest

@@ -143,3 +143,16 @@ npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
 Cada línea es JSON: `event` (`trace_start|trace_end|span_start|span_end`),
 `spanId`, `parentId`, `traceId`, `name`, `durationMs` y, si aplica, `error`.
 Filtrar por `traceId` reconstruye una ejecución completa.
+
+## Fábrica de agentes de GitHub Actions (no confundir con el pipeline SDK)
+
+Además del pipeline de análisis basado en `@openai/agents` documentado arriba, el
+repo opera una fábrica de cuatro agentes de desarrollo (PM, Tech, IA, QA) que se
+ejecutan con `anthropics/claude-code-action@v1` en `.github/workflows/agent-*.yml`
+y siguen sus prompts en `.claude/commands/agent-*.md`. Son planos distintos: esta
+fábrica **produce** cambios sobre el repo (incluido el pipeline SDK); no forma
+parte del runtime de análisis. El agente `agent-ia.md` es el único autorizado a
+tocar prompts/schemas/SSE de `analyze-with-agents` y `chat-with-analysis-agent`, y
+debe respetar las reglas duras de este documento. Operativa completa (coordinación
+por `BACKLOG.md`, `guard.sh`, kill switch `AGENTS_ENABLED`, auto-merge sobre el CI
+existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
