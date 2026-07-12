@@ -217,6 +217,10 @@ npx supabase secrets set OPENAI_API_KEY=sk-...
 
 El workflow `ci-cd.yml` (job `deploy-supabase`) ejecuta exactamente estos comandos tras un merge a `main`. El job `smoke-test` posterior valida que las dos funciones responden 401 a peticiones sin JWT.
 
+### Migraciones — orden de ficheros
+
+El nombre de fichero de cada migración debe ordenar cronológicamente por encima de todas las migraciones de las que dependa (Supabase las aplica en orden lexicográfico de nombre). En 2026-07-12 se corrigió `add_provider_reading_mode`, cuyo timestamp `20250130000000` ordenaba antes que `20251228000000_initial_schema` y rompía el *branching preview* (apply en frío): se renombró a `20251229000000`, se idempotentizó, y se reparó el historial remoto borrando la fila vieja de `supabase_migrations.schema_migrations` (equivalente a `supabase migration repair --status reverted`). Ver `DEPLOYMENT.md` (§ "Orden de migraciones y Supabase Preview").
+
 ---
 
 ## 9. Testing

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12c — Orden de la migración add_provider_reading_mode
+
+Corrige el bug de orden que dejaba en rojo el check `Supabase Preview` (apply en frío):
+
+- La migración `add_provider_reading_mode` se **renombró** de `20250130000000` a `20251229000000` (posterior a `20251228000000_initial_schema`, que crea la tabla `licitaciones`) y se **idempotentizó** (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, constraints guardados con `DO $$ ... $$`).
+- Se **reparó el historial remoto**: se eliminó la fila `20250130000000` de `supabase_migrations.schema_migrations` (equivale a `supabase migration repair --status reverted`), de modo que el deploy re-aplica la migración idempotente bajo el nuevo `version` y la registra. No afecta a producción (columnas ya presentes; el re-apply es no-op).
+
 ## [Unreleased] - 2026-07-12b — Fixes de CI post-#297
 
 Corrige tres checks que quedaron en rojo tras el merge de #297:
