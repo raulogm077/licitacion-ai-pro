@@ -363,6 +363,19 @@ Tras confirmar paridad de salida en producción (PRs #275 y #276), el 2026-05-09
 
 **Fecha:** 2026-07-12
 
+### 8.9 Hotfix 2: `fileSearchTool` posicional + fin del `@ts-nocheck` en agentes (Implementado 2026-07-12)
+
+**Contexto:** tras corregir §8.8, el análisis pasó de morir en las instrucciones a morir en la llamada a OpenAI: `400 invalid_type — Invalid type for 'tools[0].vector_store_ids[0]': expected a string, but got an object`.
+
+**Causa raíz (misma familia que §8.8):** `fileSearchTool(vectorStoreIds, options?)` recibe los ids como **primer argumento posicional**; los agentes lo llamaban estilo-opciones (`fileSearchTool({ vectorStoreIds: [id] })`), así que el SDK serializaba `vector_store_ids: [{...}]`. Verificado contra `@openai/agents-openai@0.3.1` real: el patrón antiguo reproduce el 400 byte a byte.
+
+**Fix y blindaje:**
+
+- Los 3 agentes llaman `fileSearchTool([vectorStoreId])`; 3 tests de regresión fijan la forma wire (`tool.providerData.vector_store_ids === ['vs_test']`, strings planos).
+- **Eliminado el `@ts-nocheck` de fichero completo** en los 3 agentes (ocultó los dos bugs de esta familia). Quedan 4 supresiones quirúrgicas `@ts-expect-error` documentadas, solo en las líneas de guardrails: el tipo de config del SDK 0.3.x pide la forma _definida_ del guardrail mientras su runtime normaliza vía `define*Guardrail({ name, execute })` (comprobado en `run.js` L753) — nuestra forma `{ name, execute }` es la correcta en runtime. Cualquier otro mal uso del SDK en los agentes es ahora un error de compilación de `deno check`, no un incidente de producción.
+
+**Fecha:** 2026-07-12
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

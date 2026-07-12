@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12i — HOTFIX 2: file_search enviaba vector_store_ids como objeto (400 de OpenAI)
+
+Tras el hotfix del contrato RunContext, el análisis avanzó hasta la llamada a OpenAI y cayó con `400 invalid_type — Invalid type for 'tools[0].vector_store_ids[0]': expected a string, but got an object`.
+
+- **Causa raíz** (misma familia): `fileSearchTool(vectorStoreIds, options?)` recibe los ids como primer argumento posicional; los 3 agentes lo llamaban estilo-opciones y el SDK serializaba `vector_store_ids: [{...}]`. Reproducido contra `@openai/agents-openai@0.3.1` real.
+- **Fix**: `fileSearchTool([vectorStoreId])` en los 3 agentes + 3 tests de regresión que fijan la forma wire (strings planos).
+- **Blindaje estructural**: eliminado el `@ts-nocheck` de fichero completo de los agentes (ocultó los dos bugs). Quedan 4 `@ts-expect-error` quirúrgicos y documentados en las líneas de guardrails (incoherencia tipos/runtime del SDK 0.3.x; la forma `{ name, execute }` es la correcta en runtime, verificado en `run.js`). `deno check` vigila ahora el resto de la superficie del SDK en los agentes.
+
 ## [Unreleased] - 2026-07-12h — HOTFIX: todos los análisis fallaban en Fase B (contrato RunContext)
 
 **Bug crítico de producción**: desde la migración al SDK `@openai/agents` (2026-05-06), **ningún análisis completaba**. Cada intento moría a los ~60 ms en Fase B con `Cannot read properties of undefined (reading 'fileNames')` (registrado en `analysis_jobs.error`; no hay ningún job `completed` posterior al 2026-04-28).

@@ -18,8 +18,6 @@
  *     adds negligible overhead and avoids a global mutable cache.
  */
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import { Agent, fileSearchTool } from '../../_shared/agents/sdk.ts';
 import type { PipelineContext } from '../../_shared/agents/context.ts';
 import { jsonShapeGuardrail } from '../../_shared/agents/guardrails.ts';
@@ -38,12 +36,17 @@ export function buildDocumentMapAgent(vectorStoreId: string) {
         // crashes phase B on every run (prod bug 2026-07-12).
         instructions: ({ context }) => buildDocumentMapInstructions(context.fileNames, context.guideExcerpt),
         tools: [
-            fileSearchTool({
-                vectorStoreIds: [vectorStoreId],
-            }),
+            // fileSearchTool(vectorStoreIds, options?) — the ids are the FIRST
+            // positional argument. Passing an options-style object made the SDK
+            // send vector_store_ids=[{...}] and OpenAI reject with 400
+            // invalid_type (prod bug 2026-07-12, second of the @ts-nocheck family).
+            fileSearchTool([vectorStoreId]),
         ],
         // DO NOT add `outputType` here — it would conflict with file_search.
         // The JSON shape is validated by the output guardrail below.
+        // @ts-expect-error — SDK 0.3.x type/runtime mismatch: the config type wants the
+        // *defined* guardrail shape, but Runner normalizes via define*Guardrail({ name, execute })
+        // (run.js), so { name, execute } is the correct authoring shape. See ARCHITECTURE §8.9.
         outputGuardrails: [jsonShapeGuardrail(DocumentMapSchema, 'document-map')],
     });
 }
