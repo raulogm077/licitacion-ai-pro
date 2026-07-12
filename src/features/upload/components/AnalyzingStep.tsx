@@ -28,7 +28,7 @@ export const AnalyzingStep: React.FC<AnalyzingStepProps> = ({ thinkingOutput, pr
 
     // Keep the newest log line visible as output streams in.
     useEffect(() => {
-        terminalEndRef.current?.scrollIntoView({ block: 'nearest' });
+        terminalEndRef.current?.scrollIntoView?.({ block: 'nearest' });
     }, [thinkingOutput]);
 
     const activeIndex = currentPhase ? ANALYSIS_PHASES.indexOf(currentPhase) : -1;

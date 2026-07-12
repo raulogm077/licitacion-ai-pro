@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { exportAnalyticsToExcel } from '../export-utils';
+import { exportAnalyticsToExcel, exportLicitacionToExcel } from '../export-utils';
+import { LicitacionContent } from '../../types';
+import { tf } from '../../test-utils/tracked-field-factory';
 
 // Mock ExcelJS
 const mockAddRows = vi.fn();
@@ -66,6 +68,50 @@ describe('Export Utils', () => {
         await exportAnalyticsToExcel(analyticsData, 'test-analytics');
 
         expect(mockAddWorksheet).toHaveBeenCalledTimes(3);
+        expect(mockWriteBuffer).toHaveBeenCalled();
+        expect(global.URL.createObjectURL).toHaveBeenCalled();
+    });
+
+    it('should export a licitacion report with all six sheets', async () => {
+        const content = {
+            datosGenerales: {
+                titulo: tf('Licitación Test'),
+                organoContratacion: tf('Ayuntamiento'),
+                presupuesto: tf(120000),
+                moneda: tf('EUR'),
+                plazoEjecucionMeses: tf(18),
+                cpv: tf(['72000000']),
+                fechaLimitePresentacion: '2026-09-01',
+            },
+            criteriosAdjudicacion: {
+                subjetivos: [{ descripcion: 'Calidad', ponderacion: 40, subcriterios: [] }],
+                objetivos: [{ descripcion: 'Precio', ponderacion: 60 }],
+            },
+            requisitosSolvencia: {
+                economica: { cifraNegocioAnualMinima: 200000 },
+                tecnica: [{ descripcion: 'Experiencia', proyectosSimilaresRequeridos: 2 }],
+                profesional: [{ descripcion: 'Titulación' }],
+            },
+            requisitosTecnicos: {
+                funcionales: [{ requisito: 'Alta disponibilidad', obligatorio: true }],
+                normativa: [{ norma: 'ENS' }],
+            },
+            restriccionesYRiesgos: {
+                killCriteria: [{ criterio: 'Certificación obligatoria' }],
+                penalizaciones: [{ causa: 'Retraso', sancion: '1%/día' }],
+                riesgos: [{ descripcion: 'Plazo ajustado', impacto: 'ALTO' }],
+            },
+            modeloServicio: {
+                sla: [{ metrica: 'Disponibilidad', objetivo: '99.9%' }],
+                equipoMinimo: [{ rol: 'Jefe de proyecto', experienciaAnios: 5 }],
+            },
+        } as unknown as LicitacionContent;
+
+        await exportLicitacionToExcel(content, 'informe-test');
+
+        expect(mockAddWorksheet).toHaveBeenCalledTimes(6);
+        expect(mockAddWorksheet).toHaveBeenCalledWith('Datos Generales');
+        expect(mockAddWorksheet).toHaveBeenCalledWith('Riesgos');
         expect(mockWriteBuffer).toHaveBeenCalled();
         expect(global.URL.createObjectURL).toHaveBeenCalled();
     });
