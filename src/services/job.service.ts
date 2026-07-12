@@ -200,7 +200,20 @@ export class JobService {
             const parseResult = LicitacionContentSchema.safeParse(resultData);
             let validated: LicitacionContent;
             if (!parseResult.success) {
-                console.warn('[JobService] Schema validation warning:', parseResult.error.message.substring(0, 300));
+                // Deliberate fallback: a schema mismatch must not turn a useful
+                // analysis into a hard failure, but it has to be observable —
+                // logger.error routes to Sentry in production, so contract
+                // drift surfaces instead of hiding behind the cast.
+                const issues = parseResult.error.issues
+                    .slice(0, 10)
+                    .map((issue) => ({ path: issue.path.join('.'), code: issue.code }));
+                logger.error(
+                    '[JobService] schema_validation_fallback: el resultado no cumple LicitacionContentSchema',
+                    {
+                        issueCount: parseResult.error.issues.length,
+                        issues,
+                    }
+                );
                 // Use raw data as fallback to preserve results even if schema is slightly mismatched
                 validated = resultData as LicitacionContent;
             } else {

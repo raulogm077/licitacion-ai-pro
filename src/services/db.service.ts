@@ -5,6 +5,7 @@ import { qualityService } from './quality.service';
 import { Result, ok, err } from '../lib/Result';
 import { appCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
 import { features } from '../config/features';
+import { logger } from './logger';
 
 export class DBService {
     private client: SupabaseClient;
@@ -351,7 +352,7 @@ export class DBService {
             )
             .subscribe((status, err) => {
                 if (err) {
-                    console.warn('[DBService] Realtime channel error:', status, err);
+                    logger.warn('[DBService] Realtime channel error:', { status, err });
                 }
             });
     }
