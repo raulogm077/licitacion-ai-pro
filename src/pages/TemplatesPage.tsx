@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, AlertCircle } from 'lucide-react';
 import { useTemplates } from '../features/templates/hooks/useTemplates';
 import { TemplateForm } from '../features/templates/components/TemplateForm';
 import { TemplateList } from '../features/templates/components/TemplateList';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/Dialog';
 
 export const TemplatesPage: React.FC = () => {
     const { t } = useTranslation();
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const {
         templates,
         loading,
@@ -74,15 +76,46 @@ export const TemplatesPage: React.FC = () => {
                     isSubmitting={isSubmitting}
                     onEdit={handleEdit}
                     onDuplicate={handleDuplicate}
-                    onDelete={(id) =>
-                        handleDelete(
-                            id,
-                            t('templates.confirm_delete', 'Are you sure you want to delete this template?')
-                        )
-                    }
+                    onDelete={(id) => setConfirmDeleteId(id)}
                     onCreate={handleCreate}
                 />
             )}
+
+            <Dialog open={confirmDeleteId !== null} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+                <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
+                    <DialogHeader>
+                        <DialogTitle className="text-slate-900 dark:text-white">
+                            {t('templates.confirm_delete_title', 'Eliminar plantilla')}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {t(
+                            'templates.confirm_delete',
+                            'Esta acción eliminará la plantilla de forma permanente y no se puede deshacer.'
+                        )}
+                    </p>
+                    <div className="mt-5 flex items-center justify-end gap-3">
+                        <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                        >
+                            {t('common.cancel', 'Cancelar')}
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (confirmDeleteId) {
+                                    await handleDelete(confirmDeleteId);
+                                    setConfirmDeleteId(null);
+                                }
+                            }}
+                            disabled={isSubmitting}
+                            className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50"
+                        >
+                            {t('common.delete', 'Eliminar')}
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
