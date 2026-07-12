@@ -3,16 +3,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { SearchPanel } from '../SearchPanel';
 import { COMMON_TAGS } from '../../../constants/tags';
 
-// Mock dependencies
-vi.mock('../../../services/db.service', () => ({
-    dbService: {
-        getLicitacion: vi.fn(),
-        searchByPresupuestoRange: vi.fn(),
-        advancedSearch: vi.fn(),
-        searchByTags: vi.fn(),
-    },
-}));
-
 describe('SearchPanel', () => {
     const mockOnSearch = vi.fn();
     const mockOnReset = vi.fn();

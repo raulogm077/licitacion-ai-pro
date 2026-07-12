@@ -357,5 +357,3 @@ export class DBService {
             });
     }
 }
-
-export const dbService = new DBService();

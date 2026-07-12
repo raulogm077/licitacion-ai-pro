@@ -128,5 +128,3 @@ export class AnalysisChatService {
         }
     }
 }
-
-export const analysisChatService = new AnalysisChatService();
