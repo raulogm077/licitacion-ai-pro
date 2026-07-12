@@ -44,7 +44,7 @@ Revisión integral del producto (seguridad, corrección de bugs, accesibilidad, 
 
 ### Dependencias
 
-- Bumps seguros minor/patch: vitest 4.1.10, @supabase/supabase-js 2.110, @sentry/react 10.65, react-router-dom 7.18, prettier, postcss, zustand, autoprefixer, tsx, @axe-core/playwright, y lucide-react 0.344→1.24 (sin renombres).
+- Bumps seguros minor/patch: vitest 4.1.10, @supabase/supabase-js 2.110, @sentry/react 10.65, react-router-dom 7.18, prettier, zustand, tsx, @axe-core/playwright, y lucide-react 0.344→1.24 (sin renombres). `postcss` y `autoprefixer` se mantienen en su versión baseline: sus últimas publicaciones son posteriores al snapshot del registro npm que usa `deno check` en el entorno de verificación y romperían el gate `verify:release` (en CI real sí resolverían).
 - `@playwright/test` fijado en 1.58.2 (la 1.61 exige un build de Chromium no disponible en el entorno de ejecución preinstalado).
 - NO se subieron React 19, Tailwind 4, zod 4 ni eslint 9 (majors breaking, sin beneficio inmediato; zod anclado por el peer del SDK). Pendientes documentados en `SPEC.md` §10.7.
 
