@@ -30,6 +30,7 @@ import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 import { getRetryReason } from '../../_shared/utils/retry.ts';
 import type { RetryReason } from '../../_shared/utils/retry.ts';
+import { runWithConcurrency } from '../../_shared/utils/concurrency.ts';
 
 export interface BlockExtractionInput {
     openai: OpenAI;
@@ -78,20 +79,6 @@ export interface RetryNotification {
     reason: RetryReason;
     blockIndex?: number;
     totalBlocks?: number;
-}
-
-async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
-    const results: T[] = new Array(items.length);
-    let nextIndex = 0;
-    async function worker() {
-        while (nextIndex < items.length) {
-            const idx = nextIndex++;
-            results[idx] = await items[idx]();
-        }
-    }
-    const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
-    await Promise.all(workers);
-    return results;
 }
 
 function emptyBlockResult(blockName: BlockName, warning: string): BlockResult {
@@ -152,12 +139,7 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     if (template && template.schema && template.schema.length > 0) {
         onProgress?.('Extrayendo plantilla personalizada...', totalBlocks, totalBlocks + 1);
         try {
-            customTemplate = await extractCustomTemplateWithAgent(
-                vectorStoreId,
-                template,
-                guideContent,
-                context
-            );
+            customTemplate = await extractCustomTemplateWithAgent(vectorStoreId, template, guideContent, context);
         } catch (error) {
             const errorMsg = mapOpenAIError(error);
             console.error('[Extraction] Custom template extraction failed:', errorMsg);

@@ -9,6 +9,7 @@
 import OpenAI from 'npm:openai@6.33.0';
 import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
+import { runWithConcurrency } from '../../_shared/utils/concurrency.ts';
 
 export interface IngestionProgressUpdate {
     message: string;
@@ -57,20 +58,6 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
     const buffer = new ArrayBuffer(bytes.byteLength);
     new Uint8Array(buffer).set(bytes);
     return buffer;
-}
-
-async function runWithConcurrency<T>(items: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
-    const results: T[] = new Array(items.length);
-    let nextIndex = 0;
-    async function worker() {
-        while (nextIndex < items.length) {
-            const idx = nextIndex++;
-            results[idx] = await items[idx]();
-        }
-    }
-    const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
-    await Promise.all(workers);
-    return results;
 }
 
 async function waitForVectorStoreIndexing(
@@ -238,7 +225,9 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
         );
     }
     if (diagnostics.zeroCompletedFiles) {
-        console.warn(`[Ingestion] ⚠️  No files completed indexing. Content extraction will likely return empty results.`);
+        console.warn(
+            `[Ingestion] ⚠️  No files completed indexing. Content extraction will likely return empty results.`
+        );
     }
 
     return { vectorStoreId, fileIds: uploadedFileIds, fileNames, diagnostics };
