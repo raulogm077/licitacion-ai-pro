@@ -18,6 +18,7 @@ vi.mock('lucide-react', () => ({
     FileText: () => <span data-testid="icon-file-text" />,
     File: () => <span data-testid="icon-file" />,
     Download: () => <span data-testid="icon-download" />,
+    Loader2: () => <span data-testid="icon-loader" />,
     AlertCircle: () => <span data-testid="icon-alert-circle" />,
     AlertTriangle: () => <span data-testid="icon-alert-triangle" />,
     Check: () => <span data-testid="icon-check" />,
@@ -87,14 +88,15 @@ describe('Dashboard Interaction', () => {
         expect(screen.getAllByText('Solvencia')[0]).toBeInTheDocument();
     });
 
-    it('renders export buttons in header', () => {
+    it('renders a working export button in header', () => {
         render(
             <MemoryRouter>
                 <Dashboard data={mockData} />
             </MemoryRouter>
         );
 
-        expect(screen.getByText('Exportar Reporte')).toBeInTheDocument();
-        expect(screen.getByText('Ver Original')).toBeInTheDocument();
+        const exportButton = screen.getByText('Exportar Reporte').closest('button');
+        expect(exportButton).toBeInTheDocument();
+        expect(exportButton).toBeEnabled();
     });
 });

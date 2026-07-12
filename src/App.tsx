@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Loader2 } from 'lucide-react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
+import { Toaster } from 'sonner';
 import { useAuthStore } from './stores/auth.store';
 import { useLicitacionStore } from './stores/licitacion.store';
 import { useAnalysisStore } from './stores/analysis.store';
@@ -11,13 +12,13 @@ import { SupabaseStatus } from './components/SupabaseStatus';
 import { Layout } from './components/layout/Layout';
 import { DevToolsPanel } from './components/DevToolsPanel';
 import { PageLoader } from './components/ui/PageLoader';
+import { MotionProvider } from './components/ui/motion';
 import { useDarkMode } from './hooks/useDarkMode';
 
 // Lazy load pages for performance code-splitting
 const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })));
 const HistoryPage = lazy(() => import('./pages/HistoryPage').then((module) => ({ default: module.HistoryPage })));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage').then((module) => ({ default: module.AnalyticsPage })));
-const SearchPage = lazy(() => import('./pages/SearchPage').then((module) => ({ default: module.SearchPage })));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((module) => ({ default: module.TemplatesPage })));
 const PresentationPage = lazy(() =>
     import('./pages/PresentationPage').then((module) => ({ default: module.PresentationPage }))
@@ -59,79 +60,80 @@ function App() {
     }
 
     return (
-        <Router>
-            <SupabaseStatus />
-            <SpeedInsights />
-            <Analytics />
-            <DevToolsPanel />
-            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-            <Routes>
-                <Route
-                    element={
-                        <Layout
-                            status={status}
-                            data={data}
-                            reset={reset}
-                            darkMode={darkMode}
-                            setDarkMode={setDarkMode}
-                            onLogout={handleAuthAction}
-                        />
-                    }
-                >
-                    <Route
-                        path="/"
-                        element={
-                            <Suspense fallback={<PageLoader />}>
-                                <HomePage />
-                            </Suspense>
-                        }
-                    />
-                    <Route
-                        path="/history"
-                        element={
-                            <Suspense fallback={<PageLoader />}>
-                                <HistoryPage />
-                            </Suspense>
-                        }
-                    />
-                    <Route
-                        path="/analytics"
-                        element={
-                            <Suspense fallback={<PageLoader />}>
-                                <AnalyticsPage />
-                            </Suspense>
-                        }
-                    />
-                    <Route
-                        path="/search"
-                        element={
-                            <Suspense fallback={<PageLoader />}>
-                                <SearchPage />
-                            </Suspense>
-                        }
-                    />
-                    <Route
-                        path="/templates"
-                        element={
-                            <Suspense fallback={<PageLoader />}>
-                                <TemplatesPage />
-                            </Suspense>
-                        }
-                    />
-                </Route>
-
-                <Route
-                    path="/presentation"
-                    element={
-                        <Suspense fallback={<PageLoader />}>
-                            <PresentationPage data={data} />
-                        </Suspense>
-                    }
+        <MotionProvider>
+            <Router>
+                <Toaster
+                    theme={darkMode ? 'dark' : 'light'}
+                    position="top-right"
+                    richColors
+                    closeButton
+                    toastOptions={{ className: 'font-sans' }}
                 />
+                <SupabaseStatus />
+                <SpeedInsights />
+                <Analytics />
+                <DevToolsPanel />
+                <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+                <Routes>
+                    <Route
+                        element={
+                            <Layout
+                                status={status}
+                                data={data}
+                                reset={reset}
+                                darkMode={darkMode}
+                                setDarkMode={setDarkMode}
+                                onLogout={handleAuthAction}
+                            />
+                        }
+                    >
+                        <Route
+                            path="/"
+                            element={
+                                <Suspense fallback={<PageLoader />}>
+                                    <HomePage />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="/history"
+                            element={
+                                <Suspense fallback={<PageLoader />}>
+                                    <HistoryPage />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="/analytics"
+                            element={
+                                <Suspense fallback={<PageLoader />}>
+                                    <AnalyticsPage />
+                                </Suspense>
+                            }
+                        />
+                        <Route
+                            path="/templates"
+                            element={
+                                <Suspense fallback={<PageLoader />}>
+                                    <TemplatesPage />
+                                </Suspense>
+                            }
+                        />
+                    </Route>
 
-                <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-        </Router>
+                    <Route
+                        path="/presentation"
+                        element={
+                            <Suspense fallback={<PageLoader />}>
+                                <PresentationPage data={data} />
+                            </Suspense>
+                        }
+                    />
+
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </Router>
+        </MotionProvider>
     );
 }
 

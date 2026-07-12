@@ -45,13 +45,13 @@ export const SupabaseStatus: React.FC = () => {
 
     return (
         <div
-            className={`fixed bottom-4 right-4 p-3 rounded-lg shadow-lg flex items-center gap-2 text-sm font-medium z-50
-            ${status === 'error' ? 'bg-red-100 text-red-800 border border-red-200' : ''}
-            ${status === 'error-config' ? 'bg-purple-100 text-purple-800 border border-purple-200' : ''}
-            ${status === 'auth-required' ? 'bg-amber-100 text-amber-800 border border-amber-200' : ''}
+            className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-xl p-3 text-sm font-medium shadow-card backdrop-blur-sm
+            ${status === 'error' ? 'border border-danger/20 bg-danger-light text-danger-dark dark:bg-danger/20 dark:text-danger-light' : ''}
+            ${status === 'error-config' ? 'border border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-950 dark:text-brand-300' : ''}
+            ${status === 'auth-required' ? 'border border-warning/20 bg-warning-light text-warning-dark dark:bg-warning/20 dark:text-warning-light' : ''}
         `}
         >
-            {status === 'loading' && <Circle className="w-4 h-4 animate-pulse text-gray-500" />}
+            {status === 'loading' && <Circle className="w-4 h-4 animate-pulse text-slate-500" />}
             {status === 'error' && <AlertTriangle className="w-4 h-4" />}
             {status === 'error-config' && <AlertTriangle className="w-4 h-4" />}
             {status === 'auth-required' && <AlertTriangle className="w-4 h-4" />}

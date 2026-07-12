@@ -1,14 +1,28 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useLicitacionStore } from '../stores/licitacion.store';
 import { useAnalysisStore } from '../stores/analysis.store';
 import { AnalysisWizard } from '../features/upload/components/AnalysisWizard';
+import { LandingHero } from '../features/landing/LandingHero';
+import { useAuthStore } from '../stores/auth.store';
+import { celebrateAnalysisComplete } from '../lib/celebrate';
 
 export const HomePage: React.FC = () => {
     const { data, updateData } = useLicitacionStore();
     const { status } = useAnalysisStore();
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const prevStatusRef = useRef(status);
+
+    // Celebrate only a fresh analysis finishing (not history loads that
+    // arrive already COMPLETED).
+    useEffect(() => {
+        if (prevStatusRef.current === 'ANALYZING' && status === 'COMPLETED') {
+            void celebrateAnalysisComplete();
+        }
+        prevStatusRef.current = status;
+    }, [status]);
 
     return (
         <>
@@ -19,8 +33,11 @@ export const HomePage: React.FC = () => {
                     </div>
                 }
             >
+                {/* Unauthenticated visitors get the branded landing */}
+                {!isAuthenticated && status === 'IDLE' && <LandingHero />}
+
                 {/* Wizard handles Idle, Analyzing, and Error states */}
-                {(status === 'IDLE' || status === 'ANALYZING' || status === 'ERROR') && (
+                {isAuthenticated && (status === 'IDLE' || status === 'ANALYZING' || status === 'ERROR') && (
                     <div className="max-w-5xl mx-auto mt-8">
                         <AnalysisWizard />
                     </div>

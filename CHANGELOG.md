@@ -1,5 +1,66 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12g — Rediseño UX «Iris» (F7: a11y y cierre)
+
+- **Accesibilidad**: 0 violaciones WCAG AA serias/críticas en `/`, `/history` y `/templates` (axe). La suite de a11y escanea con `reducedMotion: 'reduce'` — las animaciones de entrada dejaban texto semitransparente a mitad de escaneo y axe reportaba falsos fallos de contraste con colores mezclados; además ese es un camino real de usuario que ahora queda cubierto.
+- **Bug de la aurora**: `@keyframes aurora` no llegaba al build (Tailwind solo emite keyframes de utilidades usadas y el consumidor era `.aurora::before` en CSS plano); la definición vive ahora en `index.css` junto a su consumidor.
+- **AuthModal saneado**: los errores de infraestructura (p. ej. variables de entorno ausentes) ya no se muestran al usuario («ERROR CRÍTICO: Faltan variables de entorno en Vercel»); van al logger/Sentry y el usuario ve un mensaje genérico accionable.
+- **Barrido de código muerto**: eliminados los keyframes/animaciones sin uso del config (`slide-up`, `progress-indeterminate`, `aurora` como utilidad) y la prop `interactive` de `Card` sin consumidores. Verificado que todas las primitivas nuevas (motion, notify, celebrate, Skeleton, export) tienen uso real.
+
+## [Unreleased] - 2026-07-12f — Rediseño UX «Iris» (F4–F6: analytics, búsqueda unificada, landing y presentación real)
+
+### Analytics con gráficos reales (F4)
+
+- `ChartsSection` usa **recharts** (dentro del chunk lazy de Analytics): donut de distribución por estado con leyenda-tabla accesible, y **serie temporal mensual** real (nuevo campo `evolucionMensual` calculado en `AnalyticsService` desde los timestamps). La distribución de riesgos pasa a barras proporcionales reales.
+- Paleta de visualización **validada** (chequeos de banda de luminosidad, croma, separación CVD y contraste, por modo claro/oscuro) expuesta como variables CSS `--viz-*` que se re-teman automáticamente con la clase `.dark`.
+
+### Búsqueda unificada (F5)
+
+- **Se elimina el segundo buscador**: `SearchPage` y `SearchPanel` (y sus tests) desaparecen junto con la ruta `/search` y su entrada de navegación. El Historial es ahora LA búsqueda única: texto libre (FTS) + filtros avanzados, que ganan **Estado** y **Tags** (los dos filtros que solo tenía la página eliminada). Se elimina también el tipo `View` muerto y el bloque i18n `auth.*` sin uso.
+
+### Landing y presentación real (F6)
+
+- **Landing de marca para no autenticados** (`LandingHero`): hero aurora con titular display, propuesta de valor (extracción estructurada, evidencias citadas, copiloto), CTA que abre el AuthModal. Sustituye al candado «Acceso Requerido» del wizard, cuya rama no autenticada se elimina de `UploadStep` (el gate vive en `HomePage`).
+- **Modo presentación real**: diapositivas (Portada → Cifras clave → Criterios → Solvencia → Riesgos) con navegación por teclado (←/→/Espacio/Escape), flechas en pantalla, puntos de progreso clicables, contador y **pantalla completa** (Fullscreen API); transiciones animadas con `motion` y estado vacío estilado.
+
+## [Unreleased] - 2026-07-12e — Rediseño UX «Iris» (F2+F3: momentos wow + dashboard)
+
+Segundo bloque del rediseño: la pantalla de análisis y el dashboard estrella. Sin cambios en el contrato SSE (el frontend solo explota mejor los eventos existentes).
+
+### Momentos wow (F2)
+
+- **Stepper premium** (`StepIndicator`): conectores con relleno animado de marca, checks en pasos completados y paso activo con glow.
+- **Análisis por fases**: `AnalyzingStep` muestra las 5 fases del pipeline (`ANALYSIS_PHASES` del contrato compartido) como checklist con checkmarks/spinner, **barra de progreso real** (adiós `progress-indeterminate` en esa pantalla) y % grande; la fase activa llega por SSE (`ai.service` propaga `phase` en el callback `onProgress` y el store la guarda en `currentPhase`, antes siempre `null`). La consola terminal ahora hace auto-scroll.
+- **Celebración al completar**: confeti de marca (canvas-confetti, import dinámico, respeta `prefers-reduced-motion`) al pasar de ANALYZING a COMPLETED (no al cargar desde historial).
+
+### Dashboard estrella (F3)
+
+- **KPI cards**: entrada escalonada (`Stagger`), **count-up animado** (`CountUp` en `ui/motion`) para presupuesto/duración/valor estimado, tokens Iris y dark mode; se elimina el campo `trend` muerto (siempre `null`).
+- **Mapa de riesgos con datos reales**: barra de distribución apilada proporcional a los conteos reales (excluyentes=alto, penalizaciones=medio, riesgos=bajo) en lugar de barras decorativas hardcodeadas (85/50/25%); dark mode completo.
+- **CTAs implementados o retirados**: «Exportar Reporte» ahora **funciona** (nuevo `exportLicitacionToExcel` en `export-utils` con 6 hojas: datos generales, criterios, solvencia, técnicos, riesgos, servicio) con toast de éxito/error; «Ver Original» se **elimina** (el PDF original no se persiste — no se deja UI muerta).
+- **Marca unificada**: Sidebar del dashboard con identidad Iris, **usuario real de la sesión** (email + logout funcional) en lugar del bloque «Minsait» hardcodeado con botón inerte; ScoringChart/SummarySection/AlertsPanel/PlaceholderView migrados de navy/cyan a tokens de marca con dark mode; **tokens `navy`/`cyan`/`sidebar` eliminados** de `tailwind.config.js` (cero huérfanos).
+- **Toggles descubribles**: los controles de evidencia/feedback dejan de estar ocultos hasta hover (`opacity-0`) y quedan visibles en sutil (`opacity-60`) — usables en táctil y con foco de teclado.
+
+## [Unreleased] - 2026-07-12d — Rediseño UX «Iris» (F0+F1: fundaciones + shell)
+
+Primer bloque del rediseño integral de UX hacia una identidad profesional con efecto «wow». Cambios de superficie de usuario, sin tocar el runtime de análisis ni el contrato SSE.
+
+### Fundaciones (F0)
+
+- **Dark mode reparado**: `tailwind.config.js` no declaraba `darkMode: 'class'`, por lo que el toggle de tema no tenía efecto pese a las ~38 superficies con clases `dark:`. Ahora el modo oscuro funciona de extremo a extremo.
+- **Sistema de diseño «Iris»**: nueva paleta de marca índigo→violeta (`brand`) + acento violeta (`accent`), gradiente firma `brand-gradient`, sombras de elevación y `glow`, y keyframes/animaciones (`fade-in`, `shimmer`, `progress-indeterminate`, `aurora`, `pulse-glow`) — con el plugin `tailwindcss-animate` que revive las clases `animate-in` ya presentes en el código.
+- **Tipografía self-hosted** (sin CDN): Inter (UI) + Space Grotesk (display) vía `@fontsource-variable`.
+- **`prefers-reduced-motion`**: `src/index.css` desactiva animaciones no esenciales cuando el usuario lo pide; `MotionProvider` (LazyMotion) enruta `reducedMotion: 'user'`.
+- Primitivas de animación reutilizables en `src/components/ui/motion/` (`FadeIn`, `Stagger`, `StaggerItem`).
+
+### Primitivas y shell (F1)
+
+- `Button`/`Card`/`Badge`/`Dialog` rediseñados sobre tokens de marca y con soporte de modo oscuro propio; `Dialog` anima entrada/salida con `motion`.
+- **Sistema de toasts** (`sonner`) con helper único `notify()`; se renderizan errores antes silenciados (`useHistory.error`, `catch` de Analytics) y se confirma el borrado del historial con toast.
+- **Skeletons reutilizables** (`Skeleton`/`SkeletonCard`); `DashboardSkeleton` y el estado de carga de Analytics los reutilizan.
+- Cabecera con logo de marca (gradiente + Space Grotesk), header glass y contenido a `max-w-7xl`.
+- Dependencias frontend nuevas (solo cliente, no afectan al runtime Deno de las Edge Functions): `motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/inter`, `@fontsource-variable/space-grotesk`.
+
 ## [Unreleased] - 2026-07-12c — Orden de la migración add_provider_reading_mode
 
 Corrige el bug de orden que dejaba en rojo el check `Supabase Preview` (apply en frío):

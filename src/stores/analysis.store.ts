@@ -101,19 +101,20 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
             // 4. Run analysis pipeline
             const { content, workflow } = await services.ai.analyzePdfContent(
                 base64,
-                (processed, total, message) => {
+                (processed, total, message, phase) => {
                     const progressWeight = total > 0 ? 80 / total : 0;
                     const currentProgress = total > 0 ? 10 + Math.round(processed * progressWeight) : 50;
 
                     set((state) => {
                         const lines = state.thinkingOutput.split('\n');
+                        const next: Partial<AnalysisStore> = {
+                            progress: Math.min(currentProgress, 90),
+                            currentPhase: phase ?? state.currentPhase,
+                        };
                         if (lines[lines.length - 1] !== message) {
-                            return {
-                                thinkingOutput: state.thinkingOutput + '\n' + message,
-                                progress: Math.min(currentProgress, 90),
-                            };
+                            next.thinkingOutput = state.thinkingOutput + '\n' + message;
                         }
-                        return { progress: Math.min(currentProgress, 90) };
+                        return next;
                     });
                 },
                 newController.signal,

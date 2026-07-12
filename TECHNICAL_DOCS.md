@@ -52,15 +52,16 @@ Usuario sube PDF
 
 ## 3. Stack Tecnológico
 
-| Capa        | Tech                                            | Versión                                       |
-| ----------- | ----------------------------------------------- | --------------------------------------------- |
-| Frontend    | React + TypeScript + Vite + Tailwind + Zustand  | 18.2 / 5.5 / 7.3 / 3.4 / 5.0                  |
-| Validación  | Zod                                             | 3.25.76 (alineado con `@openai/agents@0.3.1`) |
-| Backend     | Supabase Edge Functions (Deno)                  | 2.x                                           |
-| AI Pipeline | `@openai/agents`                                | 0.3.1                                         |
-| Subyacente  | OpenAI Responses API + Files API + Vector Store | latest                                        |
-| DB          | PostgreSQL                                      | 15+                                           |
-| Hosting     | Vercel + Supabase Cloud                         | latest                                        |
+| Capa        | Tech                                                                             | Versión                                       |
+| ----------- | -------------------------------------------------------------------------------- | --------------------------------------------- |
+| Frontend    | React + TypeScript + Vite + Tailwind + Zustand                                   | 18.2 / 5.5 / 7.3 / 3.4 / 5.0                  |
+| UI (Iris)   | motion (LazyMotion) + sonner + recharts + canvas-confetti + @fontsource-variable | solo-cliente (bundle Vite; no afectan a Deno) |
+| Validación  | Zod                                                                              | 3.25.76 (alineado con `@openai/agents@0.3.1`) |
+| Backend     | Supabase Edge Functions (Deno)                                                   | 2.x                                           |
+| AI Pipeline | `@openai/agents`                                                                 | 0.3.1                                         |
+| Subyacente  | OpenAI Responses API + Files API + Vector Store                                  | latest                                        |
+| DB          | PostgreSQL                                                                       | 15+                                           |
+| Hosting     | Vercel + Supabase Cloud                                                          | latest                                        |
 
 ---
 
@@ -219,7 +220,7 @@ El workflow `ci-cd.yml` (job `deploy-supabase`) ejecuta exactamente estos comand
 
 ### Migraciones — orden de ficheros
 
-El nombre de fichero de cada migración debe ordenar cronológicamente por encima de todas las migraciones de las que dependa (Supabase las aplica en orden lexicográfico de nombre). En 2026-07-12 se corrigió `add_provider_reading_mode`, cuyo timestamp `20250130000000` ordenaba antes que `20251228000000_initial_schema` y rompía el *branching preview* (apply en frío): se renombró a `20251229000000`, se idempotentizó, y se reparó el historial remoto borrando la fila vieja de `supabase_migrations.schema_migrations` (equivalente a `supabase migration repair --status reverted`). Ver `DEPLOYMENT.md` (§ "Orden de migraciones y Supabase Preview").
+El nombre de fichero de cada migración debe ordenar cronológicamente por encima de todas las migraciones de las que dependa (Supabase las aplica en orden lexicográfico de nombre). En 2026-07-12 se corrigió `add_provider_reading_mode`, cuyo timestamp `20250130000000` ordenaba antes que `20251228000000_initial_schema` y rompía el _branching preview_ (apply en frío): se renombró a `20251229000000`, se idempotentizó, y se reparó el historial remoto borrando la fila vieja de `supabase_migrations.schema_migrations` (equivalente a `supabase migration repair --status reverted`). Ver `DEPLOYMENT.md` (§ "Orden de migraciones y Supabase Preview").
 
 ---
 

@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { Upload, Lock, X, ArrowRight, FileType } from 'lucide-react';
+import { Upload, X, ArrowRight, FileType } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ExtractionTemplate } from '../../../types';
-import { AuthModal } from '../../../components/ui/AuthModal';
 import { StepIndicator } from './StepIndicator';
 
 interface UploadStepProps {
-    isAuthenticated: boolean;
     selectedFiles: File[];
     validationError: string | null;
     templates: ExtractionTemplate[];
@@ -21,7 +19,6 @@ interface UploadStepProps {
 }
 
 export const UploadStep: React.FC<UploadStepProps> = ({
-    isAuthenticated,
     selectedFiles,
     validationError,
     templates,
@@ -36,35 +33,24 @@ export const UploadStep: React.FC<UploadStepProps> = ({
 }) => {
     const { t } = useTranslation();
     const [isDragging, setIsDragging] = useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(false);
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
-        if (isAuthenticated) setIsDragging(true);
+        setIsDragging(true);
     };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
         onFilesAdded(e.dataTransfer.files);
     };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
         onFilesAdded(e.target.files);
     };
 
     return (
         <div className="relative max-w-4xl mx-auto mt-8 px-4">
-            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-96 bg-brand-500/20 rounded-full blur-[100px] -z-10 opacity-50 dark:opacity-20 pointer-events-none" />
 
             <div className="text-center mb-8 relative z-10">
@@ -83,14 +69,12 @@ export const UploadStep: React.FC<UploadStepProps> = ({
             <StepIndicator currentStep="upload" />
 
             <div className="relative backdrop-blur-xl bg-white/70 dark:bg-slate-900/60 border border-white/20 dark:border-slate-700/50 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300">
-                {isAuthenticated && (
-                    <div className="absolute top-4 right-4 z-20">
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                            <span className="opacity-70">Powered by</span>
-                            <span className="ml-1 font-semibold text-brand-600 dark:text-brand-400">OpenAI</span>
-                        </span>
-                    </div>
-                )}
+                <div className="absolute top-4 right-4 z-20">
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        <span className="opacity-70">Powered by</span>
+                        <span className="ml-1 font-semibold text-brand-600 dark:text-brand-400">OpenAI</span>
+                    </span>
+                </div>
 
                 <div className="p-10 min-h-[500px] flex flex-col justify-center items-center relative">
                     {selectedFiles.length === 0 ? (
@@ -99,11 +83,9 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                                 w-full max-w-2xl border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 group cursor-pointer
                                 flex flex-col items-center justify-center gap-6
                                 ${
-                                    !isAuthenticated
-                                        ? 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20'
-                                        : isDragging
-                                          ? 'border-brand-500 bg-brand-50/30 scale-[1.02]'
-                                          : 'border-slate-300 dark:border-slate-600 hover:border-brand-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
+                                    isDragging
+                                        ? 'border-brand-500 bg-brand-50/30 scale-[1.02]'
+                                        : 'border-slate-300 dark:border-slate-600 hover:border-brand-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
                                 }
                             `}
                             onDragOver={handleDragOver}
@@ -112,20 +94,12 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                         >
                             <div
                                 className={`
-                                w-24 h-24 rounded-full flex items-center justify-center transition-transform duration-500
-                                ${isAuthenticated ? 'group-hover:scale-110 group-hover:rotate-3' : ''}
+                                w-24 h-24 rounded-full flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3
                                 ${isDragging ? 'scale-110' : ''}
                                 bg-gradient-to-br from-brand-50 to-brand-100 dark:from-brand-900/40 dark:to-brand-800/40
                             `}
                             >
-                                {isAuthenticated ? (
-                                    <Upload
-                                        className="w-10 h-10 text-brand-600 dark:text-brand-400"
-                                        strokeWidth={1.5}
-                                    />
-                                ) : (
-                                    <Lock className="w-10 h-10 text-slate-400" strokeWidth={1.5} />
-                                )}
+                                <Upload className="w-10 h-10 text-brand-600 dark:text-brand-400" strokeWidth={1.5} />
                             </div>
 
                             {validationError && (
@@ -135,38 +109,25 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                             )}
                             <div className="space-y-2">
                                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
-                                    {isAuthenticated
-                                        ? t('wizard.upload_title', 'Sube tu documento PDF')
-                                        : t('auth.required_title')}
+                                    {t('wizard.upload_title', 'Sube tu documento PDF')}
                                 </h3>
                                 <p className="text-slate-500 dark:text-slate-400">
-                                    {isAuthenticated
-                                        ? t('wizard.drag_drop_hint', 'Arrastra y suelta aquí o haz clic para explorar')
-                                        : t('auth.required_desc')}
+                                    {t('wizard.drag_drop_hint', 'Arrastra y suelta aquí o haz clic para explorar')}
                                 </p>
                             </div>
 
-                            {isAuthenticated ? (
-                                <label className="relative pointer-events-none group-hover:pointer-events-auto">
-                                    <input
-                                        type="file"
-                                        accept=".pdf"
-                                        multiple
-                                        className="sr-only"
-                                        onChange={handleFileSelect}
-                                    />
-                                    <span className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg">
-                                        Seleccionar uno o varios PDF
-                                    </span>
-                                </label>
-                            ) : (
-                                <button
-                                    onClick={() => setShowAuthModal(true)}
-                                    className="inline-flex items-center px-6 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm hover:opacity-90 transition-opacity shadow-lg"
-                                >
-                                    Iniciar Sesión
-                                </button>
-                            )}
+                            <label className="relative pointer-events-none group-hover:pointer-events-auto">
+                                <input
+                                    type="file"
+                                    accept=".pdf"
+                                    multiple
+                                    className="sr-only"
+                                    onChange={handleFileSelect}
+                                />
+                                <span className="inline-flex items-center px-6 py-2.5 rounded-full bg-brand-gradient text-white font-medium text-sm shadow-glow hover:shadow-glow-lg transition-shadow">
+                                    Seleccionar uno o varios PDF
+                                </span>
+                            </label>
                         </div>
                     ) : (
                         <div className="w-full max-w-lg animate-in zoom-in-95 duration-300">
@@ -218,14 +179,14 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                                 </div>
 
                                 {templates.length > 0 && (
-                                <div className="w-full text-left mb-6">
-                                    <div className="mb-4 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm text-brand-900">
-                                        El primer PDF se toma como principal. Añade PCAP, PPT y anexos clave solo como
-                                        refuerzo cuando no dispongas de un PDF completo del expediente.
-                                    </div>
-                                    <label
-                                        htmlFor="template-select"
-                                        className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                                    <div className="w-full text-left mb-6">
+                                        <div className="mb-4 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm text-brand-900">
+                                            El primer PDF se toma como principal. Añade PCAP, PPT y anexos clave solo
+                                            como refuerzo cuando no dispongas de un PDF completo del expediente.
+                                        </div>
+                                        <label
+                                            htmlFor="template-select"
+                                            className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                                         >
                                             Plantilla de Extracción (Opcional)
                                         </label>
@@ -279,7 +240,7 @@ export const UploadStep: React.FC<UploadStepProps> = ({
                     )}
                 </div>
 
-                <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 to-blue-600 opacity-20" />
+                <div className="h-1.5 w-full bg-brand-gradient opacity-20" />
             </div>
 
             {error && (

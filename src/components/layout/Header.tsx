@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FileText, ArrowLeft, History, BarChart3, Search, Maximize2, Sun, Moon, LogIn, Layers } from 'lucide-react';
+import { FileText, ArrowLeft, History, BarChart3, Maximize2, Sun, Moon, LogIn, Layers } from 'lucide-react';
 import { ProcessingStatus, LicitacionData } from '../../types';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
@@ -47,15 +47,13 @@ export const Header: React.FC<HeaderProps> = ({ status, data, reset, darkMode, s
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return (
-        <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50">
-            <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogoClick}>
-                    <div className="bg-brand-600 p-1.5 rounded-lg">
+        <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/70">
+            <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 cursor-pointer group" onClick={handleLogoClick}>
+                    <div className="bg-brand-gradient p-1.5 rounded-xl shadow-glow transition-transform group-hover:scale-105">
                         <FileText className="text-white" size={20} />
                     </div>
-                    <h1 className="text-xl font-bold bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
-                        Analista de Pliegos
-                    </h1>
+                    <h1 className="font-display text-xl font-bold text-gradient">Analista de Pliegos</h1>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -73,7 +71,6 @@ export const Header: React.FC<HeaderProps> = ({ status, data, reset, darkMode, s
                     {navButton('/history', <History size={20} />, 'Historial')}
                     {navButton('/templates', <Layers size={20} />, 'Plantillas')}
                     {navButton('/analytics', <BarChart3 size={20} />, 'Analytics')}
-                    {navButton('/search', <Search size={20} />, 'Búsqueda')}
 
                     {status === 'COMPLETED' && data && (
                         <button

@@ -15,13 +15,14 @@ vi.mock('../../features/presentation/PresentationMode', () => ({
 }));
 
 describe('PresentationPage', () => {
-    it('renders message when no data', () => {
+    it('renders styled empty state when no data', () => {
         render(
             <MemoryRouter>
                 <PresentationPage data={null} />
             </MemoryRouter>
         );
-        expect(screen.getByText('No data to present')).toBeInTheDocument();
+        expect(screen.getByText('No hay ningún análisis para presentar')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /volver al inicio/i })).toBeInTheDocument();
     });
 
     it('renders PresentationMode when data available', async () => {

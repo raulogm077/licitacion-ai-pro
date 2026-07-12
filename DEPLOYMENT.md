@@ -20,6 +20,8 @@ Superficies desplegables principales:
 - Edge Function `analyze-with-agents`
 - Edge Function `chat-with-analysis-agent` para conversación sobre análisis persistidos
 
+> **Nota (rediseño UX «Iris», 2026-07-12):** las dependencias frontend de UI añadidas (`motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/*`) son **solo de cliente**: entran en el bundle de Vite/Vercel y **no** afectan al runtime Deno de las Edge Functions (que no las importa). Las fuentes se sirven self-hosted desde el bundle, sin CDN externa.
+
 ## 2. Quién puede desplegar
 
 - **Solo QA** valida el cierre operativo dentro del flujo nocturno.

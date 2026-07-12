@@ -15,6 +15,8 @@ export const AnalysisWizard: React.FC = () => {
     const {
         status,
         thinkingOutput,
+        progress,
+        currentPhase,
         error,
         analyzeFiles,
         cancelAnalysis,
@@ -60,13 +62,19 @@ export const AnalysisWizard: React.FC = () => {
     };
 
     if (currentStep === 'analyzing') {
-        return <AnalyzingStep thinkingOutput={thinkingOutput} onCancel={cancelAnalysis} />;
+        return (
+            <AnalyzingStep
+                thinkingOutput={thinkingOutput}
+                progress={progress}
+                currentPhase={currentPhase}
+                onCancel={cancelAnalysis}
+            />
+        );
     }
 
     if (currentStep === 'upload') {
         return (
             <UploadStep
-                isAuthenticated={isAuthenticated}
                 selectedFiles={selectedFiles}
                 validationError={validationError}
                 templates={templates}

@@ -1,10 +1,95 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/space-grotesk';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+    /* Chart palette — validated (dataviz six checks) per mode; recharts reads
+       these via var() so charts re-theme with the .dark class automatically. */
+    :root {
+        --viz-indigo: #4f46e5;
+        --viz-green: #047857;
+        --viz-amber: #b45309;
+        --viz-rose: #be123c;
+        --viz-violet: #7c3aed;
+        --viz-grid: #e2e8f0;
+        --viz-ink: #64748b;
+        --viz-tooltip-bg: #ffffff;
+    }
+    .dark {
+        --viz-indigo: #6366f1;
+        --viz-green: #059669;
+        --viz-amber: #d97706;
+        --viz-rose: #e11d48;
+        --viz-violet: #8b5cf6;
+        --viz-grid: #334155;
+        --viz-ink: #94a3b8;
+        --viz-tooltip-bg: #1e293b;
+    }
+    html {
+        font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+    }
     body {
         @apply bg-slate-50 text-slate-900 antialiased;
+    }
+    .dark body {
+        @apply bg-slate-950 text-slate-100;
+    }
+    h1,
+    h2,
+    h3 {
+        font-family: 'Space Grotesk Variable', 'Space Grotesk', 'Inter Variable', ui-sans-serif, sans-serif;
+    }
+}
+
+@layer components {
+    /* Aurora mesh — signature radial-blur surface for hero / empty states.
+       Keyframes live here (not in the Tailwind config) because only this
+       ::before consumes them; Tailwind would tree-shake an unused utility. */
+    @keyframes aurora {
+        0%,
+        100% {
+            transform: translate3d(0, 0, 0) scale(1);
+        }
+        33% {
+            transform: translate3d(3%, -4%, 0) scale(1.08);
+        }
+        66% {
+            transform: translate3d(-3%, 3%, 0) scale(0.96);
+        }
+    }
+    .aurora {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+    }
+    .aurora::before {
+        content: '';
+        position: absolute;
+        inset: -30%;
+        z-index: -1;
+        background:
+            radial-gradient(38% 44% at 18% 22%, rgb(99 102 241 / 0.35), transparent 60%),
+            radial-gradient(42% 46% at 82% 30%, rgb(139 92 246 / 0.32), transparent 62%),
+            radial-gradient(46% 50% at 50% 88%, rgb(217 70 239 / 0.26), transparent 64%);
+        filter: blur(46px);
+        animation: aurora 18s ease-in-out infinite;
+    }
+    .dark .aurora::before {
+        background:
+            radial-gradient(38% 44% at 18% 22%, rgb(99 102 241 / 0.28), transparent 60%),
+            radial-gradient(42% 46% at 82% 30%, rgb(139 92 246 / 0.26), transparent 62%),
+            radial-gradient(46% 50% at 50% 88%, rgb(217 70 239 / 0.22), transparent 64%);
+    }
+
+    /* Glassmorphism surface for key cards / overlays */
+    .glass {
+        @apply border border-white/60 bg-white/70 backdrop-blur-xl;
+    }
+    .dark .glass {
+        @apply border-white/10 bg-slate-900/60;
     }
 }
 
@@ -16,25 +101,12 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
-}
-
-/* Modern animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    .text-gradient {
+        @apply bg-brand-gradient bg-clip-text text-transparent;
     }
 }
 
-.animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
-}
-
-/* Custom scrollbar for cleaner look */
+/* Custom scrollbar for a cleaner look */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -45,5 +117,21 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+    @apply rounded-full bg-slate-300 transition-colors hover:bg-slate-400;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 hover:bg-slate-600;
+}
+
+/* Honor users who prefer reduced motion — disable non-essential animation */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
 }

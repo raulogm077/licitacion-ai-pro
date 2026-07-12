@@ -1,134 +1,126 @@
 import { Euro, CalendarClock, Timer, TrendingUp } from 'lucide-react';
 import { PliegoVM } from '../../model/pliego-vm';
 import { FeedbackToggle } from '../detail/FeedbackToggle';
+import { CountUp, Stagger, StaggerItem } from '../../../../components/ui/motion';
+import { unwrap } from '../../../../lib/tracked-field';
+import { cn } from '../../../../lib/utils';
 
-// Helper type and component
 interface KpiCardProps {
     vm: PliegoVM;
 }
 
 export function KpiCards({ vm }: KpiCardProps) {
-    const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+    const formatCurrency = (amount: number) =>
+        new Intl.NumberFormat('es-ES', { style: 'currency', currency: vm.display.moneda }).format(amount);
 
-    const budget = vm.display.presupuesto;
-    const duration = vm.display.plazo;
+    const rawBudget = unwrap<number>(vm.result.datosGenerales.presupuesto, 0);
+    const rawMonths = unwrap<number>(vm.result.datosGenerales.plazoEjecucionMeses, 0);
+    const rawEstimated = vm.result.economico?.valorEstimadoContrato ?? 0;
     const dateLimit = vm.result.datosGenerales.fechaLimitePresentacion || 'No detectada';
-    const estimatedValue =
-        vm.result.economico?.valorEstimadoContrato && vm.result.economico.valorEstimadoContrato > 0
-            ? new Intl.NumberFormat('es-ES', {
-                  style: 'currency',
-                  currency: vm.display.moneda,
-              }).format(vm.result.economico.valorEstimadoContrato)
-            : 'No detectado';
 
     const kpis = [
         {
             id: 'presupuesto',
             label: 'Presupuesto Base de Licitación',
-            value: budget,
+            numeric: rawBudget > 0 ? { value: rawBudget, format: formatCurrency } : null,
+            fallback: 'No detectado',
             sub: 'IVA no incluido',
             icon: Euro,
-            trend: null,
-            color: 'text-navy dark:text-white',
-            iconBg: 'bg-navy/10 dark:bg-cyan/10',
-            iconColor: 'text-navy dark:text-cyan-muted',
-            accent: 'border-l-navy dark:border-l-cyan-muted',
+            iconBg: 'bg-brand-50 dark:bg-brand-950',
+            iconColor: 'text-brand-600 dark:text-brand-400',
+            accent: 'border-l-brand-500',
             fieldPath: 'datosGenerales.presupuesto',
+            feedbackValue: vm.display.presupuesto,
         },
         {
             id: 'fecha',
             label: 'Fecha Límite de Presentación',
-            value: dateLimit,
+            numeric: null,
+            fallback: dateLimit,
             sub: 'Presentación de ofertas',
             icon: CalendarClock,
-            trend: null,
-            trendColor:
-                'text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/20 dark:border-amber-800',
-            color: 'text-amber-700 dark:text-amber-400',
-            iconBg: 'bg-amber-50 dark:bg-amber-900/20',
-            iconColor: 'text-amber-600 dark:text-amber-400',
-            accent: 'border-l-amber-400',
+            iconBg: 'bg-warning-light dark:bg-warning/20',
+            iconColor: 'text-warning-dark dark:text-warning',
+            accent: 'border-l-warning',
             fieldPath: 'datosGenerales.fechaLimitePresentacion',
+            feedbackValue: dateLimit,
         },
         {
             id: 'duracion',
             label: 'Duración del Contrato',
-            value: duration,
+            numeric: rawMonths > 0 ? { value: rawMonths, format: (v: number) => `${Math.round(v)} meses` } : null,
+            fallback: 'No detectado',
             sub: 'Duración extraída',
             icon: Timer,
-            trend: null,
-            color: 'text-navy dark:text-white',
-            iconBg: 'bg-navy/10 dark:bg-cyan/10',
-            iconColor: 'text-navy dark:text-cyan-muted',
-            accent: 'border-l-navy dark:border-l-cyan-muted',
+            iconBg: 'bg-brand-50 dark:bg-brand-950',
+            iconColor: 'text-brand-600 dark:text-brand-400',
+            accent: 'border-l-brand-500',
             fieldPath: 'datosGenerales.plazoEjecucionMeses',
+            feedbackValue: vm.display.plazo,
         },
         {
             id: 'valor',
             label: 'Valor Estimado Total',
-            value: estimatedValue,
+            numeric: rawEstimated > 0 ? { value: rawEstimated, format: formatCurrency } : null,
+            fallback: 'No detectado',
             sub: 'Solo si aparece explícito',
             icon: TrendingUp,
-            trend: null,
-            color: 'text-navy dark:text-white',
-            iconBg: 'bg-cyan/20 dark:bg-cyan/10',
-            iconColor: 'text-cyan-muted',
-            accent: 'border-l-cyan',
+            iconBg: 'bg-accent-50 dark:bg-accent-900/30',
+            iconColor: 'text-accent-600 dark:text-accent-400',
+            accent: 'border-l-accent-500',
             fieldPath: 'economico.valorEstimadoContrato',
+            feedbackValue: rawEstimated > 0 ? formatCurrency(rawEstimated) : 'No detectado',
         },
     ];
 
     return (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <Stagger className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             {kpis.map((kpi) => {
                 const Icon = kpi.icon;
                 return (
-                    <div
-                        key={kpi.id}
-                        className={clx(
-                            'bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 pl-4 pr-5 py-4 flex items-start gap-4',
-                            'border-l-2 shadow-sm hover:shadow-md transition-shadow duration-200',
-                            kpi.accent
-                        )}
-                    >
+                    <StaggerItem key={kpi.id}>
                         <div
-                            className={clx(
-                                'flex items-center justify-center w-9 h-9 rounded-md flex-shrink-0 mt-0.5',
-                                kpi.iconBg
+                            className={cn(
+                                'flex h-full items-start gap-4 rounded-xl border border-l-2 border-slate-200 bg-white py-4 pl-4 pr-5 dark:border-slate-700 dark:bg-slate-800',
+                                'shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover',
+                                kpi.accent
                             )}
                         >
-                            <Icon className={clx('w-4 h-4', kpi.iconColor)} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-1">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-tight mb-1 text-pretty">
-                                    {kpi.label}
-                                </p>
-                                <FeedbackToggle
-                                    licitacionHash={vm.hash}
-                                    fieldPath={kpi.fieldPath}
-                                    value={String(kpi.value)}
-                                    className="flex-shrink-0 -mt-0.5"
-                                />
-                            </div>
-                            <p className={clx('text-lg font-bold leading-tight truncate', kpi.color)}>{kpi.value}</p>
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                <span className="text-[11px] text-slate-500 dark:text-slate-400">{kpi.sub}</span>
-                                {kpi.trend && (
-                                    <span
-                                        className={clx(
-                                            'text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border',
-                                            kpi.trendColor
-                                        )}
-                                    >
-                                        {kpi.trend}
-                                    </span>
+                            <div
+                                className={cn(
+                                    'mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg',
+                                    kpi.iconBg
                                 )}
+                            >
+                                <Icon className={cn('h-4 w-4', kpi.iconColor)} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-1">
+                                    <p className="mb-1 text-pretty text-xs font-medium leading-tight text-slate-500 dark:text-slate-400">
+                                        {kpi.label}
+                                    </p>
+                                    <FeedbackToggle
+                                        licitacionHash={vm.hash}
+                                        fieldPath={kpi.fieldPath}
+                                        value={kpi.feedbackValue}
+                                        className="-mt-0.5 flex-shrink-0"
+                                    />
+                                </div>
+                                <p className="truncate text-lg font-bold leading-tight text-slate-900 tabular-nums dark:text-white">
+                                    {kpi.numeric ? (
+                                        <CountUp value={kpi.numeric.value} format={kpi.numeric.format} />
+                                    ) : (
+                                        kpi.fallback
+                                    )}
+                                </p>
+                                <span className="mt-1.5 block text-[11px] text-slate-500 dark:text-slate-400">
+                                    {kpi.sub}
+                                </span>
                             </div>
                         </div>
-                    </div>
+                    </StaggerItem>
                 );
             })}
-        </div>
+        </Stagger>
     );
 }

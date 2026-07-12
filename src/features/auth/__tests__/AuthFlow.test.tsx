@@ -27,23 +27,24 @@ describe('Auth Validation Flow', () => {
             signInWithMagicLink: vi.fn().mockResolvedValue({ success: true }),
         };
 
-        // Mock the hook implementation
-        vi.mocked(AuthStore.useAuthStore).mockReturnValue(
-            mockStore as unknown as ReturnType<typeof AuthStore.useAuthStore>
-        );
+        // Mock the hook implementation (selector-aware: HomePage subscribes
+        // with `useAuthStore((s) => s.isAuthenticated)`)
+        vi.mocked(AuthStore.useAuthStore).mockImplementation(((selector?: (s: typeof mockStore) => unknown) =>
+            selector ? selector(mockStore) : mockStore) as unknown as typeof AuthStore.useAuthStore);
 
         // Mock the static getState method which is now used in AuthModal
         AuthStore.useAuthStore.getState = vi.fn().mockReturnValue(mockStore);
     });
 
-    it('should show login restrictions when unauthenticated', () => {
+    it('should show the branded landing when unauthenticated', () => {
         render(
             <BrowserRouter>
                 <HomePage />
             </BrowserRouter>
         );
 
-        expect(screen.getByText('auth.required_title')).toBeInTheDocument();
+        expect(screen.getByText(/Entiende cualquier pliego/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /comenzar ahora/i })).toBeInTheDocument();
     });
 
     it('should open AuthModal with Password form', async () => {
@@ -53,8 +54,7 @@ describe('Auth Validation Flow', () => {
             </BrowserRouter>
         );
 
-        // Button shows translated text "Iniciar Sesión", not the i18n key
-        const loginButton = screen.getByRole('button', { name: /iniciar sesión/i });
+        const loginButton = screen.getByRole('button', { name: /comenzar ahora/i });
 
         await waitFor(async () => {
             fireEvent.click(loginButton);

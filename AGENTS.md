@@ -14,6 +14,17 @@ fases que llamen al modelo.
 
 <!-- release-contract:end -->
 
+## Frontend UI stack (rediseño «Iris»)
+
+- Las dependencias de UI del rediseño (`motion`, `sonner`, `recharts`,
+  `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/*`) son **solo
+  de cliente**: no las importa ninguna Edge Function ni entran en `deno check`.
+- El modo oscuro depende de `darkMode: 'class'` en `tailwind.config.js`; no
+  reintroducir estilos que asuman el esquema del sistema en vez de la clase
+  `.dark`.
+- Toda animación debe respetar `prefers-reduced-motion` (guard global en
+  `src/index.css` + `MotionProvider` con `reducedMotion: 'user'`).
+
 ## SDK + versión
 
 - `npm:@openai/agents@0.3.1` — última versión cuyo `peerDependency` es

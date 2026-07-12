@@ -87,7 +87,7 @@ describe('AIService', () => {
 
         await service.analyzePdfContent('b64', onProgress, undefined, 'f.pdf', 'h1');
 
-        expect(onProgress).toHaveBeenCalledWith(0, 100, expect.stringContaining('Iniciando'));
+        expect(onProgress).toHaveBeenCalledWith(0, 100, expect.stringContaining('Iniciando'), undefined);
     });
 
     it('calls onProgress(100, 100, ...) at end', async () => {
@@ -96,7 +96,7 @@ describe('AIService', () => {
 
         await service.analyzePdfContent('b64', onProgress, undefined, 'f.pdf', 'h1');
 
-        expect(onProgress).toHaveBeenLastCalledWith(100, 100, expect.any(String));
+        expect(onProgress).toHaveBeenLastCalledWith(100, 100, expect.any(String), undefined);
     });
 
     it('handles phase_started event with known phase', async () => {
@@ -108,7 +108,7 @@ describe('AIService', () => {
 
         await service.analyzePdfContent('b64', onProgress, undefined, 'f.pdf', 'h1');
         // ingestion starts at 0
-        expect(onProgress).toHaveBeenCalledWith(0, 100, 'Ingesting');
+        expect(onProgress).toHaveBeenCalledWith(0, 100, 'Ingesting', 'ingestion');
     });
 
     it('handles phase_started with unknown phase (no onProgress call for that event)', async () => {
@@ -131,7 +131,7 @@ describe('AIService', () => {
 
         await service.analyzePdfContent('b64', onProgress, undefined, 'f.pdf', 'h1');
         // document_map ends at 20
-        expect(onProgress).toHaveBeenCalledWith(20, 100, 'Map done');
+        expect(onProgress).toHaveBeenCalledWith(20, 100, 'Map done', 'document_map');
     });
 
     it('handles extraction_progress event', async () => {
@@ -143,7 +143,7 @@ describe('AIService', () => {
 
         await service.analyzePdfContent('b64', onProgress, undefined, 'f.pdf', 'h1');
         // extraction: 20–80, blockIndex 3/9 → 20 + (3/9)*60 = 40
-        expect(onProgress).toHaveBeenCalledWith(40, 100, 'Block 3');
+        expect(onProgress).toHaveBeenCalledWith(40, 100, 'Block 3', undefined);
     });
 
     it('handles phase_progress event at mid-range', async () => {
@@ -156,7 +156,7 @@ describe('AIService', () => {
 
         await service.analyzePdfContent('b64', onProgress, undefined, 'f.pdf', 'h1');
         // consolidation: 80–90, mid = 85
-        expect(onProgress).toHaveBeenCalledWith(85, 100, 'Consolidating');
+        expect(onProgress).toHaveBeenCalledWith(85, 100, 'Consolidating', 'consolidation');
     });
 
     it('handles heartbeat event without calling onProgress for it', async () => {

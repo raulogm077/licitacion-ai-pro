@@ -7,7 +7,7 @@ import { RiskSummary } from '../widgets/RiskSummary';
 
 export function MainContent({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (section: string) => void }) {
     return (
-        <main className="flex-1 overflow-y-auto bg-slate-50 relative">
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 relative">
             <div className="p-6 space-y-5 max-w-[1600px] mx-auto animate-fade-in">
                 {/* KPI Row */}
                 <KpiCards vm={vm} />

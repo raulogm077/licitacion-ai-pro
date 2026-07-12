@@ -15,14 +15,14 @@ export function ScoringChart({ vm }: { vm: PliegoVM }) {
             label: o.descripcion,
             points: o.ponderacion || 0,
             percentage: ((o.ponderacion || 0) / total) * 100,
-            color: 'bg-navy',
+            color: 'bg-brand-600',
             type: 'automatic',
         })),
         ...subjetivos.map((s) => ({
             label: s.descripcion,
             points: s.ponderacion || 0,
             percentage: ((s.ponderacion || 0) / total) * 100,
-            color: 'bg-cyan-muted',
+            color: 'bg-accent-500',
             type: 'judgement',
         })),
     ];
@@ -31,18 +31,18 @@ export function ScoringChart({ vm }: { vm: PliegoVM }) {
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50/50">
                 <div className="flex items-center gap-2.5">
-                    <div className="flex items-center justify-center w-6 h-6 rounded bg-navy/10">
-                        <BarChart2 className="w-3.5 h-3.5 text-navy" />
+                    <div className="flex items-center justify-center w-6 h-6 rounded bg-brand-50 dark:bg-brand-950">
+                        <BarChart2 className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
                     </div>
                     <h3 className="text-sm font-bold text-slate-900 tracking-tight">Distribución de Criterios</h3>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] font-medium text-slate-500">
                     <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-sm bg-navy" />
+                        <span className="w-2 h-2 rounded-sm bg-brand-600" />
                         Automático
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-sm bg-cyan-muted" />
+                        <span className="w-2 h-2 rounded-sm bg-accent-500" />
                         Juicio de valor
                     </div>
                 </div>

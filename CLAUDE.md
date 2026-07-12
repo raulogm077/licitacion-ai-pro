@@ -32,7 +32,7 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 
 ## Architecture
 
-- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + Zustand
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + Zustand. Sistema de diseño «Iris» (marca índigo→violeta, fuentes Inter/Space Grotesk self-hosted). UI libs solo-cliente: `motion` (con `LazyMotion`/`MotionProvider`), `sonner` (toasts vía helper `notify()`), `recharts` (lazy), `canvas-confetti`, `tailwindcss-animate`. Dark mode por clase (`darkMode: 'class'`); toda animación respeta `prefers-reduced-motion`. Estas dependencias no afectan al runtime Deno de las Edge Functions.
 - **Backend**: Supabase Edge Functions (Deno runtime) + `@openai/agents@0.3.1` SDK on top of OpenAI Responses API
 - **DB**: PostgreSQL (Supabase) with RLS, FTS (Spanish), JSONB
 - **Hosting**: Vercel (frontend), Supabase Cloud (backend)
