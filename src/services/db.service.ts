@@ -6,6 +6,7 @@ import { Result, ok, err } from '../lib/Result';
 import { appCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
 import { features } from '../config/features';
 import { logger } from './logger';
+import { buildInitialVersion } from '../lib/envelope';
 
 export class DBService {
     private client: SupabaseClient;
@@ -103,17 +104,7 @@ export class DBService {
                 envelope = {
                     ...content, // Legacy sync
                     result: content,
-                    versions: [
-                        {
-                            version: 1,
-                            status: 'succeeded',
-                            created_at: now,
-                            model: 'ai-analysis',
-                            schema_version: 'v1',
-                            prompt_version: 'v1',
-                            result: content,
-                        },
-                    ],
+                    versions: [buildInitialVersion(content, now)],
                     workflow: workflow
                         ? ({
                               ...workflow,
