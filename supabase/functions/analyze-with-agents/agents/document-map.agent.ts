@@ -31,13 +31,12 @@ export function buildDocumentMapAgent(vectorStoreId: string) {
     return new Agent<PipelineContext>({
         name: 'documentMap',
         model: OPENAI_MODEL,
-        // Dynamic instructions — the SDK calls this each run() with the live
-        // context, so we always get the right fileNames + guideExcerpt for the
-        // current request without re-instantiating the Agent ourselves.
-        instructions: ({ context }) => {
-            const ctx = context.context;
-            return buildDocumentMapInstructions(ctx.fileNames, ctx.guideExcerpt);
-        },
+        // Dynamic instructions — the SDK invokes this as
+        // `instructions(runContext, agent)`, where `runContext.context` IS the
+        // PipelineContext. Destructuring `{ context }` therefore yields the
+        // PipelineContext directly; a second `.context` hop reads undefined and
+        // crashes phase B on every run (prod bug 2026-07-12).
+        instructions: ({ context }) => buildDocumentMapInstructions(context.fileNames, context.guideExcerpt),
         tools: [
             fileSearchTool({
                 vectorStoreIds: [vectorStoreId],

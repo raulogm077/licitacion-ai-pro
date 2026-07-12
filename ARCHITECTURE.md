@@ -349,6 +349,20 @@ Tras confirmar paridad de salida en producción (PRs #275 y #276), el 2026-05-09
 
 **Fecha:** 2026-07-12
 
+### 8.8 Hotfix: contrato RunContext en instrucciones dinámicas (Implementado 2026-07-12)
+
+**Contexto:** desde la migración al SDK (§8.5), **todos** los análisis en producción fallaban en Fase B a los ~60 ms con `Cannot read properties of undefined (reading 'fileNames')` (visible en `analysis_jobs.error`; ningún job `completed` posterior al 2026-04-28).
+
+**Causa raíz:** el SDK invoca `instructions(runContext, agent)` donde `runContext.context` **ya es** el `PipelineContext`. Los tres agentes destructuraban `({ context })` (correcto) y luego leían `.context` otra vez (undefined) antes de acceder a `fileNames`/`documentMap`/`guideExcerpt`. El `@ts-nocheck` de los ficheros de agentes ocultó el error de tipos, y los tests de guardrails no pasaban por `run()`, así que CI quedaba verde.
+
+**Fix y blindaje:**
+
+- Eliminado el segundo salto `.context` en `document-map.agent.ts`, `block-extractor.agent.ts` y `custom-template.agent.ts`.
+- `_shared/agents/sdk.ts` re-exporta `RunContext` y `agents.test.ts` añade 4 tests de regresión que resuelven las instrucciones por la misma vía que el SDK (`agent.getSystemPrompt(new RunContext(ctx))`): un salto de contexto mal hecho vuelve a romper CI, no producción.
+- Verificado contra el paquete real `@openai/agents-core@0.3.1`: el patrón antiguo lanza exactamente el error de producción; el corregido devuelve el prompt con los nombres de archivo.
+
+**Fecha:** 2026-07-12
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

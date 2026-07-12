@@ -38,6 +38,7 @@ Estado funcional confirmado a fecha de esta especificación:
 - `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
 - ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
 - el camino @openai/agents para Fase C es único; el antiguo fallback `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción
+- las `instructions` dinámicas de los agentes consumen el `PipelineContext` directamente del primer argumento del SDK (`({ context })`), **sin** un segundo salto `.context`; el contrato queda protegido por tests de regresión que llaman a `getSystemPrompt(new RunContext(ctx))`
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
 

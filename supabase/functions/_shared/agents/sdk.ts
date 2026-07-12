@@ -27,6 +27,7 @@ export {
     setTraceProcessors,
     OutputGuardrailTripwireTriggered,
     InputGuardrailTripwireTriggered,
+    RunContext,
 } from 'npm:@openai/agents@0.3.1';
 
 export type { AgentInputItem } from 'npm:@openai/agents@0.3.1';
