@@ -6,6 +6,7 @@ Corrige el bug de orden que dejaba en rojo el check `Supabase Preview` (apply en
 
 - La migración `add_provider_reading_mode` se **renombró** de `20250130000000` a `20251229000000` (posterior a `20251228000000_initial_schema`, que crea la tabla `licitaciones`) y se **idempotentizó** (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, constraints guardados con `DO $$ ... $$`).
 - Se **reparó el historial remoto**: se eliminó la fila `20250130000000` de `supabase_migrations.schema_migrations` (equivale a `supabase migration repair --status reverted`), de modo que el deploy re-aplica la migración idempotente bajo el nuevo `version` y la registra. No afecta a producción (columnas ya presentes; el re-apply es no-op).
+- Al destapar el reordenamiento un segundo bug de apply en frío, se corrigió también `20260412215507_fix_analysis_jobs_rls_update_policy.sql`: `CREATE POLICY IF NOT EXISTS` **no es sintaxis válida de Postgres** y erroraba en el preview. Sustituido por `DROP POLICY IF EXISTS` + `CREATE POLICY` (idempotente). Producción no se ve afectada (las 4 políticas de `analysis_jobs` ya existen y su `version` está registrada, así que `db push` la salta).
 
 ## [Unreleased] - 2026-07-12b — Fixes de CI post-#297
 
