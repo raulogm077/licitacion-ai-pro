@@ -5,11 +5,13 @@ dónde vive cada pieza. Es la referencia operativa para añadir o modificar
 fases que llamen al modelo.
 
 <!-- release-contract:start -->
+
 - No direct work or deploy from `main`.
 - Production deploys only after a green PR is merged into `main`.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
+
 <!-- release-contract:end -->
 
 ## SDK + versión
@@ -22,6 +24,12 @@ fases que llamen al modelo.
 - Toda importación del SDK pasa por `_shared/agents/sdk.ts` con re-exports
   nombrados explícitos (no `export *`). El export-* de un especificador `npm:`
   pierde los nombres en Deno y rompe `deno check` en los consumidores.
+- Desde 2026-07-12 esto aplica también a `chat-with-analysis-agent`: ya no
+  importa `npm:@openai/agents@0.1.0` directo en 4 archivos (index/agents/tools/
+  session), sino que consume `sdk.ts`, que re-exporta además `tool`, `user` y el
+  tipo `AgentInputItem`. El modelo del chat vive en la constante `CHAT_MODEL`
+  (`_shared/config.ts`), no hardcodeado; el pipeline de análisis sigue en
+  `OPENAI_MODEL`.
 
 ## Auth model (ambas Edge Functions)
 
@@ -40,6 +48,14 @@ código de la función. Esto significa:
   `DEPLOYMENT.md` §5 y §5.2.
 - el job `Smoke Test` de `ci-cd.yml` valida tras cada deploy que un POST
   sin JWT recibe 401 desde el gateway en ambas funciones.
+- además del JWT, `chat-with-analysis-agent` aplica rate limiting por usuario
+  (`CHAT_MAX_REQUESTS_PER_HOUR=60`, `checkRateLimit` con clave namespaced
+  `chat:`/`analyze:`) y tope de payload real (`MAX_CHAT_PAYLOAD_BYTES=64KB`);
+  `analyze-with-agents` valida la longitud real del body para cerrar el bypass
+  del límite de payload que dependía del header `content-length`.
+- el `SupabaseLogTraceProcessor` redacta `spanData` (`sanitizeSpanData`:
+  allowlist + truncado + `redacted_keys`) antes de emitir cada línea `[trace]`,
+  para no filtrar contenido del pliego a los logs.
 
 ## Layout
 
@@ -108,20 +124,20 @@ supabase/functions/analyze-with-agents/
 1. Crear un schema Zod en `_shared/schemas/`.
 2. Añadir las strings de instructions en `prompts/index.ts` (no inline en el agent).
 3. Crear `agents/<feature>.agent.ts`:
-   ```ts
-   // @ts-nocheck
-   export function buildMyAgent(vectorStoreId: string) {
-     return new Agent<PipelineContext>({
-       name: 'myAgent',
-       model: OPENAI_MODEL,
-       instructions: ({ context }) => buildMyInstructions(context.context),
-       tools: [fileSearchTool({ vectorStoreIds: [vectorStoreId] })],
-       outputGuardrails: [jsonShapeGuardrail(MySchema, 'my-agent')],
-     });
-   }
-   ```
+    ```ts
+    // @ts-nocheck
+    export function buildMyAgent(vectorStoreId: string) {
+        return new Agent<PipelineContext>({
+            name: 'myAgent',
+            model: OPENAI_MODEL,
+            instructions: ({ context }) => buildMyInstructions(context.context),
+            tools: [fileSearchTool({ vectorStoreIds: [vectorStoreId] })],
+            outputGuardrails: [jsonShapeGuardrail(MySchema, 'my-agent')],
+        });
+    }
+    ```
 4. Invocar desde la fase con `run(buildMyAgent(vsId), userInput, { context })`.
-5. Si la respuesta es JSON, *no* re-parsear: leer
+5. Si la respuesta es JSON, _no_ re-parsear: leer
    `result.outputGuardrailResults.find(r => r.outputInfo.label === '<label>').outputInfo.value`.
 
 ## Cómo añadir un guardrail

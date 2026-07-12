@@ -106,10 +106,10 @@ Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento 
 - **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
 - **Capa conversacional Agents SDK (AI/Infra):** Mantener operativa la Edge Function `chat-with-analysis-agent` para consultar análisis persistidos desde el dashboard sin alterar el pipeline batch principal.
 
-
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
+
 Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanzados, optimización de bundle.
 
 ## 6. Decisiones cerradas
@@ -122,26 +122,33 @@ Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanza
 ## 7. Riesgos y mitigaciones
 
 ### Riesgo 1: romper el contrato SSE
+
 Mitigación: todo cambio en `analyze-with-agents` debe validar compatibilidad de eventos y consumo frontend.
 
 ### Riesgo 2: documentación obsoleta
+
 Mitigación: ningún cambio pasa a QA sin actualizar documentación mínima afectada.
 
 ### Riesgo 3: tareas demasiado grandes
+
 Mitigación: dividir cualquier épica en entregables de una sola sesión.
 
 ### Riesgo 4: desalineación con la Guía de lectura
+
 Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la guía antes de entregar.
 
 ### Riesgo 5: regresión semántica del pipeline @openai/agents
+
 Mitigación: tras eliminar el legacy fallback, la única reversión disponible es `git revert` del PR responsable. `pnpm benchmark:pliegos` sigue siendo el gate de paridad y debe quedar verde antes de cada merge a `main` que toque el pipeline.
 
 ### Riesgo 6: regresión de auth (peticiones legítimas rechazadas con 401)
+
 Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la función afectada y redesplegar con `--no-verify-jwt`. El smoke automático bloquea el deploy si la postura cambia involuntariamente, evitando que el repo y producción se desincronicen.
 
 ## 8. Historial de implementación
 
 ### Implementado previamente
+
 - spike técnico planificado para evaluar OpenAI Agents SDK en Edge Functions sin afectar producción
 - streaming por SSE
 - historial avanzado de licitaciones
@@ -151,6 +158,7 @@ Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la
 - Migración M1+M2+M3 del pipeline `analyze-with-agents` a `@openai/agents@0.3.1` (2026-05-06)
 - Auth uniforme: `chat-with-analysis-agent` migrada a `verify_jwt=true` + cierre de regresión del workflow para `analyze-with-agents` (2026-05-09)
 - Eliminación del legacy fallback de Fase C: `block-extraction.legacy.ts` + flag `USE_AGENTS_SDK` retirados (2026-05-09)
+- Revisión integral (seguridad IDOR, chat sobre `sdk.ts`/`CHAT_MODEL` + rate-limit, redacción de tracing, bugs de feedback/búsqueda/historial/validación/cleanup, accesibilidad de modales, dark mode, limpieza y pins de CI) (2026-07-12) — ver §10.7
 
 ## 9. Capa conversacional con Agents SDK sobre análisis persistidos
 
@@ -200,9 +208,11 @@ Si la capa conversacional introduce incompatibilidades relevantes de Deno/npm o 
 ## 10. Hallazgos Técnicos y Mantenimiento
 
 ### 10.2. Resolución de Errores de Despliegue (Edge Functions)
+
 Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `analyze-with-agents`. Se resolvió temporalmente con `--no-verify-jwt`. Tras la migración M3 a `@openai/agents` (2026-05-06) la función usa `verify_jwt = true` y el flag `--no-verify-jwt` se eliminó del comando documentado de despliegue. La regresión latente en el workflow de CI (que seguía pasando `--no-verify-jwt` y sobrescribía silenciosamente la config) quedó cerrada el 2026-05-09 junto con la migración equivalente de `chat-with-analysis-agent`.
 
 ### 10.3. Migración a `@openai/agents` (2026-05-06)
+
 - Fases B y C migradas a `Agent` + `run()` del SDK `@openai/agents@0.3.1`.
 - Pin de zod subido a `3.25.76` (mínimo aceptado por el SDK; mayor 3.x estable).
 - `verify_jwt = true` activado para `analyze-with-agents`; bloque de auth manual eliminado del handler.
@@ -210,18 +220,21 @@ Durante el ciclo de pruebas E2E y despliegues, se identificó un error 401 en `a
 - Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, prompts byte-a-byte, `requestId` en todo) documentadas en `AGENTS.md`.
 
 ### 10.4. Auth uniforme en ambas Edge Functions (2026-05-09)
+
 - `chat-with-analysis-agent` migrada a `verify_jwt = true` con el mismo patrón que `analyze-with-agents`. El handler retira el bloque "if (!token) → 401" y se queda con `auth.getUser(token)` para resolver el `user` y un `if (!user)` defensivo.
 - `.github/workflows/ci-cd.yml`: `deploy-supabase` deja de pasar `--no-verify-jwt` para ambas funciones. La versión previa lo seguía pasando para `analyze-with-agents`, lo que sobrescribía silenciosamente la config y dejaba la función abierta tras los deploys de producción.
 - `Smoke Test` del workflow gana un nuevo paso que verifica con `curl -X POST` sin `Authorization` que ambas funciones devuelven 401 desde el gateway tras cada deploy a `main`. Si la respuesta no es 401, el deploy falla.
 - Documentación: `DEPLOYMENT.md` §5 (comando sin `--no-verify-jwt`), §5.2 (smoke), §8 (rollback de auth); `AGENTS.md` (Auth model + regla dura nº 6); `README.md` (postura de auth en la sección Arquitectura).
 
 ### 10.5. Eliminación del legacy fallback de Fase C (2026-05-09)
+
 - `phases/block-extraction.legacy.ts` retirado (~12.5 KB) tras confirmar paridad.
 - `phases/block-extraction.ts` queda como camino único: el `if (!useAgentsSdk()) { ... }` y el helper `useAgentsSdk()` desaparecen; `BlockExtractionInput.context` pasa a obligatorio.
 - Flag `USE_AGENTS_SDK` (Supabase secret) ya no se lee en código. Si quedan secrets remotos con ese nombre se pueden borrar con `supabase secrets unset USE_AGENTS_SDK` (no afecta runtime).
 - Documentación: referíncias eliminadas en DEPLOYMENT.md (§5.3 retirada, §6, §8), CLAUDE.md (key patterns), AGENTS.md (regla dura nº 7 nueva), ARCHITECTURE.md (§4.3), TECHNICAL_DOCS.md (§8, §10, §13).
 
 ### 10.6. Análisis de arquitectura de IA: gap Guía ↔ extracción (2026-07-03)
+
 Auditoría del diseño de IA (prompts, contexto, costes) contra la "Guía de lectura de pliegos". Conclusión: el pipeline actual es un **extractor estructurado con trazabilidad**, no el **analista estratégico** que describe la Guía (§3–§7). Hallazgos:
 
 - **La Guía casi no llega al modelo.** `guide-content.ts` embebe solo los primeros ~4900 chars de una Guía de 34.857 (su propia cabecera lo declara), y cada fase corta a `substring(0, N)` (`GUIDE_EXCERPT_LENGTH=4000` extracción, `3000` mapa, `2000` template). Solo sobreviven §1 y el arranque de §2.1.1; la metodología operativa (Go/No-Go, ingeniería inversa del scoring, contaminación de sobres, Win Themes) nunca entra en el prompt. La "inteligencia" real vive en `BLOCK_USER_PROMPTS`, no en el excerpt de Guía.
@@ -230,3 +243,27 @@ Auditoría del diseño de IA (prompts, contexto, costes) contra la "Guía de lec
 - **Capa de decisión ausente.** El schema canónico no modela Go/No-Go, simulación de scoring/baja temeraria, matriz de cumplimiento trazable, Win Themes ni validación de solvencia contra la empresa (que además requiere un dato inexistente: el perfil del licitador).
 
 Acciones derivadas en `BACKLOG.md`: metodología por bloque (`## To Do`), model tiering + `TrackedField` extendido + motor de scoring (`## Deuda Técnica`), y perfil de empresa licitadora como decisión de producto (`## Ideas de Producto`). Relacionado con Riesgo 4 (§7, desalineación con la Guía).
+
+### 10.7. Revisión integral: seguridad, bugs, accesibilidad y limpieza (2026-07-12)
+
+Revisión transversal del producto tras la auditoría de §10.6. Cambios cerrados (detalle por categorías en `CHANGELOG.md`, arquitectura en `ARCHITECTURE.md` §8.6):
+
+- **Seguridad**:
+    - IDOR corregido en la RPC `search_licitaciones` (migración `20260712000000_fix_search_licitaciones_idor.sql`): pasa de `SECURITY DEFINER` con `user_id_param` controlable por el llamante a `search_licitaciones(search_query text)` de un solo argumento, `SECURITY INVOKER` (aplica RLS), filtro explícito `auth.uid()` y `search_path` fijo. Se endurece también el `search_path` de las funciones trigger `update_updated_at_column` y `update_extraction_templates_updated_at`. El frontend no cambia (ya llamaba solo con `search_query`).
+    - `chat-with-analysis-agent` importa el SDK `@openai/agents` únicamente vía `_shared/agents/sdk.ts` (0.3.1), que ahora re-exporta también `tool`, `user` y el tipo `AgentInputItem`. El modelo del chat deja de estar hardcodeado y vive en la constante `CHAT_MODEL` (`_shared/config.ts`).
+    - Rate limiting y límite de payload en el chat (`CHAT_MAX_REQUESTS_PER_HOUR=60`, `MAX_CHAT_PAYLOAD_BYTES=64KB`); `checkRateLimit` pasa a ser parametrizable con clave namespaced (`chat:`/`analyze:`). En `analyze-with-agents` se cierra el bypass del límite de payload validando la longitud real del body en lugar del header `content-length`.
+    - `tracing.ts` redacta `spanData` antes de loguearlo (`sanitizeSpanData`) para no filtrar contenido del pliego a los logs.
+- **Funcionalidad**: feedback de extracción persistido de verdad en `extraction_feedback` (antes no-op); búsqueda con formato monetario defensivo y estados de carga/vacío/error; composición real de texto + filtros en `useHistory` (`src/lib/search-filters.ts`); fallback de schema en `job.service` ahora logueado (Sentry) en vez de silencioso; el valor numérico `0` deja de tratarse como vacío en validación; corregida la carrera del historial de chat en `localStorage`; cleanup borra recursos en OpenAI antes de anular referencias en DB.
+- **UX/A11y**: modales (`Dialog`, `AuthModal`, borrado de `HistoryView`) con `role="dialog"`, `aria-modal`, cierre con Escape y foco gestionado; borrado de plantillas con `Dialog` accesible; dark mode en la vista de detalle del dashboard y el panel de chat.
+- **Refactor/CI**: `cn()`, `runWithConcurrency` y `buildInitialVersion` unificadas; flags y singletons muertos eliminados (`MAX_PDF_SIZE_MB=4` como fuente única del límite de subida); backoff real ante 429/5xx en Fase C (`retryWithBackoff`, `BLOCK_MAX_RETRIES`, `BLOCK_RETRY_MAX_DELAY_MS=30s`); tests Deno huérfanos cableados en CI; versiones de herramientas de CI fijadas y toolchain unificado en Node 22; bumps de dependencias seguros (Playwright fijado en 1.58.2).
+
+#### Pendientes y limitaciones conocidas
+
+No forman parte de `## To Do` de `BACKLOG.md`; se registran aquí como deuda consciente:
+
+- migración a **eslint 9 + flat config** (eslint 8 está EOL);
+- **i18n completo multi-locale**: hoy es vestigial (solo `es`, 4 componentes con `useTranslation`); las claves de `UploadStep` se completaron, pero el idioma sigue siendo único;
+- **majors diferidos**: React 19, Tailwind 4 y zod 4 (zod anclado por el peer de `@openai/agents@0.3.1`), eslint 9;
+- refactor del monolito `HistoryView`;
+- decisión sobre **adopción o eliminación completa del service-registry**;
+- **modelo de job asíncrono** para documentos de 300+ páginas (ya recogido en `CLAUDE.md`, "Pipeline Timeout Architecture").

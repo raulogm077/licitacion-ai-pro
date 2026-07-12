@@ -3,11 +3,13 @@
 Aplicación interna para analizar pliegos de licitación en PDF, extraer información estructurada y presentar el resultado de forma navegable para acelerar la revisión funcional y técnica.
 
 <!-- release-contract:start -->
+
 - No direct work or deploy from `main`.
 - Production deploys only after a green PR is merged into `main`.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
+
 <!-- release-contract:end -->
 
 ## Qué hace
@@ -61,11 +63,12 @@ Documentación viva del sistema:
 - `AGENTS.md`: reglas de funcionamiento de la fábrica de agentes (incluye postura de auth)
 - `DEPLOYMENT.md`: proceso actual de despliegue
 - `TECHNICAL_DOCS.md`: contratos técnicos detallados
-- `CHANGELOG.md`: historial de cambios por release
+- `CHANGELOG.md`: historial de cambios por release (última entrada 2026-07-12: revisión integral de seguridad, bugs, accesibilidad y limpieza; ver `SPEC.md` §10.7)
 
 ## Stack real
 
 ### Frontend
+
 - React 18
 - TypeScript
 - Vite
@@ -75,6 +78,7 @@ Documentación viva del sistema:
 - Zod
 
 ### Backend y servicios
+
 - Supabase
 - Supabase Edge Functions (Deno runtime)
 - OpenAI Responses API (pipeline por fases)
@@ -83,6 +87,7 @@ Documentación viva del sistema:
 - Vercel para hosting frontend
 
 ### Calidad
+
 - Vitest
 - Playwright
 - ESLint
@@ -92,7 +97,7 @@ Documentación viva del sistema:
 
 ### Requisitos
 
-- Node.js 20+
+- Node.js 20+ (el toolchain de CI está unificado en Node 22)
 - pnpm 9+
 - proyecto de Supabase configurado
 - variables de entorno locales completas
@@ -136,6 +141,7 @@ pnpm verify:release
 ```
 
 Notas:
+
 - `pnpm test:e2e` debe usarse cuando una tarea toque UI, flujo principal de análisis o SSE.
 - `pnpm benchmark:pliegos` valida el caso principal de producto con fixtures versionados y es obligatorio cuando cambian contrato, pipeline o dashboard del análisis.
 - El benchmark también protege regresiones silenciosas de reconciliación canónica, por ejemplo presupuesto/plazo completados desde bloques económicos o diagnósticos por sección.
@@ -176,6 +182,7 @@ Orden de ejecución:
 3. QA
 
 Reglas clave:
+
 - nunca hay más de un agente trabajando a la vez
 - solo se ejecuta una tarea de desarrollo por noche
 - QA valida antes de mover una tarea a `Done`

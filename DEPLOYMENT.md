@@ -3,11 +3,13 @@
 Este documento describe el proceso vigente de despliegue. No describe la arquitectura legacy de colas.
 
 <!-- release-contract:start -->
+
 - No direct work or deploy from `main`.
 - Production deploys only after a green PR is merged into `main`.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
+
 <!-- release-contract:end -->
 
 ## 1. Qué se despliega
@@ -32,9 +34,9 @@ Antes de desplegar una tarea, QA debe verificar:
 2. `pnpm benchmark:pliegos` si la tarea toca `analyze-with-agents`, SSE, contrato compartido o dashboard del análisis
 3. PR con CI en verde
 4. si la tarea es IA:
-   - compatibilidad con la Guía de lectura de pliegos
-   - compatibilidad con SSE
-   - compatibilidad con schema/Zod
+    - compatibilidad con la Guía de lectura de pliegos
+    - compatibilidad con SSE
+    - compatibilidad con schema/Zod
 5. documentación mínima actualizada
 
 ## 3.1. Gate funcional de release
@@ -68,8 +70,10 @@ npx supabase db push --include-all
 ```
 
 Migraciones relevantes recientes:
+
 - `20260329000000_fulltext_search.sql` — Columna `search_vector` (tsvector español), índice GIN, función RPC `search_licitaciones`
 - `20260419015401_analysis_chat_tables.sql` — tablas `analysis_chat_sessions` y `analysis_chat_messages` con RLS
+- `20260712000000_fix_search_licitaciones_idor.sql` — corrige un IDOR en la RPC `search_licitaciones`: pasa a `search_licitaciones(search_query text)` de un solo argumento, `SECURITY INVOKER` (aplica RLS) con filtro `auth.uid()` y `search_path` fijo; endurece además el `search_path` de las funciones trigger `update_updated_at_column` y `update_extraction_templates_updated_at`. El frontend no cambia (ya llamaba solo con `search_query`)
 
 > **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
 
@@ -83,6 +87,8 @@ npx supabase functions deploy chat-with-analysis-agent
 > **Ambas funciones usan `verify_jwt = true`** en `supabase/config.toml`. El gateway de Supabase rechaza con 401 las peticiones sin JWT válido antes de invocar el código de la función. Dentro de cada handler sólo se resuelve el `user` con `supabase.auth.getUser(token)` para rate-limiting (en `analyze-with-agents`) y ownership sobre `licitaciones` / `analysis_chat_sessions` (en `chat-with-analysis-agent`).
 >
 > Si en algún caso futuro hubiera que rebajar la postura para una función concreta, fijar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml` y añadir `--no-verify-jwt` al comando — nunca con un solo cambio sin el otro.
+
+> **Límites del chat (desde 2026-07-12)**: `chat-with-analysis-agent` aplica rate limiting por usuario (`CHAT_MAX_REQUESTS_PER_HOUR=60`) y rechaza bodies mayores que `MAX_CHAT_PAYLOAD_BYTES=64KB`; ambas constantes viven en `_shared/config.ts`. El modelo del chat es la constante `CHAT_MODEL` (no hardcodeado) y el SDK se importa solo vía `_shared/agents/sdk.ts`. En `analyze-with-agents` el límite de payload valida la longitud real del body, no el header `content-length`. Detalle en `TECHNICAL_DOCS.md` §4-§5.
 
 ### 5.1. Validación local de las Edge Functions
 
@@ -110,6 +116,10 @@ curl -i -X POST "$SUPABASE_URL/functions/v1/chat-with-analysis-agent" \
 ```
 
 Las dos deben responder `401` desde el gateway (sin invocar el código de la función). Si responden `400` u otro código, revertir a la rama anterior — la validación JWT no está en su sitio. El job `Smoke Test` del workflow `ci-cd.yml` automatiza esta verificación en cada deploy a `main`.
+
+### 5.3. Toolchain de CI fijado (desde 2026-07-12)
+
+`ci-cd.yml` y los `agent-*.yml` comparten toolchain: `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v4` y **Node 22**. Las herramientas externas quedan pineadas (sin `latest`) para builds reproducibles: OSV scanner `v2.4.0`, actionlint `v1.7.9`, supabase CLI `2.99.0`, vercel `55.0.0`. El job `edge-checks` cablea los tests Deno (`consolidation_test`, `validation_test`, `agents.test`, `canonical_test`, `retry_test`, `tracing_test`), también invocados desde `scripts/verify-ci.sh`.
 
 ## 6. Secretos y configuración
 
@@ -172,12 +182,12 @@ workflow en `.github/workflows/` (`agent-pm.yml`, `agent-tech.yml`,
 `agent-ia.yml`, `agent-qa.yml`) y su prompt operativo en
 `.claude/commands/agent-<rol>.md`.
 
-| Workflow | Rol | Qué hace | Cron (UTC) |
-|---|---|---|---|
-| `agent-pm.yml` | Product Manager | Audita, refina y prioriza el backlog; nunca programa ni despliega. | `30 5 * * 1-5` |
-| `agent-tech.yml` | Tech Lead | Implementa la primera tarea **no** `[Tipo: AI]` de `## To Do`; TDD + `verify:release`. | `0 7` y `30 11 * * 1-5` |
-| `agent-ia.yml` | Senior IA | Implementa la primera tarea `[Tipo: AI]` (prompts, schemas, SSE, `analyze-with-agents`). | `15 7 * * 1-5` |
-| `agent-qa.yml` | QA | Valida `## Ready for QA` sobre `main` y confirma que el pipeline quedó verde. | `30 15 * * 1-5` |
+| Workflow         | Rol             | Qué hace                                                                                 | Cron (UTC)              |
+| ---------------- | --------------- | ---------------------------------------------------------------------------------------- | ----------------------- |
+| `agent-pm.yml`   | Product Manager | Audita, refina y prioriza el backlog; nunca programa ni despliega.                       | `30 5 * * 1-5`          |
+| `agent-tech.yml` | Tech Lead       | Implementa la primera tarea **no** `[Tipo: AI]` de `## To Do`; TDD + `verify:release`.   | `0 7` y `30 11 * * 1-5` |
+| `agent-ia.yml`   | Senior IA       | Implementa la primera tarea `[Tipo: AI]` (prompts, schemas, SSE, `analyze-with-agents`). | `15 7 * * 1-5`          |
+| `agent-qa.yml`   | QA              | Valida `## Ready for QA` sobre `main` y confirma que el pipeline quedó verde.            | `30 15 * * 1-5`         |
 
 **Coordinación vía `BACKLOG.md`.** Los agentes se pasan el trabajo por las
 secciones del backlog: `## To Do (Iteración Actual)` → `## In Progress` →
