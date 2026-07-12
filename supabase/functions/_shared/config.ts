@@ -78,6 +78,15 @@ export const CHAT_MAX_REQUESTS_PER_HOUR = 60;
 export const BLOCK_CONCURRENCY = 3;
 
 /**
+ * Backoff for transient failures (429 / 5xx) during block extraction.
+ * One retry only, and the delay is capped so a single degraded block cannot
+ * consume the whole PIPELINE_TIMEOUT_MS budget (a 60-120s Retry-After would).
+ * Timeouts are NOT retried (see isRetryableError).
+ */
+export const BLOCK_MAX_RETRIES = 1;
+export const BLOCK_RETRY_MAX_DELAY_MS = 30_000;
+
+/**
  * Vector store indexing timeout in milliseconds (90s).
  * How long to wait for file_counts.in_progress === 0 before proceeding
  * with a potentially partial index. Large PDFs (>100 pages) can take 30-60s

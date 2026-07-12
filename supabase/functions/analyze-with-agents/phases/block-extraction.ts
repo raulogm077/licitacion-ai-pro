@@ -23,12 +23,14 @@ import { buildCustomTemplateUser } from '../prompts/index.ts';
 import {
     API_CALL_TIMEOUT_MS,
     BLOCK_CONCURRENCY,
+    BLOCK_MAX_RETRIES,
+    BLOCK_RETRY_MAX_DELAY_MS,
     GUIDE_EXCERPT_LENGTH,
     GUIDE_EXCERPT_TEMPLATE_LENGTH,
 } from '../../_shared/config.ts';
 import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
-import { getRetryReason } from '../../_shared/utils/retry.ts';
+import { getRetryReason, retryWithBackoff, isRetryableError } from '../../_shared/utils/retry.ts';
 import type { RetryReason } from '../../_shared/utils/retry.ts';
 import { runWithConcurrency } from '../../_shared/utils/concurrency.ts';
 
@@ -186,7 +188,24 @@ async function extractBlockWithAgent(
 
     let result;
     try {
-        result = await attempt(false);
+        // Retry transient 429/5xx once with capped backoff. Timeouts are not
+        // retryable, and a JSON-guardrail trip has its own reinforce path
+        // below — never funnel it through the transient-error backoff.
+        result = await retryWithBackoff(() => attempt(false), {
+            maxRetries: BLOCK_MAX_RETRIES,
+            baseDelayMs: 1000,
+            maxDelayMs: BLOCK_RETRY_MAX_DELAY_MS,
+            label: `Block ${blockName}`,
+            shouldRetry: (err) => !(err instanceof OutputGuardrailTripwireTriggered) && isRetryableError(err),
+            onRetry: (info) =>
+                onRetry({
+                    blockName,
+                    attempt: info.attempt,
+                    maxAttempts: info.maxAttempts,
+                    waitMs: info.waitMs,
+                    reason: info.reason,
+                }),
+        });
     } catch (err) {
         if (err instanceof OutputGuardrailTripwireTriggered) {
             onRetry({

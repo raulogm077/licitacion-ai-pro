@@ -13,6 +13,8 @@ export interface RetryOptions {
     maxRetries: number;
     baseDelayMs: number;
     label: string;
+    /** Upper bound applied to every computed backoff delay (incl. Retry-After). */
+    maxDelayMs?: number;
     shouldRetry?: (err: unknown) => boolean;
     onRetry?: (info: RetryAttemptInfo) => void;
 }
@@ -114,7 +116,7 @@ export function getRetryDelayMs(err: unknown, attemptIndex: number, baseDelayMs:
  */
 export async function retryWithBackoff<T>(
     fn: () => Promise<T>,
-    { maxRetries, baseDelayMs, label, shouldRetry, onRetry }: RetryOptions
+    { maxRetries, baseDelayMs, label, maxDelayMs, shouldRetry, onRetry }: RetryOptions
 ): Promise<T> {
     let lastError: unknown;
     const maxAttempts = maxRetries + 1;
@@ -126,11 +128,15 @@ export async function retryWithBackoff<T>(
             lastError = err;
             if (attemptIndex < maxRetries) {
                 if (shouldRetry && !shouldRetry(err)) {
-                    console.warn(`[${label}] Attempt ${attemptIndex + 1} failed — not retrying (shouldRetry=false)`, err);
+                    console.warn(
+                        `[${label}] Attempt ${attemptIndex + 1} failed — not retrying (shouldRetry=false)`,
+                        err
+                    );
                     break;
                 }
 
-                const waitMs = getRetryDelayMs(err, attemptIndex, baseDelayMs);
+                const rawWaitMs = getRetryDelayMs(err, attemptIndex, baseDelayMs);
+                const waitMs = maxDelayMs !== undefined ? Math.min(rawWaitMs, maxDelayMs) : rawWaitMs;
                 const reason = getRetryReason(err);
                 const nextAttempt = attemptIndex + 2;
 
