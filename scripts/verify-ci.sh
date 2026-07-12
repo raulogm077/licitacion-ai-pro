@@ -29,6 +29,15 @@ echo "→ Build..."
 "$BIN_DIR/tsc"
 "$BIN_DIR/vite" build
 
+# E2E runs BEFORE the Deno steps: `deno ... --node-modules-dir=auto` repoints
+# node_modules/.bin to its own managed copies, which makes a subsequent
+# Playwright run fail with "two different versions of @playwright/test" when
+# both share one local node_modules. CI is unaffected (edge-checks and
+# e2e-tests are separate jobs), but the local aggregate must run Playwright
+# first.
+echo "→ E2E..."
+"$BIN_DIR/playwright" test
+
 echo "→ Edge Functions (deno check)..."
 deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
 deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
@@ -41,8 +50,5 @@ deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analy
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/validation_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
-
-echo "→ E2E..."
-"$BIN_DIR/playwright" test
 
 echo "verify:release completado."
