@@ -75,7 +75,10 @@ export const CHAT_MAX_REQUESTS_PER_HOUR = 60;
  * on medium/large dossiers. Stability is preferred over the shortest possible
  * wall-clock time because retries are expensive inside a single SSE request.
  */
-export const BLOCK_CONCURRENCY = 3;
+// 2 (antes 3): con file_search cada bloque consume mucho TPM y las cuentas con
+// tier ajustado entraban en cascada de 429 con 3 bloques simultáneos. El coste
+// es ~20-30s más de análisis; el beneficio, muchos menos reintentos visibles.
+export const BLOCK_CONCURRENCY = 2;
 
 /**
  * Backoff for transient failures (429 / 5xx) during block extraction.

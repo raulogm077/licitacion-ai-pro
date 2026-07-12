@@ -36,49 +36,52 @@ Deno.test('runConsolidation preserves valid sections when datosGenerales has mal
     assertEquals(result.result.requisitosTecnicos.normativa.length, 1);
 });
 
-Deno.test('runConsolidation backfills datosGenerales budget and duration from economic sections without overwriting direct values', () => {
-    const result = runConsolidation({
-        blocks: [
-            {
-                blockName: 'datosGenerales',
-                data: {
-                    titulo: { value: 'Contrato de soporte', status: 'extraido' },
-                    organoContratacion: { value: 'Entidad pública', status: 'extraido' },
-                    presupuesto: { value: 0, status: 'no_encontrado' },
-                    moneda: { value: 'EUR', status: 'extraido' },
-                    plazoEjecucionMeses: { value: 0, status: 'no_encontrado' },
-                    cpv: { value: ['72000000-5'], status: 'extraido' },
+Deno.test(
+    'runConsolidation backfills datosGenerales budget and duration from economic sections without overwriting direct values',
+    () => {
+        const result = runConsolidation({
+            blocks: [
+                {
+                    blockName: 'datosGenerales',
+                    data: {
+                        titulo: { value: 'Contrato de soporte', status: 'extraido' },
+                        organoContratacion: { value: 'Entidad pública', status: 'extraido' },
+                        presupuesto: { value: 0, status: 'no_encontrado' },
+                        moneda: { value: 'EUR', status: 'extraido' },
+                        plazoEjecucionMeses: { value: 0, status: 'no_encontrado' },
+                        cpv: { value: ['72000000-5'], status: 'extraido' },
+                    },
+                    evidences: [],
+                    warnings: [],
+                    ambiguous_fields: [],
                 },
-                evidences: [],
-                warnings: [],
-                ambiguous_fields: [],
-            },
-            {
-                blockName: 'economico',
-                data: {
-                    presupuestoBaseLicitacion: 8587086,
-                    valorEstimadoContrato: 9000000,
-                    moneda: 'EUR',
+                {
+                    blockName: 'economico',
+                    data: {
+                        presupuestoBaseLicitacion: 8587086,
+                        valorEstimadoContrato: 9000000,
+                        moneda: 'EUR',
+                    },
+                    evidences: [],
+                    warnings: [],
+                    ambiguous_fields: [],
                 },
-                evidences: [],
-                warnings: [],
-                ambiguous_fields: [],
-            },
-            {
-                blockName: 'duracionYProrrogas',
-                data: {
-                    duracionMeses: 60,
+                {
+                    blockName: 'duracionYProrrogas',
+                    data: {
+                        duracionMeses: 60,
+                    },
+                    evidences: [],
+                    warnings: [],
+                    ambiguous_fields: [],
                 },
-                evidences: [],
-                warnings: [],
-                ambiguous_fields: [],
-            },
-        ],
-    });
+            ],
+        });
 
-    assertEquals(result.result.datosGenerales.presupuesto.value, 8587086);
-    assertEquals(result.result.datosGenerales.plazoEjecucionMeses.value, 60);
-});
+        assertEquals(result.result.datosGenerales.presupuesto.value, 8587086);
+        assertEquals(result.result.datosGenerales.plazoEjecucionMeses.value, 60);
+    }
+);
 
 Deno.test('runConsolidation preserves criteriosAdjudicacion when subcriterios arrive as strings', () => {
     const result = runConsolidation({

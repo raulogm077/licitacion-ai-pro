@@ -55,17 +55,17 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 The full pipeline runs in a single Supabase Edge Function invocation (SSE streaming).
 Constants in `_shared/config.ts` control the timing budget:
 
-| Constant                     | Value     | Notes                                                                                            |
-| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
-| `PIPELINE_TIMEOUT_MS`        | 280 000   | Requires Supabase function timeout ≥ 300s (set in Dashboard → Project Settings → Edge Functions) |
-| `API_CALL_TIMEOUT_MS`        | 90 000    | Per-block agent run — no retry on timeout (timeouts are NOT retried, see `isRetryableError`)     |
-| `BLOCK_CONCURRENCY`          | 3         | Extraction favors rate-limit stability over max concurrency                                      |
-| `BLOCK_MAX_RETRIES`          | 1         | Real backoff (`retryWithBackoff`) on 429/5xx per block — timeouts still NOT retried              |
-| `BLOCK_RETRY_MAX_DELAY_MS`   | 30 000    | Caps `Retry-After` so one degraded block can't consume the whole `PIPELINE_TIMEOUT_MS` budget    |
-| `VECTOR_STORE_TIMEOUT_MS`    | 90 000    | Waits for `file_counts.in_progress === 0`, not `vs.status`                                       |
-| `CHAT_MODEL`                 | `gpt-5.4` | Conversational layer model (chat), separate from the extraction `OPENAI_MODEL`                   |
-| `CHAT_MAX_REQUESTS_PER_HOUR` | 60        | Per-user rate limit for `chat-with-analysis-agent` (`checkRateLimit`, namespaced `chat:`)        |
-| `MAX_CHAT_PAYLOAD_BYTES`     | 64 KB     | Real body-size cap for chat; `analyze-with-agents` validates real body length too                |
+| Constant                     | Value     | Notes                                                                                                    |
+| ---------------------------- | --------- | -------------------------------------------------------------------------------------------------------- |
+| `PIPELINE_TIMEOUT_MS`        | 280 000   | Requires Supabase function timeout ≥ 300s (set in Dashboard → Project Settings → Edge Functions)         |
+| `API_CALL_TIMEOUT_MS`        | 90 000    | Per-block agent run — no retry on timeout (timeouts are NOT retried, see `isRetryableError`)             |
+| `BLOCK_CONCURRENCY`          | 2         | Bajada de 3→2 (2026-07-12): con file_search cada bloque consume mucho TPM y 3 simultáneos disparaban 429 |
+| `BLOCK_MAX_RETRIES`          | 1         | Real backoff (`retryWithBackoff`) on 429/5xx per block — timeouts still NOT retried                      |
+| `BLOCK_RETRY_MAX_DELAY_MS`   | 30 000    | Caps `Retry-After` so one degraded block can't consume the whole `PIPELINE_TIMEOUT_MS` budget            |
+| `VECTOR_STORE_TIMEOUT_MS`    | 90 000    | Waits for `file_counts.in_progress === 0`, not `vs.status`                                               |
+| `CHAT_MODEL`                 | `gpt-5.4` | Conversational layer model (chat), separate from the extraction `OPENAI_MODEL`                           |
+| `CHAT_MAX_REQUESTS_PER_HOUR` | 60        | Per-user rate limit for `chat-with-analysis-agent` (`checkRateLimit`, namespaced `chat:`)                |
+| `MAX_CHAT_PAYLOAD_BYTES`     | 64 KB     | Real body-size cap for chat; `analyze-with-agents` validates real body length too                        |
 
 **Typical timing by document size:**
 

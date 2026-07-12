@@ -60,9 +60,7 @@ export async function runDocumentMap(input: DocumentMapInput): Promise<DocumentM
         }
     } catch (err) {
         if (err instanceof OutputGuardrailTripwireTriggered) {
-            throw new Error(
-                `DocumentMap no válido tras la primera ejecución del agente: ${err.message}`
-            );
+            throw new Error(`DocumentMap no válido tras la primera ejecución del agente: ${err.message}`);
         }
         throw err;
     }

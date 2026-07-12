@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12j — Diagnóstico veraz de ingesta, resiliencia 429 y tracking de jobs
+
+El primer análisis completo tras los hotfixes reveló tres problemas de calidad (no de corrección del pipeline):
+
+- **El aviso «PDF con señal baja / OCR pobre» era un falso diagnóstico**: cualquier error del polling del vector store (incluido un 429 del endpoint de estado) se etiquetaba `indexingTimedOut` y acababa culpando al PDF — verificado con un PDF de texto digital perfecto (85k caracteres extraíbles). Ahora el polling **reintenta transitorios** (`retryWithBackoff`), `pollFailed` marca los conteos como desconocidos cuando aún así falla, y `derivePartialReasons` **no acusa al documento sin conteos reales**. `indexingTimedOut` solo se marca si quedan ficheros `in_progress` de verdad.
+- **Consejo correcto primero**: el dashboard prioriza «falta documentación administrativa (PCAP)» sobre «OCR pobre» cuando ambos aparecen — para un memo, reescanear no es el siguiente paso útil.
+- **Jobs colgados en `processing` para siempre**: `updatePhase('extraction')`/`completeJob`/`failJob` se disparaban sin `await` milisegundos antes de cerrar el stream SSE y el runtime mataba los fetch pendientes. Ahora se esperan, y `JobService` comprueba el `error` de PostgREST (antes se ignoraba silenciosamente).
+- **`BLOCK_CONCURRENCY` 3→2**: menos ráfagas de 429 en cuentas con TPM ajustado (~20-30 s más de análisis a cambio de muchos menos reintentos visibles).
+- Tests: nuevo `ingestion_test.ts` (retry del polling, diagnóstico limpio, fallo persistente) cableado en CI y `verify-ci.sh`; `validation_test.ts` cubre que `pollFailed` no dispara el aviso de OCR; test frontend de prioridad del consejo en `pliego-vm`.
+
 ## [Unreleased] - 2026-07-12i — HOTFIX 2: file_search enviaba vector_store_ids como objeto (400 de OpenAI)
 
 Tras el hotfix del contrato RunContext, el análisis avanzó hasta la llamada a OpenAI y cayó con `400 invalid_type — Invalid type for 'tools[0].vector_store_ids[0]': expected a string, but got an object`.

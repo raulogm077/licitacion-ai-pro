@@ -104,6 +104,47 @@ Deno.test('runValidation surfaces ingestion and retry degradation reasons', () =
     assert(workflow.quality?.partial_reasons?.includes('rate_limited_degraded'));
 });
 
+Deno.test('runValidation does NOT blame the document when the indexing poll failed (counts unknown)', () => {
+    const { workflow } = runValidation({
+        consolidated: createConsolidatedResult(),
+        ingestion: {
+            completedFiles: 0,
+            failedFiles: 0,
+            inProgressFiles: 0,
+            indexingElapsedMs: 90000,
+            indexingTimedOut: true,
+            zeroCompletedFiles: false,
+            pollFailed: true,
+        },
+        extraction: {
+            sawRateLimit: true,
+            degradedByRateLimit: false,
+            degradedBlocks: [],
+        },
+    });
+
+    // Rate limit recovery is reported, but the PDF is not accused of low signal.
+    assert(workflow.quality?.partial_reasons?.includes('rate_limited_recovered'));
+    assert(!workflow.quality?.partial_reasons?.includes('ocr_or_indexing_low_signal'));
+});
+
+Deno.test('runValidation keeps the low-signal reason when file counts are real', () => {
+    const { workflow } = runValidation({
+        consolidated: createConsolidatedResult(),
+        ingestion: {
+            completedFiles: 0,
+            failedFiles: 1,
+            inProgressFiles: 0,
+            indexingElapsedMs: 90000,
+            indexingTimedOut: false,
+            zeroCompletedFiles: true,
+            pollFailed: false,
+        },
+    });
+
+    assert(workflow.quality?.partial_reasons?.includes('ocr_or_indexing_low_signal'));
+});
+
 Deno.test('runValidation marks very sparse results as document_insufficient', () => {
     const consolidated = createConsolidatedResult();
     consolidated.result.datosGenerales.organoContratacion = { value: null, status: 'no_encontrado', warnings: [] };

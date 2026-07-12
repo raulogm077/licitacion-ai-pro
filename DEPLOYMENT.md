@@ -121,7 +121,7 @@ Las dos deben responder `401` desde el gateway (sin invocar el código de la fun
 
 ### 5.3. Toolchain de CI fijado (desde 2026-07-12)
 
-`ci-cd.yml` y los `agent-*.yml` comparten toolchain: `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v4` y **Node 22**. Las herramientas externas quedan pineadas (sin `latest`) para builds reproducibles: OSV scanner `v2.4.0`, actionlint `v1.7.9`, supabase CLI `2.99.0`, vercel `55.0.0`. El job `edge-checks` cablea los tests Deno (`consolidation_test`, `validation_test`, `agents.test`, `canonical_test`, `retry_test`, `tracing_test`), también invocados desde `scripts/verify-ci.sh`.
+`ci-cd.yml` y los `agent-*.yml` comparten toolchain: `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v4` y **Node 22**. Las herramientas externas quedan pineadas (sin `latest`) para builds reproducibles: OSV scanner `v2.4.0`, actionlint `v1.7.9`, supabase CLI `2.99.0`, vercel `55.0.0`. El job `edge-checks` cablea los tests Deno (`ingestion_test / consolidation_test`, `validation_test`, `agents.test`, `canonical_test`, `retry_test`, `tracing_test`), también invocados desde `scripts/verify-ci.sh`.
 
 ## 6. Secretos y configuración
 
@@ -240,7 +240,7 @@ Estos ajustes tocan secretos y protección de rama y **no** se aplican por PR:
 
 `add_provider_reading_mode` tenía un timestamp (`20250130000000`, 2025-01-30)
 **anterior** al de `20251228000000_initial_schema.sql`, que crea la tabla
-`licitaciones`. En un apply en frío (el *branching preview* de Supabase, que
+`licitaciones`. En un apply en frío (el _branching preview_ de Supabase, que
 reaplica todas las migraciones sobre una BD vacía) corría antes de crear la
 tabla y fallaba con `relation "public.licitaciones" does not exist`. No afectaba
 a producción (`db push --include-all` sobre la BD existente salta las
@@ -258,4 +258,4 @@ migración idempotente bajo el nuevo `version` y la registre. El check
 > **Patrón para futuras migraciones**: el nombre de fichero debe ordenar
 > cronológicamente por encima de todas las migraciones de las que dependa. Si
 > hay que reordenar una ya aplicada, renombrar + idempotentizar + `migration
-> repair` (o el `delete` equivalente sobre `schema_migrations`).
+repair` (o el `delete` equivalente sobre `schema_migrations`).

@@ -44,7 +44,7 @@ Usuario → Frontend → Edge Function `analyze-with-agents`
                      ↓
               Fase A: Ingesta (Files API + Vector Store)
               Fase B: Mapa Documental (Agent + run() + file_search)
-              Fase C: Extracción por Bloques (~9 Agents, concurrencia 3)
+              Fase C: Extracción por Bloques (~9 Agents, concurrencia 2)
               Fase D: Consolidación
               Fase E: Validación Final
                      ↓

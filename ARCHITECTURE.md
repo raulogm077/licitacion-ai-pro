@@ -28,7 +28,7 @@ Frontend
        └─ Supabase Edge Function: analyze-with-agents
             ├─ Fase A: Ingesta (Files API + Vector Store)
             ├─ Fase B: Mapa Documental (Agent + run() + file_search)
-            ├─ Fase C: Extracción por Bloques (~9 Agents + run(), concurrencia 3)
+            ├─ Fase C: Extracción por Bloques (~9 Agents + run(), concurrencia 2)
             ├─ Fase D: Consolidación (merge + prelación documental)
             └─ Fase E: Validación Final (quality scoring)
                  └─ SSE → Frontend (progreso por fase + reintentos + resultado)
@@ -107,7 +107,7 @@ Responsabilidades:
 
 **Optimizaciones del pipeline:**
 
-- Fase C usa `runWithConcurrency(tasks, 3)` para ejecutar bloques en paralelo (~3x speedup)
+- Fase C usa `runWithConcurrency(tasks, BLOCK_CONCURRENCY=2)` para ejecutar bloques en paralelo (bajado de 3 el 2026-07-12: tres bloques simultáneos con file_search disparaban cascadas de 429 en cuentas con TPM ajustado)
 - Cada llamada API tiene timeout individual de 90s (`callWithTimeout`)
 - Los errores `429` y transitorios se reintentan con backoff real (`retryWithBackoff`, `BLOCK_MAX_RETRIES=1`, delay con tope `BLOCK_RETRY_MAX_DELAY_MS=30s`) y espera visible por SSE; los timeouts NO se reintentan y el guardrail JSON conserva su reintento de refuerzo
 - Constantes centralizadas en `_shared/config.ts` (modelo, timeouts, concurrencia)
@@ -373,6 +373,17 @@ Tras confirmar paridad de salida en producción (PRs #275 y #276), el 2026-05-09
 
 - Los 3 agentes llaman `fileSearchTool([vectorStoreId])`; 3 tests de regresión fijan la forma wire (`tool.providerData.vector_store_ids === ['vs_test']`, strings planos).
 - **Eliminado el `@ts-nocheck` de fichero completo** en los 3 agentes (ocultó los dos bugs de esta familia). Quedan 4 supresiones quirúrgicas `@ts-expect-error` documentadas, solo en las líneas de guardrails: el tipo de config del SDK 0.3.x pide la forma _definida_ del guardrail mientras su runtime normaliza vía `define*Guardrail({ name, execute })` (comprobado en `run.js` L753) — nuestra forma `{ name, execute }` es la correcta en runtime. Cualquier otro mal uso del SDK en los agentes es ahora un error de compilación de `deno check`, no un incidente de producción.
+
+**Fecha:** 2026-07-12
+
+### 8.10 Diagnóstico veraz de ingesta, resiliencia 429 y tracking de jobs fiable (Implementado 2026-07-12)
+
+**Contexto:** el primer análisis completo tras los hotfixes §8.8/§8.9 devolvió el aviso «PDF con señal baja / OCR pobre» para un PDF con capa de texto digital perfecta, mientras la cuenta sufría 429 de OpenAI. Tres causas distintas:
+
+1. **Diagnóstico falso**: cualquier error en el polling del vector store (incl. un 429 del endpoint de estado) se marcaba `indexingTimedOut` → `ocr_or_indexing_low_signal` → la UI culpaba al PDF. Ahora el polling reintenta transitorios (`retryWithBackoff` + `isRetryableError`); si aún falla, `IngestionDiagnostics.pollFailed=true` deja constancia de que los conteos son **desconocidos** y `derivePartialReasons` no acusa al documento sin conteos reales. `indexingTimedOut` solo se marca si de verdad quedan ficheros `in_progress`.
+2. **Prioridad del consejo**: `buildGuidance` (frontend) prioriza ahora la composición documental (falta PCAP/PPT) sobre el aviso de OCR cuando ambos aparecen — para un memo, el paso útil es completar el expediente, no reescanear.
+3. **Jobs colgados en `processing`**: las escrituras `updatePhase('extraction')`/`completeJob`/`failJob` se disparaban sin `await` justo antes de cerrar el stream SSE (consolidación y validación son síncronas), y el runtime mata los fetch pendientes al terminar la request → el job quedaba en `document_map` para siempre. Ahora se esperan (~100 ms) y `JobService` comprueba el `error` de PostgREST en cada update (antes se ignoraba y el `.catch` nunca saltaba).
+4. **`BLOCK_CONCURRENCY` 3→2**: con file_search cada bloque consume mucho TPM; tres simultáneos provocaban cascadas de 429. El coste es ~20-30 s más de análisis.
 
 **Fecha:** 2026-07-12
 

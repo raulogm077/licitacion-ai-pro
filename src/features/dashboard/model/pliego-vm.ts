@@ -385,7 +385,8 @@ function buildGuidance(
     if (quality.overall === 'COMPLETO') {
         return {
             title: 'Expediente analizado con cobertura alta',
-            description: 'La extracción ha recuperado la mayor parte de los campos clave y la información está lista para revisión funcional.',
+            description:
+                'La extracción ha recuperado la mayor parte de los campos clave y la información está lista para revisión funcional.',
             nextStep: 'Valida presupuesto, plazo y criterios contra el portal oficial antes de reutilizar el análisis.',
             tone: 'success' as const,
         };
@@ -394,6 +395,39 @@ function buildGuidance(
     const reasons = new Set(quality.partial_reasons || []);
     const warningsText = backendWarnings.join(' ').toLowerCase();
     const missingCount = quality.missingCriticalFields?.length || 0;
+
+    // El diagnóstico de composición documental (falta PCAP/PPT) va ANTES que el
+    // de OCR: cuando ambos aparecen (p. ej. un memo analizado bajo rate limit),
+    // el consejo útil es completar el expediente, no reescanear un PDF sano.
+    if (
+        reasons.has('missing_administrative_content') ||
+        warningsText.includes('únicamente al ppt') ||
+        warningsText.includes('documento ppt') ||
+        warningsText.includes('no contiene pcap')
+    ) {
+        return {
+            title: 'Documento técnico sin cobertura administrativa',
+            description:
+                'El sistema ha encontrado sobre todo contenido técnico. Faltan datos que normalmente viven en el PCAP o en la carátula del expediente.',
+            nextStep:
+                'Sube también el PCAP, la carátula o un PDF completo del expediente para recuperar presupuesto, plazo, CPV y órgano de contratación.',
+            tone: 'warning' as const,
+        };
+    }
+
+    if (
+        reasons.has('missing_technical_content') ||
+        warningsText.includes('únicamente al pcap') ||
+        warningsText.includes('no se dispone de un pliego de prescripciones técnicas')
+    ) {
+        return {
+            title: 'Documento administrativo sin cobertura técnica',
+            description:
+                'El análisis ha podido leer el PCAP, pero faltan el PPT y los anexos técnicos que suelen contener requisitos funcionales, SLAs y detalles del servicio.',
+            nextStep: 'Añade el PPT y anexos técnicos para completar requisitos, riesgos operativos y equipo mínimo.',
+            tone: 'warning' as const,
+        };
+    }
 
     if (reasons.has('ocr_or_indexing_low_signal')) {
         return {
@@ -406,29 +440,13 @@ function buildGuidance(
         };
     }
 
-    if (reasons.has('missing_administrative_content') || warningsText.includes('únicamente al ppt') || warningsText.includes('documento ppt') || warningsText.includes('no contiene pcap')) {
-        return {
-            title: 'Documento técnico sin cobertura administrativa',
-            description: 'El sistema ha encontrado sobre todo contenido técnico. Faltan datos que normalmente viven en el PCAP o en la carátula del expediente.',
-            nextStep: 'Sube también el PCAP, la carátula o un PDF completo del expediente para recuperar presupuesto, plazo, CPV y órgano de contratación.',
-            tone: 'warning' as const,
-        };
-    }
-
-    if (reasons.has('missing_technical_content') || warningsText.includes('únicamente al pcap') || warningsText.includes('no se dispone de un pliego de prescripciones técnicas')) {
-        return {
-            title: 'Documento administrativo sin cobertura técnica',
-            description: 'El análisis ha podido leer el PCAP, pero faltan el PPT y los anexos técnicos que suelen contener requisitos funcionales, SLAs y detalles del servicio.',
-            nextStep: 'Añade el PPT y anexos técnicos para completar requisitos, riesgos operativos y equipo mínimo.',
-            tone: 'warning' as const,
-        };
-    }
-
     if (reasons.has('document_insufficient') || missingCount >= 4) {
         return {
             title: 'Expediente parcial o PDF difícil de leer',
-            description: 'El backend ha terminado, pero siguen faltando varios campos críticos. Esto suele ocurrir con PDFs resumidos, escaneados o con documentación incompleta.',
-            nextStep: 'Prueba con el expediente completo o con varios PDFs relacionados para mejorar cobertura y trazabilidad.',
+            description:
+                'El backend ha terminado, pero siguen faltando varios campos críticos. Esto suele ocurrir con PDFs resumidos, escaneados o con documentación incompleta.',
+            nextStep:
+                'Prueba con el expediente completo o con varios PDFs relacionados para mejorar cobertura y trazabilidad.',
             tone: 'warning' as const,
         };
     }
@@ -445,7 +463,8 @@ function buildGuidance(
 
     return {
         title: 'Análisis parcial pero utilizable',
-        description: 'Se ha recuperado parte relevante del expediente, aunque todavía quedan huecos o ambigüedades que requieren contraste manual.',
+        description:
+            'Se ha recuperado parte relevante del expediente, aunque todavía quedan huecos o ambigüedades que requieren contraste manual.',
         nextStep: 'Revisa primero los avisos y las secciones con estado PARCIAL o VACIO antes de tomar decisiones.',
         tone: 'info' as const,
     };

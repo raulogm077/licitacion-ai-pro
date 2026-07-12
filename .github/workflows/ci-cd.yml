@@ -172,6 +172,7 @@ jobs:
                   deno test --node-modules-dir=auto supabase/functions/_shared/agents/tracing_test.ts
             - name: Deno Test Pipeline Phases and Agents
               run: |
+                  deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/ingestion_test.ts
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/validation_test.ts
                   deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts

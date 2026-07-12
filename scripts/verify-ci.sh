@@ -47,6 +47,7 @@ deno test --node-modules-dir=auto supabase/functions/_shared/schemas/canonical_t
 deno test --node-modules-dir=auto supabase/functions/_shared/utils/retry_test.ts
 deno test --node-modules-dir=auto supabase/functions/_shared/agents/tracing_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
+deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/ingestion_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/validation_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts

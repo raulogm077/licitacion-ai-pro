@@ -193,13 +193,7 @@ function recoverCanonicalResult(rawResult: Record<string, unknown>, warnings: st
             {},
             warnings
         ),
-        modeloServicio: recoverSection(
-            'modeloServicio',
-            ModeloServicioSchema,
-            rawResult.modeloServicio,
-            {},
-            warnings
-        ),
+        modeloServicio: recoverSection('modeloServicio', ModeloServicioSchema, rawResult.modeloServicio, {}, warnings),
         anexosYObservaciones: recoverSection(
             'anexosYObservaciones',
             AnexosYObservacionesSchema,
