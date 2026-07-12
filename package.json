@@ -65,12 +65,14 @@
         "tailwindcss": "^3.4.1",
         "tsx": "^4.23.0",
         "typescript": "^5.5.4",
-        "vite": "^7.3.2",
+        "vite": "^7.3.6",
         "vitest": "^4.1.10"
     },
     "pnpm": {
         "overrides": {
-            "picomatch": ">=4.0.4"
+            "picomatch": ">=4.0.4",
+            "tmp": ">=0.2.7",
+            "ws": ">=8.21.0"
         }
     },
     "lint-staged": {

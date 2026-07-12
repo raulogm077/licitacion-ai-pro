@@ -63,7 +63,7 @@ Documentación viva del sistema:
 - `AGENTS.md`: reglas de funcionamiento de la fábrica de agentes (incluye postura de auth)
 - `DEPLOYMENT.md`: proceso actual de despliegue
 - `TECHNICAL_DOCS.md`: contratos técnicos detallados
-- `CHANGELOG.md`: historial de cambios por release (última entrada 2026-07-12: revisión integral de seguridad, bugs, accesibilidad y limpieza; ver `SPEC.md` §10.7)
+- `CHANGELOG.md`: historial de cambios por release (última entrada 2026-07-12: revisión integral de seguridad, bugs, accesibilidad y limpieza —ver `SPEC.md` §10.7— más el fix de CI post-#297: comillas en la instalación de Vercel y parches de `vite`/`tmp`/`ws`)
 
 ## Stack real
 
