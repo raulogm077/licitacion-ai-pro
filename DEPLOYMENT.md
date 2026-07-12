@@ -234,26 +234,26 @@ Estos ajustes tocan secretos y protección de rama y **no** se aplican por PR:
   checks → `repo-integrity` (añade `e2e-tests` al activar E2E). Workflow
   permissions en Read and write.
 
-## Limitación conocida — orden de migraciones y Supabase Preview
+## Orden de migraciones y Supabase Preview (resuelto 2026-07-12)
 
-La migración `supabase/migrations/20250130000000_add_provider_reading_mode.sql`
-tiene un timestamp (2025-01-30) **anterior** al de
-`20251228000000_initial_schema.sql`, que crea la tabla `licitaciones`. En un
-apply en frío (el *branching preview* de Supabase, que reaplica todas las
-migraciones sobre una BD vacía) corre antes de crear la tabla y falla con
-`relation "public.licitaciones" does not exist`.
+`add_provider_reading_mode` tenía un timestamp (`20250130000000`, 2025-01-30)
+**anterior** al de `20251228000000_initial_schema.sql`, que crea la tabla
+`licitaciones`. En un apply en frío (el *branching preview* de Supabase, que
+reaplica todas las migraciones sobre una BD vacía) corría antes de crear la
+tabla y fallaba con `relation "public.licitaciones" does not exist`. No afectaba
+a producción (`db push --include-all` sobre la BD existente salta las
+migraciones ya registradas en `supabase_migrations.schema_migrations`).
 
-- **No afecta a producción**: el deploy usa `supabase db push --include-all`
-  contra la BD existente; ambas migraciones ya constan en
-  `supabase_migrations.schema_migrations`, así que se saltan y solo se aplica la
-  migración nueva.
-- **Arreglo seguro (requiere acceso a la BD de producción, no automatizado)**:
-  1. Renombrar el fichero a un timestamp posterior a `initial_schema`
-     (p. ej. `20251229000000_add_provider_reading_mode.sql`).
-  2. Hacerlo idempotente (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT
-     EXISTS` y `DO $$ ... $$` guardando los `ADD CONSTRAINT`).
-  3. Reparar el historial remoto:
-     `supabase migration repair --status reverted 20250130000000` y
-     `--status applied 20251229000000`.
-  Mientras no se haga, el check `Supabase Preview` permanece en rojo en los PRs
-  sin bloquear el despliegue.
+**Corregido** renombrando el fichero a `20251229000000_add_provider_reading_mode.sql`
+(posterior a `initial_schema`) e idempotentizándolo (`ADD COLUMN IF NOT EXISTS`,
+`CREATE INDEX IF NOT EXISTS` y `DO $$ ... $$` guardando los `ADD CONSTRAINT`), y
+reparando el historial remoto (equivalente a
+`supabase migration repair --status reverted 20250130000000`): se eliminó la
+fila `20250130000000` de `schema_migrations` para que el deploy re-aplique la
+migración idempotente bajo el nuevo `version` y la registre. El check
+`Supabase Preview` vuelve a pasar.
+
+> **Patrón para futuras migraciones**: el nombre de fichero debe ordenar
+> cronológicamente por encima de todas las migraciones de las que dependa. Si
+> hay que reordenar una ya aplicada, renombrar + idempotentizar + `migration
+> repair` (o el `delete` equivalente sobre `schema_migrations`).
