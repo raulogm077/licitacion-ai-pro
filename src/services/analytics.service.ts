@@ -22,6 +22,7 @@ export class AnalyticsService {
                 topClientes: [],
                 topTags: [],
                 promedioCriterios: { subjetivos: 0, objetivos: 0 },
+                evolucionMensual: [],
             };
         }
 
@@ -38,6 +39,7 @@ export class AnalyticsService {
         const distribucionRiesgos: Record<string, number> = {};
         const clienteMap = new Map<string, { count: number; total: number }>();
         const tagMap = new Map<string, number>();
+        const monthMap = new Map<string, { count: number; presupuesto: number }>();
 
         // ⚡ Bolt Optimization: Single O(n) traversal replacing multiple array methods
         for (const item of items) {
@@ -53,6 +55,12 @@ export class AnalyticsService {
             // Timestamps for min/max
             if (item.timestamp < minTimestamp) minTimestamp = item.timestamp;
             if (item.timestamp > maxTimestamp) maxTimestamp = item.timestamp;
+
+            // Monthly evolution
+            const date = new Date(item.timestamp);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            const month = monthMap.get(monthKey) || { count: 0, presupuesto: 0 };
+            monthMap.set(monthKey, { count: month.count + 1, presupuesto: month.presupuesto + presupuestoValue });
 
             // Estados
             const estado = item.data.metadata?.estado || 'SIN_ESTADO';
@@ -104,6 +112,10 @@ export class AnalyticsService {
             objetivos: totalObjetivos / totalLicitaciones,
         };
 
+        const evolucionMensual = Array.from(monthMap.entries())
+            .map(([mes, stats]) => ({ mes, ...stats }))
+            .sort((a, b) => a.mes.localeCompare(b.mes));
+
         return {
             totalLicitaciones,
             presupuestoTotal,
@@ -115,6 +127,7 @@ export class AnalyticsService {
             topClientes,
             topTags,
             promedioCriterios,
+            evolucionMensual,
         };
     }
 

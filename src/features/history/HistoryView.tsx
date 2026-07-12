@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { unwrap } from '../../lib/tracked-field';
 import { formatCurrency } from '../../lib/formatters';
 import { useHistory } from '../../hooks/useHistory';
-import { LicitacionData } from '../../types';
+import { LicitacionData, SearchFilters } from '../../types';
 import { cn } from '../../lib/utils';
 import {
     Search,
@@ -17,7 +17,9 @@ import {
     Building2,
     Loader2,
     X,
+    Tag as TagIcon,
 } from 'lucide-react';
+import { COMMON_TAGS } from '../../constants/tags';
 import { StatCard } from './components/StatCard';
 import { HistoryTableRow } from './components/HistoryTableRow';
 import { getStatusFromData } from './utils';
@@ -40,6 +42,8 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
     );
     const [presupuestoMin, setPresupuestoMin] = useState(activeFilters.presupuestoMin?.toString() || '');
     const [presupuestoMax, setPresupuestoMax] = useState(activeFilters.presupuestoMax?.toString() || '');
+    const [estadoFilter, setEstadoFilter] = useState<SearchFilters['estado'] | ''>(activeFilters.estado || '');
+    const [selectedTags, setSelectedTags] = useState<string[]>(activeFilters.tags || []);
     const [currentPage, setCurrentPage] = useState(1);
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -69,6 +73,8 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
             fechaHasta: fechaHasta ? new Date(fechaHasta).getTime() : undefined,
             presupuestoMin: presupuestoMin ? Number(presupuestoMin) : undefined,
             presupuestoMax: presupuestoMax ? Number(presupuestoMax) : undefined,
+            estado: estadoFilter || undefined,
+            tags: selectedTags.length > 0 ? selectedTags : undefined,
         });
         setCurrentPage(1);
     }
@@ -79,9 +85,15 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
         setFechaHasta('');
         setPresupuestoMin('');
         setPresupuestoMax('');
+        setEstadoFilter('');
+        setSelectedTags([]);
         applyFilters({});
         search('');
         setCurrentPage(1);
+    }
+
+    function toggleTag(tag: string) {
+        setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
     }
 
     async function handleDelete(hash: string) {
@@ -205,7 +217,7 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                     {/* Advanced Filters (collapsible) */}
                     {showAdvancedFilters && (
                         <div className="border-t border-slate-200 dark:border-slate-700">
-                            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                                 <div className="space-y-1.5">
                                     <label
                                         htmlFor="cliente"
@@ -298,6 +310,54 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
                                             className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                                         />
                                     </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label
+                                        htmlFor="estadoFilter"
+                                        className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+                                    >
+                                        Estado
+                                    </label>
+                                    <select
+                                        id="estadoFilter"
+                                        value={estadoFilter}
+                                        onChange={(e) => setEstadoFilter(e.target.value as SearchFilters['estado'])}
+                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                                    >
+                                        <option value="">Todos</option>
+                                        <option value="PENDIENTE">Pendiente</option>
+                                        <option value="EN_REVISION">En Revisión</option>
+                                        <option value="ADJUDICADA">Adjudicada</option>
+                                        <option value="DESCARTADA">Descartada</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Tags filter */}
+                            <div className="px-5 pb-4">
+                                <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                    <TagIcon className="h-3.5 w-3.5" />
+                                    Tags
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {COMMON_TAGS.map((tag) => {
+                                        const active = selectedTags.includes(tag);
+                                        return (
+                                            <button
+                                                key={tag}
+                                                onClick={() => toggleTag(tag)}
+                                                aria-pressed={active}
+                                                className={cn(
+                                                    'rounded-full border px-2.5 py-1 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-brand-500',
+                                                    active
+                                                        ? 'border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                                                        : 'border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-brand-50/50 dark:border-slate-700 dark:text-slate-300 dark:hover:border-brand-700'
+                                                )}
+                                            >
+                                                {tag}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 

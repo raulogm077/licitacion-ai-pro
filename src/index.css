@@ -6,6 +6,28 @@
 @tailwind utilities;
 
 @layer base {
+    /* Chart palette — validated (dataviz six checks) per mode; recharts reads
+       these via var() so charts re-theme with the .dark class automatically. */
+    :root {
+        --viz-indigo: #4f46e5;
+        --viz-green: #047857;
+        --viz-amber: #b45309;
+        --viz-rose: #be123c;
+        --viz-violet: #7c3aed;
+        --viz-grid: #e2e8f0;
+        --viz-ink: #64748b;
+        --viz-tooltip-bg: #ffffff;
+    }
+    .dark {
+        --viz-indigo: #6366f1;
+        --viz-green: #059669;
+        --viz-amber: #d97706;
+        --viz-rose: #e11d48;
+        --viz-violet: #8b5cf6;
+        --viz-grid: #334155;
+        --viz-ink: #94a3b8;
+        --viz-tooltip-bg: #1e293b;
+    }
     html {
         font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
     }

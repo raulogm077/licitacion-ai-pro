@@ -26,13 +26,7 @@ export type WorkflowState = ZodWorkflow;
 export type AnalysisVersion = ZodVersion;
 export type Evidence = ZodEvidence;
 export type FieldStatus = ZodFieldStatus;
-export type {
-    AnalysisPartialReason,
-    AnalysisPhase,
-    AnalysisStreamEvent,
-    SectionDiagnosticCode,
-    SectionDiagnosticWire,
-};
+export type { AnalysisPartialReason, AnalysisPhase, AnalysisStreamEvent, SectionDiagnosticCode, SectionDiagnosticWire };
 
 export type ExtractionTemplate = ZodExtractionTemplate;
 export type TemplateField = ZodTemplateField;
@@ -80,6 +74,6 @@ export interface AnalyticsData {
     topClientes: Array<{ cliente: string; count: number; total: number }>;
     topTags: Array<{ tag: string; count: number }>;
     promedioCriterios: { subjetivos: number; objetivos: number };
+    /** Analyses per calendar month, oldest first (mes: 'YYYY-MM'). */
+    evolucionMensual: Array<{ mes: string; count: number; presupuesto: number }>;
 }
-
-export type View = 'HOME' | 'HISTORY' | 'ANALYTICS' | 'SEARCH' | 'PRESENTATION';

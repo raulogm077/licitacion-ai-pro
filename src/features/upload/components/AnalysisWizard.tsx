@@ -75,7 +75,6 @@ export const AnalysisWizard: React.FC = () => {
     if (currentStep === 'upload') {
         return (
             <UploadStep
-                isAuthenticated={isAuthenticated}
                 selectedFiles={selectedFiles}
                 validationError={validationError}
                 templates={templates}

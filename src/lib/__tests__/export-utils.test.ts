@@ -59,7 +59,7 @@ describe('Export Utils', () => {
             distribucionRiesgos: { ALTO: 2, MEDIO: 3 },
             topClientes: [{ cliente: 'Ministerio', count: 5, total: 300000 }],
             topTags: [{ tag: 'TI', count: 4 }],
-            tendenciaMensual: [],
+            evolucionMensual: [],
             promedioCriterios: { subjetivos: 40, objetivos: 60 },
         };
 

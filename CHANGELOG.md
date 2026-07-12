@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12f — Rediseño UX «Iris» (F4–F6: analytics, búsqueda unificada, landing y presentación real)
+
+### Analytics con gráficos reales (F4)
+
+- `ChartsSection` usa **recharts** (dentro del chunk lazy de Analytics): donut de distribución por estado con leyenda-tabla accesible, y **serie temporal mensual** real (nuevo campo `evolucionMensual` calculado en `AnalyticsService` desde los timestamps). La distribución de riesgos pasa a barras proporcionales reales.
+- Paleta de visualización **validada** (chequeos de banda de luminosidad, croma, separación CVD y contraste, por modo claro/oscuro) expuesta como variables CSS `--viz-*` que se re-teman automáticamente con la clase `.dark`.
+
+### Búsqueda unificada (F5)
+
+- **Se elimina el segundo buscador**: `SearchPage` y `SearchPanel` (y sus tests) desaparecen junto con la ruta `/search` y su entrada de navegación. El Historial es ahora LA búsqueda única: texto libre (FTS) + filtros avanzados, que ganan **Estado** y **Tags** (los dos filtros que solo tenía la página eliminada). Se elimina también el tipo `View` muerto y el bloque i18n `auth.*` sin uso.
+
+### Landing y presentación real (F6)
+
+- **Landing de marca para no autenticados** (`LandingHero`): hero aurora con titular display, propuesta de valor (extracción estructurada, evidencias citadas, copiloto), CTA que abre el AuthModal. Sustituye al candado «Acceso Requerido» del wizard, cuya rama no autenticada se elimina de `UploadStep` (el gate vive en `HomePage`).
+- **Modo presentación real**: diapositivas (Portada → Cifras clave → Criterios → Solvencia → Riesgos) con navegación por teclado (←/→/Espacio/Escape), flechas en pantalla, puntos de progreso clicables, contador y **pantalla completa** (Fullscreen API); transiciones animadas con `motion` y estado vacío estilado.
+
 ## [Unreleased] - 2026-07-12e — Rediseño UX «Iris» (F2+F3: momentos wow + dashboard)
 
 Segundo bloque del rediseño: la pantalla de análisis y el dashboard estrella. Sin cambios en el contrato SSE (el frontend solo explota mejor los eventos existentes).

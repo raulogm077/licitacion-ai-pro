@@ -19,7 +19,6 @@ import { useDarkMode } from './hooks/useDarkMode';
 const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })));
 const HistoryPage = lazy(() => import('./pages/HistoryPage').then((module) => ({ default: module.HistoryPage })));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage').then((module) => ({ default: module.AnalyticsPage })));
-const SearchPage = lazy(() => import('./pages/SearchPage').then((module) => ({ default: module.SearchPage })));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((module) => ({ default: module.TemplatesPage })));
 const PresentationPage = lazy(() =>
     import('./pages/PresentationPage').then((module) => ({ default: module.PresentationPage }))
@@ -109,14 +108,6 @@ function App() {
                             element={
                                 <Suspense fallback={<PageLoader />}>
                                     <AnalyticsPage />
-                                </Suspense>
-                            }
-                        />
-                        <Route
-                            path="/search"
-                            element={
-                                <Suspense fallback={<PageLoader />}>
-                                    <SearchPage />
                                 </Suspense>
                             }
                         />
