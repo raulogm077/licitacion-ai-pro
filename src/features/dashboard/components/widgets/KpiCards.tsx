@@ -104,6 +104,7 @@ export function KpiCards({ vm }: KpiCardProps) {
                                     {kpi.label}
                                 </p>
                                 <FeedbackToggle
+                                    licitacionHash={vm.hash}
                                     fieldPath={kpi.fieldPath}
                                     value={String(kpi.value)}
                                     className="flex-shrink-0 -mt-0.5"

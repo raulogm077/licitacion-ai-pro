@@ -109,6 +109,7 @@ function RowTable({ items, vm }: { config: SubsectionConfig; items: unknown[]; v
                                 className="opacity-0 group-hover:opacity-100 transition-opacity"
                             />
                             <FeedbackToggle
+                                licitacionHash={vm.hash}
                                 fieldPath={row.fieldPath}
                                 value={row.value}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -155,6 +156,7 @@ function CardList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                             <div className="absolute top-4 right-4">
                                 <EvidenceToggle evidence={vm.getEvidence(fieldPath)} />
                                 <FeedbackToggle
+                                    licitacionHash={vm.hash}
                                     fieldPath={fieldPath}
                                     value={label}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -209,6 +211,7 @@ function SimpleList({ config, items, vm }: { config: SubsectionConfig; items: un
                                 className="opacity-0 group-hover:opacity-100 transition-opacity"
                             />
                             <FeedbackToggle
+                                licitacionHash={vm.hash}
                                 fieldPath={fieldPath}
                                 value={text}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -241,6 +244,7 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                                 <div className="absolute top-0 right-0">
                                     <EvidenceToggle evidence={vm.getEvidence(fieldPath)} />
                                     <FeedbackToggle
+                                        licitacionHash={vm.hash}
                                         fieldPath={fieldPath}
                                         value={text}
                                         className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -280,6 +284,7 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                                 )}
                                 <EvidenceToggle evidence={vm.getEvidence(fieldPath)} />
                                 <FeedbackToggle
+                                    licitacionHash={vm.hash}
                                     fieldPath={fieldPath}
                                     value={text}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -356,6 +361,7 @@ function KeyValueList({ config, items, vm }: { config: SubsectionConfig; items: 
                                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                                 />
                                 <FeedbackToggle
+                                    licitacionHash={vm.hash}
                                     fieldPath={fieldPath}
                                     value={label}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity"

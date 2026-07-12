@@ -20,7 +20,9 @@ export function FeedbackToggle({ fieldPath, value, licitacionHash, className = '
 
             if (newStatus === 'idle') {
                 if (licitacionHash) {
-                    feedbackService.removeFeedback(licitacionHash, fieldPath).catch(() => {});
+                    feedbackService.removeFeedback(licitacionHash, fieldPath).catch((error: unknown) => {
+                        logger.warn(`Failed to remove feedback: ${error instanceof Error ? error.message : error}`);
+                    });
                 }
                 return;
             }
