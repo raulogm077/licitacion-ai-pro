@@ -8,10 +8,11 @@ import {
     AlertTriangle,
     Settings,
     ChevronRight,
-    Building2,
     LogOut,
     type LucideIcon,
 } from 'lucide-react';
+import { useAuthStore } from '../../../../stores/auth.store';
+import { cn } from '../../../../lib/utils';
 
 interface NavItem {
     id: string;
@@ -80,36 +81,35 @@ export function Sidebar({
     alertCount = 0,
     availableSections = [],
 }: SidebarProps & { availableSections?: string[] }) {
+    const { user, signOut } = useAuthStore();
     const navItems = baseNavItems
         .filter((item) => availableSections.length === 0 || availableSections.includes(item.id))
         .map((item) => ({ ...item }));
-    // Utility to conditionally join classes since we don't have cn utility in scope easily
-    const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
     return (
-        <aside className="w-64 flex-shrink-0 flex flex-col h-screen bg-sidebar border-r border-sidebar-border shadow-xl z-20">
+        <aside className="z-20 flex h-screen w-64 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-950 shadow-xl">
             {/* Logo / Brand */}
-            <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-                <div className="flex items-center justify-center w-8 h-8 rounded-md bg-cyan/15">
-                    <Building2 className="w-4 h-4 text-cyan" />
+            <div className="flex items-center gap-3 border-b border-slate-800 px-5 py-5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-gradient shadow-glow">
+                    <FileText className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                    <p className="text-sidebar-foreground font-semibold text-sm leading-tight tracking-wide">
-                        Analista de
+                    <p className="text-sm font-semibold leading-tight tracking-wide text-slate-100">Analista de</p>
+                    <p className="font-display text-sm font-bold uppercase leading-tight tracking-wider text-gradient">
+                        Pliegos
                     </p>
-                    <p className="text-cyan font-bold text-sm leading-tight tracking-wider uppercase">Pliegos</p>
                 </div>
             </div>
 
             {/* Section label */}
-            <div className="px-5 pt-5 pb-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-sidebar-foreground/40 select-none">
+            <div className="px-5 pb-2 pt-5">
+                <p className="select-none text-xs font-semibold uppercase tracking-widest text-slate-500">
                     Módulos de Análisis
                 </p>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-3 pb-4 space-y-0.5 overflow-y-auto no-scrollbar">
+            <nav className="no-scrollbar flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeSection === item.id;
@@ -120,48 +120,53 @@ export function Sidebar({
                         <button
                             key={item.id}
                             onClick={() => onSectionChange(item.id)}
-                            className={clx(
-                                'w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 group outline-none',
+                            className={cn(
+                                'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium outline-none transition-all duration-150',
                                 isActive
-                                    ? 'bg-sidebar-accent text-cyan shadow-inner'
-                                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                                    ? 'bg-brand-500/15 text-brand-300 shadow-inner'
+                                    : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
                             )}
                         >
                             <Icon
-                                className={clx(
-                                    'w-4 h-4 flex-shrink-0 transition-colors',
-                                    isActive
-                                        ? 'text-cyan'
-                                        : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80'
+                                className={cn(
+                                    'h-4 w-4 flex-shrink-0 transition-colors',
+                                    isActive ? 'text-brand-400' : 'text-slate-500 group-hover:text-slate-300'
                                 )}
                             />
                             <span className="flex-1 text-left leading-snug">{item.label}</span>
                             {badgeText && (
-                                <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-1.5 py-0 rounded-full font-semibold">
+                                <span className="rounded-full border border-warning/30 bg-warning/20 px-1.5 py-0 text-[10px] font-semibold text-warning">
                                     {badgeText}
                                 </span>
                             )}
-                            {isActive && <ChevronRight className="w-3 h-3 text-cyan/60 flex-shrink-0" />}
+                            {isActive && <ChevronRight className="h-3 w-3 flex-shrink-0 text-brand-400/60" />}
                         </button>
                     );
                 })}
             </nav>
 
-            {/* Bottom section (Optional based on requirements, kept for UI fidelity) */}
-            <div className="border-t border-sidebar-border p-3 space-y-1">
-                <div className="flex items-center gap-3 px-3 py-2.5">
-                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-navy-light border border-cyan/30 flex-shrink-0">
-                        <span className="text-[10px] font-bold text-cyan">IN</span>
+            {/* Signed-in user */}
+            {user?.email && (
+                <div className="space-y-1 border-t border-slate-800 p-3">
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-brand-gradient">
+                            <span className="text-[10px] font-bold uppercase text-white">{user.email.charAt(0)}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold text-slate-200">{user.email}</p>
+                            <p className="truncate text-[10px] text-slate-500">Sesión activa</p>
+                        </div>
+                        <button
+                            onClick={() => signOut()}
+                            title="Cerrar sesión"
+                            aria-label="Cerrar sesión"
+                            className="text-slate-500 outline-none transition-colors hover:text-slate-200"
+                        >
+                            <LogOut className="h-3.5 w-3.5" />
+                        </button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sidebar-foreground text-xs font-semibold truncate">Minsait</p>
-                        <p className="text-sidebar-foreground/40 text-[10px] truncate">Equipo Analista</p>
-                    </div>
-                    <button className="text-sidebar-foreground/30 hover:text-sidebar-foreground/70 transition-colors outline-none">
-                        <LogOut className="w-3.5 h-3.5" />
-                    </button>
                 </div>
-            </div>
+            )}
         </aside>
     );
 }

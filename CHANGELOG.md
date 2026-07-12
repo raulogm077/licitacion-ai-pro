@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12e — Rediseño UX «Iris» (F2+F3: momentos wow + dashboard)
+
+Segundo bloque del rediseño: la pantalla de análisis y el dashboard estrella. Sin cambios en el contrato SSE (el frontend solo explota mejor los eventos existentes).
+
+### Momentos wow (F2)
+
+- **Stepper premium** (`StepIndicator`): conectores con relleno animado de marca, checks en pasos completados y paso activo con glow.
+- **Análisis por fases**: `AnalyzingStep` muestra las 5 fases del pipeline (`ANALYSIS_PHASES` del contrato compartido) como checklist con checkmarks/spinner, **barra de progreso real** (adiós `progress-indeterminate` en esa pantalla) y % grande; la fase activa llega por SSE (`ai.service` propaga `phase` en el callback `onProgress` y el store la guarda en `currentPhase`, antes siempre `null`). La consola terminal ahora hace auto-scroll.
+- **Celebración al completar**: confeti de marca (canvas-confetti, import dinámico, respeta `prefers-reduced-motion`) al pasar de ANALYZING a COMPLETED (no al cargar desde historial).
+
+### Dashboard estrella (F3)
+
+- **KPI cards**: entrada escalonada (`Stagger`), **count-up animado** (`CountUp` en `ui/motion`) para presupuesto/duración/valor estimado, tokens Iris y dark mode; se elimina el campo `trend` muerto (siempre `null`).
+- **Mapa de riesgos con datos reales**: barra de distribución apilada proporcional a los conteos reales (excluyentes=alto, penalizaciones=medio, riesgos=bajo) en lugar de barras decorativas hardcodeadas (85/50/25%); dark mode completo.
+- **CTAs implementados o retirados**: «Exportar Reporte» ahora **funciona** (nuevo `exportLicitacionToExcel` en `export-utils` con 6 hojas: datos generales, criterios, solvencia, técnicos, riesgos, servicio) con toast de éxito/error; «Ver Original» se **elimina** (el PDF original no se persiste — no se deja UI muerta).
+- **Marca unificada**: Sidebar del dashboard con identidad Iris, **usuario real de la sesión** (email + logout funcional) en lugar del bloque «Minsait» hardcodeado con botón inerte; ScoringChart/SummarySection/AlertsPanel/PlaceholderView migrados de navy/cyan a tokens de marca con dark mode; **tokens `navy`/`cyan`/`sidebar` eliminados** de `tailwind.config.js` (cero huérfanos).
+- **Toggles descubribles**: los controles de evidencia/feedback dejan de estar ocultos hasta hover (`opacity-0`) y quedan visibles en sutil (`opacity-60`) — usables en táctil y con foco de teclado.
+
 ## [Unreleased] - 2026-07-12d — Rediseño UX «Iris» (F0+F1: fundaciones + shell)
 
 Primer bloque del rediseño integral de UX hacia una identidad profesional con efecto «wow». Cambios de superficie de usuario, sin tocar el runtime de análisis ni el contrato SSE.

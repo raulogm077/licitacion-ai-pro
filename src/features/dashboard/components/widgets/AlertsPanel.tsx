@@ -38,9 +38,11 @@ const severityConfig: Record<
     },
     info: {
         icon: Info,
-        containerClass: 'border-l-cyan-muted bg-cyan/5 hover:bg-cyan/10 border-cyan/20',
-        iconClass: 'text-cyan-muted',
-        labelClass: 'text-cyan-muted bg-cyan/15 border-cyan/30',
+        containerClass:
+            'border-l-brand-400 bg-brand-50/50 hover:bg-brand-50 border-brand-100 dark:bg-brand-950/40 dark:hover:bg-brand-950/70 dark:border-brand-900',
+        iconClass: 'text-brand-500',
+        labelClass:
+            'text-brand-600 bg-brand-50 border-brand-200 dark:text-brand-300 dark:bg-brand-950 dark:border-brand-800',
         label: 'Info',
     },
     success: {
@@ -103,8 +105,8 @@ export function AlertsPanel({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (sec
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
                 {alerts.length === 0 ? (
                     <div className="text-center text-slate-400 py-8 text-sm px-6">
-                        No hay alertas adicionales. Si el análisis sigue siendo parcial, revisa el resumen ejecutivo para
-                        ver qué documentos faltan.
+                        No hay alertas adicionales. Si el análisis sigue siendo parcial, revisa el resumen ejecutivo
+                        para ver qué documentos faltan.
                     </div>
                 ) : (
                     alerts.map((alert) => {
@@ -128,7 +130,7 @@ export function AlertsPanel({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (sec
                                             </p>
                                             <div className="flex items-center gap-1 flex-shrink-0">
                                                 {alert.isNew && (
-                                                    <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-navy text-white">
+                                                    <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-brand-600 text-white">
                                                         NUEVO
                                                     </span>
                                                 )}
@@ -146,7 +148,7 @@ export function AlertsPanel({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (sec
                                             >
                                                 {config.label}
                                             </span>
-                                            <button className="flex items-center gap-1 text-[10px] font-medium text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-slate-900">
+                                            <button className="flex items-center gap-1 text-[10px] font-medium text-slate-400 opacity-60 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:text-slate-900">
                                                 Ir a sección
                                                 <ArrowRight className="w-2.5 h-2.5" />
                                             </button>
@@ -177,7 +179,9 @@ function inferSection(message: string): string {
     if (normalized.includes('criterio') || normalized.includes('anormalidad')) return 'criterios';
     if (normalized.includes('solvencia')) return 'solvencia';
     if (normalized.includes('técnic') || normalized.includes('tecnic') || normalized.includes('ppt')) return 'tecnicos';
-    if (normalized.includes('riesgo') || normalized.includes('penaliz') || normalized.includes('garant')) return 'riesgos';
-    if (normalized.includes('sla') || normalized.includes('equipo') || normalized.includes('servicio')) return 'servicio';
+    if (normalized.includes('riesgo') || normalized.includes('penaliz') || normalized.includes('garant'))
+        return 'riesgos';
+    if (normalized.includes('sla') || normalized.includes('equipo') || normalized.includes('servicio'))
+        return 'servicio';
     return 'resumen';
 }

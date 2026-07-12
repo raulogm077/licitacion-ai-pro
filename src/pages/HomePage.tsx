@@ -1,14 +1,25 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useLicitacionStore } from '../stores/licitacion.store';
 import { useAnalysisStore } from '../stores/analysis.store';
 import { AnalysisWizard } from '../features/upload/components/AnalysisWizard';
+import { celebrateAnalysisComplete } from '../lib/celebrate';
 
 export const HomePage: React.FC = () => {
     const { data, updateData } = useLicitacionStore();
     const { status } = useAnalysisStore();
+    const prevStatusRef = useRef(status);
+
+    // Celebrate only a fresh analysis finishing (not history loads that
+    // arrive already COMPLETED).
+    useEffect(() => {
+        if (prevStatusRef.current === 'ANALYZING' && status === 'COMPLETED') {
+            void celebrateAnalysisComplete();
+        }
+        prevStatusRef.current = status;
+    }, [status]);
 
     return (
         <>

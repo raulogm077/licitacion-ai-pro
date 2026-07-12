@@ -1,4 +1,5 @@
 import { LicitacionContent, ExtractionTemplate } from '../types';
+import type { AnalysisPhase } from '../shared/analysis-contract';
 import { logger } from './logger';
 
 export class LicitacionAIError extends Error {
@@ -39,7 +40,8 @@ const shouldEmitRetryCountdown = (secondsLeft: number): boolean => {
     return secondsLeft % 10 === 0;
 };
 
-const getProgressForEvent = (phase: string, blockIndex?: number, totalBlocks?: number): number => {
+const getProgressForEvent = (phase: string | undefined, blockIndex?: number, totalBlocks?: number): number => {
+    if (!phase) return 50;
     const phaseRange = PHASE_PROGRESS[phase];
     if (!phaseRange) return 50;
 
@@ -65,7 +67,7 @@ const buildRetryMessage = (
 export class AIService {
     async analyzePdfContent(
         base64Content: string,
-        onProgress?: (processed: number, total: number, message: string) => void,
+        onProgress?: (processed: number, total: number, message: string, phase?: AnalysisPhase) => void,
         signal?: AbortSignal,
         filename?: string,
         hash?: string,
@@ -79,13 +81,13 @@ export class AIService {
 
             const { jobService } = await import('./job.service');
 
-            if (onProgress) onProgress(0, 100, 'Iniciando análisis por fases...');
+            if (onProgress) onProgress(0, 100, 'Iniciando análisis por fases...', undefined);
 
             if (signal?.aborted) {
                 throw new LicitacionAIError('Análisis cancelado por el usuario');
             }
 
-            let currentPhase = '';
+            let currentPhase: AnalysisPhase | undefined;
             let retryCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
             const clearRetryCountdown = () => {
@@ -97,7 +99,7 @@ export class AIService {
 
             const emitProgress = (processed: number, message: string) => {
                 if (!onProgress) return;
-                onProgress(processed, 100, message);
+                onProgress(processed, 100, message, currentPhase);
             };
 
             try {
@@ -125,6 +127,7 @@ export class AIService {
                                 emitProgress(phaseRange.start, (event.message as string) || `Fase: ${event.phase}`);
                             }
                         } else if (event.type === 'phase_completed' && event.phase) {
+                            currentPhase = event.phase;
                             const phaseRange = PHASE_PROGRESS[event.phase];
                             if (phaseRange) {
                                 emitProgress(phaseRange.end, (event.message as string) || `${event.phase} completada`);
@@ -180,7 +183,7 @@ export class AIService {
                     signal
                 );
 
-                if (onProgress) onProgress(100, 100, 'Resultado validado recibido del servidor');
+                if (onProgress) onProgress(100, 100, 'Resultado validado recibido del servidor', currentPhase);
                 return result;
             } finally {
                 clearRetryCountdown();

@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react';
-import { LazyMotion, domAnimation, m, useReducedMotion, type Variants } from 'motion/react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { LazyMotion, animate, domAnimation, m, useReducedMotion, type Variants } from 'motion/react';
 
 /**
  * App-level motion provider. Loads the animation feature bundle lazily (so the
@@ -71,4 +71,35 @@ export function StaggerItem({ children, className }: { children: ReactNode; clas
             {children}
         </m.div>
     );
+}
+
+type CountUpProps = {
+    /** Final numeric value to reach. */
+    value: number;
+    /** Turns the intermediate number into display text (e.g. currency). */
+    format: (value: number) => string;
+    className?: string;
+};
+
+/** Animates a number from 0 to `value` on mount; static when motion is reduced. */
+export function CountUp({ value, format, className }: CountUpProps) {
+    const reduce = useReducedMotion();
+    const [display, setDisplay] = useState(() => (reduce ? format(value) : format(0)));
+    const formatRef = useRef(format);
+    formatRef.current = format;
+
+    useEffect(() => {
+        if (reduce) {
+            setDisplay(formatRef.current(value));
+            return;
+        }
+        const controls = animate(0, value, {
+            duration: 1,
+            ease: [0.22, 1, 0.36, 1],
+            onUpdate: (latest) => setDisplay(formatRef.current(latest)),
+        });
+        return () => controls.stop();
+    }, [value, reduce]);
+
+    return <span className={className}>{display}</span>;
 }

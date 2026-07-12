@@ -50,23 +50,6 @@ export default {
                     DEFAULT: '#f43f5e',
                     dark: '#be123c',
                 },
-                // Legacy corporate tokens — still referenced by the dashboard
-                // sidebar/placeholder; removed when those are rebranded (F3).
-                navy: {
-                    DEFAULT: '#001C3D',
-                    mid: '#002A5C',
-                    light: '#003B7A',
-                },
-                cyan: {
-                    DEFAULT: '#00E5FF',
-                    muted: '#00B8CC',
-                },
-                sidebar: {
-                    DEFAULT: '#001C3D',
-                    foreground: '#F5F7FA',
-                    accent: '#002A5C',
-                    border: '#003B7A',
-                },
             },
             fontFamily: {
                 sans: ['Inter Variable', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
