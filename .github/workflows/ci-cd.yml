@@ -161,6 +161,15 @@ jobs:
               run: deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
             - name: Deno Test Conversational Tools
               run: deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
+            - name: Deno Test Shared Schemas and Utils
+              run: |
+                  deno test --node-modules-dir=auto supabase/functions/_shared/schemas/canonical_test.ts
+                  deno test --node-modules-dir=auto supabase/functions/_shared/utils/retry_test.ts
+            - name: Deno Test Pipeline Phases and Agents
+              run: |
+                  deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
+                  deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/validation_test.ts
+                  deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
 
     # 2. Quality Checks (Lint, Unit, Build)
     quality-checks:
