@@ -267,3 +267,4 @@ No forman parte de `## To Do` de `BACKLOG.md`; se registran aquí como deuda con
 - refactor del monolito `HistoryView`;
 - decisión sobre **adopción o eliminación completa del service-registry**;
 - **modelo de job asíncrono** para documentos de 300+ páginas (ya recogido en `CLAUDE.md`, "Pipeline Timeout Architecture").
+- **orden de la migración `add_provider_reading_mode`** (2026-07-12b): su timestamp `20250130000000` es anterior al de `initial_schema` (`20251228000000`), por lo que el *branching preview* de Supabase (apply en frío) falla con `relation "public.licitaciones" does not exist`. No bloquea producción (`db push --include-all` sobre la BD existente salta las migraciones ya aplicadas). El arreglo seguro (renombrar + idempotencia + `supabase migration repair`) requiere acceso a la BD de producción y se documenta en `DEPLOYMENT.md` (§ "Limitación conocida — orden de migraciones y Supabase Preview").

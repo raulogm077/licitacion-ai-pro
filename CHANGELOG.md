@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12b — Fixes de CI post-#297
+
+Corrige tres checks que quedaron en rojo tras el merge de #297:
+
+- **CI (actionlint)**: `npm install -g "vercel@${VERCEL_CLI_VERSION}"` ahora va entre comillas en `.github/workflows/ci-cd.yml` (shellcheck SC2086, que `actionlint` trataba como error y hacía fallar el job `Repo Integrity`).
+- **Security Audit**: parcheadas 3 vulnerabilidades HIGH detectadas por OSV Scanner sobre dependencias ya presentes: `vite` 7.3.2→7.3.6 (dentro de major 7; GHSA-fx2h-pf6j-xcff), y overrides `pnpm` para `tmp` ≥0.2.7 (GHSA-ph9p-34f9-6g65) y `ws` ≥8.21.0 (GHSA-96hv-2xvq-fx4p).
+- **Pendiente documentado**: el fallo de `Supabase Preview` (migración `add_provider_reading_mode` con timestamp anterior a `initial_schema`) es preexistente y **no bloquea el deploy de producción** (`db push --include-all` corre contra la BD existente, donde la tabla y las columnas ya están). Arreglarlo requiere renombrar una migración aplicada y reparar el historial remoto (`supabase migration repair`); se documenta el procedimiento en `DEPLOYMENT.md` y `SPEC.md`, sin ejecutarlo.
+
 ## [Unreleased] - 2026-07-12
 
 Revisión integral del producto (seguridad, corrección de bugs, accesibilidad, limpieza y CI). La versión vigente del SDK de análisis sigue siendo `@openai/agents@0.3.1`, importado siempre vía `supabase/functions/_shared/agents/sdk.ts` (nunca `npm:@openai/agents@x` directo). Detalle cerrado en `SPEC.md` §10.7 y `ARCHITECTURE.md` §8.6.
