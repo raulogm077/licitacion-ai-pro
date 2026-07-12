@@ -138,22 +138,26 @@ serve(async (req: Request) => {
             console.log(`[analyze] Additional documents: ${files.length}`);
         }
 
-        runOpportunisticCleanup(openai, async () => {
-            const { data } = await supabaseClient
-                .from('analysis_jobs')
-                .select('id, vector_store_id, file_ids')
-                .lt('cleanup_at', new Date().toISOString())
-                .not('vector_store_id', 'is', null)
-                .limit(5);
-            if (data && data.length > 0) {
-                const ids = data.map((j: { id: string }) => j.id);
+        runOpportunisticCleanup(
+            openai,
+            async () => {
+                const { data } = await supabaseClient
+                    .from('analysis_jobs')
+                    .select('id, vector_store_id, file_ids')
+                    .lt('cleanup_at', new Date().toISOString())
+                    .not('vector_store_id', 'is', null)
+                    .limit(5);
+                return data || [];
+            },
+            // Drop the references only after OpenAI confirmed the deletion;
+            // failed jobs keep their IDs so a future run can retry them.
+            async (job) => {
                 await supabaseClient
                     .from('analysis_jobs')
                     .update({ vector_store_id: null, file_ids: null })
-                    .in('id', ids);
+                    .eq('id', job.id);
             }
-            return data || [];
-        }).catch((err) =>
+        ).catch((err) =>
             console.warn('[analyze] Opportunistic cleanup failed:', {
                 error: err instanceof Error ? err.message : String(err),
                 userId: user.id,
