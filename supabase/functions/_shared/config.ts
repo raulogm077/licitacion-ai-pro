@@ -55,6 +55,21 @@ export const PIPELINE_TIMEOUT_MS = 280_000;
 export const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
 
 /**
+ * Maximum request body size for the conversational layer (64KB).
+ * Chat requests carry a message + session metadata, never documents;
+ * anything larger is abuse or a client bug.
+ */
+export const MAX_CHAT_PAYLOAD_BYTES = 64 * 1024;
+
+/**
+ * Chat rate limit (per user, sliding window of 1 hour).
+ * Each message triggers a multi-agent run (manager + specialist tools), so
+ * the budget guards OpenAI cost. 60/h ≈ one message per minute sustained,
+ * generous for real conversations while bounding abuse.
+ */
+export const CHAT_MAX_REQUESTS_PER_HOUR = 60;
+
+/**
  * Maximum concurrent block extractions in Phase C.
  * Kept deliberately below the total number of blocks to reduce OpenAI 429 bursts
  * on medium/large dossiers. Stability is preferred over the shortest possible

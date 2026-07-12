@@ -2,6 +2,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 import { run, user as userMessage } from '../_shared/agents/sdk.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { checkRateLimit } from '../_shared/rate-limiter.ts';
+import { CHAT_MAX_REQUESTS_PER_HOUR, MAX_CHAT_PAYLOAD_BYTES } from '../_shared/config.ts';
 import { createAnalysisTools } from './tools.ts';
 import { createChatAgents } from './agents.ts';
 import { getConversationHistory, replaceConversationHistory } from './session.ts';
@@ -54,7 +56,34 @@ serve(async (req: Request) => {
             return jsonError(req, 401, 'No se pudo resolver el usuario');
         }
 
-        const body = ChatRequestSchema.parse(await req.json()) as ChatRequest;
+        const rateCheck = checkRateLimit(`chat:${user.id}`, {
+            maxRequests: CHAT_MAX_REQUESTS_PER_HOUR,
+        });
+        if (!rateCheck.allowed) {
+            const retryAfterSec = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
+            return new Response(
+                JSON.stringify({
+                    error: `Límite de mensajes excedido (${CHAT_MAX_REQUESTS_PER_HOUR}/hora). Reintente en ${retryAfterSec}s.`,
+                }),
+                {
+                    status: 429,
+                    headers: {
+                        ...getCorsHeaders(req),
+                        'Content-Type': 'application/json',
+                        'Retry-After': String(retryAfterSec),
+                    },
+                }
+            );
+        }
+
+        // Enforce the size cap on the actual body (content-length can be
+        // absent or spoofed), before JSON parsing.
+        const rawBody = await req.text();
+        if (rawBody.length > MAX_CHAT_PAYLOAD_BYTES) {
+            return jsonError(req, 413, 'Payload demasiado grande para el chat (máximo 64KB)');
+        }
+
+        const body = ChatRequestSchema.parse(JSON.parse(rawBody)) as ChatRequest;
         await assertAnalysisExists(supabase, body.analysisHash);
 
         const sessionId = await ensureSession(supabase, user.id, body.analysisHash, body.sessionId, body.message);
