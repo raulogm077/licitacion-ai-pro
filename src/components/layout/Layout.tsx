@@ -16,10 +16,10 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = (props) => {
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 font-sans text-slate-900 dark:text-slate-100">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 font-sans text-slate-900 dark:text-slate-100">
             <Header {...props} />
 
-            <main className="max-w-6xl mx-auto px-6 py-8">
+            <main className="max-w-7xl mx-auto px-6 py-8">
                 <Suspense
                     fallback={
                         <div className="flex items-center justify-center py-20">

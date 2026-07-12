@@ -23,6 +23,9 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 - búsqueda full-text en español (FTS + ILIKE fallback) sobre el historial
 - eliminación de registros del historial con confirmación
 - prepara el terreno para plantillas dinámicas de extracción y soporte multi-documento
+- interfaz con sistema de diseño «Iris» (marca índigo→violeta, fuentes Inter/Space Grotesk self-hosted), **modo oscuro funcional** y notificaciones tipo toast; respeta `prefers-reduced-motion`
+
+Dependencias frontend de UI (solo cliente, no afectan al runtime Deno de las Edge Functions): `motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/inter`, `@fontsource-variable/space-grotesk`.
 
 ## Arquitectura actual
 

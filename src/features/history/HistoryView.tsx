@@ -21,13 +21,14 @@ import {
 import { StatCard } from './components/StatCard';
 import { HistoryTableRow } from './components/HistoryTableRow';
 import { getStatusFromData } from './utils';
+import { notify } from '../../lib/notify';
 
 interface HistoryViewProps {
     onSelect: (data: LicitacionData, hash?: string) => void;
 }
 
 export function HistoryView({ onSelect }: HistoryViewProps) {
-    const { items, loading, applyFilters, activeFilters, search, searchQuery, deleteLicitacion, deleting } =
+    const { items, loading, error, applyFilters, activeFilters, search, searchQuery, deleteLicitacion, deleting } =
         useHistory();
 
     const [searchCliente, setSearchCliente] = useState(activeFilters.cliente || '');
@@ -45,6 +46,11 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
 
     const rowsPerPage = 10;
     const filtersApplied = Object.keys(activeFilters).length > 0;
+
+    // Surface load/delete failures that the hook previously swallowed.
+    useEffect(() => {
+        if (error) notify.error(error);
+    }, [error]);
 
     // Close the delete-confirmation dialog with Escape (dialog pattern).
     useEffect(() => {
@@ -80,7 +86,10 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
 
     async function handleDelete(hash: string) {
         const success = await deleteLicitacion(hash);
-        if (success) setConfirmDelete(null);
+        if (success) {
+            setConfirmDelete(null);
+            notify.success('Análisis eliminado');
+        }
     }
 
     const totalPages = Math.max(1, Math.ceil(items.length / rowsPerPage));

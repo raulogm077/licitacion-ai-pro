@@ -22,7 +22,7 @@ describe('Common Components', () => {
 
         it('renders variants', () => {
             const { rerender, getByText } = render(<Badge variant="default">Default</Badge>);
-            expect(getByText('Default')).toHaveClass('bg-slate-100');
+            expect(getByText('Default')).toHaveClass('bg-brand-50');
 
             rerender(<Badge variant="outline">Outline</Badge>);
             expect(getByText('Outline')).toHaveClass('border');
@@ -54,12 +54,12 @@ describe('Common Components', () => {
         it('applies default variant classes', () => {
             render(<Button>Default</Button>);
             const btn = screen.getByRole('button');
-            expect(btn).toHaveClass('bg-slate-900');
+            expect(btn).toHaveClass('bg-brand-gradient');
         });
 
         it('applies destructive variant classes', () => {
             render(<Button variant="destructive">Delete</Button>);
-            expect(screen.getByRole('button')).toHaveClass('bg-red-500');
+            expect(screen.getByRole('button')).toHaveClass('bg-danger');
         });
 
         it('applies outline variant classes', () => {
@@ -140,8 +140,8 @@ describe('Common Components', () => {
                     </DialogContent>
                 </Dialog>
             );
-            // The backdrop is the fixed inset-0 div with bg-black/50
-            const backdrop = document.querySelector('.fixed.inset-0.bg-black\\/50');
+            // The backdrop is the fixed inset-0 div with bg-slate-950/50
+            const backdrop = document.querySelector('.fixed.inset-0.bg-slate-950\\/50');
             expect(backdrop).not.toBeNull();
             fireEvent.click(backdrop!);
             expect(handleChange).toHaveBeenCalledWith(false);

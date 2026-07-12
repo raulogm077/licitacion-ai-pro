@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12d — Rediseño UX «Iris» (F0+F1: fundaciones + shell)
+
+Primer bloque del rediseño integral de UX hacia una identidad profesional con efecto «wow». Cambios de superficie de usuario, sin tocar el runtime de análisis ni el contrato SSE.
+
+### Fundaciones (F0)
+
+- **Dark mode reparado**: `tailwind.config.js` no declaraba `darkMode: 'class'`, por lo que el toggle de tema no tenía efecto pese a las ~38 superficies con clases `dark:`. Ahora el modo oscuro funciona de extremo a extremo.
+- **Sistema de diseño «Iris»**: nueva paleta de marca índigo→violeta (`brand`) + acento violeta (`accent`), gradiente firma `brand-gradient`, sombras de elevación y `glow`, y keyframes/animaciones (`fade-in`, `shimmer`, `progress-indeterminate`, `aurora`, `pulse-glow`) — con el plugin `tailwindcss-animate` que revive las clases `animate-in` ya presentes en el código.
+- **Tipografía self-hosted** (sin CDN): Inter (UI) + Space Grotesk (display) vía `@fontsource-variable`.
+- **`prefers-reduced-motion`**: `src/index.css` desactiva animaciones no esenciales cuando el usuario lo pide; `MotionProvider` (LazyMotion) enruta `reducedMotion: 'user'`.
+- Primitivas de animación reutilizables en `src/components/ui/motion/` (`FadeIn`, `Stagger`, `StaggerItem`).
+
+### Primitivas y shell (F1)
+
+- `Button`/`Card`/`Badge`/`Dialog` rediseñados sobre tokens de marca y con soporte de modo oscuro propio; `Dialog` anima entrada/salida con `motion`.
+- **Sistema de toasts** (`sonner`) con helper único `notify()`; se renderizan errores antes silenciados (`useHistory.error`, `catch` de Analytics) y se confirma el borrado del historial con toast.
+- **Skeletons reutilizables** (`Skeleton`/`SkeletonCard`); `DashboardSkeleton` y el estado de carga de Analytics los reutilizan.
+- Cabecera con logo de marca (gradiente + Space Grotesk), header glass y contenido a `max-w-7xl`.
+- Dependencias frontend nuevas (solo cliente, no afectan al runtime Deno de las Edge Functions): `motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/inter`, `@fontsource-variable/space-grotesk`.
+
 ## [Unreleased] - 2026-07-12c — Orden de la migración add_provider_reading_mode
 
 Corrige el bug de orden que dejaba en rojo el check `Supabase Preview` (apply en frío):

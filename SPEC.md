@@ -28,6 +28,8 @@ Estado funcional confirmado a fecha de esta especificación:
 - `workflow.quality.section_diagnostics` debe explicar por sección si el dato está presente, falta en los documentos subidos o se recuperó tras degradación de schema/extracción
 - el release de superficies de análisis queda protegido por `pnpm benchmark:pliegos`
 - el backend reconcilia `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` desde bloques fiables (`economico`, `duracionYProrrogas`) solo cuando el dato general venía ausente
+- la interfaz sigue el sistema de diseño **«Iris»** (marca índigo→violeta, tipografía Inter/Space Grotesk self-hosted, superficies aurora/glass); el **modo oscuro es funcional** en toda la app y respeta `prefers-reduced-motion`
+- el feedback transitorio de la UI (errores de carga/borrado, éxito de acciones) se comunica con **toasts** (`sonner`) mediante el helper único `notify()`, no con banners ad-hoc
 - `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
 - ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
 - el camino @openai/agents para Fase C es único; el antiguo fallback `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción
