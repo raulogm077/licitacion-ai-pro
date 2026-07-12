@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Mail, Lock, Loader2, Check, UserPlus, LogIn } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 
@@ -18,6 +18,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     const [successMessage, setSuccessMessage] = useState('');
 
     const { signInWithPassword, signUp } = useAuthStore();
+
+    // Close on Escape while open (dialog pattern).
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -82,7 +92,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="auth-modal-title"
+                className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+            >
                 {/* Header */}
                 <div className="relative bg-gradient-to-r from-brand-600 to-brand-500 p-6 text-white">
                     <button
@@ -98,7 +113,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                             {mode === 'login' ? <LogIn size={24} /> : <UserPlus size={24} />}
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold">
+                            <h2 id="auth-modal-title" className="text-2xl font-bold">
                                 {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
                             </h2>
                             <p className="text-white/90 text-sm mt-1">
