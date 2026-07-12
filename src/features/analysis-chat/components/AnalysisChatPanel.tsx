@@ -41,19 +41,19 @@ function isStoredChatState(value: unknown): value is StoredChatState {
     return Array.isArray(candidate.messages);
 }
 
-export function AnalysisChatPanel({
-    analysisHash,
-    analysisTitle,
-}: {
-    analysisHash?: string;
-    analysisTitle?: string;
-}) {
+export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHash?: string; analysisTitle?: string }) {
     const [draft, setDraft] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [sessionId, setSessionId] = useState<string>();
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const messageEndRef = useRef<HTMLDivElement | null>(null);
+    // Last hash the persist effect has seen. Used to skip the first persist
+    // pass after a hash change: in that commit the in-memory messages still
+    // belong to the previous hash (the restore effect's setState has not been
+    // applied yet), and writing them would overwrite the new hash's stored
+    // history. The re-render caused by the restore runs the effect again.
+    const persistedHashRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!analysisHash) {
@@ -90,6 +90,10 @@ export function AnalysisChatPanel({
 
     useEffect(() => {
         if (!analysisHash) {
+            return;
+        }
+        if (persistedHashRef.current !== analysisHash) {
+            persistedHashRef.current = analysisHash;
             return;
         }
         window.localStorage.setItem(
@@ -271,7 +275,9 @@ export function AnalysisChatPanel({
                                                         : 'bg-white border border-slate-200 text-slate-900'
                                                 )}
                                             >
-                                                <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                                                <p className="whitespace-pre-wrap text-sm leading-6">
+                                                    {message.content}
+                                                </p>
 
                                                 {message.role === 'assistant' &&
                                                     message.citations &&
@@ -291,7 +297,8 @@ export function AnalysisChatPanel({
                                                                     <p className="mt-1 whitespace-pre-wrap">
                                                                         {citation.quote}
                                                                     </p>
-                                                                    {(citation.pageHint || citation.confidence !== undefined) && (
+                                                                    {(citation.pageHint ||
+                                                                        citation.confidence !== undefined) && (
                                                                         <p className="mt-2 text-[11px] text-slate-500">
                                                                             {citation.pageHint
                                                                                 ? `Página: ${citation.pageHint}`
@@ -365,7 +372,11 @@ export function AnalysisChatPanel({
                                     placeholder="Pregunta por riesgos, criterios, solvencia, evidencias o ambigüedades..."
                                     className="min-h-[84px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-200"
                                 />
-                                <Button type="submit" className="h-auto min-w-28 self-stretch" disabled={isSending || !draft.trim()}>
+                                <Button
+                                    type="submit"
+                                    className="h-auto min-w-28 self-stretch"
+                                    disabled={isSending || !draft.trim()}
+                                >
                                     <Send className="w-4 h-4 mr-2" />
                                     Enviar
                                 </Button>
