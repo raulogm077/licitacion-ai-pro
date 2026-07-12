@@ -251,6 +251,8 @@ Protege paridad semántica del pipeline tras la migración a `@openai/agents`.
 
 > **Hotfix 2026-07-12 (RunContext):** el SDK llama `instructions(runContext, agent)` y `runContext.context` ya es el `PipelineContext`; los agentes hacían un segundo `.context` (undefined) y toda Fase B moría con `Cannot read properties of undefined (reading 'fileNames')`. Corregido en los 3 agentes y blindado con tests que resuelven las instrucciones vía `agent.getSystemPrompt(new RunContext(ctx))`. Detalle en `ARCHITECTURE.md` §8.8.
 
+> **Hotfix 2 2026-07-12 (fileSearchTool):** los vector store ids son el primer argumento posicional de `fileSearchTool`; la llamada estilo-opciones enviaba `vector_store_ids=[{...}]` y OpenAI devolvía 400 invalid_type. Corregido (`fileSearchTool([id])`), forma wire fijada por tests, y `@ts-nocheck` eliminado de los agentes. Detalle en `ARCHITECTURE.md` §8.9.
+
 | Decisión               | Elección                                       | Razón                                                          |
 | ---------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
 | SDK del pipeline       | `@openai/agents@0.3.1`                         | Tracing nativo, guardrails declarativos                        |

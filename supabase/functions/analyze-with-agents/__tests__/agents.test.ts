@@ -193,6 +193,35 @@ Deno.test('customTemplate agent resolves instructions from RunContext', async ()
     assert(prompt.includes('extracto-guia-test'), 'prompt must embed the guide excerpt');
 });
 
+// ─── file_search tool wiring ─────────────────────────────────────────────────
+//
+// Regression for the second 2026-07-12 production bug: `fileSearchTool` takes
+// the vector store ids as its FIRST positional argument. Passing an
+// options-style object (`fileSearchTool({ vectorStoreIds: [...] })`) made the
+// SDK serialize `vector_store_ids: [{...}]` and OpenAI rejected every request
+// with 400 invalid_type ("expected a string, but got an object"). These tests
+// pin the wire shape the Responses API actually receives.
+
+function assertFileSearchWiring(agent: { tools: Array<Record<string, unknown>> }, label: string) {
+    const tool = agent.tools.find((t) => t.name === 'file_search');
+    assert(tool, `${label}: file_search tool must be registered`);
+    const ids = (tool.providerData as { vector_store_ids: unknown[] }).vector_store_ids;
+    assertEquals(ids, ['vs_test'], `${label}: vector_store_ids must be plain strings`);
+    assert(typeof ids[0] === 'string', `${label}: vector_store_ids[0] must be a string, not an object`);
+}
+
+Deno.test('documentMap agent wires vector_store_ids as strings', () => {
+    assertFileSearchWiring(buildDocumentMapAgent('vs_test'), 'documentMap');
+});
+
+Deno.test('blockExtractor agent wires vector_store_ids as strings', () => {
+    assertFileSearchWiring(buildBlockAgent('economico', 'vs_test'), 'blockExtractor');
+});
+
+Deno.test('customTemplate agent wires vector_store_ids as strings', () => {
+    assertFileSearchWiring(buildCustomTemplateAgent('vs_test'), 'customTemplate');
+});
+
 Deno.test('templateSanitizationGuardrail no-op when no template', async () => {
     const ctx = createPipelineContext({
         vectorStoreId: 'vs',

@@ -15,8 +15,6 @@
  *   `outputType` here — doing so would silently disable file_search.
  */
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 import { Agent, fileSearchTool } from '../../_shared/agents/sdk.ts';
 import type { PipelineContext } from '../../_shared/agents/context.ts';
 import { jsonShapeGuardrail } from '../../_shared/agents/guardrails.ts';
@@ -38,10 +36,15 @@ export function buildBlockAgent(blockName: BlockName, vectorStoreId: string) {
             return buildBlockSystemPrompt(blockName, context.documentMap, context.guideExcerpt);
         },
         tools: [
-            fileSearchTool({
-                vectorStoreIds: [vectorStoreId],
-            }),
+            // fileSearchTool(vectorStoreIds, options?) — the ids are the FIRST
+            // positional argument. Passing an options-style object made the SDK
+            // send vector_store_ids=[{...}] and OpenAI reject with 400
+            // invalid_type (prod bug 2026-07-12, second of the @ts-nocheck family).
+            fileSearchTool([vectorStoreId]),
         ],
+        // @ts-expect-error — SDK 0.3.x type/runtime mismatch: the config type wants the
+        // *defined* guardrail shape, but Runner normalizes via define*Guardrail({ name, execute })
+        // (run.js), so { name, execute } is the correct authoring shape. See ARCHITECTURE §8.9.
         outputGuardrails: [jsonShapeGuardrail(BLOCK_SCHEMAS[blockName], blockName)],
     });
 }
