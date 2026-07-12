@@ -127,6 +127,58 @@ describe('useHistory', () => {
         vi.useRealTimers();
     });
 
+    it('composes free text and active filters instead of discarding one of them', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        mockDb.getAllLicitaciones.mockResolvedValue({ ok: true, value: [] });
+        mockDb.advancedSearch.mockResolvedValue({ ok: true, value: [] });
+
+        const matching = {
+            hash: 'match',
+            fileName: 'a.pdf',
+            timestamp: 3000,
+            data: { datosGenerales: {}, metadata: { estado: 'PENDIENTE' } },
+        };
+        const filteredOut = {
+            hash: 'nomatch',
+            fileName: 'b.pdf',
+            timestamp: 2000,
+            data: { datosGenerales: {}, metadata: { estado: 'DESCARTADA' } },
+        };
+        mockDb.searchLicitaciones.mockResolvedValue({ ok: true, value: [matching, filteredOut] });
+
+        const { result } = renderHook(() => useHistory());
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        // Apply filters first, then type a query: both must remain active.
+        await act(async () => {
+            await result.current.applyFilters({ estado: 'PENDIENTE' });
+        });
+
+        act(() => {
+            result.current.search('limpieza');
+        });
+        await act(async () => {
+            vi.advanceTimersByTime(400);
+            await Promise.resolve();
+        });
+
+        expect(mockDb.searchLicitaciones).toHaveBeenCalledWith('limpieza');
+        expect(result.current.items.map((i) => i.hash)).toEqual(['match']);
+
+        // Re-applying filters keeps the typed query (FTS + in-memory filters).
+        mockDb.searchLicitaciones.mockClear();
+        mockDb.advancedSearch.mockClear();
+        await act(async () => {
+            await result.current.applyFilters({ estado: 'PENDIENTE' });
+        });
+        expect(mockDb.searchLicitaciones).toHaveBeenCalledWith('limpieza');
+        expect(mockDb.advancedSearch).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
+    });
+
     it('removes deleted item from state on successful deletion', async () => {
         mockDb.getAllLicitaciones.mockResolvedValue({ ok: true, value: [sampleItem] });
         mockDb.deleteLicitacion.mockResolvedValue({ ok: true });
