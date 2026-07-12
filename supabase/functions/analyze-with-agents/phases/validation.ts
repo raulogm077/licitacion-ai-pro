@@ -183,7 +183,15 @@ function derivePartialReasons(context: PartialReasonContext): AnalysisPartialRea
     const { overall, bySection, missingCriticalFields, ingestion, extraction } = context;
     const reasons = new Set<AnalysisPartialReason>();
 
-    if (ingestion && (ingestion.indexingTimedOut || ingestion.failedFiles > 0 || ingestion.zeroCompletedFiles)) {
+    // Only blame the document when the indexing counts are REAL. If the status
+    // poll itself failed (pollFailed), the counts are unknown and claiming
+    // "OCR pobre/señal baja" would mislead the user (prod incident 2026-07-12:
+    // a perfectly digital PDF was flagged as low-signal after a rate-limited poll).
+    if (
+        ingestion &&
+        !ingestion.pollFailed &&
+        (ingestion.indexingTimedOut || ingestion.failedFiles > 0 || ingestion.zeroCompletedFiles)
+    ) {
         reasons.add('ocr_or_indexing_low_signal');
     }
 

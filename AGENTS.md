@@ -25,6 +25,17 @@ fases que llamen al modelo.
 - Toda animación debe respetar `prefers-reduced-motion` (guard global en
   `src/index.css` + `MotionProvider` con `reducedMotion: 'user'`).
 
+## Diagnóstico y límites operativos del pipeline
+
+- `BLOCK_CONCURRENCY = 2` (config.ts): no subirlo sin verificar el TPM de la
+  cuenta OpenAI — con file_search cada bloque consume mucho presupuesto de
+  tokens y 3 simultáneos provocaban cascadas de 429.
+- Los `partial_reasons` deben ser veraces: nunca añadir un motivo que culpe al
+  documento (`ocr_or_indexing_low_signal`) a partir de estados desconocidos
+  (ver `IngestionDiagnostics.pollFailed` y `ARCHITECTURE.md` §8.10).
+- Las escrituras de cierre de `analysis_jobs` van con `await` antes de cerrar
+  el stream SSE; el runtime mata los fetch pendientes al terminar la request.
+
 ## SDK + versión
 
 - `npm:@openai/agents@0.3.1` — última versión cuyo `peerDependency` es

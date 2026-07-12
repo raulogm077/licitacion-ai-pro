@@ -253,6 +253,8 @@ Protege paridad semántica del pipeline tras la migración a `@openai/agents`.
 
 > **Hotfix 2 2026-07-12 (fileSearchTool):** los vector store ids son el primer argumento posicional de `fileSearchTool`; la llamada estilo-opciones enviaba `vector_store_ids=[{...}]` y OpenAI devolvía 400 invalid_type. Corregido (`fileSearchTool([id])`), forma wire fijada por tests, y `@ts-nocheck` eliminado de los agentes. Detalle en `ARCHITECTURE.md` §8.9.
 
+> **Fix 3 2026-07-12 (diagnóstico veraz + jobs):** el polling de indexación reintenta 429/5xx y distingue «conteos desconocidos» (`pollFailed`) de un timeout real — el aviso «OCR pobre» ya no puede dispararse por un rate limit del endpoint de estado; las escrituras de cierre de `analysis_jobs` se esperan antes de cerrar el stream (antes se perdían y el job quedaba `processing` para siempre); `BLOCK_CONCURRENCY` baja a 2. Detalle en `ARCHITECTURE.md` §8.10.
+
 | Decisión               | Elección                                       | Razón                                                          |
 | ---------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
 | SDK del pipeline       | `@openai/agents@0.3.1`                         | Tracing nativo, guardrails declarativos                        |

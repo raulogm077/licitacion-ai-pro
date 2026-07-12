@@ -39,6 +39,8 @@ Estado funcional confirmado a fecha de esta especificación:
 - ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
 - el camino @openai/agents para Fase C es único; el antiguo fallback `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción
 - las `instructions` dinámicas de los agentes consumen el `PipelineContext` directamente del primer argumento del SDK (`({ context })`), **sin** un segundo salto `.context`; el contrato queda protegido por tests de regresión que llaman a `getSystemPrompt(new RunContext(ctx))`
+- los `partial_reasons` de ingesta son veraces: el aviso «OCR/señal baja» solo puede aparecer con conteos reales de indexación (si el polling del vector store falla, `pollFailed` impide culpar al documento), y el dashboard prioriza el consejo de composición documental (falta PCAP/PPT) sobre el de OCR
+- el tracking de `analysis_jobs` es fiable: las escrituras de cierre (`extraction`/`completeJob`/`failJob`) se esperan antes de cerrar el stream SSE y `JobService` propaga los errores de PostgREST
 - `fileSearchTool` se invoca con los vector store ids como primer argumento posicional (`fileSearchTool([id])`); la forma wire (`vector_store_ids` como strings) está fijada por tests, y los ficheros de agentes ya no llevan `@ts-nocheck` (solo supresiones puntuales documentadas en guardrails)
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
@@ -53,7 +55,7 @@ Decisiones vigentes:
 ## 2.2. Hardening del runtime de análisis (2026-04-19)
 
 - `datosGenerales.cpv.value` acepta entrada `string` o `string[]`, pero se normaliza siempre a `string[]`
-- Fase C mantiene concurrencia 3 para reducir ráfagas de rate limit
+- Fase C usa concurrencia 2 (bajada de 3 el 2026-07-12) para reducir ráfagas de rate limit
 - los errores `429` y transitorios usan retries agresivos con backoff visible
 - el contrato SSE incluye `retry_scheduled` para que la UI muestre espera y cuenta atrás en lugar de aparentar bloqueo
 

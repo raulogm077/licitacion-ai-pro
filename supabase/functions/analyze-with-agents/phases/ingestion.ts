@@ -10,6 +10,7 @@ import OpenAI from 'npm:openai@6.33.0';
 import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 import { runWithConcurrency } from '../../_shared/utils/concurrency.ts';
+import { retryWithBackoff, isRetryableError, type RetryOptions } from '../../_shared/utils/retry.ts';
 
 export interface IngestionProgressUpdate {
     message: string;
@@ -34,6 +35,13 @@ export interface IngestionDiagnostics {
     indexingElapsedMs: number;
     indexingTimedOut: boolean;
     zeroCompletedFiles: boolean;
+    /**
+     * True when the indexing-status poll itself failed (e.g. rate limit on the
+     * status endpoint) and the final file counts are UNKNOWN. Downstream must
+     * not infer document quality (OCR/señal baja) from the zeroed counts in
+     * that case — blaming the PDF for an API hiccup misleads the user.
+     */
+    pollFailed?: boolean;
 }
 
 export interface IngestionResult {
@@ -60,17 +68,35 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
     return buffer;
 }
 
-async function waitForVectorStoreIndexing(
+/** Retry policy for the indexing-status poll — transient 429/5xx/network
+ *  errors must not abort the wait (nor get misreported as a document problem). */
+const POLL_RETRY_DEFAULTS: Pick<RetryOptions, 'maxRetries' | 'baseDelayMs' | 'maxDelayMs'> = {
+    maxRetries: 3,
+    baseDelayMs: 2000,
+    maxDelayMs: 10_000,
+};
+
+export async function waitForVectorStoreIndexing(
     openai: OpenAI,
     vectorStoreId: string,
-    onProgress?: (update: IngestionProgressUpdate) => void
+    onProgress?: (update: IngestionProgressUpdate) => void,
+    pollRetryOptions: Pick<RetryOptions, 'maxRetries' | 'baseDelayMs' | 'maxDelayMs'> = POLL_RETRY_DEFAULTS
 ): Promise<IngestionDiagnostics> {
     let delay = 1000;
     const maxDelay = 5000;
     let totalTime = 0;
 
     while (true) {
-        const vs = await openai.vectorStores.retrieve(vectorStoreId);
+        const vs = await retryWithBackoff(() => openai.vectorStores.retrieve(vectorStoreId), {
+            ...pollRetryOptions,
+            label: 'vectorStores.retrieve',
+            shouldRetry: isRetryableError,
+            onRetry: (info) =>
+                onProgress?.({
+                    message: `Consultando estado del índice (reintento ${info.attempt}/${info.maxAttempts})...`,
+                    elapsedMs: totalTime,
+                }),
+        });
         const fc = vs.file_counts;
         onProgress?.({
             message: `Indexando documentos... (${fc.completed} listos, ${fc.in_progress} en proceso, ${fc.failed} fallidos)`,
@@ -88,6 +114,7 @@ async function waitForVectorStoreIndexing(
                 indexingElapsedMs: totalTime,
                 indexingTimedOut: false,
                 zeroCompletedFiles: fc.completed === 0,
+                pollFailed: false,
             };
         }
 
@@ -195,28 +222,53 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
                 : `${diagnostics.completedFiles} ok`;
         console.log(`[Ingestion] Vector Store indexed in ~${diagnostics.indexingElapsedMs}ms (${outcome})`);
     } catch (error) {
-        const vs = await openai.vectorStores.retrieve(vectorStoreId);
-        const fc = vs.file_counts;
-        diagnostics = {
-            completedFiles: fc.completed,
-            failedFiles: fc.failed,
-            inProgressFiles: fc.in_progress,
-            indexingElapsedMs: VECTOR_STORE_TIMEOUT_MS,
-            indexingTimedOut: true,
-            zeroCompletedFiles: fc.completed === 0,
-        };
-        console.warn(
-            `[Ingestion] Vector Store indexing timeout after ${VECTOR_STORE_TIMEOUT_MS}ms — proceeding with partial index. ` +
-                `file_counts: completed=${fc.completed}, in_progress=${fc.in_progress}, failed=${fc.failed}`
-        );
-        console.warn('[Ingestion] Timeout details:', error);
-        onProgress?.({
-            message: `Indexación parcial: ${fc.completed} listos, ${fc.in_progress} pendientes, ${fc.failed} fallidos.`,
-            elapsedMs: VECTOR_STORE_TIMEOUT_MS,
-            completedFiles: fc.completed,
-            inProgressFiles: fc.in_progress,
-            failedFiles: fc.failed,
-        });
+        // Distinguish a REAL indexing timeout from a failed status poll: only
+        // the former says anything about the document. A 429 on the status
+        // endpoint must never surface to the user as "OCR pobre/señal baja".
+        const isRealTimeout = error instanceof Error && error.message.startsWith('Timeout:');
+        try {
+            const vs = await openai.vectorStores.retrieve(vectorStoreId);
+            const fc = vs.file_counts;
+            diagnostics = {
+                completedFiles: fc.completed,
+                failedFiles: fc.failed,
+                inProgressFiles: fc.in_progress,
+                indexingElapsedMs: VECTOR_STORE_TIMEOUT_MS,
+                // Only "timed out" if files are actually still pending; if the
+                // final read shows everything settled, the index is usable.
+                indexingTimedOut: fc.in_progress > 0,
+                zeroCompletedFiles: fc.completed === 0,
+                pollFailed: false,
+            };
+            console.warn(
+                `[Ingestion] Indexing wait aborted (${isRealTimeout ? 'timeout' : 'poll error'}) — ` +
+                    `file_counts: completed=${fc.completed}, in_progress=${fc.in_progress}, failed=${fc.failed}`
+            );
+            onProgress?.({
+                message: `Indexación: ${fc.completed} listos, ${fc.in_progress} pendientes, ${fc.failed} fallidos.`,
+                elapsedMs: VECTOR_STORE_TIMEOUT_MS,
+                completedFiles: fc.completed,
+                inProgressFiles: fc.in_progress,
+                failedFiles: fc.failed,
+            });
+        } catch (finalReadError) {
+            // Status unknown: proceed without blaming the document.
+            diagnostics = {
+                completedFiles: 0,
+                failedFiles: 0,
+                inProgressFiles: 0,
+                indexingElapsedMs: VECTOR_STORE_TIMEOUT_MS,
+                indexingTimedOut: isRealTimeout,
+                zeroCompletedFiles: false,
+                pollFailed: true,
+            };
+            console.warn('[Ingestion] Indexing status unknown (poll failed twice) — proceeding.', finalReadError);
+            onProgress?.({
+                message: 'No se pudo confirmar el estado del índice; continuando con el análisis.',
+                elapsedMs: VECTOR_STORE_TIMEOUT_MS,
+            });
+        }
+        console.warn('[Ingestion] Wait-abort details:', error);
     }
 
     if (diagnostics.failedFiles > 0) {

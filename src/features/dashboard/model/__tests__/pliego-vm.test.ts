@@ -99,6 +99,42 @@ describe('buildPliegoVM', () => {
         expect(vm.chapters.find((chapter) => chapter.id === 'tecnicos')?.status).toBe('VACIO');
     });
 
+    it('prioritizes document-composition guidance over the OCR reason when both are present', () => {
+        // Prod incident 2026-07-12: a memo analyzed under rate limit reported both
+        // missing_administrative_content and ocr_or_indexing_low_signal; the useful
+        // advice is "complete the expediente", not "re-scan a healthy PDF".
+        const input = createEmptyLicitacionData();
+        input.workflow = {
+            status: 'completed',
+            steps: [],
+            evidences: [],
+            phases: {},
+            created_at: '2026-07-12T00:00:00.000Z',
+            updated_at: '2026-07-12T00:00:00.000Z',
+            quality: {
+                overall: 'PARCIAL',
+                bySection: {
+                    datosGenerales: 'VACIO',
+                    criteriosAdjudicacion: 'VACIO',
+                    requisitosSolvencia: 'PARCIAL',
+                    requisitosTecnicos: 'COMPLETO',
+                    restriccionesYRiesgos: 'COMPLETO',
+                    modeloServicio: 'COMPLETO',
+                },
+                missingCriticalFields: [],
+                ambiguous_fields: [],
+                warnings: [],
+                partial_reasons: ['ocr_or_indexing_low_signal', 'missing_administrative_content'],
+                section_diagnostics: {},
+            },
+        } as LicitacionData['workflow'];
+
+        const vm = buildPliegoVM(input);
+
+        expect(vm.guidance?.title).toContain('sin cobertura administrativa');
+        expect(vm.guidance?.nextStep).toContain('PCAP');
+    });
+
     it('should expose section diagnostics and tailor empty chapter messaging from backend diagnostics', () => {
         const input = createEmptyLicitacionData();
         input.datosGenerales = {

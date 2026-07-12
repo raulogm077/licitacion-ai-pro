@@ -58,22 +58,24 @@ export class JobService {
             };
         }
 
-        await this.supabase.from('analysis_jobs').update(update).eq('id', jobId);
+        const { error } = await this.supabase.from('analysis_jobs').update(update).eq('id', jobId);
+        if (error) throw new Error(`Failed to update job phase: ${error.message}`);
     }
 
     async setDocumentMap(jobId: string, documentMap: unknown): Promise<void> {
-        await this.supabase
+        const { error } = await this.supabase
             .from('analysis_jobs')
             .update({
                 document_map: documentMap,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', jobId);
+        if (error) throw new Error(`Failed to set document map: ${error.message}`);
     }
 
     async completeJob(jobId: string, result: unknown): Promise<void> {
         console.log(`[Job ${jobId}] Completed`);
-        await this.supabase
+        const { error } = await this.supabase
             .from('analysis_jobs')
             .update({
                 status: 'completed',
@@ -82,11 +84,12 @@ export class JobService {
                 updated_at: new Date().toISOString(),
             })
             .eq('id', jobId);
+        if (error) throw new Error(`Failed to complete job: ${error.message}`);
     }
 
     async failJob(jobId: string, errorMsg: string): Promise<void> {
         console.error(`[Job ${jobId}] Failed:`, errorMsg);
-        await this.supabase
+        const { error } = await this.supabase
             .from('analysis_jobs')
             .update({
                 status: 'failed',
@@ -95,10 +98,12 @@ export class JobService {
                 updated_at: new Date().toISOString(),
             })
             .eq('id', jobId);
+        if (error) throw new Error(`Failed to mark job as failed: ${error.message}`);
     }
 
     async markForCleanup(jobId: string, cleanupAt: string): Promise<void> {
-        await this.supabase.from('analysis_jobs').update({ cleanup_at: cleanupAt }).eq('id', jobId);
+        const { error } = await this.supabase.from('analysis_jobs').update({ cleanup_at: cleanupAt }).eq('id', jobId);
+        if (error) throw new Error(`Failed to mark job for cleanup: ${error.message}`);
     }
 
     async getExpiredJobs(): Promise<Array<{ id: string; vector_store_id?: string; file_ids?: string[] }>> {

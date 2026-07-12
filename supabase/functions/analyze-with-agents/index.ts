@@ -319,9 +319,14 @@ serve(async (req: Request) => {
                     });
 
                     if (jobId) {
-                        jobService
-                            .updatePhase(jobId, 'extraction')
-                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
+                        // Awaited: consolidation/validation are synchronous and the
+                        // stream closes right after — a fire-and-forget write here is
+                        // killed with the request and the job stays "processing" forever.
+                        try {
+                            await jobService.updatePhase(jobId, 'extraction');
+                        } catch (e) {
+                            console.warn('[analyze] Job DB update failed:', e);
+                        }
                     }
 
                     sendEvent('phase_started', { phase: 'consolidation', message: 'Consolidando resultados...' });
@@ -360,9 +365,13 @@ serve(async (req: Request) => {
                     console.log(`[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`);
 
                     if (jobId) {
-                        jobService
-                            .completeJob(jobId, finalOutput)
-                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
+                        // Awaited for the same reason: this is the last write before
+                        // the stream closes.
+                        try {
+                            await jobService.completeJob(jobId, finalOutput);
+                        } catch (e) {
+                            console.warn('[analyze] Job DB update failed:', e);
+                        }
                     }
 
                     sendEvent('complete', finalOutput);
@@ -370,9 +379,11 @@ serve(async (req: Request) => {
                     const errMsg = mapOpenAIError(error);
                     console.error(`[analyze] Pipeline error reqId=${requestId}:`, error);
                     if (jobId) {
-                        jobService
-                            .failJob(jobId, errMsg)
-                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
+                        try {
+                            await jobService.failJob(jobId, errMsg);
+                        } catch (e) {
+                            console.warn('[analyze] Job DB update failed:', e);
+                        }
                     }
                     if (vectorStoreId || fileIds) {
                         cleanupJobResources(openai, vectorStoreId, fileIds).catch((e) =>
