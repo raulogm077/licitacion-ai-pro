@@ -165,6 +165,7 @@ jobs:
               run: |
                   deno test --node-modules-dir=auto supabase/functions/_shared/schemas/canonical_test.ts
                   deno test --node-modules-dir=auto supabase/functions/_shared/utils/retry_test.ts
+                  deno test --node-modules-dir=auto supabase/functions/_shared/agents/tracing_test.ts
             - name: Deno Test Pipeline Phases and Agents
               run: |
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
