@@ -38,7 +38,9 @@ function createConsolidatedResult(): ConsolidationResult {
             },
             requisitosSolvencia: {
                 economica: { cifraNegocioAnualMinima: 100000 },
-                tecnica: [{ descripcion: 'Contrato similar', proyectosSimilaresRequeridos: 2, importeMinimoProyecto: 30000 }],
+                tecnica: [
+                    { descripcion: 'Contrato similar', proyectosSimilaresRequeridos: 2, importeMinimoProyecto: 30000 },
+                ],
                 profesional: [],
             },
             requisitosTecnicos: {
@@ -167,4 +169,38 @@ Deno.test('runValidation attaches structured section diagnostics for present, re
     assertEquals(workflow.quality?.section_diagnostics?.datosGenerales?.code, 'present');
     assertEquals(workflow.quality?.section_diagnostics?.criteriosAdjudicacion?.code, 'schema_recovered');
     assertEquals(workflow.quality?.section_diagnostics?.requisitosSolvencia?.code, 'missing_in_uploaded_docs');
+});
+
+Deno.test('runValidation treats numeric 0 as a present value, not as empty', () => {
+    const consolidated = createConsolidatedResult();
+    // importeIVA: 0 is real data (exempt contract), not a missing field.
+    consolidated.result.economico = {
+        presupuestoBaseLicitacion: null,
+        valorEstimadoContrato: null,
+        importeIVA: 0,
+        tipoIVA: 0,
+        desglosePorLotes: [],
+        moneda: '',
+    };
+
+    const { workflow } = runValidation({ consolidated });
+
+    // With two real zeros present the section must not be VACIO.
+    assert(workflow.quality?.bySection?.economico !== 'VACIO');
+});
+
+Deno.test('runValidation still treats null, undefined and empty string as empty', () => {
+    const consolidated = createConsolidatedResult();
+    consolidated.result.economico = {
+        presupuestoBaseLicitacion: null,
+        valorEstimadoContrato: null,
+        importeIVA: null,
+        tipoIVA: null,
+        desglosePorLotes: [],
+        moneda: '',
+    };
+
+    const { workflow } = runValidation({ consolidated });
+
+    assertEquals(workflow.quality?.bySection?.economico, 'VACIO');
 });
