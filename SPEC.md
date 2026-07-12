@@ -30,6 +30,11 @@ Estado funcional confirmado a fecha de esta especificación:
 - el backend reconcilia `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` desde bloques fiables (`economico`, `duracionYProrrogas`) solo cuando el dato general venía ausente
 - la interfaz sigue el sistema de diseño **«Iris»** (marca índigo→violeta, tipografía Inter/Space Grotesk self-hosted, superficies aurora/glass); el **modo oscuro es funcional** en toda la app y respeta `prefers-reduced-motion`
 - el feedback transitorio de la UI (errores de carga/borrado, éxito de acciones) se comunica con **toasts** (`sonner`) mediante el helper único `notify()`, no con banners ad-hoc
+- la pantalla de análisis muestra las **5 fases del pipeline como checklist** (la fase activa llega por SSE vía `currentPhase` del store) con barra de progreso real; al completar un análisis fresco hay una celebración breve (confetti, desactivable por `prefers-reduced-motion`)
+- el dashboard exporta el análisis a **Excel real** (`exportLicitacionToExcel`, 6 hojas); no existe el CTA «Ver Original» porque el PDF original no se persiste
+- la **búsqueda es única** y vive en el Historial (texto libre FTS + filtros avanzados incl. estado y tags); la antigua página `/search` fue eliminada
+- Analytics muestra **gráficos reales** (donut de estados y evolución mensual con recharts, lazy) con paleta validada para daltonismo/contraste en claro y oscuro
+- los visitantes no autenticados ven una **landing de marca** con CTA de acceso; el **modo presentación** es un pase de diapositivas real (teclado, pantalla completa, transiciones)
 - `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
 - ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
 - el camino @openai/agents para Fase C es único; el antiguo fallback `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción
@@ -269,4 +274,4 @@ No forman parte de `## To Do` de `BACKLOG.md`; se registran aquí como deuda con
 - refactor del monolito `HistoryView`;
 - decisión sobre **adopción o eliminación completa del service-registry**;
 - **modelo de job asíncrono** para documentos de 300+ páginas (ya recogido en `CLAUDE.md`, "Pipeline Timeout Architecture").
-- ~~**orden de la migración `add_provider_reading_mode`**~~ **(resuelto 2026-07-12)**: el fichero se renombró de `20250130000000` a `20251229000000` (posterior a `initial_schema`) y se idempotentizó; se reparó el historial remoto (`delete` de la fila vieja en `schema_migrations`) para que el deploy re-aplique bajo el nuevo `version`. El *branching preview* vuelve a pasar. Detalle en `DEPLOYMENT.md` (§ "Orden de migraciones y Supabase Preview").
+- ~~**orden de la migración `add_provider_reading_mode`**~~ **(resuelto 2026-07-12)**: el fichero se renombró de `20250130000000` a `20251229000000` (posterior a `initial_schema`) y se idempotentizó; se reparó el historial remoto (`delete` de la fila vieja en `schema_migrations`) para que el deploy re-aplique bajo el nuevo `version`. El _branching preview_ vuelve a pasar. Detalle en `DEPLOYMENT.md` (§ "Orden de migraciones y Supabase Preview").

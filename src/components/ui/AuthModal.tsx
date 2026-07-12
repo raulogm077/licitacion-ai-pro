@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Lock, Loader2, Check, UserPlus, LogIn } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
+import { logger } from '../../services/logger';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -39,26 +40,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         let result;
 
-        if (mode === 'signup') {
-            try {
-                result = await signUp(email, password);
-            } catch (err: unknown) {
-                if (err instanceof Error && err.message.includes('Supabase Client Error')) {
-                    result = { success: false, error: 'ERROR CRÍTICO: Faltan variables de entorno en Vercel.' };
-                } else {
-                    result = { success: false, error: 'Error inesperado' };
-                }
-            }
-        } else {
-            try {
-                result = await signInWithPassword(email, password);
-            } catch (err: unknown) {
-                if (err instanceof Error && err.message.includes('Supabase Client Error')) {
-                    result = { success: false, error: 'ERROR CRÍTICO: Faltan variables de entorno en Vercel.' };
-                } else {
-                    result = { success: false, error: 'Error de conexión' };
-                }
-            }
+        try {
+            result = mode === 'signup' ? await signUp(email, password) : await signInWithPassword(email, password);
+        } catch (err: unknown) {
+            // Infra details (missing env vars, client init) go to the logger /
+            // Sentry — the user gets a friendly, non-leaky message.
+            logger.error('[AuthModal] auth request failed:', err);
+            result = {
+                success: false,
+                error: 'No se pudo completar la autenticación. Inténtalo de nuevo en unos minutos.',
+            };
         }
 
         setLoading(false);

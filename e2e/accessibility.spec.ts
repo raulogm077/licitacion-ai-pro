@@ -5,6 +5,10 @@ import { setupAuthMock } from './test-utils';
 test.describe('Accessibility - WCAG Compliance', () => {
     test.beforeEach(async ({ page }) => {
         await setupAuthMock(page);
+        // Scan the settled UI: entrance animations leave text semi-transparent
+        // mid-scan, which makes axe compute blended colors and report false
+        // contrast failures. Reduced motion is also a real a11y path to cover.
+        await page.emulateMedia({ reducedMotion: 'reduce' });
     });
 
     test('home page has no critical accessibility violations', async ({ page }) => {

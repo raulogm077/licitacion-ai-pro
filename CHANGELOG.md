@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12g — Rediseño UX «Iris» (F7: a11y y cierre)
+
+- **Accesibilidad**: 0 violaciones WCAG AA serias/críticas en `/`, `/history` y `/templates` (axe). La suite de a11y escanea con `reducedMotion: 'reduce'` — las animaciones de entrada dejaban texto semitransparente a mitad de escaneo y axe reportaba falsos fallos de contraste con colores mezclados; además ese es un camino real de usuario que ahora queda cubierto.
+- **Bug de la aurora**: `@keyframes aurora` no llegaba al build (Tailwind solo emite keyframes de utilidades usadas y el consumidor era `.aurora::before` en CSS plano); la definición vive ahora en `index.css` junto a su consumidor.
+- **AuthModal saneado**: los errores de infraestructura (p. ej. variables de entorno ausentes) ya no se muestran al usuario («ERROR CRÍTICO: Faltan variables de entorno en Vercel»); van al logger/Sentry y el usuario ve un mensaje genérico accionable.
+- **Barrido de código muerto**: eliminados los keyframes/animaciones sin uso del config (`slide-up`, `progress-indeterminate`, `aurora` como utilidad) y la prop `interactive` de `Card` sin consumidores. Verificado que todas las primitivas nuevas (motion, notify, celebrate, Skeleton, export) tienen uso real.
+
 ## [Unreleased] - 2026-07-12f — Rediseño UX «Iris» (F4–F6: analytics, búsqueda unificada, landing y presentación real)
 
 ### Analytics con gráficos reales (F4)

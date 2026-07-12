@@ -336,6 +336,19 @@ Tras confirmar paridad de salida en producción (PRs #275 y #276), el 2026-05-09
 
 **Fecha:** 2026-07-12
 
+### 8.7 Rediseño UX «Iris» — frontend del pipeline por fases (Implementado 2026-07-12)
+
+**Contexto:** rediseño integral de UX (sistema «Iris»). El contrato SSE y las Edge Functions **no cambian**; el frontend explota mejor los eventos ya existentes.
+
+**Decisiones con impacto en la capa de análisis del frontend:**
+
+- **Propagación de fase al store**: `ai.service.analyzePdfContent` añade un 4º argumento opcional `phase?: AnalysisPhase` a su callback `onProgress`, derivado de los eventos SSE (`phase_started`/`phase_completed`). `analysis.store` lo persiste en `currentPhase` (antes siempre `null`) y `AnalyzingStep` lo renderiza como checklist de las 5 fases (`ANALYSIS_PHASES` del contrato compartido) con barra de progreso real.
+- **Celebración acotada**: el confetti de finalización se dispara solo en la transición `ANALYZING → COMPLETED` observada en `HomePage` (no al cargar desde historial), con import dinámico de `canvas-confetti` y guard de `prefers-reduced-motion`.
+- **Búsqueda unificada**: se eliminó la página `/search` (`SearchPage` + `SearchPanel`); el Historial es la única superficie de búsqueda (FTS + filtros, ahora con estado y tags). `db.advancedSearch` y `applyClientFilters` ya soportaban ambos filtros; no hubo cambio de contrato.
+- **UI libs solo-cliente**: `motion` (LazyMotion), `sonner`, `recharts` (lazy), `canvas-confetti` y fuentes `@fontsource-variable` viven únicamente en el bundle de Vite; ninguna Edge Function las importa y `deno check` no las ve.
+
+**Fecha:** 2026-07-12
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM
