@@ -16,6 +16,17 @@
 export const OPENAI_MODEL = 'gpt-4.1';
 
 /**
+ * OpenAI model used by the conversational layer (chat-with-analysis-agent).
+ * 'gpt-5.4' is OpenAI's current frontier model (verified against
+ * https://developers.openai.com/api/docs/models/gpt-5.4 on 2026-07-12).
+ * Kept separate from OPENAI_MODEL: the chat manager relies on structured
+ * outputs (outputType + Zod) over function tools, not file_search, so it can
+ * track a newer tier than the extraction pipeline without re-validating the
+ * 5-phase benchmark.
+ */
+export const CHAT_MODEL = 'gpt-5.4';
+
+/**
  * Per-API-call timeout in milliseconds (90s per individual block call).
  * Increased from 50s: large documents (50-300 pages) require more time for
  * OpenAI file_search to scan through more content per block.

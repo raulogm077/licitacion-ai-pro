@@ -21,8 +21,12 @@
 export {
     Agent,
     run,
+    tool,
+    user,
     fileSearchTool,
     setTraceProcessors,
     OutputGuardrailTripwireTriggered,
     InputGuardrailTripwireTriggered,
 } from 'npm:@openai/agents@0.3.1';
+
+export type { AgentInputItem } from 'npm:@openai/agents@0.3.1';
