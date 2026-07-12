@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-07-12h — HOTFIX: todos los análisis fallaban en Fase B (contrato RunContext)
+
+**Bug crítico de producción**: desde la migración al SDK `@openai/agents` (2026-05-06), **ningún análisis completaba**. Cada intento moría a los ~60 ms en Fase B con `Cannot read properties of undefined (reading 'fileNames')` (registrado en `analysis_jobs.error`; no hay ningún job `completed` posterior al 2026-04-28).
+
+- **Causa raíz**: el SDK invoca `instructions(runContext, agent)` donde `runContext.context` ya ES el `PipelineContext`. Los 3 agentes (`document-map`, `block-extractor`, `custom-template`) destructuraban `({ context })` y luego leían `.context` otra vez → `undefined` → TypeError al acceder a `fileNames`. El `@ts-nocheck` de esos ficheros ocultó el error de tipos y los tests de guardrails no pasan por `run()`, así que CI seguía verde.
+- **Fix**: eliminado el segundo salto `.context` en los 3 agentes. Verificado contra el paquete real `@openai/agents-core@0.3.1`: el patrón antiguo reproduce byte a byte el error de producción; el nuevo devuelve el prompt correcto.
+- **Blindaje**: `_shared/agents/sdk.ts` re-exporta `RunContext` y `agents.test.ts` suma 4 tests de regresión que resuelven las instrucciones por la misma vía que el SDK (`agent.getSystemPrompt(new RunContext(ctx))`) — cubren fileNames/guía en Fase B, documentMap requerido en Fase C y la plantilla personalizada.
+
 ## [Unreleased] - 2026-07-12g — Rediseño UX «Iris» (F7: a11y y cierre)
 
 - **Accesibilidad**: 0 violaciones WCAG AA serias/críticas en `/`, `/history` y `/templates` (axe). La suite de a11y escanea con `reducedMotion: 'reduce'` — las animaciones de entrada dejaban texto semitransparente a mitad de escaneo y axe reportaba falsos fallos de contraste con colores mezclados; además ese es un camino real de usuario que ahora queda cubierto.

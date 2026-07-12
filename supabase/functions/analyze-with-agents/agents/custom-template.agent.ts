@@ -29,7 +29,8 @@ export function buildCustomTemplateAgent(vectorStoreId: string) {
     return new Agent<PipelineContext>({
         name: 'customTemplate',
         model: OPENAI_MODEL,
-        instructions: ({ context }) => buildCustomTemplateSystem(context.context.guideExcerpt),
+        // `instructions(runContext, agent)`: `{ context }` IS the PipelineContext.
+        instructions: ({ context }) => buildCustomTemplateSystem(context.guideExcerpt),
         tools: [
             fileSearchTool({
                 vectorStoreIds: [vectorStoreId],

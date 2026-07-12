@@ -25,6 +25,10 @@ import {
     templateSanitizationGuardrail,
 } from '../../_shared/agents/guardrails.ts';
 import { createPipelineContext } from '../../_shared/agents/context.ts';
+import { RunContext } from '../../_shared/agents/sdk.ts';
+import { buildDocumentMapAgent } from '../agents/document-map.agent.ts';
+import { buildBlockAgent } from '../agents/block-extractor.agent.ts';
+import { buildCustomTemplateAgent } from '../agents/custom-template.agent.ts';
 
 Deno.test('extractOutputText accepts plain string', () => {
     assertEquals(extractOutputText('hello'), 'hello');
@@ -125,6 +129,68 @@ Deno.test('templateSanitizationGuardrail strips control chars', async () => {
     assertEquals(ctx.customTemplate?.schema[0].name, 'a name');
     assertEquals(ctx.customTemplate?.schema[0].type, 'string type');
     assertEquals(ctx.customTemplate?.schema[0].description, 'desc with controls');
+});
+
+// ─── Dynamic instructions vs SDK RunContext contract ─────────────────────────
+//
+// Regression for the 2026-07-12 production outage: the SDK invokes
+// `instructions(runContext, agent)` where `runContext.context` IS the
+// PipelineContext. The agents destructured `{ context }` (correct) and then
+// read `.context` again (undefined), so EVERY analysis crashed in phase B with
+// "Cannot read properties of undefined (reading 'fileNames')". These tests
+// resolve the instructions through the same entry point the SDK uses
+// (`getSystemPrompt(new RunContext(ctx))`), so a bad context hop fails CI.
+
+function makeContext(overrides: Record<string, unknown> = {}) {
+    return {
+        ...createPipelineContext({
+            vectorStoreId: 'vs_test',
+            fileNames: ['pliego.pdf', 'anexo1.pdf'],
+            guideExcerpt: 'extracto-guia-test',
+            userId: 'u1',
+            requestId: 'r1',
+            customTemplate: null,
+        }),
+        ...overrides,
+    };
+}
+
+Deno.test('documentMap agent resolves instructions from RunContext', async () => {
+    const agent = buildDocumentMapAgent('vs_test');
+    const prompt = await agent.getSystemPrompt(new RunContext(makeContext()));
+    assert(typeof prompt === 'string');
+    assert(prompt.includes('pliego.pdf'), 'prompt must list the indexed file names');
+    assert(prompt.includes('anexo1.pdf'));
+    assert(prompt.includes('extracto-guia-test'), 'prompt must embed the guide excerpt');
+});
+
+Deno.test('blockExtractor agent resolves instructions from RunContext', async () => {
+    const agent = buildBlockAgent('economico', 'vs_test');
+    const documentMap = {
+        documentos: [{ nombre: 'PCAP', tipo: 'administrativo', descripcion: 'x' }],
+        lotes: { hayLotes: false, numeroLotes: 0 },
+    };
+    const prompt = await agent.getSystemPrompt(new RunContext(makeContext({ documentMap })));
+    assert(typeof prompt === 'string' && prompt.length > 0);
+});
+
+Deno.test('blockExtractor agent still requires documentMap in context', async () => {
+    const agent = buildBlockAgent('economico', 'vs_test');
+    let threw = false;
+    try {
+        await agent.getSystemPrompt(new RunContext(makeContext()));
+    } catch (e) {
+        threw = true;
+        assert(String(e).includes('requires PipelineContext.documentMap'));
+    }
+    assert(threw, 'missing documentMap must throw the explicit error');
+});
+
+Deno.test('customTemplate agent resolves instructions from RunContext', async () => {
+    const agent = buildCustomTemplateAgent('vs_test');
+    const prompt = await agent.getSystemPrompt(new RunContext(makeContext()));
+    assert(typeof prompt === 'string');
+    assert(prompt.includes('extracto-guia-test'), 'prompt must embed the guide excerpt');
 });
 
 Deno.test('templateSanitizationGuardrail no-op when no template', async () => {

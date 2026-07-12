@@ -249,6 +249,8 @@ Protege paridad semántica del pipeline tras la migración a `@openai/agents`.
 
 ## Apéndice — Decisiones clave
 
+> **Hotfix 2026-07-12 (RunContext):** el SDK llama `instructions(runContext, agent)` y `runContext.context` ya es el `PipelineContext`; los agentes hacían un segundo `.context` (undefined) y toda Fase B moría con `Cannot read properties of undefined (reading 'fileNames')`. Corregido en los 3 agentes y blindado con tests que resuelven las instrucciones vía `agent.getSystemPrompt(new RunContext(ctx))`. Detalle en `ARCHITECTURE.md` §8.8.
+
 | Decisión               | Elección                                       | Razón                                                          |
 | ---------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
 | SDK del pipeline       | `@openai/agents@0.3.1`                         | Tracing nativo, guardrails declarativos                        |

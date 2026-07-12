@@ -29,12 +29,13 @@ export function buildBlockAgent(blockName: BlockName, vectorStoreId: string) {
     return new Agent<PipelineContext>({
         name: `blockExtractor:${blockName}`,
         model: OPENAI_MODEL,
+        // `instructions(runContext, agent)`: destructuring `{ context }` yields
+        // the PipelineContext directly — do NOT add a second `.context` hop.
         instructions: ({ context }) => {
-            const ctx = context.context;
-            if (!ctx.documentMap) {
+            if (!context.documentMap) {
                 throw new Error(`blockExtractor:${blockName} requires PipelineContext.documentMap`);
             }
-            return buildBlockSystemPrompt(blockName, ctx.documentMap, ctx.guideExcerpt);
+            return buildBlockSystemPrompt(blockName, context.documentMap, context.guideExcerpt);
         },
         tools: [
             fileSearchTool({
