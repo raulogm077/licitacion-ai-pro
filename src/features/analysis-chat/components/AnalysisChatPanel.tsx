@@ -177,16 +177,16 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
 
     if (!analysisHash) {
         return (
-            <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+            <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6">
                 <div className="max-w-[1100px] mx-auto">
-                    <Card className="border-dashed border-slate-300 bg-slate-50/60">
+                    <Card className="border-dashed border-slate-300 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-800/60">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-slate-900">
-                                <FileWarning className="w-5 h-5 text-amber-600" />
+                            <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
+                                <FileWarning className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                                 Chat no disponible
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="text-sm text-slate-600 space-y-3">
+                        <CardContent className="text-sm text-slate-600 dark:text-slate-300 space-y-3">
                             <p>El copiloto conversacional solo se activa sobre análisis ya persistidos.</p>
                             <p>
                                 Completa un análisis autenticado o abre una licitación desde historial para disponer de
@@ -200,22 +200,22 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
     }
 
     return (
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900">
             <div className="p-6 max-w-[1100px] mx-auto space-y-5">
-                <Card>
-                    <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200">
+                <Card className="dark:bg-slate-800 dark:border-slate-700">
+                    <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-700">
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-brand-600">
+                            <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400">
                                 <Sparkles className="w-4 h-4" />
                                 <span className="text-xs font-semibold uppercase tracking-widest">
                                     OpenAI Agents SDK
                                 </span>
                             </div>
-                            <CardTitle className="flex items-center gap-2">
-                                <MessageSquare className="w-5 h-5 text-slate-700" />
+                            <CardTitle className="flex items-center gap-2 dark:text-white">
+                                <MessageSquare className="w-5 h-5 text-slate-700 dark:text-slate-300" />
                                 Copiloto del análisis
                             </CardTitle>
-                            <p className="text-sm text-slate-500">{subtitle}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
                         </div>
 
                         <Button variant="outline" size="sm" onClick={handleResetConversation} disabled={isSending}>
@@ -225,14 +225,14 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                     </CardHeader>
 
                     <CardContent className="p-0">
-                        <div className="h-[560px] overflow-y-auto px-6 py-5 bg-slate-50/70">
+                        <div className="h-[560px] overflow-y-auto px-6 py-5 bg-slate-50/70 dark:bg-slate-900/70">
                             {messages.length === 0 ? (
                                 <div className="h-full flex flex-col justify-center gap-6">
                                     <div className="space-y-2">
-                                        <h3 className="text-lg font-semibold text-slate-900">
+                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                                             Haz preguntas concretas sobre el expediente
                                         </h3>
-                                        <p className="text-sm text-slate-500 max-w-2xl">
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
                                             El agente usa solo el análisis ya persistido. Si algo es ambiguo o no está
                                             en el resultado, debería decirlo en lugar de inventarlo.
                                         </p>
@@ -244,7 +244,7 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                                 key={prompt}
                                                 type="button"
                                                 onClick={() => void handleSend(prompt)}
-                                                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50/40"
+                                                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-left text-sm text-slate-700 dark:text-slate-300 shadow-sm transition hover:border-brand-300 dark:hover:border-brand-700 hover:bg-brand-50/40 dark:hover:bg-brand-900/20"
                                             >
                                                 {prompt}
                                             </button>
@@ -262,7 +262,7 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                             )}
                                         >
                                             {message.role === 'assistant' && (
-                                                <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                                                <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
                                                     <Bot className="h-4 w-4" />
                                                 </div>
                                             )}
@@ -271,8 +271,8 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                                 className={cn(
                                                     'max-w-[85%] rounded-2xl px-4 py-3 shadow-sm',
                                                     message.role === 'user'
-                                                        ? 'bg-slate-900 text-white'
-                                                        : 'bg-white border border-slate-200 text-slate-900'
+                                                        ? 'bg-slate-900 dark:bg-slate-700 text-white'
+                                                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
                                                 )}
                                             >
                                                 <p className="whitespace-pre-wrap text-sm leading-6">
@@ -282,16 +282,16 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                                 {message.role === 'assistant' &&
                                                     message.citations &&
                                                     message.citations.length > 0 && (
-                                                        <div className="mt-4 space-y-2 border-t border-slate-200 pt-3">
-                                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                        <div className="mt-4 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-3">
+                                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                                                 Evidencias
                                                             </p>
                                                             {message.citations.map((citation, index) => (
                                                                 <div
                                                                     key={`${message.id}-citation-${index}`}
-                                                                    className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"
+                                                                    className="rounded-lg bg-slate-50 dark:bg-slate-900/50 px-3 py-2 text-xs text-slate-600 dark:text-slate-300"
                                                                 >
-                                                                    <p className="font-medium text-slate-700">
+                                                                    <p className="font-medium text-slate-700 dark:text-slate-300">
                                                                         {citation.fieldPath || 'Sin fieldPath'}
                                                                     </p>
                                                                     <p className="mt-1 whitespace-pre-wrap">
@@ -299,7 +299,7 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                                                     </p>
                                                                     {(citation.pageHint ||
                                                                         citation.confidence !== undefined) && (
-                                                                        <p className="mt-2 text-[11px] text-slate-500">
+                                                                        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
                                                                             {citation.pageHint
                                                                                 ? `Página: ${citation.pageHint}`
                                                                                 : 'Página no disponible'}
@@ -322,7 +322,7 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                                             {message.usedTools.map((toolName) => (
                                                                 <span
                                                                     key={`${message.id}-${toolName}`}
-                                                                    className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600"
+                                                                    className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300"
                                                                 >
                                                                     {toolName}
                                                                 </span>
@@ -332,7 +332,7 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                             </div>
 
                                             {message.role === 'user' && (
-                                                <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
+                                                <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 dark:bg-slate-700 text-white">
                                                     <User className="h-4 w-4" />
                                                 </div>
                                             )}
@@ -341,10 +341,10 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
 
                                     {isSending && (
                                         <div className="flex gap-3">
-                                            <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                                            <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
                                                 <Bot className="h-4 w-4" />
                                             </div>
-                                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm text-slate-500 dark:text-slate-400 shadow-sm">
                                                 Consultando el análisis...
                                             </div>
                                         </div>
@@ -355,8 +355,8 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                             )}
                         </div>
 
-                        <div className="border-t border-slate-200 bg-white px-6 py-4">
-                            {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+                        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6 py-4">
+                            {error && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
                             <form
                                 className="flex gap-3"
@@ -370,7 +370,7 @@ export function AnalysisChatPanel({ analysisHash, analysisTitle }: { analysisHas
                                     onChange={(event) => setDraft(event.target.value)}
                                     rows={3}
                                     placeholder="Pregunta por riesgos, criterios, solvencia, evidencias o ambigüedades..."
-                                    className="min-h-[84px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-200"
+                                    className="min-h-[84px] flex-1 resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition focus:border-brand-400 dark:focus:border-brand-600 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900"
                                 />
                                 <Button
                                     type="submit"

@@ -48,8 +48,8 @@ export function FeedbackToggle({ fieldPath, value, licitacionHash, className = '
                 }}
                 className={`p-1 rounded-md transition-colors ${
                     status === 'up'
-                        ? 'bg-green-100 text-green-700'
-                        : 'text-slate-400 hover:text-green-600 hover:bg-green-50'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'text-slate-400 dark:text-slate-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
                 }`}
                 title="Dato correcto"
                 aria-label="Marcar como correcto"
@@ -62,7 +62,9 @@ export function FeedbackToggle({ fieldPath, value, licitacionHash, className = '
                     handleFeedback('down');
                 }}
                 className={`p-1 rounded-md transition-colors ${
-                    status === 'down' ? 'bg-red-100 text-red-700' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                    status === 'down'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        : 'text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                 }`}
                 title="Dato incorrecto"
                 aria-label="Marcar como incorrecto"

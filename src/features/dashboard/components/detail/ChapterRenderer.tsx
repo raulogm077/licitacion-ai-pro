@@ -29,7 +29,7 @@ export function ChapterRenderer({ config, vm }: ChapterRendererProps) {
     return (
         <section id={config.id} className="py-8 scroll-mt-32">
             <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900 flex items-center gap-3">
+                <h2 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
                     {config.title}
                     {hasRiskHeader && <Badge variant="destructive">Críticos detectados</Badge>}
                 </h2>
@@ -41,8 +41,8 @@ export function ChapterRenderer({ config, vm }: ChapterRendererProps) {
             </div>
 
             {config.id === 'datos' ? (
-                <Card className="rounded-2xl border-neutral-200/60 shadow-sm overflow-hidden">
-                    <div className="divide-y divide-neutral-100">
+                <Card className="rounded-2xl border-neutral-200/60 dark:border-slate-700 dark:bg-slate-800 shadow-sm overflow-hidden">
+                    <div className="divide-y divide-neutral-100 dark:divide-slate-700">
                         {config.subsections.map((sub) => (
                             <SubsectionRenderer key={sub.id} config={sub} vm={vm} />
                         ))}
@@ -95,10 +95,10 @@ function RowTable({ items, vm }: { config: SubsectionConfig; items: unknown[]; v
                 return (
                     <div
                         key={i}
-                        className={`flex flex-col sm:flex-row sm:items-baseline justify-between p-5 hover:bg-slate-50/50 transition-colors gap-2 group relative ${isAmb ? 'bg-orange-50/50' : ''}`}
+                        className={`flex flex-col sm:flex-row sm:items-baseline justify-between p-5 hover:bg-slate-50/50 dark:hover:bg-slate-700/50 transition-colors gap-2 group relative ${isAmb ? 'bg-orange-50/50 dark:bg-orange-900/20' : ''}`}
                     >
                         <div className="flex items-center gap-2 w-1/3">
-                            <span className="text-sm font-medium text-slate-500">{row.label}</span>
+                            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{row.label}</span>
                             {isAmb && (
                                 <div title="Dato ambiguo o contradictorio" className="text-orange-500">
                                     <AlertCircle size={14} />
@@ -116,7 +116,7 @@ function RowTable({ items, vm }: { config: SubsectionConfig; items: unknown[]; v
                             />
                         </div>
                         <span
-                            className={`text-sm font-medium text-slate-900 sm:text-right flex-1 ${isNotDetected ? 'italic text-slate-400' : ''}`}
+                            className={`text-sm font-medium text-slate-900 dark:text-white sm:text-right flex-1 ${isNotDetected ? 'italic text-slate-400 dark:text-slate-500' : ''}`}
                         >
                             {row.value}
                         </span>
@@ -130,14 +130,14 @@ function RowTable({ items, vm }: { config: SubsectionConfig; items: unknown[]; v
 function CardList({ config, items, vm }: { config: SubsectionConfig; items: unknown[]; vm: PliegoVM }) {
     const dotColor = config.containerClass === 'dot-purple' ? 'bg-purple-500' : 'bg-blue-500';
     const badgeColors: Record<string, string> = {
-        blue: 'bg-blue-50 text-blue-700 border-blue-100',
-        purple: 'bg-purple-50 text-purple-700 border-purple-100',
+        blue: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+        purple: 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
     };
 
     return (
         <div>
             {config.title && (
-                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`}></span>
                     {config.title}
                 </h3>
@@ -151,7 +151,7 @@ function CardList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                     return (
                         <div
                             key={i}
-                            className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm relative group"
+                            className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-neutral-200/60 dark:border-slate-700 shadow-sm relative group"
                         >
                             <div className="absolute top-4 right-4">
                                 <EvidenceToggle evidence={vm.getEvidence(fieldPath)} />
@@ -164,9 +164,9 @@ function CardList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                             </div>
                             <div className="flex justify-between items-start gap-4 pr-8">
                                 <div>
-                                    <p className="font-medium text-slate-900 mb-1">{label}</p>
+                                    <p className="font-medium text-slate-900 dark:text-white mb-1">{label}</p>
                                     {subtext && (
-                                        <p className="text-xs text-slate-500 font-mono bg-slate-50 p-1.5 rounded mt-2 block w-fit">
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 p-1.5 rounded mt-2 block w-fit">
                                             {subtext}
                                         </p>
                                     )}
@@ -187,8 +187,8 @@ function CardList({ config, items, vm }: { config: SubsectionConfig; items: unkn
 
 function SimpleList({ config, items, vm }: { config: SubsectionConfig; items: unknown[]; vm: PliegoVM }) {
     return (
-        <div className="bg-white p-6 rounded-2xl border border-neutral-200/60 shadow-sm">
-            {config.title && <h3 className="font-semibold text-slate-900 mb-4">{config.title}</h3>}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-neutral-200/60 dark:border-slate-700 shadow-sm">
+            {config.title && <h3 className="font-semibold text-slate-900 dark:text-white mb-4">{config.title}</h3>}
             <ul className={config.iconType === 'check' ? 'space-y-2' : 'space-y-3'}>
                 {items.map((item, i) => {
                     const fieldPath = `${config.fieldPathPrefix}[${i}]`;
@@ -199,10 +199,10 @@ function SimpleList({ config, items, vm }: { config: SubsectionConfig; items: un
                     return (
                         <li
                             key={i}
-                            className={`flex gap-3 text-sm group items-start p-1 rounded ${isAmb ? 'bg-orange-50' : ''}`}
+                            className={`flex gap-3 text-sm group items-start p-1 rounded ${isAmb ? 'bg-orange-50 dark:bg-orange-900/20' : ''}`}
                         >
                             <ItemIcon type={config.iconType ?? 'bullet-required'} required={required} />
-                            <span className="text-slate-700 flex-1">
+                            <span className="text-slate-700 dark:text-slate-300 flex-1">
                                 {text}
                                 {isAmb && <AlertTriangle className="inline w-3 h-3 text-orange-500 ml-2" />}
                             </span>
@@ -229,8 +229,8 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
 
     if (isKillCriteria) {
         return (
-            <div className="bg-red-50 p-6 rounded-2xl border border-red-100 shadow-sm">
-                <h3 className="font-bold text-red-900 mb-4 flex items-center gap-2">
+            <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-2xl border border-red-100 dark:border-red-900/50 shadow-sm">
+                <h3 className="font-bold text-red-900 dark:text-red-300 mb-4 flex items-center gap-2">
                     <XCircle className="w-5 h-5" />
                     {config.title}
                 </h3>
@@ -240,7 +240,7 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                         const text = config.itemLabel?.(item, i) ?? '';
                         const subtext = config.itemSubtext?.(item);
                         return (
-                            <li key={i} className="text-red-800 text-sm group relative pr-8">
+                            <li key={i} className="text-red-800 dark:text-red-200 text-sm group relative pr-8">
                                 <div className="absolute top-0 right-0">
                                     <EvidenceToggle evidence={vm.getEvidence(fieldPath)} />
                                     <FeedbackToggle
@@ -273,7 +273,7 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                 return (
                     <div
                         key={i}
-                        className={`bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm flex items-start gap-4 relative group ${isAmb ? 'ring-2 ring-orange-200 bg-orange-50/30' : ''}`}
+                        className={`bg-white dark:bg-slate-800 p-5 rounded-2xl border border-neutral-200/60 dark:border-slate-700 shadow-sm flex items-start gap-4 relative group ${isAmb ? 'ring-2 ring-orange-200 dark:ring-orange-800 bg-orange-50/30 dark:bg-orange-900/20' : ''}`}
                     >
                         <div className="absolute top-4 right-4">
                             <div className="flex gap-2">
@@ -294,16 +294,16 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                         <div
                             className={`p-2 rounded-lg shrink-0 ${
                                 impacto === 'CRITICO'
-                                    ? 'bg-red-100 text-red-600'
+                                    ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                                     : impacto === 'ALTO'
-                                      ? 'bg-orange-100 text-orange-600'
-                                      : 'bg-yellow-100 text-yellow-600'
+                                      ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
+                                      : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
                             }`}
                         >
                             <AlertTriangle className="w-5 h-5" />
                         </div>
                         <div className="pr-8">
-                            <h4 className="font-medium text-slate-900">{text}</h4>
+                            <h4 className="font-medium text-slate-900 dark:text-white">{text}</h4>
                             {badge && (
                                 <div className="flex gap-2 mt-2">
                                     <Badge
@@ -321,7 +321,7 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
                                 </div>
                             )}
                             {subtext && (
-                                <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 bg-slate-50 dark:bg-slate-900 p-2 rounded">
                                     <strong>Sugerencia:</strong> {subtext}
                                 </p>
                             )}
@@ -335,8 +335,8 @@ function RiskList({ config, items, vm }: { config: SubsectionConfig; items: unkn
 
 function KeyValueList({ config, items, vm }: { config: SubsectionConfig; items: unknown[]; vm: PliegoVM }) {
     return (
-        <div className="bg-white p-6 rounded-2xl border border-neutral-200/60 shadow-sm">
-            {config.title && <h3 className="font-semibold text-slate-900 mb-4">{config.title}</h3>}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-neutral-200/60 dark:border-slate-700 shadow-sm">
+            {config.title && <h3 className="font-semibold text-slate-900 dark:text-white mb-4">{config.title}</h3>}
             <ul className="space-y-3">
                 {items.map((item, i) => {
                     const fieldPath = `${config.fieldPathPrefix}[${i}]`;
@@ -348,7 +348,7 @@ function KeyValueList({ config, items, vm }: { config: SubsectionConfig; items: 
                     return (
                         <li
                             key={i}
-                            className="text-sm border-b border-slate-50 pb-2 last:border-0 last:pb-0 group relative"
+                            className="text-sm border-b border-slate-50 dark:border-slate-700/50 pb-2 last:border-0 last:pb-0 group relative"
                         >
                             <div className="absolute top-0 right-0 flex items-center gap-2">
                                 {badge && (
@@ -369,13 +369,15 @@ function KeyValueList({ config, items, vm }: { config: SubsectionConfig; items: 
                             </div>
                             {value ? (
                                 <div className="space-y-1 pr-6">
-                                    <span className="text-xs text-slate-500 uppercase tracking-wide">{label}</span>
-                                    <p className="text-xl font-medium text-slate-900">{value}</p>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                        {label}
+                                    </span>
+                                    <p className="text-xl font-medium text-slate-900 dark:text-white">{value}</p>
                                 </div>
                             ) : (
-                                <p className="font-medium text-slate-700 pr-6">{label}</p>
+                                <p className="font-medium text-slate-700 dark:text-slate-300 pr-6">{label}</p>
                             )}
-                            {subtext && <p className="text-slate-500 text-xs mt-1">{subtext}</p>}
+                            {subtext && <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">{subtext}</p>}
                         </li>
                     );
                 })}
@@ -393,12 +395,12 @@ function ItemIcon({ type, required }: { type: string; required: boolean }) {
         case 'bullet-required':
         default:
             return required ? (
-                <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="w-1.5 h-1.5 bg-slate-600 rounded-full" />
+                <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-1.5 h-1.5 bg-slate-600 dark:bg-slate-300 rounded-full" />
                 </div>
             ) : (
-                <div className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-[10px] text-slate-400">op</span>
+                <div className="w-5 h-5 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">op</span>
                 </div>
             );
     }
@@ -406,10 +408,10 @@ function ItemIcon({ type, required }: { type: string; required: boolean }) {
 
 function EmptyChapter({ title, text }: { title?: string; text?: string }) {
     return (
-        <div className="flex flex-col items-center justify-center py-12 px-6 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-            <AlertCircle className="w-8 h-8 text-slate-300 mb-3" />
-            <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
-            <p className="text-sm text-slate-500 mt-1 max-w-sm">{text}</p>
+        <div className="flex flex-col items-center justify-center py-12 px-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-800/50">
+            <AlertCircle className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-3" />
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm">{text}</p>
         </div>
     );
 }
