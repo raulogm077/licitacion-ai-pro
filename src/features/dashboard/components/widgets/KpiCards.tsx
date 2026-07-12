@@ -29,10 +29,10 @@ export function KpiCards({ vm }: KpiCardProps) {
             sub: 'IVA no incluido',
             icon: Euro,
             trend: null,
-            color: 'text-navy',
-            iconBg: 'bg-navy/10',
-            iconColor: 'text-navy',
-            accent: 'border-l-navy',
+            color: 'text-navy dark:text-white',
+            iconBg: 'bg-navy/10 dark:bg-cyan/10',
+            iconColor: 'text-navy dark:text-cyan-muted',
+            accent: 'border-l-navy dark:border-l-cyan-muted',
             fieldPath: 'datosGenerales.presupuesto',
         },
         {
@@ -42,10 +42,11 @@ export function KpiCards({ vm }: KpiCardProps) {
             sub: 'Presentación de ofertas',
             icon: CalendarClock,
             trend: null,
-            trendColor: 'text-amber-600 bg-amber-50 border-amber-200',
-            color: 'text-amber-700',
-            iconBg: 'bg-amber-50',
-            iconColor: 'text-amber-600',
+            trendColor:
+                'text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/20 dark:border-amber-800',
+            color: 'text-amber-700 dark:text-amber-400',
+            iconBg: 'bg-amber-50 dark:bg-amber-900/20',
+            iconColor: 'text-amber-600 dark:text-amber-400',
             accent: 'border-l-amber-400',
             fieldPath: 'datosGenerales.fechaLimitePresentacion',
         },
@@ -56,10 +57,10 @@ export function KpiCards({ vm }: KpiCardProps) {
             sub: 'Duración extraída',
             icon: Timer,
             trend: null,
-            color: 'text-navy',
-            iconBg: 'bg-navy/10',
-            iconColor: 'text-navy',
-            accent: 'border-l-navy',
+            color: 'text-navy dark:text-white',
+            iconBg: 'bg-navy/10 dark:bg-cyan/10',
+            iconColor: 'text-navy dark:text-cyan-muted',
+            accent: 'border-l-navy dark:border-l-cyan-muted',
             fieldPath: 'datosGenerales.plazoEjecucionMeses',
         },
         {
@@ -69,8 +70,8 @@ export function KpiCards({ vm }: KpiCardProps) {
             sub: 'Solo si aparece explícito',
             icon: TrendingUp,
             trend: null,
-            color: 'text-navy',
-            iconBg: 'bg-cyan/20',
+            color: 'text-navy dark:text-white',
+            iconBg: 'bg-cyan/20 dark:bg-cyan/10',
             iconColor: 'text-cyan-muted',
             accent: 'border-l-cyan',
             fieldPath: 'economico.valorEstimadoContrato',
@@ -85,7 +86,7 @@ export function KpiCards({ vm }: KpiCardProps) {
                     <div
                         key={kpi.id}
                         className={clx(
-                            'bg-white rounded-lg border border-slate-200 pl-4 pr-5 py-4 flex items-start gap-4',
+                            'bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 pl-4 pr-5 py-4 flex items-start gap-4',
                             'border-l-2 shadow-sm hover:shadow-md transition-shadow duration-200',
                             kpi.accent
                         )}
@@ -100,10 +101,11 @@ export function KpiCards({ vm }: KpiCardProps) {
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-1">
-                                <p className="text-xs text-slate-500 font-medium leading-tight mb-1 text-pretty">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-tight mb-1 text-pretty">
                                     {kpi.label}
                                 </p>
                                 <FeedbackToggle
+                                    licitacionHash={vm.hash}
                                     fieldPath={kpi.fieldPath}
                                     value={String(kpi.value)}
                                     className="flex-shrink-0 -mt-0.5"
@@ -111,7 +113,7 @@ export function KpiCards({ vm }: KpiCardProps) {
                             </div>
                             <p className={clx('text-lg font-bold leading-tight truncate', kpi.color)}>{kpi.value}</p>
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                <span className="text-[11px] text-slate-500">{kpi.sub}</span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400">{kpi.sub}</span>
                                 {kpi.trend && (
                                     <span
                                         className={clx(

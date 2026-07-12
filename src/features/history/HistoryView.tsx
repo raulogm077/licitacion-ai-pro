@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { unwrap } from '../../lib/tracked-field';
 import { formatCurrency } from '../../lib/formatters';
 import { useHistory } from '../../hooks/useHistory';
@@ -45,6 +45,16 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
 
     const rowsPerPage = 10;
     const filtersApplied = Object.keys(activeFilters).length > 0;
+
+    // Close the delete-confirmation dialog with Escape (dialog pattern).
+    useEffect(() => {
+        if (!confirmDelete) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setConfirmDelete(null);
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [confirmDelete]);
 
     function handleFiltrar() {
         applyFilters({
@@ -446,8 +456,15 @@ export function HistoryView({ onSelect }: HistoryViewProps) {
             {/* Delete Confirmation Modal */}
             {confirmDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm mx-4 w-full animate-in zoom-in-95 duration-200">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Eliminar análisis</h3>
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="confirm-delete-title"
+                        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 max-w-sm mx-4 w-full animate-in zoom-in-95 duration-200"
+                    >
+                        <h3 id="confirm-delete-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+                            Eliminar análisis
+                        </h3>
                         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                             Esta acción eliminará permanentemente este análisis y no se puede deshacer.
                         </p>

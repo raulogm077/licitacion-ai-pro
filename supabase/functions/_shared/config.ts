@@ -16,6 +16,17 @@
 export const OPENAI_MODEL = 'gpt-4.1';
 
 /**
+ * OpenAI model used by the conversational layer (chat-with-analysis-agent).
+ * 'gpt-5.4' is OpenAI's current frontier model (verified against
+ * https://developers.openai.com/api/docs/models/gpt-5.4 on 2026-07-12).
+ * Kept separate from OPENAI_MODEL: the chat manager relies on structured
+ * outputs (outputType + Zod) over function tools, not file_search, so it can
+ * track a newer tier than the extraction pipeline without re-validating the
+ * 5-phase benchmark.
+ */
+export const CHAT_MODEL = 'gpt-5.4';
+
+/**
  * Per-API-call timeout in milliseconds (90s per individual block call).
  * Increased from 50s: large documents (50-300 pages) require more time for
  * OpenAI file_search to scan through more content per block.
@@ -44,12 +55,36 @@ export const PIPELINE_TIMEOUT_MS = 280_000;
 export const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
 
 /**
+ * Maximum request body size for the conversational layer (64KB).
+ * Chat requests carry a message + session metadata, never documents;
+ * anything larger is abuse or a client bug.
+ */
+export const MAX_CHAT_PAYLOAD_BYTES = 64 * 1024;
+
+/**
+ * Chat rate limit (per user, sliding window of 1 hour).
+ * Each message triggers a multi-agent run (manager + specialist tools), so
+ * the budget guards OpenAI cost. 60/h ≈ one message per minute sustained,
+ * generous for real conversations while bounding abuse.
+ */
+export const CHAT_MAX_REQUESTS_PER_HOUR = 60;
+
+/**
  * Maximum concurrent block extractions in Phase C.
  * Kept deliberately below the total number of blocks to reduce OpenAI 429 bursts
  * on medium/large dossiers. Stability is preferred over the shortest possible
  * wall-clock time because retries are expensive inside a single SSE request.
  */
 export const BLOCK_CONCURRENCY = 3;
+
+/**
+ * Backoff for transient failures (429 / 5xx) during block extraction.
+ * One retry only, and the delay is capped so a single degraded block cannot
+ * consume the whole PIPELINE_TIMEOUT_MS budget (a 60-120s Retry-After would).
+ * Timeouts are NOT retried (see isRetryableError).
+ */
+export const BLOCK_MAX_RETRIES = 1;
+export const BLOCK_RETRY_MAX_DELAY_MS = 30_000;
 
 /**
  * Vector store indexing timeout in milliseconds (90s).

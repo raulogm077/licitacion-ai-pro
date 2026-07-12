@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { LicitacionData } from '../types';
+import { LicitacionData, LicitacionContent } from '../types';
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
 import { logger } from '../services/logger';
+import { buildInitialVersion } from '../lib/envelope';
 
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -83,17 +84,7 @@ export const useLicitacionStore = create<LicitacionStore>((set, get) => ({
             data = {
                 ...inputData, // Includes sections for legacy compat
                 result: inputData, // Canonical result
-                versions: [
-                    {
-                        version: 1,
-                        status: 'succeeded',
-                        created_at: now,
-                        model: 'ai-analysis',
-                        schema_version: 'v1',
-                        prompt_version: 'v1',
-                        result: inputData,
-                    },
-                ],
+                versions: [buildInitialVersion(inputData as unknown as LicitacionContent, now)],
                 workflow: workflowData || {
                     current_version: 1,
                     status: 'succeeded',

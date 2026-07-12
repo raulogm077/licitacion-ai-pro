@@ -4,8 +4,18 @@ import { KpiCards } from '../KpiCards';
 import { PliegoVM } from '../../../model/pliego-vm';
 
 vi.mock('../../detail/FeedbackToggle', () => ({
-    FeedbackToggle: ({ fieldPath, value }: { fieldPath: string; value: string }) => (
-        <div data-testid={`feedback-toggle-${fieldPath}`}>{value}</div>
+    FeedbackToggle: ({
+        fieldPath,
+        value,
+        licitacionHash,
+    }: {
+        fieldPath: string;
+        value: string;
+        licitacionHash?: string;
+    }) => (
+        <div data-testid={`feedback-toggle-${fieldPath}`} data-licitacion-hash={licitacionHash}>
+            {value}
+        </div>
     ),
 }));
 
@@ -63,6 +73,16 @@ describe('KpiCards Component', () => {
         expect(screen.getByTestId('feedback-toggle-economico.valorEstimadoContrato')).toBeInTheDocument();
     });
 
+    it('passes the licitacion hash down to FeedbackToggle so votes persist', () => {
+        const mockVMWithHash = { ...mockVM, hash: 'hash-abc-123' } as unknown as PliegoVM;
+        render(<KpiCards vm={mockVMWithHash} />);
+
+        expect(screen.getByTestId('feedback-toggle-datosGenerales.presupuesto')).toHaveAttribute(
+            'data-licitacion-hash',
+            'hash-abc-123'
+        );
+    });
+
     it('renders default date limit properly when missing', () => {
         const mockVMNoDate = {
             display: { presupuesto: '10.000,00 €', plazo: '12 meses', moneda: 'EUR' },
@@ -78,8 +98,6 @@ describe('KpiCards Component', () => {
             result: { datosGenerales: { fechaLimitePresentacion: null, presupuesto: 10000 }, economico: {} },
         } as unknown as PliegoVM;
         render(<KpiCards vm={mockVMNoEstimated} />);
-        expect(screen.getByTestId('feedback-toggle-economico.valorEstimadoContrato')).toHaveTextContent(
-            'No detectado'
-        );
+        expect(screen.getByTestId('feedback-toggle-economico.valorEstimadoContrato')).toHaveTextContent('No detectado');
     });
 });

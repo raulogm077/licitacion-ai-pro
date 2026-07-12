@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { services } from '../config/service-registry';
 import { LicitacionData, SearchFilters } from '../types';
+import { applyClientFilters } from '../lib/search-filters';
 import { logger } from '../services/logger';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -20,20 +21,37 @@ export function useHistory() {
     const [searchQuery, setSearchQuery] = useState('');
     const [deleting, setDeleting] = useState<string | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    // Mirrors searchQuery for stable callbacks (loadHistory must not change
+    // identity on every keystroke — the mount effect depends on it).
+    const searchQueryRef = useRef('');
 
-    const loadHistory = useCallback(async (filters: SearchFilters = {}) => {
+    /**
+     * Single refresh path composing free text and filters so the two UI
+     * controls never silently discard each other:
+     *   - only text  → server-side FTS
+     *   - only filters → server-side advancedSearch
+     *   - both → FTS by text, then filters applied in memory on the result
+     */
+    const fetchItems = useCallback(async (query: string, filters: SearchFilters) => {
         setLoading(true);
-        setActiveFilters(filters);
+
+        const trimmed = query.trim();
+        const hasFilters = Object.keys(filters).length > 0;
 
         let result;
-        if (Object.keys(filters).length === 0) {
-            result = await services.db.getAllLicitaciones();
-        } else {
+        if (trimmed) {
+            result = await services.db.searchLicitaciones(trimmed);
+            if (result.ok && hasFilters) {
+                result = { ok: true as const, value: applyClientFilters(result.value, filters) };
+            }
+        } else if (hasFilters) {
             result = await services.db.advancedSearch(filters);
+        } else {
+            result = await services.db.getAllLicitaciones();
         }
 
         if (result.ok) {
-            const sorted = result.value.sort((a: HistoryItem, b: HistoryItem) => b.timestamp - a.timestamp);
+            const sorted = [...result.value].sort((a: HistoryItem, b: HistoryItem) => b.timestamp - a.timestamp);
             setItems(sorted);
             setError(null);
         } else {
@@ -43,33 +61,32 @@ export function useHistory() {
         setLoading(false);
     }, []);
 
+    const loadHistory = useCallback(
+        async (filters: SearchFilters = {}) => {
+            setActiveFilters(filters);
+            await fetchItems(searchQueryRef.current, filters);
+        },
+        [fetchItems]
+    );
+
     const search = useCallback(
-        async (query: string) => {
+        (query: string) => {
             setSearchQuery(query);
-            const trimmed = query.trim();
+            searchQueryRef.current = query;
 
             // Debounce: wait 300ms after last keystroke
             if (debounceRef.current) clearTimeout(debounceRef.current);
 
-            if (!trimmed) {
-                loadHistory(activeFilters);
+            if (!query.trim()) {
+                fetchItems('', activeFilters);
                 return;
             }
 
-            debounceRef.current = setTimeout(async () => {
-                setLoading(true);
-                const result = await services.db.searchLicitaciones(trimmed);
-                if (result.ok) {
-                    setItems(result.value);
-                    setError(null);
-                } else {
-                    logger.error('Search failed:', result.error);
-                    setError('Error en la búsqueda.');
-                }
-                setLoading(false);
+            debounceRef.current = setTimeout(() => {
+                fetchItems(query, activeFilters);
             }, SEARCH_DEBOUNCE_MS);
         },
-        [activeFilters, loadHistory]
+        [activeFilters, fetchItems]
     );
 
     const deleteLicitacion = useCallback(async (hash: string) => {
@@ -98,7 +115,7 @@ export function useHistory() {
         error,
         searchQuery,
         deleting,
-        refresh: () => (searchQuery ? search(searchQuery) : loadHistory(activeFilters)),
+        refresh: () => fetchItems(searchQuery, activeFilters),
         applyFilters: loadHistory,
         search,
         deleteLicitacion,

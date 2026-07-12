@@ -22,13 +22,13 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 60
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
               with:
                   fetch-depth: 0
                   token: ${{ secrets.AGENTS_PAT }}
 
             - uses: pnpm/action-setup@v4 # lee packageManager de package.json
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v6
               with:
                   node-version: 22
                   cache: pnpm

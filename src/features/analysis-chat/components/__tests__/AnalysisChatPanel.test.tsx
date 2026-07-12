@@ -81,4 +81,40 @@ describe('AnalysisChatPanel', () => {
 
         expect(screen.getByText('Ya habíamos hablado de este expediente.')).toBeInTheDocument();
     });
+
+    it('does not overwrite the stored history of a new hash with the previous hash state', async () => {
+        const stored: Record<string, string> = {
+            'analysis-chat:hash-1': JSON.stringify({
+                sessionId: '44444444-4444-4444-8444-444444444444',
+                messages: [{ id: 'm1', role: 'assistant', content: 'Conversación del expediente 1.' }],
+            }),
+            'analysis-chat:hash-2': JSON.stringify({
+                sessionId: '55555555-5555-4555-8555-555555555555',
+                messages: [{ id: 'm2', role: 'assistant', content: 'Conversación del expediente 2.' }],
+            }),
+        };
+        vi.mocked(window.localStorage.getItem).mockImplementation((key: string) => stored[key] ?? null);
+        vi.mocked(window.localStorage.setItem).mockImplementation((key: string, value: string) => {
+            stored[key] = value;
+        });
+
+        const { rerender } = render(<AnalysisChatPanel analysisHash="hash-1" analysisTitle="Pliego 1" />);
+        expect(screen.getByText('Conversación del expediente 1.')).toBeInTheDocument();
+
+        rerender(<AnalysisChatPanel analysisHash="hash-2" analysisTitle="Pliego 2" />);
+        await waitFor(() => {
+            expect(screen.getByText('Conversación del expediente 2.')).toBeInTheDocument();
+        });
+
+        // hash-2's stored history must still contain its own conversation…
+        expect(stored['analysis-chat:hash-2']).toContain('Conversación del expediente 2.');
+        expect(stored['analysis-chat:hash-2']).not.toContain('Conversación del expediente 1.');
+        // …and it must never have been overwritten, not even transiently
+        // (the old bug wrote the previous hash's in-memory state and then
+        // "self-healed" on the next render — data was lost on unmount).
+        expect(window.localStorage.setItem).not.toHaveBeenCalledWith(
+            'analysis-chat:hash-2',
+            expect.stringContaining('Conversación del expediente 1.')
+        );
+    });
 });

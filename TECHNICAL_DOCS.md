@@ -1,6 +1,6 @@
 # Documentación Técnica — Analista de Pliegos
 
-> Versión: 2.6.0 | Fecha: 2026-05-09
+> Versión: 2.7.0 | Fecha: 2026-07-12
 
 ---
 
@@ -52,15 +52,15 @@ Usuario sube PDF
 
 ## 3. Stack Tecnológico
 
-| Capa | Tech | Versión |
-|---|---|---|
-| Frontend | React + TypeScript + Vite + Tailwind + Zustand | 18.2 / 5.5 / 7.3 / 3.4 / 5.0 |
-| Validación | Zod | 3.25.76 (alineado con `@openai/agents@0.3.1`) |
-| Backend | Supabase Edge Functions (Deno) | 2.x |
-| AI Pipeline | `@openai/agents` | 0.3.1 |
-| Subyacente | OpenAI Responses API + Files API + Vector Store | latest |
-| DB | PostgreSQL | 15+ |
-| Hosting | Vercel + Supabase Cloud | latest |
+| Capa        | Tech                                            | Versión                                       |
+| ----------- | ----------------------------------------------- | --------------------------------------------- |
+| Frontend    | React + TypeScript + Vite + Tailwind + Zustand  | 18.2 / 5.5 / 7.3 / 3.4 / 5.0                  |
+| Validación  | Zod                                             | 3.25.76 (alineado con `@openai/agents@0.3.1`) |
+| Backend     | Supabase Edge Functions (Deno)                  | 2.x                                           |
+| AI Pipeline | `@openai/agents`                                | 0.3.1                                         |
+| Subyacente  | OpenAI Responses API + Files API + Vector Store | latest                                        |
+| DB          | PostgreSQL                                      | 15+                                           |
+| Hosting     | Vercel + Supabase Cloud                         | latest                                        |
 
 ---
 
@@ -80,6 +80,8 @@ Usuario sube PDF
 
 **Auth model**: `verify_jwt = true` en `supabase/config.toml` (desde 2026-05-09, mismo patrón que `analyze-with-agents`). El handler retira el bloque "if (!token) → 401"; se queda con `supabase.auth.getUser(token)` para resolver el `user` que se necesita para ownership contra `licitaciones` / `analysis_chat_sessions`, y conserva un `if (!user) → 401` defensivo.
 
+**Límites (desde 2026-07-12)**: rate limiting por usuario `CHAT_MAX_REQUESTS_PER_HOUR=60` (`checkRateLimit` parametrizable con clave namespaced `chat:`/`analyze:`) y tope de payload real `MAX_CHAT_PAYLOAD_BYTES=64KB` (valida el tamaño real del body, no el header `content-length`). El modelo es la constante `CHAT_MODEL` (`_shared/config.ts`, no hardcodeado) y el SDK se importa solo vía `_shared/agents/sdk.ts` (0.3.1), que re-exporta también `tool`, `user` y `AgentInputItem`.
+
 **Comportamiento**:
 
 ```
@@ -96,18 +98,20 @@ Usuario sube PDF
 
 ### Utilidades compartidas (`supabase/functions/_shared/`)
 
-| Archivo | Función |
-|---|---|
-| `agents/sdk.ts` | Re-export nombrado explícito de `@openai/agents@0.3.1` |
-| `agents/context.ts` | `PipelineContext` + `createPipelineContext()` |
-| `agents/guardrails.ts` | `jsonShapeGuardrail<T>` + `templateSanitizationGuardrail` + parsers |
-| `agents/tracing.ts` | `SupabaseLogTraceProcessor` |
-| `config.ts` | Constantes (modelo, timeouts, concurrencia) |
-| `cors.ts` | Whitelist de orígenes |
-| `rate-limiter.ts` | 10 req/hora por usuario |
-| `schemas/canonical.ts` | Schema canónico con TrackedField (zod 3.25.76) |
-| `utils/error.utils.ts` | Mapeo de errores OpenAI + `Input/OutputGuardrailTripwireTriggered` |
-| `utils/timeout.ts` | `callWithTimeout` con `Promise.race` (90s por `run()`) |
+| Archivo                | Función                                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------------------- |
+| `agents/sdk.ts`        | Re-export nombrado explícito de `@openai/agents@0.3.1`                                              |
+| `agents/context.ts`    | `PipelineContext` + `createPipelineContext()`                                                       |
+| `agents/guardrails.ts` | `jsonShapeGuardrail<T>` + `templateSanitizationGuardrail` + parsers                                 |
+| `agents/tracing.ts`    | `SupabaseLogTraceProcessor`                                                                         |
+| `config.ts`            | Constantes (`OPENAI_MODEL`, `CHAT_MODEL`, timeouts, concurrencia, backoff, límites de payload/rate) |
+| `cors.ts`              | Whitelist de orígenes                                                                               |
+| `rate-limiter.ts`      | `checkRateLimit` parametrizable con clave namespaced: `analyze:` 10/h, `chat:` 60/h por usuario     |
+| `utils/concurrency.ts` | `runWithConcurrency` (compartida entre ingestion y block-extraction)                                |
+| `utils/retry.ts`       | `retryWithBackoff` con `maxDelayMs` (backoff real 429/5xx en Fase C)                                |
+| `schemas/canonical.ts` | Schema canónico con TrackedField (zod 3.25.76)                                                      |
+| `utils/error.utils.ts` | Mapeo de errores OpenAI + `Input/OutputGuardrailTripwireTriggered`                                  |
+| `utils/timeout.ts`     | `callWithTimeout` con `Promise.race` (90s por `run()`)                                              |
 
 ---
 
@@ -147,6 +151,29 @@ curl -i -X POST "$SUPABASE_URL/functions/v1/chat-with-analysis-agent" \
 ### Rollback de auth
 
 Si una de las funciones empieza a rechazar peticiones legítimas, fijar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml` y redeployar con `--no-verify-jwt`. NUNCA hacer un cambio sin el otro: un mismatch entre `config.toml` y el comando deja la postura indefinida.
+
+### RPC `search_licitaciones` (IDOR corregido 2026-07-12)
+
+Firma vigente tras la migración `20260712000000_fix_search_licitaciones_idor.sql`:
+
+```sql
+search_licitaciones(search_query text)
+  returns table (id, hash, file_name, data, created_at, updated_at, rank)
+  language sql stable
+  security invoker
+  set search_path = public, pg_temp
+-- where l.user_id = auth.uid() and (FTS websearch_to_tsquery('spanish', ...) or ILIKE fallback)
+```
+
+Cambios frente a la definición previa (`20260329000000_fulltext_search.sql`):
+
+- se elimina el parámetro `user_id_param uuid` controlable por el llamante (era el vector del IDOR)
+- `SECURITY INVOKER` en vez de `SECURITY DEFINER` → la RLS de `public.licitaciones` se aplica
+- filtro explícito `l.user_id = auth.uid()` como defensa en profundidad
+- `search_path` fijo; `EXECUTE` sólo para `authenticated`
+- se endurece además el `search_path` de las funciones trigger `update_updated_at_column` y `update_extraction_templates_updated_at`
+
+El frontend (`src/services/db.service.ts`) no cambia: ya invocaba `rpc('search_licitaciones', { search_query })`.
 
 ---
 
@@ -217,16 +244,16 @@ Protege paridad semántica del pipeline tras la migración a `@openai/agents`.
 
 ## Apéndice — Decisiones clave
 
-| Decisión | Elección | Razón |
-|---|---|---|
-| SDK del pipeline | `@openai/agents@0.3.1` | Tracing nativo, guardrails declarativos |
-| Pin del SDK | 0.3.1 | Última compatible con zod 3.x |
-| Pin de zod | 3.25.76 | Mínimo aceptado por el SDK |
-| Auth | `verify_jwt=true` (gateway) en ambas funciones | Rechazo en gateway, menos código en handlers, postura uniforme |
-| Construcción de Agents | Per-request | `fileSearchTool` enlaza vectorStoreIds en construcción |
-| Path único Fase C | `git revert` para revertir | Sin flag inline ni legacy fallback (eliminados 2026-05-09) |
-| Rollback de auth | `verify_jwt=false` + `--no-verify-jwt` | Cambio coordinado en config + comando |
+| Decisión               | Elección                                       | Razón                                                          |
+| ---------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
+| SDK del pipeline       | `@openai/agents@0.3.1`                         | Tracing nativo, guardrails declarativos                        |
+| Pin del SDK            | 0.3.1                                          | Última compatible con zod 3.x                                  |
+| Pin de zod             | 3.25.76                                        | Mínimo aceptado por el SDK                                     |
+| Auth                   | `verify_jwt=true` (gateway) en ambas funciones | Rechazo en gateway, menos código en handlers, postura uniforme |
+| Construcción de Agents | Per-request                                    | `fileSearchTool` enlaza vectorStoreIds en construcción         |
+| Path único Fase C      | `git revert` para revertir                     | Sin flag inline ni legacy fallback (eliminados 2026-05-09)     |
+| Rollback de auth       | `verify_jwt=false` + `--no-verify-jwt`         | Cambio coordinado en config + comando                          |
 
 ---
 
-*Documentación actualizada el 2026-05-09 tras la eliminación del legacy fallback de Fase C.*
+_Documentación actualizada el 2026-07-12 tras la revisión integral (IDOR en `search_licitaciones`, límites de payload/rate-limit del chat, backoff real en Fase C, tracing redactado y limpieza compartida). Ver `CHANGELOG.md`, `SPEC.md` §10.7 y `ARCHITECTURE.md` §8.6._

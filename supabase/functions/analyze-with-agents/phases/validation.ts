@@ -216,9 +216,7 @@ function derivePartialReasons(context: PartialReasonContext): AnalysisPartialRea
     return [...reasons];
 }
 
-function deriveSectionDiagnostics(
-    context: SectionDiagnosticContext
-): Record<string, SectionDiagnosticWire> {
+function deriveSectionDiagnostics(context: SectionDiagnosticContext): Record<string, SectionDiagnosticWire> {
     const diagnostics: Record<string, SectionDiagnosticWire> = {};
 
     for (const [sectionName, status] of Object.entries(context.bySection)) {
@@ -268,7 +266,7 @@ function deriveSectionDiagnostics(
 
 function evaluateSectionQuality(values: unknown[]): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
     const nonEmpty = values.filter((v) => {
-        if (v === null || v === undefined || v === '' || v === 0) return false;
+        if (v === null || v === undefined || v === '') return false;
         if (Array.isArray(v) && v.length === 0) return false;
         return true;
     });
@@ -293,7 +291,7 @@ function evaluateObjectQuality(obj: unknown): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
     if (!obj || typeof obj !== 'object') return 'VACIO';
     const values = Object.values(obj);
     const nonEmpty = values.filter((v) => {
-        if (v === null || v === undefined || v === '' || v === 0) return false;
+        if (v === null || v === undefined || v === '') return false;
         if (Array.isArray(v) && v.length === 0) return false;
         return true;
     });
@@ -302,9 +300,6 @@ function evaluateObjectQuality(obj: unknown): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
     return 'PARCIAL';
 }
 
-function countSectionEvidence(
-    sectionName: string,
-    evidences: Array<{ fieldPath: string }>
-): number {
+function countSectionEvidence(sectionName: string, evidences: Array<{ fieldPath: string }>): number {
     return evidences.filter((evidence) => evidence.fieldPath.startsWith(`${sectionName}.`)).length;
 }

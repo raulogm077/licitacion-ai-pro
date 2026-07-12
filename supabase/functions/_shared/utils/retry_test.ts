@@ -1,4 +1,5 @@
-import { getRetryDelayMs, getRetryReason, isRetryableError } from './retry.ts';
+import { getRetryDelayMs, getRetryReason, isRetryableError, retryWithBackoff } from './retry.ts';
+import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 
 Deno.test('getRetryDelayMs honors Retry-After headers for rate limits', () => {
     const err = {
@@ -40,4 +41,56 @@ Deno.test('retry helpers classify non-retryable timeouts correctly', () => {
     if (getRetryReason(err) !== 'timeout') {
         throw new Error(`Expected timeout retry reason, got ${getRetryReason(err)}`);
     }
+});
+
+Deno.test('retryWithBackoff caps the wait via maxDelayMs (no unbounded Retry-After)', async () => {
+    let waited = -1;
+    let attempts = 0;
+    const err = { status: 429, headers: new Headers({ 'retry-after': '600' }) }; // 600s
+    // Small cap keeps the test fast while still exercising the clamp.
+    const cap = 20;
+
+    await retryWithBackoff(
+        () => {
+            attempts++;
+            if (attempts === 1) throw err;
+            return Promise.resolve('ok');
+        },
+        {
+            maxRetries: 1,
+            baseDelayMs: 1000,
+            maxDelayMs: cap,
+            label: 'test',
+            onRetry: (info) => {
+                waited = info.waitMs;
+            },
+        }
+    );
+
+    assertEquals(attempts, 2);
+    // 600s Retry-After must be clamped to the configured cap.
+    assertEquals(waited, cap);
+});
+
+Deno.test('retryWithBackoff respects shouldRetry=false (no retry)', async () => {
+    let attempts = 0;
+    let threw = false;
+    try {
+        await retryWithBackoff(
+            () => {
+                attempts++;
+                throw new Error('Timeout: Block x');
+            },
+            {
+                maxRetries: 1,
+                baseDelayMs: 1,
+                label: 'test',
+                shouldRetry: isRetryableError,
+            }
+        );
+    } catch {
+        threw = true;
+    }
+    assertEquals(attempts, 1);
+    assertEquals(threw, true);
 });

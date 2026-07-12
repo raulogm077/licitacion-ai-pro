@@ -37,6 +37,9 @@ updates:
           # Hold React Router major — v7 has breaking changes
           - dependency-name: 'react-router-dom'
             update-types: ['version-update:semver-major']
+          # Pinned to match the managed runtime's pre-installed Chromium; a
+          # newer minor expects a browser build that is not available there.
+          - dependency-name: '@playwright/test'
 
     # GitHub Actions versions
     - package-ecosystem: 'github-actions'

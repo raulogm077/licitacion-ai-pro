@@ -54,6 +54,57 @@ function safeJson(value: unknown): string {
     }
 }
 
+/**
+ * Keys of spanData that are safe to log verbatim (operational metadata).
+ * Anything else — notably `input`, `output`, `instructions` and tool
+ * payloads — can contain fragments of the user's document and must never
+ * reach the shared function logs.
+ */
+const SPAN_DATA_SAFE_KEYS = new Set([
+    'type',
+    'name',
+    'model',
+    'usage',
+    'tool_name',
+    'server',
+    'handoff_from',
+    'handoff_to',
+    'agent_name',
+    'response_id',
+    'trigger',
+]);
+
+const SPAN_DATA_STRING_LIMIT = 200;
+
+/**
+ * Redacts an SDK spanData object for logging: allowlisted keys only, and any
+ * string value truncated defensively. Exported for unit testing.
+ */
+export function sanitizeSpanData(spanData: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+    if (!spanData) return undefined;
+
+    const sanitized: Record<string, unknown> = {};
+    const omitted: string[] = [];
+
+    for (const [key, value] of Object.entries(spanData)) {
+        if (!SPAN_DATA_SAFE_KEYS.has(key)) {
+            omitted.push(key);
+            continue;
+        }
+        if (typeof value === 'string' && value.length > SPAN_DATA_STRING_LIMIT) {
+            sanitized[key] = `${value.slice(0, SPAN_DATA_STRING_LIMIT)}…[truncated]`;
+        } else {
+            sanitized[key] = value;
+        }
+    }
+
+    if (omitted.length > 0) {
+        sanitized.redacted_keys = omitted;
+    }
+
+    return sanitized;
+}
+
 function toMs(t: string | number | undefined): number | undefined {
     if (t === undefined) return undefined;
     if (typeof t === 'number') return t;
@@ -114,7 +165,7 @@ export class SupabaseLogTraceProcessor implements TraceProcessor {
                 error: span.error
                     ? { message: span.error instanceof Error ? span.error.message : String(span.error) }
                     : undefined,
-                spanData: span.spanData,
+                spanData: sanitizeSpanData(span.spanData),
             })}`
         );
     }

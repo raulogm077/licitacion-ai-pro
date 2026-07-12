@@ -64,9 +64,10 @@ export function useTemplates() {
         [loadTemplates]
     );
 
+    // Confirmation is the caller's responsibility (accessible dialog in the
+    // page) — the hook only performs the deletion.
     const handleDelete = useCallback(
-        async (id: string, confirmMessage: string) => {
-            if (!window.confirm(confirmMessage)) return;
+        async (id: string) => {
             setIsSubmitting(true);
             try {
                 const result = await templateService.deleteTemplate(id);

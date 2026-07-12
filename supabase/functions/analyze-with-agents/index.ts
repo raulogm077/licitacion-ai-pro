@@ -84,7 +84,7 @@ serve(async (req: Request) => {
             });
         }
 
-        const rateCheck = checkRateLimit(user.id);
+        const rateCheck = checkRateLimit(`analyze:${user.id}`);
         if (!rateCheck.allowed) {
             const retryAfterSec = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
             return new Response(
@@ -102,6 +102,8 @@ serve(async (req: Request) => {
             );
         }
 
+        // Fast-fail on the declared size, then enforce the cap on the actual
+        // body: content-length can be absent or spoofed by the client.
         const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
         if (contentLength > MAX_PAYLOAD_BYTES) {
             return new Response(
@@ -112,7 +114,17 @@ serve(async (req: Request) => {
             );
         }
 
-        const { pdfBase64, filename, template, files } = await req.json();
+        const rawBody = await req.text();
+        if (rawBody.length > MAX_PAYLOAD_BYTES) {
+            return new Response(
+                JSON.stringify({
+                    error: `Payload demasiado grande (${Math.round(rawBody.length / 1024 / 1024)}MB). Máximo: 50MB.`,
+                }),
+                { status: 413, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
+            );
+        }
+
+        const { pdfBase64, filename, template, files } = JSON.parse(rawBody);
 
         if (!pdfBase64 && (!files || files.length === 0)) {
             return new Response(JSON.stringify({ error: 'pdfBase64 o files requeridos' }), {
@@ -126,22 +138,26 @@ serve(async (req: Request) => {
             console.log(`[analyze] Additional documents: ${files.length}`);
         }
 
-        runOpportunisticCleanup(openai, async () => {
-            const { data } = await supabaseClient
-                .from('analysis_jobs')
-                .select('id, vector_store_id, file_ids')
-                .lt('cleanup_at', new Date().toISOString())
-                .not('vector_store_id', 'is', null)
-                .limit(5);
-            if (data && data.length > 0) {
-                const ids = data.map((j: { id: string }) => j.id);
+        runOpportunisticCleanup(
+            openai,
+            async () => {
+                const { data } = await supabaseClient
+                    .from('analysis_jobs')
+                    .select('id, vector_store_id, file_ids')
+                    .lt('cleanup_at', new Date().toISOString())
+                    .not('vector_store_id', 'is', null)
+                    .limit(5);
+                return data || [];
+            },
+            // Drop the references only after OpenAI confirmed the deletion;
+            // failed jobs keep their IDs so a future run can retry them.
+            async (job) => {
                 await supabaseClient
                     .from('analysis_jobs')
                     .update({ vector_store_id: null, file_ids: null })
-                    .in('id', ids);
+                    .eq('id', job.id);
             }
-            return data || [];
-        }).catch((err) =>
+        ).catch((err) =>
             console.warn('[analyze] Opportunistic cleanup failed:', {
                 error: err instanceof Error ? err.message : String(err),
                 userId: user.id,
@@ -341,9 +357,7 @@ serve(async (req: Request) => {
                     });
 
                     const finalOutput = { result, workflow };
-                    console.log(
-                        `[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`
-                    );
+                    console.log(`[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`);
 
                     if (jobId) {
                         jobService

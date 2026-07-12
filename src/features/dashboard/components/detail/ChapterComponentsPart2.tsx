@@ -13,12 +13,12 @@ export function TechnicalJsonModal({ vm, isOpen, onClose }: { vm: PliegoVM; isOp
             <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <FileJson className="w-5 h-5 text-slate-500" />
+                        <FileJson className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                         Datos Técnicos (JSON)
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex bg-slate-100 p-2 rounded-lg items-center gap-2 mb-2 text-xs text-slate-500">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-2 rounded-lg items-center gap-2 mb-2 text-xs text-slate-500 dark:text-slate-400">
                     <AlertCircle className="w-4 h-4" />
                     <span>
                         Solo para depuración y soporte técnico. Esta es la estructura interna utilizada por el sistema.

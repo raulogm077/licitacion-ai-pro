@@ -15,17 +15,26 @@ export function getCleanupTimestamp(ttlHours: number = DEFAULT_CLEANUP_TTL_HOURS
     return date.toISOString();
 }
 
+/** A 404 means the resource is already gone — that counts as cleaned. */
+function isAlreadyDeleted(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && (error as { status?: number }).status === 404;
+}
+
 /**
  * Cleanup a specific job's OpenAI resources.
  * Called when TTL expires or on-demand.
+ *
+ * @returns true when every resource was deleted (or no longer exists), so the
+ * caller can safely drop its references; false keeps them for a future retry.
  */
 export async function cleanupJobResources(
     openai: OpenAI,
     vectorStoreId?: string | null,
     fileIds?: string[] | null
-): Promise<void> {
+): Promise<boolean> {
     console.log('[Cleanup] Starting resource cleanup...');
 
+    let allSucceeded = true;
     const tasks: Promise<void>[] = [];
 
     if (vectorStoreId) {
@@ -33,7 +42,11 @@ export async function cleanupJobResources(
             openai.vectorStores
                 .delete(vectorStoreId)
                 .then(() => console.log(`[Cleanup] Vector Store deleted: ${vectorStoreId}`))
-                .catch((error) => console.error(`[Cleanup] Failed to delete vector store ${vectorStoreId}:`, error))
+                .catch((error) => {
+                    if (isAlreadyDeleted(error)) return;
+                    allSucceeded = false;
+                    console.error(`[Cleanup] Failed to delete vector store ${vectorStoreId}:`, error);
+                })
         );
     }
 
@@ -41,13 +54,12 @@ export async function cleanupJobResources(
         tasks.push(
             Promise.allSettled(fileIds.map((fileId) => openai.files.delete(fileId))).then((results) => {
                 for (let i = 0; i < results.length; i++) {
-                    if (results[i].status === 'fulfilled') {
+                    const result = results[i];
+                    if (result.status === 'fulfilled') {
                         console.log(`[Cleanup] File deleted: ${fileIds[i]}`);
-                    } else {
-                        console.error(
-                            `[Cleanup] Failed to delete file ${fileIds[i]}:`,
-                            (results[i] as PromiseRejectedResult).reason
-                        );
+                    } else if (!isAlreadyDeleted(result.reason)) {
+                        allSucceeded = false;
+                        console.error(`[Cleanup] Failed to delete file ${fileIds[i]}:`, result.reason);
                     }
                 }
             })
@@ -55,6 +67,7 @@ export async function cleanupJobResources(
     }
 
     await Promise.all(tasks);
+    return allSucceeded;
 }
 
 /**
@@ -66,9 +79,10 @@ export async function cleanupJobResources(
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 let lastCleanupRun = 0;
 
-export async function runOpportunisticCleanup(
+export async function runOpportunisticCleanup<T extends { vector_store_id?: string; file_ids?: string[] }>(
     openai: OpenAI,
-    getExpiredJobs: () => Promise<Array<{ vector_store_id?: string; file_ids?: string[] }>>
+    getExpiredJobs: () => Promise<T[]>,
+    onJobCleaned?: (job: T) => Promise<void>
 ): Promise<number> {
     const now = Date.now();
     if (now - lastCleanupRun < CLEANUP_INTERVAL_MS) {
@@ -81,8 +95,15 @@ export async function runOpportunisticCleanup(
         let cleaned = 0;
 
         for (const job of expiredJobs) {
-            await cleanupJobResources(openai, job.vector_store_id, job.file_ids);
-            cleaned++;
+            // Delete in OpenAI FIRST; only then let the caller drop its DB
+            // references. The reverse order orphaned vector stores/files
+            // forever when the OpenAI deletion failed (the IDs were already
+            // nulled in the DB, so no future run could retry them).
+            const succeeded = await cleanupJobResources(openai, job.vector_store_id, job.file_ids);
+            if (succeeded) {
+                await onJobCleaned?.(job);
+                cleaned++;
+            }
         }
 
         if (cleaned > 0) {

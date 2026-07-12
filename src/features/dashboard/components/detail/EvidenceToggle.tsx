@@ -23,7 +23,7 @@ export function EvidenceToggle({ evidence, className = '' }: EvidenceToggleProps
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className="text-slate-400 hover:text-indigo-600 transition-colors p-1 rounded-full hover:bg-indigo-50"
+                className="text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-1 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
                 title="Ver evidencia en el documento"
             >
                 <Eye size={16} />
@@ -31,18 +31,18 @@ export function EvidenceToggle({ evidence, className = '' }: EvidenceToggleProps
 
             {isOpen && (
                 <div
-                    className="absolute left-0 top-full mt-2 w-64 md:w-80 bg-white border border-slate-200 shadow-xl rounded-lg p-3 z-50 text-xs text-slate-600 select-text cursor-auto text-left"
+                    className="absolute left-0 top-full mt-2 w-64 md:w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg p-3 z-50 text-xs text-slate-600 dark:text-slate-300 select-text cursor-auto text-left"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className="font-semibold text-slate-800 mb-1 flex justify-between items-center">
+                    <div className="font-semibold text-slate-800 dark:text-slate-200 mb-1 flex justify-between items-center">
                         <span>Evidencia:</span>
                         {evidence.pageHint && (
-                            <span className="text-[10px] uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                            <span className="text-[10px] uppercase tracking-wider bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
                                 Pág. {evidence.pageHint}
                             </span>
                         )}
                     </div>
-                    <div className="italic bg-slate-50 p-2.5 rounded border border-slate-100 text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
+                    <div className="italic bg-slate-50 dark:bg-slate-900 p-2.5 rounded border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-300 leading-relaxed max-h-48 overflow-y-auto">
                         "{evidence.quote}"
                     </div>
 
