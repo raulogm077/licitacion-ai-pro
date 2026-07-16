@@ -387,6 +387,22 @@ Tras confirmar paridad de salida en producción (PRs #275 y #276), el 2026-05-09
 
 **Fecha:** 2026-07-12
 
+### 8.11 Arquitectura objetivo de IA y Fase 0 evaluable (Aceptada 2026-07-16)
+
+La evolución aprobada está definida en `docs/adr/ADR-001-arquitectura-ia-durable-y-evaluable.md`. El objetivo separa la petición web del trabajo de análisis mediante un job ledger en Postgres y pasos en cola; introduce retrieval explícito con metadatos, Fact/Evidence Store y proyecciones canónicas; reserva Responses structured output para extracción controlada y Agents SDK para el copiloto/tool loop.
+
+La Fase 0 no altera el runtime productivo. Añade:
+
+- `ANALYSIS_RUNTIME_VERSIONS` para pipeline, prompts, schema, modelo y SDK;
+- fingerprint SHA-256 de los fuentes efectivos en cada evaluación;
+- `evals/pliegos` como dataset y runner live que reutiliza las fases A-E;
+- métricas de hechos, ausencias, grounding, degradación y latencia;
+- `pnpm eval:pliegos:check` dentro de `verify:release` y `pnpm eval:pliegos:live` como gate manual de cambios semánticos.
+
+El caso inicial `memo-p2-live` es un smoke de cableado y anti-alucinación, no una muestra estadística. Antes de modernizar modelos o bloquear producción con umbrales agregados, el dataset debe crecer a 10–20 expedientes representativos y conservar baseline de coste/latencia.
+
+**Fecha:** 2026-07-16
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

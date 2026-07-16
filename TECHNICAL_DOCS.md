@@ -245,6 +245,17 @@ pnpm benchmark:pliegos
 
 Protege paridad semántica del pipeline tras la migración a `@openai/agents`.
 
+### Evaluación IA live
+
+```bash
+pnpm eval:pliegos:check
+pnpm eval:pliegos:live
+```
+
+El primer comando prueba el scorer determinista y forma parte de `verify:release`. El segundo reutiliza las fases productivas A-E, llama realmente a OpenAI y registra solo métricas/versiones/fingerprint/latencias bajo `evals/results/` (ignorado por Git). El dataset y contrato están documentados en `evals/pliegos/README.md`; se requiere `OPENAI_API_KEY` en `.env.local` y el runner elimina Files/Vector Stores en `finally`.
+
+El benchmark responde «¿la proyección de producto sigue interpretando correctamente un resultado canónico?». El eval live responde «¿el pipeline/modelo extrae correctamente y sin alucinar desde el documento?». Ninguno sustituye al otro.
+
 ---
 
 ## Apéndice — Decisiones clave

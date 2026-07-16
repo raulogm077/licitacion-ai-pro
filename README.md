@@ -9,6 +9,7 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
+- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion.
 
 <!-- release-contract:end -->
 
@@ -67,6 +68,7 @@ Documentación viva del sistema:
 - `DEPLOYMENT.md`: proceso actual de despliegue
 - `TECHNICAL_DOCS.md`: contratos técnicos detallados
 - `CHANGELOG.md`: historial de cambios por release (última entrada 2026-07-12: revisión integral de seguridad, bugs, accesibilidad y limpieza —ver `SPEC.md` §10.7— más el fix de CI post-#297: comillas en la instalación de Vercel y parches de `vite`/`tmp`/`ws`)
+- `docs/adr/ADR-001-arquitectura-ia-durable-y-evaluable.md`: arquitectura objetivo de IA y migración incremental aprobada
 
 ## Stack real
 
@@ -126,6 +128,8 @@ VITE_ENVIRONMENT=local
 
 `OPENAI_API_KEY` no debe vivir en el frontend. Debe configurarse como secreto en Supabase para las funciones `analyze-with-agents` y `chat-with-analysis-agent`.
 
+Para la evaluación live local, `OPENAI_API_KEY` se lee desde `.env.local`, que está ignorado por Git. El evaluador no usa las variables `VITE_*` ni persiste la clave en sus informes.
+
 ### Ejecución local
 
 ```bash
@@ -138,6 +142,7 @@ pnpm dev
 pnpm typecheck
 pnpm test
 pnpm benchmark:pliegos
+pnpm eval:pliegos:check
 pnpm test:e2e
 pnpm verify:integrity
 pnpm verify:release
@@ -148,6 +153,7 @@ Notas:
 - `pnpm test:e2e` debe usarse cuando una tarea toque UI, flujo principal de análisis o SSE.
 - `pnpm benchmark:pliegos` valida el caso principal de producto con fixtures versionados y es obligatorio cuando cambian contrato, pipeline o dashboard del análisis.
 - El benchmark también protege regresiones silenciosas de reconciliación canónica, por ejemplo presupuesto/plazo completados desde bloques económicos o diagnósticos por sección.
+- `pnpm eval:pliegos:check` valida en CI el contrato determinista de métricas. `pnpm eval:pliegos:live` ejecuta manualmente las cinco fases reales contra OpenAI y compara hechos, ausencias, grounding y calidad; consume API y no forma parte del CI.
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
 
 ## Flujo de ramas y entrega
