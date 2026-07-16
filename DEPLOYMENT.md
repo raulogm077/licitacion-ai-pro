@@ -93,6 +93,7 @@ Migraciones relevantes recientes:
 - `20260419015401_analysis_chat_tables.sql` — tablas `analysis_chat_sessions` y `analysis_chat_messages` con RLS
 - `20260712000000_fix_search_licitaciones_idor.sql` — corrige un IDOR en la RPC `search_licitaciones`: pasa a `search_licitaciones(search_query text)` de un solo argumento, `SECURITY INVOKER` (aplica RLS) con filtro `auth.uid()` y `search_path` fijo; endurece además el `search_path` de las funciones trigger `update_updated_at_column` y `update_extraction_templates_updated_at`. El frontend no cambia (ya llamaba solo con `search_query`)
 - `20260716101822_analysis_jobs_durable_foundation.sql` — PGMQ, ledger/outbox de pasos, idempotencia, copias recuperables en Storage y RPC backend-only. Debe pasar primero por Supabase Preview; no aplicar manualmente en producción.
+- `20260716105353_analysis_job_advisor_hardening.sql` — índices de las FK del outbox y política RLS deny explícita; cierra los tres avisos introducidos detectados por advisors en el preview de la PR.
 
 > **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
 

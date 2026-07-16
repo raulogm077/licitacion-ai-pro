@@ -6,6 +6,7 @@
 - **Ledger + PGMQ**: cuatro pasos con leases, reintentos y checkpoints; outbox transaccional a `analysis_steps`, archive tras éxito y DLQ al agotar intentos.
 - **Entrada recuperable**: PDF/DOCX/TXT se copia a Storage privado con SHA-256, tamaño, MIME, ruta por usuario/job y retención explícita.
 - **Seguridad**: clientes autenticados quedan en lectura RLS; las mutaciones son backend-only y PGMQ no se expone por Data API.
+- **Advisors**: el preview añade índices sobre las FK `job_id`/`step_id` del outbox y una política deny explícita, sin avisos nuevos de seguridad o rendimiento.
 - **Continuidad de UX**: nuevo evento `job_created`, `X-Idempotency-Key` estable incluso tras 401 y polling por `jobId` cuando SSE se interrumpe.
 - **Migración incremental**: el worker continúa inline y el request conserva base64; upload firmado, consumidor independiente y Realtime se reservan para Fase 1B.
 
