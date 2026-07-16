@@ -11,6 +11,7 @@ fases que llamen al modelo.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
+- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion.
 
 <!-- release-contract:end -->
 

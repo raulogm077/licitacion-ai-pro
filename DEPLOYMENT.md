@@ -9,6 +9,7 @@ Este documento describe el proceso vigente de despliegue. No describe la arquite
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
+- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion.
 
 <!-- release-contract:end -->
 
@@ -39,6 +40,8 @@ Antes de desplegar una tarea, QA debe verificar:
     - compatibilidad con la Guía de lectura de pliegos
     - compatibilidad con SSE
     - compatibilidad con schema/Zod
+    - `pnpm eval:pliegos:check` en verde
+    - baseline de `pnpm eval:pliegos:live` si cambia modelo, prompt, retrieval u orquestación
 5. documentación mínima actualizada
 
 ## 3.1. Gate funcional de release
@@ -56,6 +59,19 @@ Cambios recientes protegidos por ese gate:
 - reconciliación canónica de `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` cuando la señal fiable está en `economico` o `duracionYProrrogas`
 - preservación de `criteriosAdjudicacion` cuando llegan `subcriterios` mal formados
 - diagnóstico estructurado por sección en `workflow.quality.section_diagnostics` para distinguir ausencia documental frente a degradación del pipeline
+
+## 3.2. Evaluación semántica real de IA
+
+El benchmark funcional no llama al modelo: valida fixtures canónicos ya generados. Los cambios de IA necesitan además dos capas:
+
+```bash
+pnpm eval:pliegos:check
+pnpm eval:pliegos:live
+```
+
+La primera es determinista, no consume red y forma parte de `verify:release`. La segunda ejecuta las fases A-E reales contra OpenAI, registra modelo/versiones/fingerprint, latencias y métricas de hechos, ausencias y grounding, y elimina Files/Vector Stores al finalizar. Sus resultados viven en `evals/results/`, ignorado por Git; el artefacto baseline debe conservarse en la evidencia de QA o de la PR, nunca con contenido sensible ni credenciales.
+
+El eval live es obligatorio antes de promover cambios en modelo, prompts, retrieval u orquestación. No se ejecuta automáticamente en CI para evitar consumo de API y exposición innecesaria de secretos en ramas no confiables.
 
 ## 4. Migraciones de base de datos
 
@@ -173,6 +189,7 @@ Cualquier script bajo `scripts/` debe ser invocado desde `package.json`, `.githu
 
 - `verify-ci.sh` → invocado por `pnpm verify:release` (entry point del cierre obligatorio antes de push/PR).
 - `verify-integrity.ts` → invocado por `pnpm verify:integrity` y por el job `Repo Integrity` del workflow.
+- `evals/pliegos/run.ts` → invocado manualmente por `pnpm eval:pliegos:live`; el scoring determinista se ejecuta desde `verify-ci.sh`.
 
 Si un script futuro deja de usarse desde alguno de esos sitios, debe eliminarse en lugar de mantenerse "por si acaso". El repo no conserva scripts de conveniencia muertos.
 

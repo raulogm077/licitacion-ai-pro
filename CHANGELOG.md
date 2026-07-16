@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-07-16 — Fase 0 de arquitectura IA evaluable
+
+- **ADR de arquitectura objetivo**: jobs durables con ledger/cola, Storage directo, retrieval explícito, Fact/Evidence Store, Responses structured output para extracción y Agents SDK para el copiloto.
+- **Evaluación end-to-end real**: `pnpm eval:pliegos:live` reutiliza las fases A-E contra OpenAI, puntúa exactitud de hechos y ausencias, grounding, calidad y degradación, mide latencias y limpia Files/Vector Stores al finalizar.
+- **Versionado reproducible**: descriptor semántico de pipeline/prompts/schema/modelo/SDK más fingerprint SHA-256 de los fuentes efectivos. Los informes locales no guardan la respuesta completa ni se versionan.
+- **Gate determinista**: `pnpm eval:pliegos:check` prueba el scorer sin red y queda integrado en `pnpm verify:release`. El benchmark de fixtures sigue siendo un gate distinto y obligatorio.
+- **Sin cambio productivo**: esta fase no modifica SSE, schemas persistidos ni despliegue de las Edge Functions; establece la línea base necesaria para migrar con seguridad.
+
 ## [Unreleased] - 2026-07-12j — Diagnóstico veraz de ingesta, resiliencia 429 y tracking de jobs
 
 El primer análisis completo tras los hotfixes reveló tres problemas de calidad (no de corrección del pipeline):

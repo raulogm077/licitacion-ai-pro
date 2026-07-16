@@ -18,6 +18,8 @@
         "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
         "preview": "vite preview",
         "benchmark:pliegos": "node --import tsx benchmarks/pliegos/run.ts",
+        "eval:pliegos:check": "deno test evals/pliegos/score_test.ts",
+        "eval:pliegos:live": "deno run --env-file=.env.local --allow-env --allow-read --allow-write=evals/results --allow-net=api.openai.com --node-modules-dir=auto evals/pliegos/run.ts",
         "verify:integrity": "node --import tsx scripts/verify-integrity.ts",
         "verify:release": "bash ./scripts/verify-ci.sh",
         "prepare": "husky",

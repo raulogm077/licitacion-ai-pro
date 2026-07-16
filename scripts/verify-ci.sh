@@ -25,6 +25,9 @@ echo "→ Unit tests + coverage..."
 echo "→ Benchmark funcional..."
 node --import tsx benchmarks/pliegos/run.ts
 
+echo "→ Contrato de scoring IA..."
+deno test evals/pliegos/score_test.ts
+
 echo "→ Build..."
 "$BIN_DIR/tsc"
 "$BIN_DIR/vite" build

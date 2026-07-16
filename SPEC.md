@@ -279,3 +279,21 @@ No forman parte de `## To Do` de `BACKLOG.md`; se registran aquí como deuda con
 - decisión sobre **adopción o eliminación completa del service-registry**;
 - **modelo de job asíncrono** para documentos de 300+ páginas (ya recogido en `CLAUDE.md`, "Pipeline Timeout Architecture").
 - ~~**orden de la migración `add_provider_reading_mode`**~~ **(resuelto 2026-07-12)**: el fichero se renombró de `20250130000000` a `20251229000000` (posterior a `initial_schema`) y se idempotentizó; se reparó el historial remoto (`delete` de la fila vieja en `schema_migrations`) para que el deploy re-aplique bajo el nuevo `version`. El _branching preview_ vuelve a pasar. Detalle en `DEPLOYMENT.md` (§ "Orden de migraciones y Supabase Preview").
+
+### 10.8. Fase 0 de arquitectura IA evaluable (2026-07-16)
+
+Decisión aprobada en `docs/adr/ADR-001-arquitectura-ia-durable-y-evaluable.md`:
+
+- arquitectura objetivo basada en job ledger, cola de pasos idempotentes, Storage directo, retrieval explícito y Fact/Evidence Store;
+- Responses con structured output para extracción controlada; Agents SDK para conversación, tools y handoffs;
+- versionado de pipeline/prompts/schema/modelo/SDK más fingerprint efectivo;
+- eval live real separado del benchmark determinista de proyección.
+
+Criterios cerrados en esta fase:
+
+- `pnpm eval:pliegos:check` pasa sin red y queda integrado en `verify:release`;
+- `pnpm eval:pliegos:live` ejecuta A-E contra OpenAI, puntúa hechos/ausencias/grounding/calidad y limpia los recursos temporales;
+- los resultados no persisten respuestas completas, documentos ni credenciales;
+- no cambia el contrato SSE ni el comportamiento de producción.
+
+El dataset inicial contiene un smoke mínimo. El siguiente gate de arquitectura exige 10–20 pliegos representativos antes de comparar/promover modelos, prompts o retrieval nuevos.
