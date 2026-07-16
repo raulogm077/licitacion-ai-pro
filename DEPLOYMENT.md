@@ -92,6 +92,7 @@ Migraciones relevantes recientes:
 - `20260329000000_fulltext_search.sql` — Columna `search_vector` (tsvector español), índice GIN, función RPC `search_licitaciones`
 - `20260419015401_analysis_chat_tables.sql` — tablas `analysis_chat_sessions` y `analysis_chat_messages` con RLS
 - `20260712000000_fix_search_licitaciones_idor.sql` — corrige un IDOR en la RPC `search_licitaciones`: pasa a `search_licitaciones(search_query text)` de un solo argumento, `SECURITY INVOKER` (aplica RLS) con filtro `auth.uid()` y `search_path` fijo; endurece además el `search_path` de las funciones trigger `update_updated_at_column` y `update_extraction_templates_updated_at`. El frontend no cambia (ya llamaba solo con `search_query`)
+- `20260716101822_analysis_jobs_durable_foundation.sql` — PGMQ, ledger/outbox de pasos, idempotencia, copias recuperables en Storage y RPC backend-only. Debe pasar primero por Supabase Preview; no aplicar manualmente en producción.
 
 > **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
 
@@ -116,6 +117,7 @@ Antes de desplegar:
 deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
 deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
+deno test supabase/functions/_shared/services/durable-input.service_test.ts supabase/functions/_shared/services/job.service_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
 ```
 
@@ -143,13 +145,15 @@ Las dos deben responder `401` desde el gateway (sin invocar el código de la fun
 
 `OPENAI_API_KEY` debe estar configurada como secreto de Supabase para ambas Edge Functions. No debe exponerse en el frontend.
 
+`analyze-with-agents` usa además `SUPABASE_SERVICE_ROLE_KEY` para mutaciones del ledger y PGMQ. Es un secreto integrado que Supabase inyecta automáticamente en sus Edge Functions: no se copia a `.env` del frontend, no se devuelve al cliente y no se configura como un secreto personalizado.
+
 Ejemplo de configuración:
 
 ```bash
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
-No hay otros secretos backend operativos. Cualquier secret remoto huérfano (ej. `USE_AGENTS_SDK`, eliminado del código el 2026-05-09) puede borrarse con `supabase secrets unset <NAME>` sin afectar runtime.
+No hay otros secretos backend personalizados operativos. Cualquier secret remoto huérfano (ej. `USE_AGENTS_SDK`, eliminado del código el 2026-05-09) puede borrarse con `supabase secrets unset <NAME>` sin afectar runtime.
 
 ## 7. Validación posterior al despliegue
 
@@ -159,6 +163,8 @@ Después del despliegue, QA debe comprobar al menos:
 - que no hay errores inmediatos de ejecución
 - que el flujo principal sigue respondiendo como mínimo en un smoke test sobre un pliego representativo del camino principal (PDF completo)
 - que en los logs de `analyze-with-agents` aparecen entradas con prefijo `[trace]` (al menos 1 por cada fase B y C) — verifica que el `SupabaseLogTraceProcessor` está activo
+- que el primer evento autenticado es `job_created`, el job pertenece al usuario y sus cuatro steps terminan `completed`
+- que `analysis_steps` no conserva mensajes activos tras un análisis correcto y un fallo reintentable mantiene el mensaje sin archivarlo
 - que tanto `analyze-with-agents` como `chat-with-analysis-agent` responden `401` ante un POST sin JWT (smoke automático en §5.2)
 
 Comandos útiles:

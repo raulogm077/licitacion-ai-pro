@@ -81,6 +81,14 @@ export interface HeartbeatEvent {
     timestamp: number;
 }
 
+export interface JobCreatedEvent {
+    type: 'job_created';
+    timestamp: number;
+    jobId: string;
+    status: string;
+    created: boolean;
+}
+
 export interface PhaseStartedEvent {
     type: 'phase_started';
     timestamp: number;
@@ -150,6 +158,7 @@ export interface AgentMessageEvent {
 }
 
 export type AnalysisStreamEvent =
+    | JobCreatedEvent
     | HeartbeatEvent
     | PhaseStartedEvent
     | PhaseCompletedEvent

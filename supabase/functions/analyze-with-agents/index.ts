@@ -28,7 +28,9 @@ import { runBlockExtraction } from './phases/block-extraction.ts';
 import { runConsolidation } from './phases/consolidation.ts';
 import { runValidation } from './phases/validation.ts';
 import { getCleanupTimestamp, runOpportunisticCleanup, cleanupJobResources } from './cleanup.ts';
-import { JobService } from '../_shared/services/job.service.ts';
+import { JobService, type AnalysisStepName } from '../_shared/services/job.service.ts';
+import { persistAnalysisInputs, sha256Hex } from '../_shared/services/durable-input.service.ts';
+import { ANALYSIS_RUNTIME_VERSIONS } from '../_shared/ai-runtime-version.ts';
 import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES, API_CALL_TIMEOUT_MS } from '../_shared/config.ts';
 import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../_shared/utils/timeout.ts';
@@ -69,13 +71,14 @@ serve(async (req: Request) => {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
         const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 
-        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+        const userSupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
             global: { headers: { Authorization: `Bearer ${token}` } },
+            auth: { persistSession: false, autoRefreshToken: false },
         });
 
         const {
             data: { user },
-        } = await supabaseClient.auth.getUser(token);
+        } = await userSupabaseClient.auth.getUser(token);
 
         if (!user) {
             return new Response(JSON.stringify({ error: 'No se pudo resolver el usuario' }), {
@@ -133,6 +136,35 @@ serve(async (req: Request) => {
             });
         }
 
+        const idempotencyKey = (req.headers.get('x-idempotency-key') || requestId).trim();
+        if (!/^[A-Za-z0-9._:-]{8,200}$/.test(idempotencyKey)) {
+            return new Response(JSON.stringify({ error: 'X-Idempotency-Key no válido' }), {
+                status: 400,
+                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+            });
+        }
+
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+        if (!serviceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY no configurada');
+
+        // This client never leaves the Edge Function. Browser access remains
+        // read-only and tenant-scoped through RLS.
+        const serviceSupabaseClient = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const jobService = new JobService(serviceSupabaseClient);
+        const retentionUntil = getCleanupTimestamp();
+        const inputFingerprint = await sha256Hex(rawBody);
+        const durableJob = await jobService.createDurableJob(
+            user.id,
+            filename || 'documento.pdf',
+            idempotencyKey,
+            inputFingerprint,
+            ANALYSIS_RUNTIME_VERSIONS,
+            retentionUntil
+        );
+        const jobId = durableJob.jobId;
+
         console.log(`[analyze] Processing: ${filename || 'documento.pdf'} reqId=${requestId}`);
         if (files && files.length > 0) {
             console.log(`[analyze] Additional documents: ${files.length}`);
@@ -141,7 +173,7 @@ serve(async (req: Request) => {
         runOpportunisticCleanup(
             openai,
             async () => {
-                const { data } = await supabaseClient
+                const { data } = await serviceSupabaseClient
                     .from('analysis_jobs')
                     .select('id, vector_store_id, file_ids')
                     .lt('cleanup_at', new Date().toISOString())
@@ -152,7 +184,7 @@ serve(async (req: Request) => {
             // Drop the references only after OpenAI confirmed the deletion;
             // failed jobs keep their IDs so a future run can retry them.
             async (job) => {
-                await supabaseClient
+                await serviceSupabaseClient
                     .from('analysis_jobs')
                     .update({ vector_store_id: null, file_ids: null })
                     .eq('id', job.id);
@@ -209,8 +241,8 @@ serve(async (req: Request) => {
 
                 let vectorStoreId: string | undefined;
                 let fileIds: string[] | undefined;
-                const jobService = new JobService(supabaseClient);
-                let jobId: string | null = null;
+                let activeStep: AnalysisStepName | null = null;
+                let persistedDocumentIds: string[] = [];
 
                 const timeoutId = setTimeout(() => {
                     if (!completed) {
@@ -220,9 +252,17 @@ serve(async (req: Request) => {
                                 console.warn('[analyze] Timeout cleanup failed:', e)
                             );
                         }
-                        sendEvent('error', {
-                            message: 'Tiempo de ejecución excedido. Intente con documentos más pequeños.',
-                        });
+                        const timeoutMessage = 'Tiempo de ejecución excedido. Intente con documentos más pequeños.';
+                        if (activeStep) {
+                            jobService
+                                .failStep(jobId, activeStep, requestId, timeoutMessage)
+                                .catch((e) => console.warn('[analyze] Timeout step persistence failed:', e));
+                        } else {
+                            jobService
+                                .failJob(jobId, timeoutMessage)
+                                .catch((e) => console.warn('[analyze] Timeout job persistence failed:', e));
+                        }
+                        sendEvent('error', { message: timeoutMessage });
                         completed = true;
                         clearInterval(keepAlive);
                         controller.close();
@@ -230,6 +270,65 @@ serve(async (req: Request) => {
                 }, PIPELINE_TIMEOUT_MS);
 
                 try {
+                    sendEvent('job_created', {
+                        jobId,
+                        status: durableJob.created ? 'pending' : 'existing',
+                        created: durableJob.created,
+                    });
+
+                    if (!durableJob.created) {
+                        const existingJob = await jobService.getJob(jobId);
+                        const existingStatus = String(existingJob?.status || 'pending');
+                        if (existingStatus === 'completed' && existingJob?.result) {
+                            const saved = existingJob.result as { result?: unknown; workflow?: unknown };
+                            sendEvent('complete', {
+                                result: saved.result ?? saved,
+                                workflow: saved.workflow,
+                            });
+                            return;
+                        }
+                        if (['failed', 'cancelled', 'dead_letter'].includes(existingStatus)) {
+                            sendEvent('error', {
+                                message: String(existingJob?.error || 'El análisis previo no pudo completarse'),
+                            });
+                            return;
+                        }
+
+                        sendEvent('phase_progress', {
+                            message: 'El análisis ya está en curso; recuperando su estado durable...',
+                        });
+                        return;
+                    }
+
+                    const persistedDocuments = await persistAnalysisInputs({
+                        supabase: serviceSupabaseClient,
+                        userId: user.id,
+                        jobId,
+                        filename: filename || 'documento.pdf',
+                        pdfBase64,
+                        files,
+                        retentionUntil,
+                    });
+                    persistedDocumentIds = persistedDocuments.map((document) => document.id);
+
+                    await jobService.startStep(
+                        jobId,
+                        'ingestion_map',
+                        requestId,
+                        {
+                            documents: persistedDocuments.map((document) => ({
+                                id: document.id,
+                                storagePath: document.storagePath,
+                                sha256: document.sha256,
+                                sizeBytes: document.sizeBytes,
+                                mimeType: document.mimeType,
+                            })),
+                            runtimeVersion: ANALYSIS_RUNTIME_VERSIONS,
+                        },
+                        Math.ceil(PIPELINE_TIMEOUT_MS / 1000) + 60
+                    );
+                    activeStep = 'ingestion_map';
+
                     sendEvent('phase_started', { phase: 'ingestion', message: 'Subiendo documentos...' });
                     const ingestion = await callWithTimeout(
                         runIngestion({
@@ -244,19 +343,13 @@ serve(async (req: Request) => {
                     );
                     vectorStoreId = ingestion.vectorStoreId;
                     fileIds = ingestion.fileIds;
+                    await jobService.setExternalResources(
+                        jobId,
+                        ingestion.vectorStoreId,
+                        ingestion.fileIds,
+                        persistedDocumentIds
+                    );
                     sendEvent('phase_completed', { phase: 'ingestion', message: 'Documentos indexados' });
-
-                    try {
-                        jobId = await jobService.createJob(
-                            user.id,
-                            filename || 'documento.pdf',
-                            ingestion.vectorStoreId,
-                            ingestion.fileIds,
-                            getCleanupTimestamp()
-                        );
-                    } catch (dbErr) {
-                        console.warn('[analyze] Failed to persist job:', dbErr);
-                    }
 
                     const pipelineContext = createPipelineContext({
                         vectorStoreId: ingestion.vectorStoreId,
@@ -278,11 +371,18 @@ serve(async (req: Request) => {
                         message: `${documentMap.documentos.length} documentos identificados`,
                     });
 
-                    if (jobId) {
-                        jobService
-                            .updatePhase(jobId, 'document_map', documentMap)
-                            .catch((e) => console.warn('[analyze] Job DB update failed:', e));
-                    }
+                    await jobService.updatePhase(jobId, 'document_map', documentMap);
+                    await jobService.completeStep(jobId, 'ingestion_map', requestId, {
+                        vectorStoreId: ingestion.vectorStoreId,
+                        fileIds: ingestion.fileIds,
+                        documentCount: documentMap.documentos.length,
+                    });
+                    activeStep = null;
+
+                    await jobService.startStep(jobId, 'extraction', requestId, {
+                        vectorStoreId: ingestion.vectorStoreId,
+                    });
+                    activeStep = 'extraction';
 
                     sendEvent('phase_started', { phase: 'extraction', message: 'Extrayendo información...' });
                     const extraction = await runBlockExtraction({
@@ -318,16 +418,17 @@ serve(async (req: Request) => {
                         message: `${extraction.blocks.length} bloques extraídos`,
                     });
 
-                    if (jobId) {
-                        // Awaited: consolidation/validation are synchronous and the
-                        // stream closes right after — a fire-and-forget write here is
-                        // killed with the request and the job stays "processing" forever.
-                        try {
-                            await jobService.updatePhase(jobId, 'extraction');
-                        } catch (e) {
-                            console.warn('[analyze] Job DB update failed:', e);
-                        }
-                    }
+                    await jobService.updatePhase(jobId, 'extraction', extraction.diagnostics);
+                    await jobService.completeStep(jobId, 'extraction', requestId, {
+                        blockCount: extraction.blocks.length,
+                        diagnostics: extraction.diagnostics,
+                    });
+                    activeStep = null;
+
+                    await jobService.startStep(jobId, 'consolidation', requestId, {
+                        blockCount: extraction.blocks.length,
+                    });
+                    activeStep = 'consolidation';
 
                     sendEvent('phase_started', { phase: 'consolidation', message: 'Consolidando resultados...' });
                     const consolidated = await callWithTimeout(
@@ -342,6 +443,17 @@ serve(async (req: Request) => {
                         'Consolidation'
                     );
                     sendEvent('phase_completed', { phase: 'consolidation', message: 'Resultados consolidados' });
+
+                    await jobService.updatePhase(jobId, 'consolidation');
+                    await jobService.completeStep(jobId, 'consolidation', requestId, {
+                        consolidated: true,
+                    });
+                    activeStep = null;
+
+                    await jobService.startStep(jobId, 'validation', requestId, {
+                        consolidated: true,
+                    });
+                    activeStep = 'validation';
 
                     sendEvent('phase_started', { phase: 'validation', message: 'Validando resultado...' });
                     const { result, workflow } = await callWithTimeout(
@@ -361,28 +473,32 @@ serve(async (req: Request) => {
                         message: `Quality: ${workflow.quality?.overall || 'N/A'}`,
                     });
 
+                    await jobService.updatePhase(jobId, 'validation', workflow);
+                    await jobService.completeStep(jobId, 'validation', requestId, {
+                        quality: workflow.quality?.overall || null,
+                    });
+                    activeStep = null;
+
                     const finalOutput = { result, workflow };
                     console.log(`[analyze] Pipeline completed reqId=${requestId} quality=${workflow.quality?.overall}`);
 
-                    if (jobId) {
-                        // Awaited for the same reason: this is the last write before
-                        // the stream closes.
-                        try {
-                            await jobService.completeJob(jobId, finalOutput);
-                        } catch (e) {
-                            console.warn('[analyze] Job DB update failed:', e);
-                        }
-                    }
+                    await jobService.completeJob(jobId, finalOutput);
 
                     sendEvent('complete', finalOutput);
                 } catch (error: unknown) {
                     const errMsg = mapOpenAIError(error);
                     console.error(`[analyze] Pipeline error reqId=${requestId}:`, error);
-                    if (jobId) {
+                    if (activeStep) {
+                        try {
+                            await jobService.failStep(jobId, activeStep, requestId, errMsg);
+                        } catch (e) {
+                            console.warn('[analyze] Step failure persistence failed:', e);
+                        }
+                    } else if (durableJob.created) {
                         try {
                             await jobService.failJob(jobId, errMsg);
                         } catch (e) {
-                            console.warn('[analyze] Job DB update failed:', e);
+                            console.warn('[analyze] Job failure persistence failed:', e);
                         }
                     }
                     if (vectorStoreId || fileIds) {

@@ -18,20 +18,20 @@ Este documento es obligatorio actualizarlo cuando cambie cualquiera de estos pun
 
 ## 3. Vista general
 
-La aplicación analiza documentos PDF de licitaciones usando una Edge Function con **OpenAI Responses API** organizada en un **pipeline de 5 fases**, con streaming de progreso al frontend mediante **Server-Sent Events (SSE)**. Las fases B y C se invocan a través del SDK `@openai/agents@0.3.1` (Agent + run() + guardrails declarativos), que se apoya internamente en Responses API. Además, incorpora una capa conversacional productiva con **OpenAI Agents SDK** sobre análisis ya persistidos, sin alterar el flujo batch vigente.
+La aplicación analiza documentos de licitaciones con un control plane durable sobre Postgres, Storage y Supabase Queues. La ejecución de transición sigue ocurriendo en la Edge Function y conserva el pipeline de 5 fases y SSE, pero el job y su `step ledger` existen antes de cualquier llamada a OpenAI. Las fases B y C se invocan a través del SDK `@openai/agents@0.3.1` (Agent + run() + guardrails declarativos), que se apoya internamente en Responses API. Además, incorpora una capa conversacional productiva con **OpenAI Agents SDK** sobre análisis ya persistidos.
 
 Flujo actual:
 
 ```text
 Frontend
-  └─ JobService.analyzeWithAgents()
+  └─ JobService.analyzeWithAgents() + X-Idempotency-Key
        └─ Supabase Edge Function: analyze-with-agents
-            ├─ Fase A: Ingesta (Files API + Vector Store)
-            ├─ Fase B: Mapa Documental (Agent + run() + file_search)
-            ├─ Fase C: Extracción por Bloques (~9 Agents + run(), concurrencia 2)
-            ├─ Fase D: Consolidación (merge + prelación documental)
-            └─ Fase E: Validación Final (quality scoring)
-                 └─ SSE → Frontend (progreso por fase + reintentos + resultado)
+            ├─ crea analysis_job + ledger antes de efectos externos
+            ├─ persiste documentos en Storage privado + hash/retención
+            ├─ outbox transaccional → PGMQ analysis_steps
+            ├─ reclama lease y ejecuta inline las fases A-E actuales
+            ├─ checkpoint + archive, retry o dead-letter por paso
+            └─ SSE → Frontend; polling RLS por jobId si el stream cae
 ```
 
 ## 4. Componentes principales
@@ -66,6 +66,8 @@ Responsabilidades:
 - preparar la petición al backend
 - invocar `analyze-with-agents`
 - consumir eventos SSE
+- generar y reutilizar `X-Idempotency-Key` incluso tras un refresh de sesión/401
+- recuperar el resultado desde `analysis_jobs` cuando el stream termina sin `complete`
 - notificar progreso a la UI
 - transformar o encaminar el resultado al flujo de render
 - preservar el contrato wire compartido (`AnalysisStreamEvent`) y mostrar `retry_scheduled` o progreso de indexación sin aparentar congelación
@@ -74,18 +76,21 @@ Cualquier cambio relevante en este servicio obliga a revisar este documento.
 
 ### 4.3. Edge Function `analyze-with-agents`
 
-Es el núcleo del pipeline de IA. La autenticación está delegada al gateway de Supabase mediante `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin un JWT válido se rechazan con 401 antes de invocar la función; dentro del handler sólo resolvemos el `user` para rate-limiting y ownership.
+Es el núcleo transicional del pipeline de IA. La autenticación está delegada al gateway de Supabase mediante `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin un JWT válido se rechazan con 401 antes de invocar la función; dentro del handler se resuelve el `user` para rate-limiting y ownership. Las mutaciones durables usan un cliente `service_role` creado solo en backend; el navegador conserva acceso de solo lectura y acotado por RLS.
 
 Fases B y C ya no llaman a `openai.responses.create()` directamente: invocan `run(agent, input, { context })` del SDK `@openai/agents@0.3.1`. La forma JSON se valida con `outputGuardrails` (Zod) y los errores de guardrail se mapean a mensajes de usuario en `_shared/utils/error.utils.ts`. Detalle operativo en `AGENTS.md`. Tras confirmar paridad en producción se eliminó `phases/block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK`; el camino SDK queda como único y la única vía de revertir la migración es `git revert` del PR responsable.
 
 Responsabilidades:
 
 - recibir la solicitud de análisis (autenticación garantizada por el gateway)
+- crear o recuperar idempotentemente `analysis_jobs` antes de Storage/OpenAI
+- guardar una copia privada de PDF/DOCX/TXT con SHA-256 y TTL
+- publicar cada paso mediante outbox + PGMQ, reclamar su lease y archivar solo después del checkpoint
 - ejecutar pipeline de 5 fases:
     - Fases B y C usan **`@openai/agents`** (`Agent` + `run()` + `fileSearchTool` + `outputGuardrails`)
     - Fases A, D, E usan código imperativo (sin LLM)
 - la "Guía de lectura de pliegos" se inyecta vía `PipelineContext.guideExcerpt` (no en Vector Store)
-- emitir eventos SSE por fase (phase_started, phase_completed, heartbeat, complete) sin cambios respecto a la implementación previa
+- emitir `job_created` y los eventos SSE por fase (`phase_started`, `phase_completed`, `heartbeat`, `complete`)
 - emitir `phase_progress` estructurado durante la indexación del Vector Store (contadores + elapsed)
 - propagar `requestId` (`crypto.randomUUID()`) en logs y trace spans
 - devolver resultado en formato canónico rico con evidencias por campo
@@ -156,6 +161,9 @@ Supabase se usa para:
 - sesiones de chat conversacional (`analysis_chat_sessions` y `analysis_chat_messages`)
 - plantillas de extracción (`extraction_templates`): permite definir estructuras de extracción configurables por usuario autenticado. La tabla cuenta con políticas RLS (`Row Level Security`) para garantizar que cada usuario gestione exclusivamente sus plantillas, basadas en su `user_id`.
 - otras entidades de soporte del producto
+- `analysis_jobs`, `analysis_job_steps` y `analysis_job_outbox` como fuente de verdad durable
+- colas privadas PGMQ `analysis_steps` y `analysis_steps_dead_letter`
+- bucket privado `analysis-pdfs` para copias recuperables con rutas por usuario/job
 
 #### Full-Text Search
 
@@ -179,6 +187,7 @@ La fuente de verdad del wire contract vive en:
 
 Eventos esperados, a nivel lógico:
 
+- `job_created` — primer evento; entrega `jobId`, estado y si la petición creó o reutilizó el job
 - `heartbeat`
 - `phase_started` — indica inicio de una fase (A, B, C, D, E)
 - `phase_completed` — indica fin de una fase con resultado parcial
@@ -192,6 +201,7 @@ Reglas:
 
 - no romper nombres ni estructura sin coordinar backend y frontend
 - cualquier cambio de contrato exige actualización de tests y de esta arquitectura
+- si SSE cae después de `job_created`, el frontend consulta `analysis_jobs` con RLS hasta estado terminal
 - `workflow.quality.partial_reasons` es contrato backend→frontend; la UI no debe inferir parcialidad crítica si backend ya la emitió
 - la reconciliación de presupuesto y plazo ocurre en backend durante consolidación; el frontend consume el resultado canónico ya reconciliado y no inventa backfills locales
 - QA debe validar el flujo si una tarea toca SSE o el proceso principal de análisis
@@ -400,6 +410,21 @@ La Fase 0 no altera el runtime productivo. Añade:
 - `pnpm eval:pliegos:check` dentro de `verify:release` y `pnpm eval:pliegos:live` como gate manual de cambios semánticos.
 
 El caso inicial `memo-p2-live` es un smoke de cableado y anti-alucinación, no una muestra estadística. Antes de modernizar modelos o bloquear producción con umbrales agregados, el dataset debe crecer a 10–20 expedientes representativos y conservar baseline de coste/latencia.
+
+**Fecha:** 2026-07-16
+
+### 8.12 Fase 1A — Fundación durable compatible con SSE (Implementada 2026-07-16)
+
+La primera entrega de Fase 1 mantiene la ejecución A-E dentro de `analyze-with-agents`, pero deja de usar la vida del stream como fuente de verdad:
+
+- `create_analysis_job` aplica idempotencia por usuario + clave y rechaza reutilizarla con otro fingerprint de entrada;
+- los documentos se copian al bucket privado `analysis-pdfs` antes de OpenAI, con ruta por usuario/job, SHA-256, tamaño, MIME y retención;
+- `analysis_job_steps` registra estado, intentos, lease, checkpoints y error por `ingestion_map`, `extraction`, `consolidation` y `validation`;
+- `analysis_job_outbox` publica en PGMQ dentro de la misma transacción; completar archiva el mensaje, fallar aplaza su visibilidad y el último intento pasa a `analysis_steps_dead_letter`;
+- las RPC son `SECURITY INVOKER`, ejecutables solo por `service_role`; el único `SECURITY DEFINER` vive en el schema privado y se limita al puente outbox→PGMQ;
+- el navegador recibe `job_created` y recupera por polling RLS si SSE termina sin evento `complete`.
+
+Esta entrega es deliberadamente dual: el worker todavía es la Edge Function inline y el upload del navegador sigue llegando en base64. La siguiente entrega separará consumidor y API HTTP, y moverá la subida a URL firmada sin cambiar el ledger ni el contrato de recuperación.
 
 **Fecha:** 2026-07-16
 
