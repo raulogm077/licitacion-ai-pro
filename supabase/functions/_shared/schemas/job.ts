@@ -20,7 +20,16 @@ export const JobPhaseEnum = z.enum([
     'partial',
 ]);
 
-export const JobStatusEnum = z.enum(['pending', 'processing', 'completed', 'failed']);
+export const JobStatusEnum = z.enum([
+    'pending',
+    'queued',
+    'processing',
+    'retrying',
+    'completed',
+    'failed',
+    'cancelled',
+    'dead_letter',
+]);
 
 export const AnalysisJobSchema = z.object({
     id: z.string().uuid(),
@@ -35,6 +44,13 @@ export const AnalysisJobSchema = z.object({
     error: z.string().optional().nullable(),
     metadata: z.record(z.any()).default({}),
     cleanup_at: z.string().optional().nullable(),
+    idempotency_key: z.string().optional().nullable(),
+    input_fingerprint: z.string().optional().nullable(),
+    runtime_version: z.record(z.any()).default({}),
+    execution_mode: z.string().default('inline_transition'),
+    started_at: z.string().optional().nullable(),
+    completed_at: z.string().optional().nullable(),
+    retention_until: z.string().optional().nullable(),
     created_at: z.string(),
     updated_at: z.string(),
 });

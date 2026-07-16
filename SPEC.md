@@ -297,3 +297,16 @@ Criterios cerrados en esta fase:
 - no cambia el contrato SSE ni el comportamiento de producción.
 
 El dataset inicial contiene un smoke mínimo. El siguiente gate de arquitectura exige 10–20 pliegos representativos antes de comparar/promover modelos, prompts o retrieval nuevos.
+
+### 10.9. Fase 1A: jobs y pasos durables (2026-07-16)
+
+Primer corte productivo de la Fase 1 aprobada en ADR-001:
+
+- el job se crea antes de cualquier escritura en Storage o llamada a OpenAI;
+- `X-Idempotency-Key` se conserva en el reintento 401 y queda vinculado al fingerprint SHA-256 del body;
+- PDF/DOCX/TXT se copian a Storage privado con hash, metadatos y retención antes de la ingesta OpenAI;
+- cada paso tiene ledger, lease, máximo de intentos, checkpoint y mensaje PGMQ; outbox y enqueue comparten transacción;
+- el cliente recibe `job_created` y, si SSE se interrumpe, recupera estados terminales mediante polling de `analysis_jobs` protegido por RLS;
+- anon/authenticated no pueden mutar jobs, documentos, steps ni outbox; las mutaciones usan `service_role` solo dentro de la Edge Function.
+
+Compatibilidad: el resultado canónico, los eventos de fase y la proyección del dashboard no cambian. En este corte el worker continúa inline y el request todavía transporta base64; consumidor independiente, Realtime y upload firmado quedan para el siguiente corte de Fase 1.

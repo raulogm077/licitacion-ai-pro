@@ -36,6 +36,9 @@ fases que llamen al modelo.
   (ver `IngestionDiagnostics.pollFailed` y `ARCHITECTURE.md` §8.10).
 - Las escrituras de cierre de `analysis_jobs` van con `await` antes de cerrar
   el stream SSE; el runtime mata los fetch pendientes al terminar la request.
+- Desde Fase 1A, `analysis_jobs` se crea antes de Storage/OpenAI y cada fase
+  reclama un step durable. Un éxito debe hacer checkpoint + archive; un fallo
+  conserva el mensaje para retry o lo mueve a DLQ al agotar intentos.
 
 ## SDK + versión
 
@@ -79,6 +82,10 @@ código de la función. Esto significa:
 - el `SupabaseLogTraceProcessor` redacta `spanData` (`sanitizeSpanData`:
   allowlist + truncado + `redacted_keys`) antes de emitir cada línea `[trace]`,
   para no filtrar contenido del pliego a los logs.
+- `SUPABASE_SERVICE_ROLE_KEY` se usa únicamente dentro de
+  `analyze-with-agents` para mutar ledger/outbox y Storage. Nunca se reenvía,
+  registra ni expone al frontend; los clientes autenticados solo leen sus jobs
+  y steps mediante RLS.
 
 ## Layout
 
@@ -88,6 +95,10 @@ supabase/functions/_shared/agents/
   context.ts      — PipelineContext + factory
   guardrails.ts   — jsonShapeGuardrail + templateSanitizationGuardrail
   tracing.ts      — SupabaseLogTraceProcessor
+
+supabase/functions/_shared/services/
+  job.service.ts           — RPC de job/step/lease/checkpoint
+  durable-input.service.ts — copia Storage + SHA-256 + metadatos
 
 supabase/functions/analyze-with-agents/
   index.ts                              — orquestador SSE
@@ -141,6 +152,16 @@ supabase/functions/analyze-with-agents/
    `.github/workflows/` o `.husky/`. La trazabilidad histórica vive como
    entradas fechadas en `SPEC.md` (§2.x, §10.x), `ARCHITECTURE.md`
    (§8.x) y `CHANGELOG.md`.
+9. **Job antes de efectos externos**. No mover la creación durable después de
+   Storage, OpenAI Files o Vector Stores. `X-Idempotency-Key` debe conservarse
+   al reintentar y no puede aceptar otro fingerprint de entrada.
+10. **PGMQ solo backend**. No exponer `pgmq_public` ni conceder acceso de cola
+    a `anon`/`authenticated`. Las transiciones usan las RPC `SECURITY INVOKER`
+    backend-only; el único `SECURITY DEFINER` permitido para esta ruta vive en
+    schema `private` y se limita al trigger outbox→PGMQ.
+11. **No archivar antes del checkpoint**. `complete_analysis_step` persiste el
+    output y archiva en la misma transacción. En error, usar `fail_analysis_step`
+    para `set_vt`/retry/DLQ; nunca borrar el mensaje desde el handler.
 
 ## Cómo añadir un nuevo Agent
 

@@ -42,9 +42,10 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 ### Key Patterns
 
 - **TrackedField**: Critical fields use `{ value, status, evidence?, warnings? }` wrapper
-- **Shared wire contract**: `src/shared/analysis-contract.ts` is the FE/BE source for SSE events, `TrackedFieldWire`, and `partial_reasons`
+- **Shared wire contract**: `src/shared/analysis-contract.ts` is the FE/BE source for SSE events, `TrackedFieldWire`, and `partial_reasons`; `job_created` is always the first durable event
 - **`unwrap()`**: Extracts raw value from TrackedField or passes through legacy values
-- **SSE streaming**: Edge Function emits `heartbeat`, `phase_started`, `phase_completed`, `phase_progress`, `extraction_progress`, `retry_scheduled`, `complete`, `error`
+- **SSE + recovery**: Edge Function emits `job_created`, `heartbeat`, phase events, `complete`/`error`; frontend polls `analysis_jobs` by `jobId` if the stream closes early
+- **Durable jobs**: user-scoped idempotency + input fingerprint, recoverable Storage copy, `analysis_job_steps`, transactional outbox, private PGMQ queue, lease/retry/DLQ
 - **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (3 concurrent + retries visibles) -> D:Consolidation -> E:Validation
 - **`@openai/agents` (Fases B y C)**: cada fase con LLM construye `Agent<PipelineContext>` por request, con `fileSearchTool` y `jsonShapeGuardrail`. Detalles y reglas en [`AGENTS.md`](./AGENTS.md). El antiguo fallback Responses-API directo (`block-extraction.legacy.ts`) y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción; revertir la migración requiere `git revert` del PR responsable.
 - **Tracing**: `SupabaseLogTraceProcessor` emite `[trace]` JSON por evento del SDK. `grep '\[trace\]'` reconstruye la ejecución completa.
@@ -53,7 +54,7 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 
 ### Pipeline Timeout Architecture
 
-The full pipeline runs in a single Supabase Edge Function invocation (SSE streaming).
+Fase 1A still executes the full pipeline in a single Supabase Edge Function invocation, but SSE is no longer the source of truth. The job, Storage copy, step ledger and PGMQ message survive a broken request; the current invocation acts as the transitional inline worker.
 Constants in `_shared/config.ts` control the timing budget:
 
 | Constant                     | Value     | Notes                                                                                                    |
@@ -76,13 +77,10 @@ Constants in `_shared/config.ts` control the timing budget:
 | ~100  | ~40s      | ~50-80s    | ~120-150s ✅                           |
 | ~300  | ~90s      | ~60-90s    | ~200-250s ⚠️ needs 300s Supabase limit |
 
-**⚠️ Architecture limitation for very large documents (300+ pages):**
-The synchronous SSE pipeline has a hard ceiling at the Supabase wall-clock limit.
-For documents where ingestion + indexing alone exceeds 90s, the pipeline budget
-is consumed before extraction can complete.
-**Future work**: Migrate to an async job model — edge function creates DB job record
-and returns `job_id` immediately; background processing updates job status; client
-polls `/status/:job_id` instead of SSE streaming.
+**⚠️ Remaining limitation for very large documents (300+ pages):** the worker is
+still inline and therefore keeps the Supabase wall-clock ceiling. Fase 1B must
+separate the queue consumer and signed upload endpoint; the durable schema,
+`jobId` polling and retry semantics introduced in Fase 1A remain unchanged.
 
 ### Security Audit CI
 
@@ -141,15 +139,17 @@ scripts/                      # Repo automation invoked from package.json / CI
 - **Backend constants**: All in `_shared/config.ts` (never hardcode model names, timeouts, etc.)
 - **Agents**: ver `AGENTS.md` para el patrón de añadir un nuevo Agent o un nuevo guardrail
 - **Auth en Edge Functions**: NO reintroducir validación manual del token. Las dos funciones se apoyan en `verify_jwt = true` del gateway. Añadir `--no-verify-jwt` al `supabase functions deploy` invalida silenciosamente esta postura (sobrescribe `config.toml`).
+- **Service role**: solo backend para mutar job/step/outbox/Storage. Nunca en `src/`, logs o responses. Browser = `SELECT` RLS de sus propios jobs/steps.
+- **Durable step invariant**: job antes de efectos externos; enqueue mediante outbox; archive solo después del checkpoint; error mediante lease/retry/DLQ.
 - **Sin docs históricos sueltos**: el repo no mantiene archivos históricos no operativos (ej. `DEPRECATED.md`, `AUDIT.md`). El historial de cambios cerrados vive como entradas fechadas en `SPEC.md`, `ARCHITECTURE.md` (§8.x) y `CHANGELOG.md`.
 - **Sin scripts de conveniencia muertos en `scripts/`**: cada `.sh` o `.ts` bajo `scripts/` debe estar invocado desde `package.json`, `.github/workflows/` o `.husky/`. Si no se usa desde uno de esos sitios, debe eliminarse en lugar de mantenerse "por si acaso".
 
 ## Database
 
-- All tables have RLS enabled (user isolation via `auth.uid() = user_id`)
+- All exposed tables have RLS enabled. `analysis_jobs`, documents and steps expose only owner-scoped `SELECT`; all mutations are backend-only.
 - Full-text search: `search_vector` tsvector column (Spanish) with GIN index
 - Search RPC: `search_licitaciones` combines FTS + ILIKE fallback
-- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `extraction_feedback`
+- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `analysis_job_steps`, `analysis_job_outbox`, `extraction_feedback`
 
 ## Testing
 

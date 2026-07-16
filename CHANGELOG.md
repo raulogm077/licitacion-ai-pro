@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased] - 2026-07-16 — Fase 1A de jobs durables
+
+- **Control plane durable**: `analysis_jobs` nace antes de Storage/OpenAI y aplica idempotencia por usuario + fingerprint de entrada.
+- **Ledger + PGMQ**: cuatro pasos con leases, reintentos y checkpoints; outbox transaccional a `analysis_steps`, archive tras éxito y DLQ al agotar intentos.
+- **Entrada recuperable**: PDF/DOCX/TXT se copia a Storage privado con SHA-256, tamaño, MIME, ruta por usuario/job y retención explícita.
+- **Seguridad**: clientes autenticados quedan en lectura RLS; las mutaciones son backend-only y PGMQ no se expone por Data API.
+- **Advisors**: el preview añade índices sobre las FK `job_id`/`step_id` del outbox y una política deny explícita, sin avisos nuevos de seguridad o rendimiento.
+- **Continuidad de UX**: nuevo evento `job_created`, `X-Idempotency-Key` estable incluso tras 401 y polling por `jobId` cuando SSE se interrumpe.
+- **Migración incremental**: el worker continúa inline y el request conserva base64; upload firmado, consumidor independiente y Realtime se reservan para Fase 1B.
+
 ## [Unreleased] - 2026-07-16 — Fase 0 de arquitectura IA evaluable
 
 - **ADR de arquitectura objetivo**: jobs durables con ledger/cola, Storage directo, retrieval explícito, Fact/Evidence Store, Responses structured output para extracción y Agents SDK para el copiloto.

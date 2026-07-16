@@ -49,6 +49,8 @@ echo "→ Edge Functions (deno test)..."
 deno test --node-modules-dir=auto supabase/functions/_shared/schemas/canonical_test.ts
 deno test --node-modules-dir=auto supabase/functions/_shared/utils/retry_test.ts
 deno test --node-modules-dir=auto supabase/functions/_shared/agents/tracing_test.ts
+deno test --node-modules-dir=auto supabase/functions/_shared/services/durable-input.service_test.ts
+deno test --node-modules-dir=auto supabase/functions/_shared/services/job.service_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/ingestion_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts

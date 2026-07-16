@@ -194,9 +194,28 @@ Cada línea incluye `event`, `traceId`, `spanId`, `parentId`, `name`, `durationM
 
 ## 7. API Reference
 
-Contrato HTTP y SSE sin cambios respecto a la implementación previa:
+La petición añade `X-Idempotency-Key` (8–200 caracteres seguros). El frontend genera una clave por análisis y la reutiliza si un 401 obliga a refrescar la sesión. El primer evento SSE es ahora:
 
-`heartbeat` → `phase_started/ingestion` → `phase_completed/ingestion` → `phase_started/document_map` → `phase_completed/document_map` → `phase_started/extraction` → `extraction_progress` ×9 → `phase_completed/extraction` → `phase_started/consolidation` → `phase_completed/consolidation` → `phase_started/validation` → `phase_completed/validation` → `complete`.
+```text
+job_created { jobId, status, created }
+```
+
+Después continúa el contrato de fases existente:
+
+`job_created` → `heartbeat` → `phase_started/ingestion` → `phase_completed/ingestion` → `phase_started/document_map` → `phase_completed/document_map` → `phase_started/extraction` → `extraction_progress` ×9 → `phase_completed/extraction` → `phase_started/consolidation` → `phase_completed/consolidation` → `phase_started/validation` → `phase_completed/validation` → `complete`.
+
+Si el stream finaliza después de `job_created` pero antes de `complete`, `JobService` consulta `analysis_jobs` por `jobId` hasta `completed`, `failed`, `cancelled` o `dead_letter`. RLS garantiza que solo el propietario puede leerlo.
+
+### 7.1. Persistencia durable de pasos
+
+La migración `20260716101822_analysis_jobs_durable_foundation.sql` crea:
+
+- `analysis_job_steps`: ledger por paso, intentos, lease, siguiente intento, input/output refs y error;
+- `analysis_job_outbox`: evento idempotente y message id de PGMQ;
+- colas privadas `analysis_steps` y `analysis_steps_dead_letter`;
+- RPC backend-only para crear, encolar, reclamar, completar, fallar y registrar fases.
+
+El trigger privado de outbox llama `pgmq.send` antes del commit. Un checkpoint correcto llama `pgmq.archive`; un error con presupuesto restante aplica `pgmq.set_vt` y un error final publica en DLQ. PGMQ no se expone al Data API ni recibe permisos de cliente.
 
 `chat-with-analysis-agent` responde con `{ answer, citations, usedTools, sessionId }`.
 
@@ -278,4 +297,4 @@ El benchmark responde «¿la proyección de producto sigue interpretando correct
 
 ---
 
-_Documentación actualizada el 2026-07-12 tras la revisión integral (IDOR en `search_licitaciones`, límites de payload/rate-limit del chat, backoff real en Fase C, tracing redactado y limpieza compartida). Ver `CHANGELOG.md`, `SPEC.md` §10.7 y `ARCHITECTURE.md` §8.6._
+_Documentación actualizada el 2026-07-16 con la Fase 1A durable (job previo, Storage recuperable, ledger/outbox/PGMQ, idempotencia y polling por `jobId`). Ver `CHANGELOG.md`, `SPEC.md` §10.9 y `ARCHITECTURE.md` §8.12._

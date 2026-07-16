@@ -30,7 +30,7 @@ Dependencias frontend de UI (solo cliente, no afectan al runtime Deno de las Edg
 
 ## Arquitectura actual
 
-La arquitectura vigente usa **OpenAI Responses API** con un **pipeline de 5 fases**, **Supabase Edge Functions** y **SSE** para streaming del análisis. Las fases B y C de `analyze-with-agents` se ejecutan a través del SDK `@openai/agents@0.3.1`.
+La arquitectura vigente está en transición durable: conserva el pipeline de 5 fases y SSE, pero cada ejecución ya nace como un job idempotente en Postgres, guarda una copia recuperable de los documentos en Supabase Storage y registra cada paso en PGMQ antes de ejecutarlo inline. Las fases B y C de `analyze-with-agents` se ejecutan a través del SDK `@openai/agents@0.3.1`.
 
 De forma complementaria, el backend incorpora una capa conversacional aislada con **OpenAI Agents SDK** sobre análisis ya persistidos. Esta capa vive en la Edge Function `chat-with-analysis-agent` y no sustituye el pipeline principal.
 
@@ -41,20 +41,19 @@ El frontend consume la capa conversacional desde el dashboard mediante una secci
 Flujo lógico actual:
 
 ```text
-Usuario → Frontend → Edge Function `analyze-with-agents`
-                     ↓
-              Fase A: Ingesta (Files API + Vector Store)
-              Fase B: Mapa Documental (Agent + run() + file_search)
-              Fase C: Extracción por Bloques (~9 Agents, concurrencia 2)
-              Fase D: Consolidación
-              Fase E: Validación Final
-                     ↓
-                 SSE → Frontend (progreso por fase + reintentos visibles)
+Usuario → Frontend (`X-Idempotency-Key`)
+              └─ Edge Function `analyze-with-agents`
+                   ├─ Postgres: analysis_jobs + step ledger + outbox
+                   ├─ Storage privado: copia recuperable + SHA-256 + retención
+                   ├─ PGMQ: lease/retry/DLQ por paso
+                   ├─ Pipeline A-E actual (worker inline de transición)
+                   └─ SSE: job_created + progreso + resultado
+                        └─ polling por jobId si el stream se interrumpe
 ```
 
 Contrato compartido relevante:
 
-- `src/shared/analysis-contract.ts` define el wire contract común entre frontend y backend para eventos SSE, `TrackedFieldWire` y `partial_reasons`
+- `src/shared/analysis-contract.ts` define el wire contract común entre frontend y backend; `job_created` entrega el `jobId` durable antes del trabajo de IA
 - `workflow.quality.section_diagnostics` distingue si una sección está presente, ausente en los documentos subidos o recuperada tras degradación de schema/extracción
 - `supabase/functions/_shared/schemas/canonical.ts` sigue siendo la fuente canónica del schema validado del análisis
 - el frontend debe consumir `workflow.quality` emitido por backend antes de aplicar heurísticas locales

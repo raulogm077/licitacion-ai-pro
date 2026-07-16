@@ -9,6 +9,7 @@ vi.mock('../../config/supabase', () => ({
             getSession: vi.fn(),
             refreshSession: vi.fn(),
         },
+        from: vi.fn(),
     },
 }));
 
@@ -29,6 +30,7 @@ const mockSupabase = supabase as unknown as {
         getSession: ReturnType<typeof vi.fn>;
         refreshSession: ReturnType<typeof vi.fn>;
     };
+    from: ReturnType<typeof vi.fn>;
 };
 
 /** Build a SSE stream from an array of events */
@@ -143,6 +145,19 @@ describe('JobService', () => {
         expect(heartbeatCalls.length).toBe(1);
     });
 
+    it('forwards the durable job id as soon as it is created', async () => {
+        const events: StreamEvent[] = [
+            { type: 'job_created', jobId: 'job-123', status: 'pending', created: true, timestamp: Date.now() },
+            { type: 'complete', result: validContent, workflow: {}, timestamp: Date.now() },
+        ];
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(buildSseStream(events)));
+
+        const onProgress = vi.fn();
+        await service.analyzeWithAgents('base64', 'file.pdf', null, onProgress);
+
+        expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ type: 'job_created', jobId: 'job-123' }));
+    });
+
     it('processes phase_progress events and calls onProgress', async () => {
         const events: StreamEvent[] = [
             { type: 'phase_progress', phase: 'extraction', message: 'Extrayendo bloque 1', timestamp: Date.now() },
@@ -251,6 +266,37 @@ describe('JobService', () => {
         // Second call must use the new token
         const [, secondCallOpts] = mockFetch.mock.calls[1] as [string, RequestInit];
         expect((secondCallOpts.headers as Record<string, string>)['Authorization']).toBe('Bearer new-token-456');
+        const [, firstCallOpts] = mockFetch.mock.calls[0] as [string, RequestInit];
+        expect((secondCallOpts.headers as Record<string, string>)['X-Idempotency-Key']).toBe(
+            (firstCallOpts.headers as Record<string, string>)['X-Idempotency-Key']
+        );
+    });
+
+    it('recovers a completed durable job when SSE closes before the final event', async () => {
+        const events: StreamEvent[] = [
+            { type: 'job_created', jobId: 'job-recovery', status: 'processing', created: true, timestamp: Date.now() },
+        ];
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(buildSseStream(events)));
+
+        const single = vi.fn().mockResolvedValue({
+            data: {
+                status: 'completed',
+                result: { result: validContent, workflow: { recovered: true } },
+                error: null,
+                phase: 'completed',
+                updated_at: new Date().toISOString(),
+            },
+            error: null,
+        });
+        const eq = vi.fn().mockReturnValue({ single });
+        const select = vi.fn().mockReturnValue({ eq });
+        mockSupabase.from.mockReturnValue({ select });
+
+        const result = await service.analyzeWithAgents('base64', 'file.pdf');
+
+        expect(result.content).toBeDefined();
+        expect(result.workflow).toEqual({ recovered: true });
+        expect(mockSupabase.from).toHaveBeenCalledWith('analysis_jobs');
     });
 
     it('throws "Sesión expirada" when 401 retry refresh fails', async () => {

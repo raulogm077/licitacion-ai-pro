@@ -3,6 +3,13 @@
  */
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.39.3';
 
+export type AnalysisStepName = 'ingestion_map' | 'extraction' | 'consolidation' | 'validation';
+
+export interface DurableJobCreation {
+    jobId: string;
+    created: boolean;
+}
+
 export class JobService {
     private supabase: SupabaseClient;
 
@@ -10,55 +17,131 @@ export class JobService {
         this.supabase = supabaseClient;
     }
 
-    async createJob(
+    async createDurableJob(
         userId: string,
         filename: string,
-        vectorStoreId?: string,
-        fileIds?: string[],
-        cleanupAt?: string
-    ): Promise<string> {
-        const { data: job, error } = await this.supabase
-            .from('analysis_jobs')
-            .insert({
-                user_id: userId,
-                status: 'processing',
-                phase: 'ingestion',
-                vector_store_id: vectorStoreId,
-                file_ids: fileIds || [],
-                metadata: { filename },
-                cleanup_at: cleanupAt,
-            })
-            .select('id')
-            .single();
+        idempotencyKey: string,
+        inputFingerprint: string,
+        runtimeVersion: Record<string, unknown>,
+        retentionUntil: string
+    ): Promise<DurableJobCreation> {
+        const { data, error } = await this.supabase.rpc('create_analysis_job', {
+            p_user_id: userId,
+            p_filename: filename,
+            p_idempotency_key: idempotencyKey,
+            p_input_fingerprint: inputFingerprint,
+            p_runtime_version: runtimeVersion,
+            p_retention_until: retentionUntil,
+            p_metadata: { requestSource: 'analyze-with-agents' },
+        });
 
-        if (error) throw new Error(`Failed to create job: ${error.message}`);
-        return job.id;
+        if (error) throw new Error(`Failed to create durable job: ${error.message}`);
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.job_id) throw new Error('Failed to create durable job: missing job id');
+        return { jobId: row.job_id, created: row.created === true };
+    }
+
+    async getJob(jobId: string): Promise<Record<string, unknown> | null> {
+        const { data, error } = await this.supabase
+            .from('analysis_jobs')
+            .select('id, status, phase, result, error')
+            .eq('id', jobId)
+            .maybeSingle();
+        if (error) throw new Error(`Failed to read job: ${error.message}`);
+        return data;
+    }
+
+    async startStep(
+        jobId: string,
+        stepName: AnalysisStepName,
+        workerId: string,
+        payload: Record<string, unknown> = {},
+        leaseSeconds = 900
+    ): Promise<void> {
+        const { error: enqueueError } = await this.supabase.rpc('enqueue_analysis_step', {
+            p_job_id: jobId,
+            p_step_name: stepName,
+            p_payload: payload,
+        });
+        if (enqueueError) throw new Error(`Failed to enqueue ${stepName}: ${enqueueError.message}`);
+
+        const { data: claimed, error: claimError } = await this.supabase.rpc('claim_analysis_step', {
+            p_job_id: jobId,
+            p_step_name: stepName,
+            p_worker_id: workerId,
+            p_lease_seconds: leaseSeconds,
+        });
+        if (claimError) throw new Error(`Failed to claim ${stepName}: ${claimError.message}`);
+        if (claimed !== true) throw new Error(`Step ${stepName} is already owned by another worker`);
+    }
+
+    async completeStep(
+        jobId: string,
+        stepName: AnalysisStepName,
+        workerId: string,
+        outputRef: Record<string, unknown> = {}
+    ): Promise<void> {
+        const { data: completed, error } = await this.supabase.rpc('complete_analysis_step', {
+            p_job_id: jobId,
+            p_step_name: stepName,
+            p_worker_id: workerId,
+            p_output_ref: outputRef,
+        });
+        if (error) throw new Error(`Failed to complete ${stepName}: ${error.message}`);
+        if (completed !== true) throw new Error(`Lost lease while completing ${stepName}`);
+    }
+
+    async failStep(
+        jobId: string,
+        stepName: AnalysisStepName,
+        workerId: string,
+        errorMessage: string,
+        retryDelaySeconds = 60
+    ): Promise<string> {
+        const { data, error } = await this.supabase.rpc('fail_analysis_step', {
+            p_job_id: jobId,
+            p_step_name: stepName,
+            p_worker_id: workerId,
+            p_error: errorMessage,
+            p_retry_delay_seconds: retryDelaySeconds,
+        });
+        if (error) throw new Error(`Failed to persist ${stepName} failure: ${error.message}`);
+        return String(data || 'failed');
+    }
+
+    async setExternalResources(
+        jobId: string,
+        vectorStoreId: string,
+        fileIds: string[],
+        documentIds: string[]
+    ): Promise<void> {
+        const { error: jobError } = await this.supabase
+            .from('analysis_jobs')
+            .update({ vector_store_id: vectorStoreId, file_ids: fileIds })
+            .eq('id', jobId);
+        if (jobError) throw new Error(`Failed to store OpenAI resources: ${jobError.message}`);
+
+        for (let index = 0; index < documentIds.length; index++) {
+            const fileId = fileIds[index];
+            if (!fileId) continue;
+            const { error } = await this.supabase
+                .from('analysis_job_documents')
+                .update({ file_id: fileId })
+                .eq('id', documentIds[index])
+                .eq('job_id', jobId);
+            if (error) throw new Error(`Failed to link OpenAI file ${fileId}: ${error.message}`);
+        }
     }
 
     async updatePhase(jobId: string, phase: string, phaseResult?: unknown): Promise<void> {
         console.log(`[Job ${jobId}] Phase: ${phase}`);
 
-        const update: Record<string, unknown> = {
-            phase,
-            status: 'processing',
-            updated_at: new Date().toISOString(),
-        };
-
-        if (phaseResult) {
-            // Merge phase result into phase_results JSON
-            const { data: current } = await this.supabase
-                .from('analysis_jobs')
-                .select('phase_results')
-                .eq('id', jobId)
-                .single();
-
-            update.phase_results = {
-                ...(current?.phase_results || {}),
-                [phase]: phaseResult,
-            };
-        }
-
-        const { error } = await this.supabase.from('analysis_jobs').update(update).eq('id', jobId);
+        const { error } = await this.supabase.rpc('record_analysis_phase', {
+            p_job_id: jobId,
+            p_phase: phase,
+            p_phase_result: phaseResult ?? null,
+            p_document_map: phase === 'document_map' ? (phaseResult ?? null) : null,
+        });
         if (error) throw new Error(`Failed to update job phase: ${error.message}`);
     }
 
@@ -81,6 +164,7 @@ export class JobService {
                 status: 'completed',
                 phase: 'completed',
                 result,
+                completed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })
             .eq('id', jobId);
@@ -95,6 +179,7 @@ export class JobService {
                 status: 'failed',
                 phase: 'failed',
                 error: errorMsg,
+                completed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })
             .eq('id', jobId);

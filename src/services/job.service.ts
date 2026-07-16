@@ -7,6 +7,31 @@ import type { AnalysisStreamEvent } from '../shared/analysis-contract';
 import { logger } from './logger';
 
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const RECOVERY_TIMEOUT_MS = 5 * 60 * 1000;
+const RECOVERY_POLL_INTERVAL_MS = 2000;
+
+function createIdempotencyKey(): string {
+    return globalThis.crypto?.randomUUID?.() ?? `analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function waitForRecoveryPoll(signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new DOMException('Aborted', 'AbortError'));
+            return;
+        }
+
+        const timer = setTimeout(resolve, RECOVERY_POLL_INTERVAL_MS);
+        signal?.addEventListener(
+            'abort',
+            () => {
+                clearTimeout(timer);
+                reject(new DOMException('Aborted', 'AbortError'));
+            },
+            { once: true }
+        );
+    });
+}
 
 function readWithTimeout(
     reader: ReadableStreamDefaultReader<Uint8Array>,
@@ -32,6 +57,38 @@ function readWithTimeout(
 }
 
 export class JobService {
+    private async recoverDurableResult(
+        jobId: string,
+        signal?: AbortSignal
+    ): Promise<{ result: unknown; workflow?: unknown }> {
+        const deadline = Date.now() + RECOVERY_TIMEOUT_MS;
+
+        while (Date.now() < deadline) {
+            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+            const { data, error } = await supabase
+                .from('analysis_jobs')
+                .select('status, result, error, phase, updated_at')
+                .eq('id', jobId)
+                .single();
+
+            if (error) throw new Error(`No se pudo recuperar el análisis: ${error.message}`);
+
+            if (data.status === 'completed' && data.result) {
+                const saved = data.result as { result?: unknown; workflow?: unknown };
+                return { result: saved.result ?? saved, workflow: saved.workflow };
+            }
+
+            if (['failed', 'cancelled', 'dead_letter'].includes(data.status)) {
+                throw new Error(data.error || 'El análisis no pudo completarse');
+            }
+
+            await waitForRecoveryPoll(signal);
+        }
+
+        throw new Error('El análisis sigue en curso. Vuelve a abrirlo desde tu historial en unos minutos.');
+    }
+
     /**
      * Analyze documents using the phased pipeline.
      * Consumes SSE stream with phase progress events.
@@ -69,11 +126,13 @@ export class JobService {
 
             const projectUrl = env.VITE_SUPABASE_URL;
             const functionUrl = `${projectUrl}/functions/v1/analyze-with-agents`;
+            const idempotencyKey = createIdempotencyKey();
 
             const buildHeaders = (token: string) => ({
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
                 apikey: env.VITE_SUPABASE_ANON_KEY,
+                'X-Idempotency-Key': idempotencyKey,
             });
 
             const body = JSON.stringify({ pdfBase64, filename, template, files });
@@ -124,6 +183,7 @@ export class JobService {
                 finalResult: null as { result: unknown; workflow?: unknown } | null,
                 reading: true,
                 streamError: null as Error | null,
+                jobId: null as string | null,
             };
 
             const processLine = (line: string) => {
@@ -158,25 +218,36 @@ export class JobService {
                     state.reading = false;
                 }
 
+                if (event.type === 'job_created') {
+                    state.jobId = event.jobId;
+                }
+
                 if (event.type === 'error') {
                     state.streamError = new Error(event.message || 'Error en streaming');
                     state.reading = false;
                 }
             };
 
-            while (state.reading) {
-                const { done, value } = await readWithTimeout(reader, INACTIVITY_TIMEOUT_MS);
+            try {
+                while (state.reading) {
+                    const { done, value } = await readWithTimeout(reader, INACTIVITY_TIMEOUT_MS);
 
-                if (done) break;
+                    if (done) break;
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
 
-                for (const line of lines) {
-                    processLine(line);
-                    if (!state.reading) break;
+                    for (const line of lines) {
+                        processLine(line);
+                        if (!state.reading) break;
+                    }
                 }
+            } catch (streamReadError) {
+                if (!state.jobId || signal?.aborted) throw streamReadError;
+                logger.warn('[JobService] SSE interrumpido; recuperando el job durable...', {
+                    jobId: state.jobId,
+                });
             }
 
             // Process any remaining data in buffer after stream ends
@@ -192,6 +263,9 @@ export class JobService {
             }
 
             if (state.streamError) throw state.streamError;
+            if (!state.finalResult && state.jobId) {
+                state.finalResult = await this.recoverDurableResult(state.jobId, signal);
+            }
             if (!state.finalResult) throw new Error('No se recibió resultado final del stream');
 
             logger.debug('[JobService] Result received, validating...');

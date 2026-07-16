@@ -132,6 +132,8 @@ Los umbrales se ratificarán con un dataset de 10–20 expedientes representativ
 - adaptar UI a Realtime/polling recuperable;
 - migrar primero ingesta/mapa, manteniendo la proyección final actual.
 
+**Avance 2026-07-16 (Fase 1A):** implementados job previo, copia recuperable en Storage, hash/retención, ledger/outbox/PGMQ, leases/retry/DLQ e idempotencia, junto con `job_created` y polling. La ejecución sigue inline y el upload todavía llega como base64; URL firmada, consumidor independiente y Realtime quedan para Fase 1B.
+
 ### Fase 2 — Retrieval explícito + hechos/evidencias
 
 - chunks con metadatos por página/sección/lote;
