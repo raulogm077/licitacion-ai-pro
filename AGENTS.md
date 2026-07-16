@@ -39,6 +39,9 @@ fases que llamen al modelo.
 - Desde Fase 1A, `analysis_jobs` se crea antes de Storage/OpenAI y cada fase
   reclama un step durable. Un éxito debe hacer checkpoint + archive; un fallo
   conserva el mensaje para retry o lo mueve a DLQ al agotar intentos.
+- Desde Fase 1B, el navegador sube bytes directamente al bucket privado con
+  tokens firmados y `analysis-worker` consume PGMQ fuera de la vida de la
+  petición HTTP. El SSE legacy se conserva solo como superficie de rollback.
 
 ## SDK + versión
 
@@ -57,23 +60,26 @@ fases que llamen al modelo.
   (`_shared/config.ts`), no hardcodeado; el pipeline de análisis sigue en
   `OPENAI_MODEL`.
 
-## Auth model (ambas Edge Functions)
+## Auth model (funciones públicas + worker interno)
 
-Tanto `analyze-with-agents` como `chat-with-analysis-agent` usan
-`verify_jwt = true` en `supabase/config.toml`. El gateway de Supabase
-rechaza con 401 las peticiones sin JWT válido antes de invocar el
-código de la función. Esto significa:
+`analyze-with-agents`, `analysis-jobs` y `chat-with-analysis-agent` usan
+`verify_jwt = true` en `supabase/config.toml`. El gateway de Supabase rechaza
+con 401 las peticiones sin JWT válido antes de invocar el código. En cambio,
+`analysis-worker` usa `verify_jwt = false` porque no es una API de usuario:
+valida `x-analysis-worker-token` contra un hash backend-only; el token aleatorio
+se genera en Postgres y su texto plano solo vive en Vault. Esto significa:
 
-- los handlers ya no contienen el bloque "si no hay token → 401"; eso lo
-  hace el gateway.
-- los handlers sí siguen llamando a `supabase.auth.getUser(token)` para
+- los handlers públicos no sustituyen la validación JWT del gateway;
+  `analysis-worker` sí debe conservar su bloque M2M explícito.
+- los handlers públicos siguen llamando a `supabase.auth.getUser(token)` para
   resolver el `user` que se necesita para rate-limiting y ownership
   contra `licitaciones` / `analysis_chat_sessions`.
-- el comando de despliegue NO lleva `--no-verify-jwt`. Si se añade ese
-  flag, sobrescribe la config y la función queda abierta. Detalles en
+- el comando de despliegue de funciones públicas NO lleva
+  `--no-verify-jwt`. `analysis-worker` solo puede mantener JWT desactivado
+  mientras conserve la autenticación M2M en el handler. Detalles en
   `DEPLOYMENT.md` §5 y §5.2.
-- el job `Smoke Test` de `ci-cd.yml` valida tras cada deploy que un POST
-  sin JWT recibe 401 desde el gateway en ambas funciones.
+- el job `Smoke Test` valida 401 de gateway en las tres funciones públicas y
+  401 del handler interno cuando falta el token M2M del worker.
 - además del JWT, `chat-with-analysis-agent` aplica rate limiting por usuario
   (`CHAT_MAX_REQUESTS_PER_HOUR=60`, `checkRateLimit` con clave namespaced
   `chat:`/`analyze:`) y tope de payload real (`MAX_CHAT_PAYLOAD_BYTES=64KB`);
@@ -82,10 +88,10 @@ código de la función. Esto significa:
 - el `SupabaseLogTraceProcessor` redacta `spanData` (`sanitizeSpanData`:
   allowlist + truncado + `redacted_keys`) antes de emitir cada línea `[trace]`,
   para no filtrar contenido del pliego a los logs.
-- `SUPABASE_SERVICE_ROLE_KEY` se usa únicamente dentro de
-  `analyze-with-agents` para mutar ledger/outbox y Storage. Nunca se reenvía,
-  registra ni expone al frontend; los clientes autenticados solo leen sus jobs
-  y steps mediante RLS.
+- `SUPABASE_SERVICE_ROLE_KEY` se usa únicamente dentro de las funciones
+  backend (`analyze-with-agents`, `analysis-jobs`, `analysis-worker`) para
+  mutar ledger/outbox y Storage. Nunca se reenvía, registra ni expone al
+  frontend; los clientes autenticados solo leen sus jobs y steps mediante RLS.
 
 ## Layout
 
@@ -101,7 +107,7 @@ supabase/functions/_shared/services/
   durable-input.service.ts — copia Storage + SHA-256 + metadatos
 
 supabase/functions/analyze-with-agents/
-  index.ts                              — orquestador SSE
+  index.ts                              — orquestador SSE legacy/rollback
   prompts/index.ts                      — strings de instructions externalizados
   agents/
     document-map.agent.ts               — Fase B (1 agent)
@@ -114,6 +120,12 @@ supabase/functions/analyze-with-agents/
     consolidation.ts                    — Fase D (sin LLM)
     validation.ts                       — Fase E (sin LLM)
   __tests__/agents.test.ts              — tests unitarios de guardrails
+
+supabase/functions/analysis-jobs/
+  index.ts — control plane JWT: init, tokens de upload firmado y submit 202
+
+supabase/functions/analysis-worker/
+  index.ts — consumidor M2M: claim, fase, checkpoint, transición y cleanup
 ```
 
 ## Reglas duras
@@ -130,17 +142,16 @@ supabase/functions/analyze-with-agents/
    literal de las que vivían en `phases/*.ts` antes de la migración. Si se
    reescriben hace falta justificarlo y validar paridad semántica con
    `pnpm benchmark:pliegos`.
-4. **`requestId` en todo**. `crypto.randomUUID()` se genera al inicio del
-   handler y viaja en logs, en `PipelineContext` y por tanto en cada span
-   del SDK. Para correlacionar SSE ↔ logs ↔ trace.
+4. **Correlación en todo**. El rollback genera `requestId`; el worker genera
+   `worker:<uuid>` y registra siempre job/step/intento. El identificador viaja
+   en `PipelineContext` y spans para correlacionar estado ↔ logs ↔ trace.
 5. **`// @ts-nocheck` a nivel módulo en consumidores del SDK**. El re-export
    de `npm:@openai/agents@0.3.1` no expone tipos por el camino de Deno;
    `// @ts-nocheck` evita falsos positivos de `deno check` sin afectar
    runtime. Mismo patrón que ya usábamos en `_shared/schemas/*.ts`.
-6. **Auth en el gateway**. NO reintroducir validación manual del token en
-   los handlers. El gateway rechaza con 401 si falta el JWT; el handler
-   sólo resuelve `user` para ownership/rate-limit. Añadir `--no-verify-jwt`
-   al despliegue invalida esta postura.
+6. **Auth explícita por superficie**. Las funciones públicas delegan JWT al
+   gateway y solo resuelven `user`; no usar flags que contradigan config. El
+   worker es la excepción M2M y nunca puede retirar su validación de header.
 7. **Sin fallback inline**. El antiguo `phases/block-extraction.legacy.ts`
    y el flag `USE_AGENTS_SDK` se eliminaron una vez confirmada paridad en
    producción. Si en el futuro hay que revertir a Responses API directa,
@@ -162,6 +173,19 @@ supabase/functions/analyze-with-agents/
 11. **No archivar antes del checkpoint**. `complete_analysis_step` persiste el
     output y archiva en la misma transacción. En error, usar `fail_analysis_step`
     para `set_vt`/retry/DLQ; nunca borrar el mensaje desde el handler.
+12. **Bytes fuera del control plane**. `analysis-jobs` solo acepta metadatos,
+    hash y plantilla; los documentos van con `uploadToSignedUrl` a Storage. No
+    reintroducir base64 en este camino ni descargar el objeto antes de `submit`.
+13. **Worker M2M sin secretos duplicados**. El token del worker se crea en la
+    migración, el texto plano vive en Vault y la tabla de settings solo guarda
+    SHA-256. Nunca añadirlo a `.env`, logs, responses o secretos del frontend.
+14. **Checkpoint reutilizable antes del ack**. Ingesta/mapa y consolidación
+    persisten su salida completa; extracción guarda un snapshot después de cada
+    bloque y un retry solo ejecuta los ausentes. La transición final
+    checkpoint + archive + enqueue siguiente permanece atómica en Postgres.
+15. **Slices dentro del wall clock**. Producción está en Supabase Free (150 s):
+    lease 155 s, ingesta y mapa en entregas separadas, y máximo dos bloques de
+    extracción por slice. `yield_analysis_step` no consume retry; un crash sí.
 
 ## Cómo añadir un nuevo Agent
 

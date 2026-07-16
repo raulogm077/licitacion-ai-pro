@@ -1,7 +1,7 @@
 /**
  * Fase A: Ingesta
  *
- * - Recibe archivos base64
+ * - Recibe archivos directos desde Storage (worker) o base64 (compatibilidad SSE)
  * - Sube a OpenAI Files API
  * - Crea vector store y espera indexación
  * - NO sube la guía al vector store (va en system prompt)
@@ -10,7 +10,7 @@ import OpenAI from 'npm:openai@6.33.0';
 import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 import { runWithConcurrency } from '../../_shared/utils/concurrency.ts';
-import { retryWithBackoff, isRetryableError, type RetryOptions } from '../../_shared/utils/retry.ts';
+import { isRetryableError, type RetryOptions, retryWithBackoff } from '../../_shared/utils/retry.ts';
 
 export interface IngestionProgressUpdate {
     message: string;
@@ -25,7 +25,15 @@ export interface IngestionInput {
     pdfBase64?: string;
     filename: string;
     files?: Array<{ name: string; base64: string }>;
+    sourceFiles?: Array<{ name: string; data: Blob; mimeType?: string }>;
     onProgress?: (update: IngestionProgressUpdate) => void;
+    onResourcesCreated?: (resources: IngestionResources) => Promise<void>;
+}
+
+export interface IngestionResources {
+    vectorStoreId: string;
+    fileIds: string[];
+    fileNames: string[];
 }
 
 export interface IngestionDiagnostics {
@@ -57,7 +65,9 @@ function extractBase64Data(str: string): string {
 
 function inferMimeType(filename: string): string {
     const lower = filename.toLowerCase();
-    if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (lower.endsWith('.docx')) {
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
     if (lower.endsWith('.txt')) return 'text/plain';
     return 'application/pdf';
 }
@@ -128,13 +138,36 @@ export async function waitForVectorStoreIndexing(
 }
 
 export async function runIngestion(input: IngestionInput): Promise<IngestionResult> {
-    const { openai, pdfBase64, filename, files, onProgress } = input;
+    const { openai, pdfBase64, filename, files, sourceFiles, onProgress, onResourcesCreated } = input;
     const uploadedFileIds: string[] = [];
     const fileNames: string[] = [];
 
     try {
-        // 1. Upload main document
-        if (pdfBase64) {
+        // Worker path: bytes come directly from the private Storage bucket.
+        // Keeping this path binary avoids the ~33% base64 expansion and a
+        // second browser -> Edge copy of every document.
+        if (sourceFiles && sourceFiles.length > 0) {
+            onProgress?.({
+                message: `Subiendo ${sourceFiles.length} documentos recuperables...`,
+            });
+            const uploadTasks = sourceFiles.map((sourceFile) => async () => {
+                const upload = await openai.files.create({
+                    file: new File([sourceFile.data], sourceFile.name, {
+                        type: sourceFile.mimeType || inferMimeType(sourceFile.name),
+                    }),
+                    purpose: 'assistants',
+                });
+                return { id: upload.id, name: sourceFile.name };
+            });
+
+            const results = await runWithConcurrency(uploadTasks, 3);
+            for (const result of results) {
+                uploadedFileIds.push(result.id);
+                fileNames.push(result.name);
+                console.log(`[Ingestion] Storage document uploaded: ${result.id}`);
+            }
+        } else if (pdfBase64) {
+            // Legacy SSE path retained as a rollback surface during Fase 1B.
             onProgress?.({ message: 'Subiendo documento principal...' });
             let pdfBuffer: Uint8Array;
             try {
@@ -154,10 +187,12 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
         }
 
         // 2. Upload additional files with concurrency limit to avoid rate-limiting
-        if (files && Array.isArray(files)) {
+        if ((!sourceFiles || sourceFiles.length === 0) && files && Array.isArray(files)) {
             const validFiles = files.filter((f) => f?.base64 && f?.name);
             if (validFiles.length > 0) {
-                onProgress?.({ message: `Subiendo ${validFiles.length} archivos adicionales...` });
+                onProgress?.({
+                    message: `Subiendo ${validFiles.length} archivos adicionales...`,
+                });
                 const MAX_UPLOAD_CONCURRENCY = 3;
                 const uploadTasks = validFiles.map((extraFile) => async () => {
                     let buffer: Uint8Array;
@@ -169,7 +204,9 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
                     }
                     const mimeType = inferMimeType(extraFile.name);
                     const upload = await openai.files.create({
-                        file: new File([toArrayBuffer(buffer)], extraFile.name, { type: mimeType }),
+                        file: new File([toArrayBuffer(buffer)], extraFile.name, {
+                            type: mimeType,
+                        }),
                         purpose: 'assistants',
                     });
                     return { id: upload.id, name: extraFile.name };
@@ -199,12 +236,39 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
 
     // 3. Create Vector Store
     onProgress?.({ message: 'Creando índice documental...' });
-    const vectorStore = await openai.vectorStores.create({
-        name: `Análisis ${filename || 'documento'} - ${new Date().toISOString()}`,
-        file_ids: uploadedFileIds,
-    });
+    let vectorStore;
+    try {
+        vectorStore = await openai.vectorStores.create({
+            name: `Análisis ${filename || 'documento'} - ${new Date().toISOString()}`,
+            file_ids: uploadedFileIds,
+        });
+    } catch (error) {
+        // A failed vector-store creation happens after Files API side effects.
+        // Delete those files before the durable worker retries this checkpoint.
+        await Promise.allSettled(uploadedFileIds.map((fileId) => openai.files.delete(fileId)));
+        throw error;
+    }
     const vectorStoreId = vectorStore.id;
     console.log(`[Ingestion] Vector Store created: ${vectorStoreId}`);
+
+    // Persist external IDs before the potentially long indexing wait. If the
+    // Edge invocation reaches its wall-clock limit afterwards, the next slice
+    // can resume polling instead of creating duplicate OpenAI resources.
+    try {
+        await onResourcesCreated?.({
+            vectorStoreId,
+            fileIds: [...uploadedFileIds],
+            fileNames: [...fileNames],
+        });
+    } catch (error) {
+        // The durable checkpoint is the ownership record for these resources.
+        // If it cannot be written, remove the side effects before retrying.
+        await Promise.allSettled([
+            openai.vectorStores.delete(vectorStoreId),
+            ...uploadedFileIds.map((fileId) => openai.files.delete(fileId)),
+        ]);
+        throw error;
+    }
 
     // 4. Wait for indexing — poll file_counts.in_progress, not vs.status.
     // vs.status becomes 'completed' immediately after VS creation even while

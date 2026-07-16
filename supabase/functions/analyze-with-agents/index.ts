@@ -27,11 +27,11 @@ import { runDocumentMap } from './phases/document-map.ts';
 import { runBlockExtraction } from './phases/block-extraction.ts';
 import { runConsolidation } from './phases/consolidation.ts';
 import { runValidation } from './phases/validation.ts';
-import { getCleanupTimestamp, runOpportunisticCleanup, cleanupJobResources } from './cleanup.ts';
-import { JobService, type AnalysisStepName } from '../_shared/services/job.service.ts';
+import { cleanupJobResources, getCleanupTimestamp, runOpportunisticCleanup } from './cleanup.ts';
+import { type AnalysisStepName, JobService } from '../_shared/services/job.service.ts';
 import { persistAnalysisInputs, sha256Hex } from '../_shared/services/durable-input.service.ts';
 import { ANALYSIS_RUNTIME_VERSIONS } from '../_shared/ai-runtime-version.ts';
-import { PIPELINE_TIMEOUT_MS, MAX_PAYLOAD_BYTES, API_CALL_TIMEOUT_MS } from '../_shared/config.ts';
+import { API_CALL_TIMEOUT_MS, MAX_PAYLOAD_BYTES, PIPELINE_TIMEOUT_MS } from '../_shared/config.ts';
 import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
 import { callWithTimeout } from '../_shared/utils/timeout.ts';
 import { GUIDE_CONTENT } from './guide-content.ts';
@@ -83,7 +83,10 @@ serve(async (req: Request) => {
         if (!user) {
             return new Response(JSON.stringify({ error: 'No se pudo resolver el usuario' }), {
                 status: 401,
-                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+                headers: {
+                    ...getCorsHeaders(req),
+                    'Content-Type': 'application/json',
+                },
             });
         }
 
@@ -113,7 +116,13 @@ serve(async (req: Request) => {
                 JSON.stringify({
                     error: `Payload demasiado grande (${Math.round(contentLength / 1024 / 1024)}MB). Máximo: 50MB.`,
                 }),
-                { status: 413, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
+                {
+                    status: 413,
+                    headers: {
+                        ...getCorsHeaders(req),
+                        'Content-Type': 'application/json',
+                    },
+                }
             );
         }
 
@@ -123,7 +132,13 @@ serve(async (req: Request) => {
                 JSON.stringify({
                     error: `Payload demasiado grande (${Math.round(rawBody.length / 1024 / 1024)}MB). Máximo: 50MB.`,
                 }),
-                { status: 413, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
+                {
+                    status: 413,
+                    headers: {
+                        ...getCorsHeaders(req),
+                        'Content-Type': 'application/json',
+                    },
+                }
             );
         }
 
@@ -132,7 +147,10 @@ serve(async (req: Request) => {
         if (!pdfBase64 && (!files || files.length === 0)) {
             return new Response(JSON.stringify({ error: 'pdfBase64 o files requeridos' }), {
                 status: 400,
-                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+                headers: {
+                    ...getCorsHeaders(req),
+                    'Content-Type': 'application/json',
+                },
             });
         }
 
@@ -140,12 +158,17 @@ serve(async (req: Request) => {
         if (!/^[A-Za-z0-9._:-]{8,200}$/.test(idempotencyKey)) {
             return new Response(JSON.stringify({ error: 'X-Idempotency-Key no válido' }), {
                 status: 400,
-                headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+                headers: {
+                    ...getCorsHeaders(req),
+                    'Content-Type': 'application/json',
+                },
             });
         }
 
         const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-        if (!serviceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY no configurada');
+        if (!serviceRoleKey) {
+            throw new Error('SUPABASE_SERVICE_ROLE_KEY no configurada');
+        }
 
         // This client never leaves the Edge Function. Browser access remains
         // read-only and tenant-scoped through RLS.
@@ -280,7 +303,10 @@ serve(async (req: Request) => {
                         const existingJob = await jobService.getJob(jobId);
                         const existingStatus = String(existingJob?.status || 'pending');
                         if (existingStatus === 'completed' && existingJob?.result) {
-                            const saved = existingJob.result as { result?: unknown; workflow?: unknown };
+                            const saved = existingJob.result as {
+                                result?: unknown;
+                                workflow?: unknown;
+                            };
                             sendEvent('complete', {
                                 result: saved.result ?? saved,
                                 workflow: saved.workflow,
@@ -329,7 +355,10 @@ serve(async (req: Request) => {
                     );
                     activeStep = 'ingestion_map';
 
-                    sendEvent('phase_started', { phase: 'ingestion', message: 'Subiendo documentos...' });
+                    sendEvent('phase_started', {
+                        phase: 'ingestion',
+                        message: 'Subiendo documentos...',
+                    });
                     const ingestion = await callWithTimeout(
                         runIngestion({
                             openai,
@@ -337,19 +366,23 @@ serve(async (req: Request) => {
                             filename: filename || 'documento.pdf',
                             files,
                             onProgress: (update) => sendProgress('ingestion', update),
+                            onResourcesCreated: (resources) =>
+                                jobService.setExternalResources(
+                                    jobId,
+                                    resources.vectorStoreId,
+                                    resources.fileIds,
+                                    persistedDocumentIds
+                                ),
                         }),
                         API_CALL_TIMEOUT_MS * 2,
                         'Ingestion'
                     );
                     vectorStoreId = ingestion.vectorStoreId;
                     fileIds = ingestion.fileIds;
-                    await jobService.setExternalResources(
-                        jobId,
-                        ingestion.vectorStoreId,
-                        ingestion.fileIds,
-                        persistedDocumentIds
-                    );
-                    sendEvent('phase_completed', { phase: 'ingestion', message: 'Documentos indexados' });
+                    sendEvent('phase_completed', {
+                        phase: 'ingestion',
+                        message: 'Documentos indexados',
+                    });
 
                     const pipelineContext = createPipelineContext({
                         vectorStoreId: ingestion.vectorStoreId,
@@ -360,7 +393,10 @@ serve(async (req: Request) => {
                         customTemplate: template ?? null,
                     });
 
-                    sendEvent('phase_started', { phase: 'document_map', message: 'Analizando estructura...' });
+                    sendEvent('phase_started', {
+                        phase: 'document_map',
+                        message: 'Analizando estructura...',
+                    });
                     const documentMap = await runDocumentMap({
                         context: pipelineContext,
                         guideContent,
@@ -384,7 +420,10 @@ serve(async (req: Request) => {
                     });
                     activeStep = 'extraction';
 
-                    sendEvent('phase_started', { phase: 'extraction', message: 'Extrayendo información...' });
+                    sendEvent('phase_started', {
+                        phase: 'extraction',
+                        message: 'Extrayendo información...',
+                    });
                     const extraction = await runBlockExtraction({
                         openai,
                         vectorStoreId: ingestion.vectorStoreId,
@@ -430,7 +469,10 @@ serve(async (req: Request) => {
                     });
                     activeStep = 'consolidation';
 
-                    sendEvent('phase_started', { phase: 'consolidation', message: 'Consolidando resultados...' });
+                    sendEvent('phase_started', {
+                        phase: 'consolidation',
+                        message: 'Consolidando resultados...',
+                    });
                     const consolidated = await callWithTimeout(
                         Promise.resolve(
                             runConsolidation({
@@ -442,7 +484,10 @@ serve(async (req: Request) => {
                         20_000,
                         'Consolidation'
                     );
-                    sendEvent('phase_completed', { phase: 'consolidation', message: 'Resultados consolidados' });
+                    sendEvent('phase_completed', {
+                        phase: 'consolidation',
+                        message: 'Resultados consolidados',
+                    });
 
                     await jobService.updatePhase(jobId, 'consolidation');
                     await jobService.completeStep(jobId, 'consolidation', requestId, {
@@ -455,7 +500,10 @@ serve(async (req: Request) => {
                     });
                     activeStep = 'validation';
 
-                    sendEvent('phase_started', { phase: 'validation', message: 'Validando resultado...' });
+                    sendEvent('phase_started', {
+                        phase: 'validation',
+                        message: 'Validando resultado...',
+                    });
                     const { result, workflow } = await callWithTimeout(
                         Promise.resolve(
                             runValidation({

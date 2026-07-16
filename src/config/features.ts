@@ -1,10 +1,9 @@
 // Feature flags configuration
 //
 // Only flags with real consumers live here. The upload size limit is NOT a
-// feature flag: it is bound by the synchronous pipeline's payload/timeout
-// budget and lives as MAX_PDF_SIZE_MB in src/config/constants.ts (mirrored by
-// MAX_PAYLOAD_BYTES on the backend). A UI-facing 10–50MB flag would contradict
-// that real limit, so it is intentionally absent here.
+// feature flag: it is a product/security contract in MAX_PDF_SIZE_MB and the
+// upload hook, with a stricter backend ceiling. Fase 1B no transports those
+// bytes through an SSE request.
 export interface FeatureFlags {
     // Integrations
     enableSentry: boolean;

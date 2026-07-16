@@ -1,6 +1,6 @@
 # Documentación Técnica — Analista de Pliegos
 
-> Versión: 2.7.0 | Fecha: 2026-07-12
+> Versión: 2.9.0 | Fecha: 2026-07-16
 
 ---
 
@@ -20,9 +20,9 @@
 
 ## 1. Visión General
 
-**Analista de Pliegos** es una aplicación SaaS que analiza documentos PDF de licitaciones públicas usando inteligencia artificial. Las fases B y C del pipeline `analyze-with-agents` se ejecutan vía el SDK `@openai/agents@0.3.1`. La capa conversacional `chat-with-analysis-agent` opera sobre análisis persistidos.
+**Analista de Pliegos** es una aplicación SaaS que analiza documentos de licitaciones públicas mediante jobs durables. Las fases B y C se ejecutan vía `@openai/agents@0.3.1`; la capa conversacional `chat-with-analysis-agent` opera sobre análisis persistidos.
 
-Ambas Edge Functions usan `verify_jwt = true` (gateway-side auth). Detalle en §5.
+Las funciones públicas usan JWT de gateway; el worker interno usa un token M2M en Vault. Detalle en §5.
 
 ---
 
@@ -33,19 +33,19 @@ Ver `ARCHITECTURE.md` para el diagrama completo y los componentes principales.
 ### Flujo de análisis (Pipeline por Fases)
 
 ```
-Usuario sube PDF
-       → Frontend convierte a Base64
-       → POST /functions/v1/analyze-with-agents
-         (Authorization: Bearer <JWT>)
-       → Kong API Gateway: verify_jwt = true → 401 si falta JWT
-       → Edge Function: resolver user (auth.getUser) + rate limit (10/hora)
-       → Fase A: Ingesta (Files API + Vector Store)
-       → Fase B: Mapa Documental (Agent + run() + file_search)
-       → Fase C: Extracción por Bloques (~9 Agents, 3 en paralelo + retries)
-       → Fase D: Consolidación (sin LLM)
-       → Fase E: Validación (sin LLM)
-       → SSE streaming → cliente
-       → Frontend valida con Zod, persiste en `licitaciones`
+Usuario selecciona documentos
+       → Frontend valida + SHA-256 (sin base64)
+       → POST analysis-jobs {action:init, metadatos} → job + tokens firmados
+       → uploadToSignedUrl → Storage privado
+       → POST analysis-jobs {action:submit} → PGMQ + HTTP 202
+       → analysis-worker reclama lease y ejecuta un checkpoint
+           A+B: Ingesta + mapa
+           C: Extracción por bloques (Agents SDK + file_search)
+           D: Consolidación determinista
+           E: Validación determinista + resultado final
+       → Postgres archiva/encola el siguiente paso atómicamente
+       → Realtime Broadcast privado despierta lectura RLS; polling es fallback
+       → Frontend valida con Zod y persiste en `licitaciones`
 ```
 
 ---
@@ -57,7 +57,7 @@ Usuario sube PDF
 | Frontend    | React + TypeScript + Vite + Tailwind + Zustand                                   | 18.2 / 5.5 / 7.3 / 3.4 / 5.0                  |
 | UI (Iris)   | motion (LazyMotion) + sonner + recharts + canvas-confetti + @fontsource-variable | solo-cliente (bundle Vite; no afectan a Deno) |
 | Validación  | Zod                                                                              | 3.25.76 (alineado con `@openai/agents@0.3.1`) |
-| Backend     | Supabase Edge Functions (Deno)                                                   | 2.x                                           |
+| Backend     | Supabase Edge Functions + Storage + PGMQ + Realtime + pg_net/pg_cron/Vault       | 2.x                                           |
 | AI Pipeline | `@openai/agents`                                                                 | 0.3.1                                         |
 | Subyacente  | OpenAI Responses API + Files API + Vector Store                                  | latest                                        |
 | DB          | PostgreSQL                                                                       | 15+                                           |
@@ -73,7 +73,21 @@ Usuario sube PDF
 
 **Auth model**: `verify_jwt = true` en `supabase/config.toml`. El gateway rechaza requests sin JWT válido con 401 antes de invocar la función. El handler sólo resuelve `user` para rate-limit y ownership. El bloque de auth manual fue eliminado en M3.
 
-**Pipeline**: 5 fases. B y C vía `Agent` + `run()` (camino único tras la eliminación del legacy fallback el 2026-05-09); D y E sin LLM. Detalle en `ARCHITECTURE.md`.
+**Rol vigente**: rollback SSE compatible. Conserva el pipeline A-E y el schema, pero la UI de Fase 1B usa el control plane asíncrono.
+
+### `analysis-jobs`
+
+**Archivo**: `supabase/functions/analysis-jobs/index.ts`
+
+**Auth**: `verify_jwt = true` + resolución defensiva del usuario. `init` acepta solo metadatos/hash/plantilla, crea el job antes de efectos y firma uploads. `submit` verifica presencia en Storage, encola `ingestion_map` y responde `202`. El control body está limitado a 256KB; no recibe bytes.
+
+### `analysis-worker`
+
+**Archivo**: `supabase/functions/analysis-worker/index.ts`
+
+**Auth**: `verify_jwt = false` exclusivamente por ser M2M; requiere `x-analysis-worker-token`, cuyo texto plano está en Vault y cuyo SHA-256 está en una tabla backend-only.
+
+**Ejecución**: reclama un mensaje con lease de 155 s, calibrado sobre el wall clock Free de 150 s. Ingesta y mapa ocupan slices separadas; extracción procesa como máximo dos bloques concurrentes, persiste cada resultado y hace `yield_analysis_step` si quedan bloques/plantilla. Un yield no consume retry; un crash sí. Al terminar la fase, `advance_analysis_step` archiva y publica el siguiente outbox en una transacción. Cleanup TTL sigue OpenAI → Storage → documento y se activa también de forma horaria.
 
 ### `chat-with-analysis-agent`
 
@@ -118,28 +132,34 @@ Usuario sube PDF
 
 ## 5. Auth y postura de seguridad
 
-Desde 2026-05-09, **ambas** Edge Functions usan `verify_jwt = true`:
+Las tres funciones públicas usan `verify_jwt = true`; el worker usa auth M2M explícita:
 
 ```toml
 [functions.analyze-with-agents]
 verify_jwt = true
 
+[functions.analysis-jobs]
+verify_jwt = true
+
 [functions.chat-with-analysis-agent]
 verify_jwt = true
+
+[functions.analysis-worker]
+verify_jwt = false
 ```
 
 ### Reglas duras
 
 - el gateway de Supabase rechaza con 401 las peticiones sin JWT válido **antes** de invocar la función
-- los handlers NO contienen el bloque "if (!token) → 401"; eso lo hace el gateway
-- los handlers sí siguen llamando a `supabase.auth.getUser(token)` para resolver el `user` necesario para ownership y rate-limit
-- el comando `supabase functions deploy <name>` NO debe llevar `--no-verify-jwt`. El flag sobrescribe `config.toml` y deja la función abierta, lo que rompe la postura silenciosamente
-- el job `Smoke Test` del workflow valida tras cada deploy a `main` que un POST sin `Authorization` recibe 401 desde el gateway en ambas funciones; si una falla, el deploy falla
+- los handlers públicos no sustituyen la validación del gateway; sí resuelven `user` para ownership/rate-limit
+- `analysis-worker` debe conservar la validación explícita del token M2M y nunca aceptar un token desde query/body
+- el deploy no fuerza flags que contradigan `supabase/config.toml`; la excepción JWT del worker solo es segura junto a su auth M2M
+- el smoke valida 401 de gateway en las tres públicas y 401 M2M en el worker sin token
 
 ### Smoke test post-deploy
 
 ```bash
-# Ambas deben responder 401 desde el gateway
+# Públicas: 401 del gateway
 curl -i -X POST "$SUPABASE_URL/functions/v1/analyze-with-agents" \
   -H 'Content-Type: application/json' \
   -d '{"pdfBase64":""}'
@@ -147,11 +167,20 @@ curl -i -X POST "$SUPABASE_URL/functions/v1/analyze-with-agents" \
 curl -i -X POST "$SUPABASE_URL/functions/v1/chat-with-analysis-agent" \
   -H 'Content-Type: application/json' \
   -d '{"analysisHash":"x","message":"x"}'
+
+curl -i -X POST "$SUPABASE_URL/functions/v1/analysis-jobs" \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"init"}'
+
+# Worker: 401 de su autenticación M2M
+curl -i -X POST "$SUPABASE_URL/functions/v1/analysis-worker" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```
 
 ### Rollback de auth
 
-Si una de las funciones empieza a rechazar peticiones legítimas, fijar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml` y redeployar con `--no-verify-jwt`. NUNCA hacer un cambio sin el otro: un mismatch entre `config.toml` y el comando deja la postura indefinida.
+Si una función pública rechaza JWT legítimos, revertir el cambio responsable y diagnosticar gateway/config; no abrirla como workaround. Si falla el worker, verificar el secreto de Vault y el digest backend-only, conservando siempre el header M2M.
 
 ### RPC `search_licitaciones` (IDOR corregido 2026-07-12)
 
@@ -180,7 +209,7 @@ El frontend (`src/services/db.service.ts`) no cambia: ya invocaba `rpc('search_l
 
 ## 6. Tracing y observabilidad
 
-`SupabaseLogTraceProcessor` (en `_shared/agents/tracing.ts`) se registra una vez al cargar `analyze-with-agents/index.ts` con `setTraceProcessors([...])`. Emite una línea `[trace]` con JSON por cada evento del SDK (`trace_start`, `trace_end`, `span_start`, `span_end`):
+`SupabaseLogTraceProcessor` (en `_shared/agents/tracing.ts`) se registra al cargar tanto el rollback `analyze-with-agents` como `analysis-worker`. Emite una línea `[trace]` con JSON por cada evento del SDK (`trace_start`, `trace_end`, `span_start`, `span_end`):
 
 ```bash
 npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
@@ -188,13 +217,19 @@ npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
 
 Cada línea incluye `event`, `traceId`, `spanId`, `parentId`, `name`, `durationMs` y, si aplica, `error`. Filtrando por `traceId` se reconstruye una ejecución completa.
 
-`requestId` (`crypto.randomUUID()`) se genera al inicio del handler de `analyze-with-agents` y viaja en `[analyze]` log lines (`reqId=...`) y en `PipelineContext`. Esto permite correlacionar SSE ↔ logs ↔ spans.
+El rollback usa `requestId`; el consumidor usa `worker:<uuid>` y siempre registra `jobId`, step e intento. Ambos valores viajan en `PipelineContext` para correlacionar estado, logs y spans.
 
 ---
 
 ## 7. API Reference
 
-La petición añade `X-Idempotency-Key` (8–200 caracteres seguros). El frontend genera una clave por análisis y la reutiliza si un 401 obliga a refrescar la sesión. El primer evento SSE es ahora:
+El control plane exige `X-Idempotency-Key` (8–200 caracteres seguros). El frontend genera una clave por análisis y la reutiliza si un 401 obliga a refrescar la sesión.
+
+### 7.1. API durable
+
+`POST /analysis-jobs` con `action:init` recibe `files[{name,sizeBytes,mimeType,sha256}]` y `template?`; devuelve `jobId`, estado y `uploads[{path,token,...}]`. Después de `uploadToSignedUrl`, `action:submit` recibe `jobId` y devuelve `202 {status:"queued"}`. El resultado se lee de `analysis_jobs.result` por RLS tras una señal Broadcast o polling.
+
+El primer evento del rollback SSE sigue siendo:
 
 ```text
 job_created { jobId, status, created }
@@ -206,7 +241,7 @@ Después continúa el contrato de fases existente:
 
 Si el stream finaliza después de `job_created` pero antes de `complete`, `JobService` consulta `analysis_jobs` por `jobId` hasta `completed`, `failed`, `cancelled` o `dead_letter`. RLS garantiza que solo el propietario puede leerlo.
 
-### 7.1. Persistencia durable de pasos
+### 7.2. Persistencia durable de pasos
 
 La migración `20260716101822_analysis_jobs_durable_foundation.sql` crea:
 
@@ -216,6 +251,8 @@ La migración `20260716101822_analysis_jobs_durable_foundation.sql` crea:
 - RPC backend-only para crear, encolar, reclamar, completar, fallar y registrar fases.
 
 El trigger privado de outbox llama `pgmq.send` antes del commit. Un checkpoint correcto llama `pgmq.archive`; un error con presupuesto restante aplica `pgmq.set_vt` y un error final publica en DLQ. PGMQ no se expone al Data API ni recibe permisos de cliente.
+
+La migración `20260716114116_analysis_worker_async_runtime.sql` añade claim global y avance atómico, activación post-commit con `pg_net`, recovery condicionado con `pg_cron`, Vault para el token M2M y autorización de Broadcast por `realtime.topic()` + ownership del job.
 
 `chat-with-analysis-agent` responde con `{ answer, citations, usedTools, sessionId }`.
 
@@ -227,15 +264,18 @@ El trigger privado de outbox llama `pgmq.send` antes del commit. Un checkpoint c
 # Prerrequisitos:
 pnpm typecheck && pnpm test -- --run && pnpm benchmark:pliegos && pnpm test:e2e
 
-# Deploy (desde 2026-05-09 ninguna función usa --no-verify-jwt):
+# Deploy backend antes del frontend:
+npx supabase db push --include-all
 npx supabase functions deploy analyze-with-agents
+npx supabase functions deploy analysis-jobs
+npx supabase functions deploy analysis-worker
 npx supabase functions deploy chat-with-analysis-agent
 
 # Secrets:
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
-El workflow `ci-cd.yml` (job `deploy-supabase`) ejecuta exactamente estos comandos tras un merge a `main`. El job `smoke-test` posterior valida que las dos funciones responden 401 a peticiones sin JWT.
+El workflow aplica migraciones y funciones antes de Vercel. El smoke posterior valida CORS, gateway JWT y auth M2M.
 
 ### Migraciones — orden de ficheros
 
@@ -285,16 +325,17 @@ El benchmark responde «¿la proyección de producto sigue interpretando correct
 
 > **Fix 3 2026-07-12 (diagnóstico veraz + jobs):** el polling de indexación reintenta 429/5xx y distingue «conteos desconocidos» (`pollFailed`) de un timeout real — el aviso «OCR pobre» ya no puede dispararse por un rate limit del endpoint de estado; las escrituras de cierre de `analysis_jobs` se esperan antes de cerrar el stream (antes se perdían y el job quedaba `processing` para siempre); `BLOCK_CONCURRENCY` baja a 2. Detalle en `ARCHITECTURE.md` §8.10.
 
-| Decisión               | Elección                                       | Razón                                                          |
-| ---------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
-| SDK del pipeline       | `@openai/agents@0.3.1`                         | Tracing nativo, guardrails declarativos                        |
-| Pin del SDK            | 0.3.1                                          | Última compatible con zod 3.x                                  |
-| Pin de zod             | 3.25.76                                        | Mínimo aceptado por el SDK                                     |
-| Auth                   | `verify_jwt=true` (gateway) en ambas funciones | Rechazo en gateway, menos código en handlers, postura uniforme |
-| Construcción de Agents | Per-request                                    | `fileSearchTool` enlaza vectorStoreIds en construcción         |
-| Path único Fase C      | `git revert` para revertir                     | Sin flag inline ni legacy fallback (eliminados 2026-05-09)     |
-| Rollback de auth       | `verify_jwt=false` + `--no-verify-jwt`         | Cambio coordinado en config + comando                          |
+| Decisión               | Elección                                         | Razón                                                      |
+| ---------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| SDK del pipeline       | `@openai/agents@0.3.1`                           | Tracing nativo, guardrails declarativos                    |
+| Pin del SDK            | 0.3.1                                            | Última compatible con zod 3.x                              |
+| Pin de zod             | 3.25.76                                          | Mínimo aceptado por el SDK                                 |
+| Auth pública           | `verify_jwt=true` en las tres funciones públicas | Rechazo en gateway y ownership dentro del handler          |
+| Auth del worker        | Token M2M aleatorio en Vault + digest SHA-256    | `pg_net` puede invocarlo sin exponer `service_role`        |
+| Construcción de Agents | Per-request                                      | `fileSearchTool` enlaza vectorStoreIds en construcción     |
+| Path único Fase C      | `git revert` para revertir                       | Sin flag inline ni legacy fallback (eliminados 2026-05-09) |
+| Rollback de auth       | `verify_jwt=false` + `--no-verify-jwt`           | Cambio coordinado en config + comando                      |
 
 ---
 
-_Documentación actualizada el 2026-07-16 con la Fase 1A durable (job previo, Storage recuperable, ledger/outbox/PGMQ, idempotencia y polling por `jobId`). Ver `CHANGELOG.md`, `SPEC.md` §10.9 y `ARCHITECTURE.md` §8.12._
+_Documentación actualizada el 2026-07-16 con Fase 1B (upload firmado, worker independiente, checkpoints atómicos, Realtime/polling, Vault y cleanup TTL). Ver `CHANGELOG.md`, `SPEC.md` §10.10 y `ARCHITECTURE.md` §8.13._

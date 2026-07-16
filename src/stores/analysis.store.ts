@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ProcessingStatus, AnalysisPhase, WorkflowState } from '../types';
 import { useLicitacionStore } from './licitacion.store';
-import { processFile } from '../lib/file-utils';
+import { inspectFile } from '../lib/file-utils';
 import { isErr } from '../lib/Result';
 import { services } from '../config/service-registry';
 import { templateService } from '../services/template.service';
@@ -61,25 +61,26 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 );
             }
 
-            // 2. File processing
-            const { hash, base64, isValidPdf } = await processFile(file);
+            // 2. File inspection. Bytes are uploaded directly to signed
+            // Storage URLs; no base64 copy is created in browser memory.
+            const { hash, isValidPdf } = await inspectFile(file);
 
             if (!isValidPdf) {
                 throw new Error('El archivo principal no es un PDF válido.');
             }
 
             // Process additional files
-            const additionalFiles: { name: string; base64: string }[] = [];
+            const uploadSources: Array<{ file: File; sha256: string }> = [{ file, sha256: hash }];
             for (let i = 1; i < files.length; i++) {
                 const addFile = files[i];
                 if (addFile.size > MAX_PDF_SIZE_BYTES) {
                     throw new Error(`El archivo ${addFile.name} supera el límite de tamaño.`);
                 }
-                const { base64: addBase64, isValidPdf: addIsValid } = await processFile(addFile);
+                const { hash: addHash, isValidPdf: addIsValid } = await inspectFile(addFile);
                 if (!addIsValid) {
                     throw new Error(`El archivo ${addFile.name} no es un PDF válido.`);
                 }
-                additionalFiles.push({ name: addFile.name, base64: addBase64 });
+                uploadSources.push({ file: addFile, sha256: addHash });
             }
 
             set({
@@ -100,7 +101,7 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
 
             // 4. Run analysis pipeline
             const { content, workflow } = await services.ai.analyzePdfContent(
-                base64,
+                '',
                 (processed, total, message, phase) => {
                     const progressWeight = total > 0 ? 80 / total : 0;
                     const currentProgress = total > 0 ? 10 + Math.round(processed * progressWeight) : 50;
@@ -121,7 +122,8 @@ export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
                 file.name,
                 hash,
                 template,
-                additionalFiles.length > 0 ? additionalFiles : undefined
+                undefined,
+                uploadSources
             );
 
             // 5. Update state & persist
