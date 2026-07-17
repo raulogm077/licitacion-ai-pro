@@ -6,7 +6,7 @@
 --   * pg_net triggers a worker after enqueue and pg_cron provides a 10-second
 --     recovery sweep if an HTTP activation is lost.
 
-CREATE EXTENSION IF NOT EXISTS pg_net;
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 CREATE TABLE IF NOT EXISTS public.analysis_runtime_settings (

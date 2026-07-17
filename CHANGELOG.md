@@ -9,6 +9,7 @@
 - **Activación durable**: `pg_net` despierta al worker después del commit y un sweep `pg_cron` condicionado recupera activaciones perdidas sin invocaciones vacías continuas.
 - **Recovery de UI**: Broadcast privado por job avisa de estado/fase; el cliente relee `analysis_jobs` por RLS y mantiene polling como fallback.
 - **Seguridad M2M**: el token interno aleatorio se genera en Postgres, el texto plano queda en Vault y el runtime compara SHA-256; las funciones públicas conservan JWT de gateway.
+- **Hardening de extensión**: `pg_net` se registra en el schema `extensions`; una migración de compatibilidad repara previews que hubieran aplicado la primera versión en `public` y elimina el aviso nuevo del Security Advisor.
 - **Integridad y retención**: el worker comprueba tamaño/SHA antes de OpenAI, repara planes idempotentes incompletos y limpia en orden OpenAI → Storage → filas de documentos, incluidos uploads abandonados.
 - **Release seguro**: CI comprueba y despliega las dos funciones nuevas, aplica backend antes de Vercel y añade smokes de CORS/JWT/M2M. El SSE anterior queda como rollback; no cambia modelo, prompts ni schema canónico.
 

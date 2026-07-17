@@ -97,6 +97,7 @@ Migraciones relevantes recientes:
 - `20260716101822_analysis_jobs_durable_foundation.sql` — PGMQ, ledger/outbox de pasos, idempotencia, copias recuperables en Storage y RPC backend-only. Debe pasar primero por Supabase Preview; no aplicar manualmente en producción.
 - `20260716105353_analysis_job_advisor_hardening.sql` — índices de las FK del outbox y política RLS deny explícita; cierra los tres avisos introducidos detectados por advisors en el preview de la PR.
 - `20260716114116_analysis_worker_async_runtime.sql` — `pg_net`/`pg_cron`, token M2M en Vault, upload state/orden, claim/advance atómicos, activación y recovery del worker, Broadcast privado y cleanup TTL. Debe validarse en Preview antes de producción; no contiene una API key de OpenAI ni un token en texto plano versionado.
+- `20260717094234_harden_pg_net_extension_schema.sql` — garantiza que `pg_net` quede registrado en `extensions`; repara de forma idempotente previews que ya lo hubieran instalado en `public` y evita introducir un aviso del Security Advisor.
 
 > **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
 
