@@ -10,11 +10,11 @@ Estado funcional confirmado a fecha de esta especificación:
 
 - el análisis principal usa **OpenAI Responses API** con pipeline de 5 fases
 - las fases B (DocumentMap) y C (BlockExtraction + custom template) se ejecutan a través del SDK `@openai/agents@0.3.1` (Agent + run() + guardrails declarativos), preservando el contrato SSE
-- el flujo de ejecución usa **streaming por SSE**
+- el flujo principal usa **jobs durables**, Broadcast privado de Realtime y polling RLS; SSE queda como rollback temporal
 - existe historial de licitaciones y análisis ya implementado
 - el sistema soporta análisis de PDF principal y múltiples documentos (backend/AI)
 - el sistema soporta plantillas dinámicas de extracción en todos los niveles
-- la arquitectura legacy de colas/polling quedó fuera del flujo operativo principal
+- PGMQ, ledger, outbox y leases forman parte del flujo operativo principal
 - campos críticos (titulo, presupuesto, moneda, plazo, cpv, organo) usan **TrackedField** con status y evidencias
 - el schema canónico vive en `supabase/functions/_shared/schemas/canonical.ts`
 - la cobertura actual de tests está en progreso (~66% en statements), el objetivo de la iteración D es 80%.
@@ -30,18 +30,20 @@ Estado funcional confirmado a fecha de esta especificación:
 - el backend reconcilia `datosGenerales.presupuesto` y `datosGenerales.plazoEjecucionMeses` desde bloques fiables (`economico`, `duracionYProrrogas`) solo cuando el dato general venía ausente
 - la interfaz sigue el sistema de diseño **«Iris»** (marca índigo→violeta, tipografía Inter/Space Grotesk self-hosted, superficies aurora/glass); el **modo oscuro es funcional** en toda la app y respeta `prefers-reduced-motion`
 - el feedback transitorio de la UI (errores de carga/borrado, éxito de acciones) se comunica con **toasts** (`sonner`) mediante el helper único `notify()`, no con banners ad-hoc
-- la pantalla de análisis muestra las **5 fases del pipeline como checklist** (la fase activa llega por SSE vía `currentPhase` del store) con barra de progreso real; al completar un análisis fresco hay una celebración breve (confetti, desactivable por `prefers-reduced-motion`)
+- la pantalla de análisis muestra las **5 fases del pipeline como checklist** (la fase activa llega desde el recovery durable vía `currentPhase`) con barra de progreso real; al completar un análisis fresco hay una celebración breve (confetti, desactivable por `prefers-reduced-motion`)
 - el dashboard exporta el análisis a **Excel real** (`exportLicitacionToExcel`, 6 hojas); no existe el CTA «Ver Original» porque el PDF original no se persiste
 - la **búsqueda es única** y vive en el Historial (texto libre FTS + filtros avanzados incl. estado y tags); la antigua página `/search` fue eliminada
 - Analytics muestra **gráficos reales** (donut de estados y evolución mensual con recharts, lazy) con paleta validada para daltonismo/contraste en claro y oscuro
 - los visitantes no autenticados ven una **landing de marca** con CTA de acceso; el **modo presentación** es un pase de diapositivas real (teclado, pantalla completa, transiciones)
 - `criteriosAdjudicacion` no puede vaciarse por completo por un `subcriterio` mal tipado si aún existe señal útil recuperable
-- ambas Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`) usan `verify_jwt = true` y rechazan en el gateway las peticiones sin JWT con 401
+- `analysis-jobs`, `analyze-with-agents` y `chat-with-analysis-agent` usan `verify_jwt = true`; `analysis-worker` usa auth M2M con token en Vault y rechaza sin él aunque `verify_jwt = false`
 - el camino @openai/agents para Fase C es único; el antiguo fallback `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción
 - las `instructions` dinámicas de los agentes consumen el `PipelineContext` directamente del primer argumento del SDK (`({ context })`), **sin** un segundo salto `.context`; el contrato queda protegido por tests de regresión que llaman a `getSystemPrompt(new RunContext(ctx))`
 - los `partial_reasons` de ingesta son veraces: el aviso «OCR/señal baja» solo puede aparecer con conteos reales de indexación (si el polling del vector store falla, `pollFailed` impide culpar al documento), y el dashboard prioriza el consejo de composición documental (falta PCAP/PPT) sobre el de OCR
 - el tracking de `analysis_jobs` es fiable: las escrituras de cierre (`extraction`/`completeJob`/`failJob`) se esperan antes de cerrar el stream SSE y `JobService` propaga los errores de PostgREST
 - `fileSearchTool` se invoca con los vector store ids como primer argumento posicional (`fileSearchTool([id])`); la forma wire (`vector_store_ids` como strings) está fijada por tests, y los ficheros de agentes ya no llevan `@ts-nocheck` (solo supresiones puntuales documentadas en guardrails)
+- la UI calcula SHA-256 sin base64, crea el job antes de subir, usa tokens firmados de Storage y recibe `202` al encolar; el worker verifica tamaño/hash antes de OpenAI
+- cada fase persiste un checkpoint reutilizable y la RPC de avance hace checkpoint + archive + siguiente enqueue de forma atómica; retry/DLQ no dependen de una conexión del navegador
 
 ## 2.1. Endurecimiento operativo aplicado (2026-04-19)
 
@@ -125,16 +127,16 @@ Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanza
 
 ## 6. Decisiones cerradas
 
-- **Composición multi-documento:** Se usa Vector Store de OpenAI con ingesta secuencial. El documento principal se pasa como `pdfBase64` y los adicionales en array `files`. La Guía de lectura se inyecta como archivo markdown local vía `Deno.readTextFile`. Decisión: mantener esta arquitectura hasta que se superen las 10 docs por análisis.
-- **Límites multi-documento:** Máximo 5 archivos, 30MB total. Validación en frontend (`useFileValidation.ts`) y backend (Edge Function). Si se necesita más, evaluar chunking o vector store persistente por usuario.
+- **Composición multi-documento:** Se usa Vector Store de OpenAI, pero los bytes llegan al worker desde Storage mediante upload firmado, no en `pdfBase64/files`. La Guía de lectura permanece en código/contexto y no se sube al Vector Store.
+- **Límites multi-documento:** La UI mantiene máximo 5 archivos/30MB; el control plane aplica defensa adicional de 20 documentos/50MB agregado y MIME PDF/DOCX/TXT.
 - **Migración a `@openai/agents` (2026-05-06):** Pipeline B+C ejecuta a través del SDK pinned a 0.3.1 (zod 3.25.76). Subir a 0.3.2+ requiere migrar schemas a Zod 4; deferido sine die. Tras confirmar paridad en producción (PR #275 + #276) se eliminaron `block-extraction.legacy.ts` y el flag `USE_AGENTS_SDK` (2026-05-09).
-- **Auth uniforme (2026-05-09):** ambas Edge Functions usan `verify_jwt = true`. NO reintroducir validación manual del token en los handlers; NO añadir `--no-verify-jwt` al despliegue (sobrescribe `config.toml`). Smoke automático en `Smoke Test` del workflow protege la postura.
+- **Auth de Edge Functions:** las tres funciones públicas usan `verify_jwt = true`. `analysis-worker` es la única excepción, con token M2M Vault/hash y smoke 401 propio. NO abrir otra función sin un mecanismo equivalente y explícito.
 
 ## 7. Riesgos y mitigaciones
 
-### Riesgo 1: romper el contrato SSE
+### Riesgo 1: romper el contrato de progreso/recovery o el SSE de rollback
 
-Mitigación: todo cambio en `analyze-with-agents` debe validar compatibilidad de eventos y consumo frontend.
+Mitigación: todo cambio en `JobService`, `analysis-jobs`, `analysis-worker` o `analyze-with-agents` debe validar estados terminales, Broadcast/polling y compatibilidad del contrato compartido.
 
 ### Riesgo 2: documentación obsoleta
 
@@ -152,9 +154,9 @@ Mitigación: el AI Engineer debe contrastar cada cambio de extracción contra la
 
 Mitigación: tras eliminar el legacy fallback, la única reversión disponible es `git revert` del PR responsable. `pnpm benchmark:pliegos` sigue siendo el gate de paridad y debe quedar verde antes de cada merge a `main` que toque el pipeline.
 
-### Riesgo 6: regresión de auth (peticiones legítimas rechazadas con 401)
+### Riesgo 6: regresión de auth (peticiones legítimas rechazadas o worker abierto)
 
-Mitigación: editar `supabase/config.toml` para fijar `verify_jwt = false` en la función afectada y redesplegar con `--no-verify-jwt`. El smoke automático bloquea el deploy si la postura cambia involuntariamente, evitando que el repo y producción se desincronicen.
+Mitigación: los smokes validan 401 de gateway en funciones públicas y 401 M2M en el worker. Cualquier cambio de `verify_jwt` debe coordinar config, handler, deploy y rollback; nunca se elimina el control M2M para resolver un incidente.
 
 ## 8. Historial de implementación
 
@@ -277,7 +279,7 @@ No forman parte de `## To Do` de `BACKLOG.md`; se registran aquí como deuda con
 - **majors diferidos**: React 19, Tailwind 4 y zod 4 (zod anclado por el peer de `@openai/agents@0.3.1`), eslint 9;
 - refactor del monolito `HistoryView`;
 - decisión sobre **adopción o eliminación completa del service-registry**;
-- **modelo de job asíncrono** para documentos de 300+ páginas (ya recogido en `CLAUDE.md`, "Pipeline Timeout Architecture").
+- ~~**modelo de job asíncrono** para documentos de 300+ páginas~~ **(resuelto en Fase 1B)**: el trabajo ya no depende de la vida de SSE; persisten límites de tiempo por step y el escalado del dataset de expedientes grandes.
 - ~~**orden de la migración `add_provider_reading_mode`**~~ **(resuelto 2026-07-12)**: el fichero se renombró de `20250130000000` a `20251229000000` (posterior a `initial_schema`) y se idempotentizó; se reparó el historial remoto (`delete` de la fila vieja en `schema_migrations`) para que el deploy re-aplique bajo el nuevo `version`. El _branching preview_ vuelve a pasar. Detalle en `DEPLOYMENT.md` (§ "Orden de migraciones y Supabase Preview").
 
 ### 10.8. Fase 0 de arquitectura IA evaluable (2026-07-16)
@@ -310,3 +312,17 @@ Primer corte productivo de la Fase 1 aprobada en ADR-001:
 - anon/authenticated no pueden mutar jobs, documentos, steps ni outbox; las mutaciones usan `service_role` solo dentro de la Edge Function.
 
 Compatibilidad: el resultado canónico, los eventos de fase y la proyección del dashboard no cambian. En este corte el worker continúa inline y el request todavía transporta base64; consumidor independiente, Realtime y upload firmado quedan para el siguiente corte de Fase 1.
+
+### 10.10. Fase 1B: upload firmado y consumidor independiente (2026-07-16)
+
+Segundo corte productivo de la Fase 1:
+
+- `analysis-jobs:init` crea/recupera el job y devuelve tokens firmados; el navegador sube bytes directamente a `analysis-pdfs` y `submit` responde `202` tras encolar;
+- `analysis-worker` usa lease de 155 s y slices compatibles con el wall clock Free de 150 s: ingesta y mapa se separan, extracción procesa hasta dos bloques, y un yield exitoso no consume el presupuesto de tres fallos;
+- `pg_net` activa después del commit del outbox, `pg_cron` recupera activaciones perdidas y ejecuta cleanup TTL acotado;
+- el token interno se genera en Postgres, vive en Vault y solo su SHA-256 queda disponible al runtime backend;
+- Realtime Broadcast privado envía solo estado/fase; `JobService` relee por RLS y mantiene polling como fallback;
+- los recursos se eliminan en orden OpenAI → Storage → filas de documento, conservando referencias cuando un borrado falla;
+- `analyze-with-agents`/SSE queda desplegado como rollback, sin ser el camino de subida principal.
+
+No cambia `OPENAI_MODEL`, prompts, schema ni proyección de producto. La modernización de modelos permanece para Fase 3 y requiere el dataset representativo definido en ADR-001.

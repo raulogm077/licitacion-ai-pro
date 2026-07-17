@@ -1,6 +1,6 @@
 # Deployment actual
 
-Este documento describe el proceso vigente de despliegue. No describe la arquitectura legacy de colas.
+Este documento describe el proceso vigente de despliegue del control plane, worker durable y superficies de compatibilidad.
 
 <!-- release-contract:start -->
 
@@ -18,7 +18,9 @@ Este documento describe el proceso vigente de despliegue. No describe la arquite
 Superficies desplegables principales:
 
 - frontend de la aplicación
-- Edge Function `analyze-with-agents`
+- Edge Function `analysis-jobs` (control plane autenticado)
+- Edge Function `analysis-worker` (consumidor interno M2M)
+- Edge Function `analyze-with-agents` (rollback SSE durante Fase 1B)
 - Edge Function `chat-with-analysis-agent` para conversación sobre análisis persistidos
 
 > **Nota (rediseño UX «Iris», 2026-07-12):** las dependencias frontend de UI añadidas (`motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/*`) son **solo de cliente**: entran en el bundle de Vite/Vercel y **no** afectan al runtime Deno de las Edge Functions (que no las importa). Las fuentes se sirven self-hosted desde el bundle, sin CDN externa.
@@ -94,19 +96,29 @@ Migraciones relevantes recientes:
 - `20260712000000_fix_search_licitaciones_idor.sql` — corrige un IDOR en la RPC `search_licitaciones`: pasa a `search_licitaciones(search_query text)` de un solo argumento, `SECURITY INVOKER` (aplica RLS) con filtro `auth.uid()` y `search_path` fijo; endurece además el `search_path` de las funciones trigger `update_updated_at_column` y `update_extraction_templates_updated_at`. El frontend no cambia (ya llamaba solo con `search_query`)
 - `20260716101822_analysis_jobs_durable_foundation.sql` — PGMQ, ledger/outbox de pasos, idempotencia, copias recuperables en Storage y RPC backend-only. Debe pasar primero por Supabase Preview; no aplicar manualmente en producción.
 - `20260716105353_analysis_job_advisor_hardening.sql` — índices de las FK del outbox y política RLS deny explícita; cierra los tres avisos introducidos detectados por advisors en el preview de la PR.
+- `20260716114116_analysis_worker_async_runtime.sql` — `pg_net`/`pg_cron`, token M2M en Vault, upload state/orden, claim/advance atómicos, activación y recovery del worker, Broadcast privado y cleanup TTL. Debe validarse en Preview antes de producción; no contiene una API key de OpenAI ni un token en texto plano versionado.
+- `20260717094234_harden_pg_net_extension_schema.sql` — garantiza que `pg_net` quede registrado en `extensions`; repara de forma idempotente previews que ya lo hubieran instalado en `public` y evita introducir un aviso del Security Advisor.
 
 > **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
 
+El proyecto productivo está actualmente en plan Free: las Edge Functions tienen 150 s de wall clock. El worker usa lease de 155 s y slices acotadas; no subir `EXTRACTION_BLOCKS_PER_SLICE` ni unir ingesta+mapa sin revalidar el límite y el eval live. Referencia: <https://supabase.com/docs/guides/functions/limits>.
+
 ## 5. Comando de despliegue de la Edge Function
+
+El orden es contractual: primero migraciones, después las cuatro funciones y
+solo entonces Vercel. Así la UI nueva nunca apunta a un control plane todavía
+inexistente. `ci-cd.yml` expresa esa dependencia (`deploy-vercel` necesita
+`deploy-supabase`).
 
 ```bash
 npx supabase functions deploy analyze-with-agents
+npx supabase functions deploy analysis-jobs
+npx supabase functions deploy analysis-worker
 npx supabase functions deploy chat-with-analysis-agent
 ```
 
-> **Ambas funciones usan `verify_jwt = true`** en `supabase/config.toml`. El gateway de Supabase rechaza con 401 las peticiones sin JWT válido antes de invocar el código de la función. Dentro de cada handler sólo se resuelve el `user` con `supabase.auth.getUser(token)` para rate-limiting (en `analyze-with-agents`) y ownership sobre `licitaciones` / `analysis_chat_sessions` (en `chat-with-analysis-agent`).
->
-> Si en algún caso futuro hubiera que rebajar la postura para una función concreta, fijar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml` y añadir `--no-verify-jwt` al comando — nunca con un solo cambio sin el otro.
+> **`analysis-jobs`, `analyze-with-agents` y `chat-with-analysis-agent` usan `verify_jwt = true`**. `analysis-worker` es la única excepción: usa `verify_jwt = false` y valida `x-analysis-worker-token` contra el digest guardado en `analysis_runtime_settings`. El texto plano se genera en la migración y solo vive en Vault.
+> No rebajar JWT en las funciones públicas ni retirar la autenticación M2M del worker como workaround operativo. Cualquier cambio de postura requiere revisión de seguridad y smoke equivalente.
 
 > **Límites del chat (desde 2026-07-12)**: `chat-with-analysis-agent` aplica rate limiting por usuario (`CHAT_MAX_REQUESTS_PER_HOUR=60`) y rechaza bodies mayores que `MAX_CHAT_PAYLOAD_BYTES=64KB`; ambas constantes viven en `_shared/config.ts`. El modelo del chat es la constante `CHAT_MODEL` (no hardcodeado) y el SDK se importa solo vía `_shared/agents/sdk.ts`. En `analyze-with-agents` el límite de payload valida la longitud real del body, no el header `content-length`. Detalle en `TECHNICAL_DOCS.md` §4-§5.
 
@@ -116,6 +128,8 @@ Antes de desplegar:
 
 ```bash
 deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
+deno check --node-modules-dir=auto supabase/functions/analysis-jobs/index.ts
+deno check --node-modules-dir=auto supabase/functions/analysis-worker/index.ts
 deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
 deno test supabase/functions/_shared/services/durable-input.service_test.ts supabase/functions/_shared/services/job.service_test.ts
@@ -124,7 +138,7 @@ deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analy
 
 ### 5.2. Smoke test de seguridad post-deploy
 
-Tras desplegar, comprobar que `verify_jwt=true` está efectivo en ambas funciones:
+Tras desplegar, comprobar gateway JWT en las funciones públicas y auth M2M en el worker:
 
 ```bash
 curl -i -X POST "$SUPABASE_URL/functions/v1/analyze-with-agents" \
@@ -134,9 +148,17 @@ curl -i -X POST "$SUPABASE_URL/functions/v1/analyze-with-agents" \
 curl -i -X POST "$SUPABASE_URL/functions/v1/chat-with-analysis-agent" \
   -H 'Content-Type: application/json' \
   -d '{"analysisHash":"x","message":"x"}'
+
+curl -i -X POST "$SUPABASE_URL/functions/v1/analysis-jobs" \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"init"}'
+
+curl -i -X POST "$SUPABASE_URL/functions/v1/analysis-worker" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```
 
-Las dos deben responder `401` desde el gateway (sin invocar el código de la función). Si responden `400` u otro código, revertir a la rama anterior — la validación JWT no está en su sitio. El job `Smoke Test` del workflow `ci-cd.yml` automatiza esta verificación en cada deploy a `main`.
+Las tres públicas deben responder `401` desde el gateway. El worker también debe responder `401`, pero desde su handler por ausencia del token M2M. El job `Smoke Test` automatiza ambas posturas y valida además el CORS de `analysis-jobs`.
 
 ### 5.3. Toolchain de CI fijado (desde 2026-07-12)
 
@@ -144,9 +166,9 @@ Las dos deben responder `401` desde el gateway (sin invocar el código de la fun
 
 ## 6. Secretos y configuración
 
-`OPENAI_API_KEY` debe estar configurada como secreto de Supabase para ambas Edge Functions. No debe exponerse en el frontend.
+`OPENAI_API_KEY` debe estar configurada como secreto de Supabase para `analysis-worker`, `analyze-with-agents` y `chat-with-analysis-agent`. No debe exponerse en el frontend.
 
-`analyze-with-agents` usa además `SUPABASE_SERVICE_ROLE_KEY` para mutaciones del ledger y PGMQ. Es un secreto integrado que Supabase inyecta automáticamente en sus Edge Functions: no se copia a `.env` del frontend, no se devuelve al cliente y no se configura como un secreto personalizado.
+`analysis-jobs`, `analysis-worker` y el rollback `analyze-with-agents` usan además `SUPABASE_SERVICE_ROLE_KEY` para mutaciones backend. Es un secreto integrado que Supabase inyecta automáticamente: no se copia a `.env`, no se devuelve al cliente y no se configura como secreto personalizado.
 
 Ejemplo de configuración:
 
@@ -154,24 +176,27 @@ Ejemplo de configuración:
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
-No hay otros secretos backend personalizados operativos. Cualquier secret remoto huérfano (ej. `USE_AGENTS_SDK`, eliminado del código el 2026-05-09) puede borrarse con `supabase secrets unset <NAME>` sin afectar runtime.
+El token `analysis_worker_token` no se crea con `supabase secrets set`: la migración lo genera dentro de Postgres y lo conserva en Vault. No copiarlo a variables de entorno. Cualquier secret remoto huérfano (ej. `USE_AGENTS_SDK`) puede borrarse sin afectar runtime.
 
 ## 7. Validación posterior al despliegue
 
 Después del despliegue, QA debe comprobar al menos:
 
-- que ambas funciones figuran en el listado de Supabase
+- que las cuatro funciones figuran en el listado de Supabase
 - que no hay errores inmediatos de ejecución
 - que el flujo principal sigue respondiendo como mínimo en un smoke test sobre un pliego representativo del camino principal (PDF completo)
 - que en los logs de `analyze-with-agents` aparecen entradas con prefijo `[trace]` (al menos 1 por cada fase B y C) — verifica que el `SupabaseLogTraceProcessor` está activo
-- que el primer evento autenticado es `job_created`, el job pertenece al usuario y sus cuatro steps terminan `completed`
+- que `analysis-jobs:init` devuelve job + plan firmado, `submit` devuelve 202 y los cuatro steps terminan `completed`
 - que `analysis_steps` no conserva mensajes activos tras un análisis correcto y un fallo reintentable mantiene el mensaje sin archivarlo
-- que tanto `analyze-with-agents` como `chat-with-analysis-agent` responden `401` ante un POST sin JWT (smoke automático en §5.2)
+- que Broadcast privado solo despierta una relectura RLS y polling completa el flujo si Realtime se desconecta
+- que `analysis-jobs`, `analyze-with-agents` y `chat-with-analysis-agent` responden 401 sin JWT y `analysis-worker` responde 401 sin token M2M
 
 Comandos útiles:
 
 ```bash
 npx supabase functions list
+npx supabase functions logs analysis-jobs --tail
+npx supabase functions logs analysis-worker --tail
 npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
 npx supabase functions logs chat-with-analysis-agent --tail
 ```
@@ -184,7 +209,9 @@ Si el despliegue introduce una regresión:
 - se debe preparar una nueva tarea correctiva
 - la documentación debe recoger el riesgo o incidencia si aplica
 - si la regresión es del pipeline `analyze-with-agents` (Fase B o C) → `git revert` del PR responsable y abrir issue inmediatamente. Ya no existe el flag `USE_AGENTS_SDK` que permitía alternar entre el camino SDK y el legacy sin redeploy.
-- si la regresión es de auth (peticiones legítimas rechazadas con 401) → cambiar `verify_jwt = false` en `[functions.<nombre>]` de `config.toml`, redesplegar con `--no-verify-jwt`, y abrir issue para diagnosticar antes de revertir
+- si falla el worker/control plane de Fase 1B → revertir frontend a `analyze-with-agents`/SSE y el PR responsable; no borrar ledger, colas, Vault ni migraciones ya aplicadas. Los jobs existentes deben dejarse recuperables o marcarse terminales de forma explícita.
+- si una función pública rechaza JWT legítimos → revertir el cambio responsable y diagnosticar gateway/config; no desactivar JWT como workaround silencioso
+- si falla la auth M2M del worker → verificar Vault/digest y revertir el runtime; nunca eliminar `x-analysis-worker-token` ni exponer el token al cliente
 
 ## 9. Regla documental
 

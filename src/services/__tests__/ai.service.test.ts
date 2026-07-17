@@ -215,7 +215,37 @@ describe('AIService', () => {
 
         await service.analyzePdfContent('b64', undefined, undefined, 'f.pdf', 'h1', null, files);
 
-        expect(mockAnalyze).toHaveBeenCalledWith('b64', 'f.pdf', null, expect.any(Function), files, undefined);
+        expect(mockAnalyze).toHaveBeenCalledWith(
+            'b64',
+            'f.pdf',
+            null,
+            expect.any(Function),
+            files,
+            undefined,
+            undefined
+        );
+    });
+
+    it('passes signed-upload sources to the durable job service', async () => {
+        mockAnalyze.mockResolvedValue(validResult);
+        const uploadSources = [
+            {
+                file: new File(['%PDF'], 'pliego.pdf', { type: 'application/pdf' }),
+                sha256: 'a'.repeat(64),
+            },
+        ];
+
+        await service.analyzePdfContent('', undefined, undefined, 'pliego.pdf', 'h1', null, undefined, uploadSources);
+
+        expect(mockAnalyze).toHaveBeenCalledWith(
+            '',
+            'pliego.pdf',
+            null,
+            expect.any(Function),
+            undefined,
+            undefined,
+            uploadSources
+        );
     });
 
     // ── Error handling ────────────────────────────────────────────────────────

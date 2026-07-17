@@ -10,7 +10,7 @@ Analista de Pliegos: SaaS app for analyzing Spanish public procurement documents
 pnpm dev              # Dev server (localhost:5173)
 pnpm build            # TypeScript check + Vite build
 pnpm typecheck        # TypeScript strict check
-pnpm test -- --run    # Run all 236+ tests (single run)
+pnpm test -- --run    # Run all 427 tests (single run)
 pnpm benchmark:pliegos # Benchmark funcional del caso principal de producto
 pnpm test:e2e         # Playwright E2E tests
 pnpm lint             # ESLint (0 warnings allowed)
@@ -34,53 +34,41 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 ## Architecture
 
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + Zustand. Sistema de diseño «Iris» (marca índigo→violeta, fuentes Inter/Space Grotesk self-hosted). UI libs solo-cliente: `motion` (con `LazyMotion`/`MotionProvider`), `sonner` (toasts vía helper `notify()`), `recharts` (lazy), `canvas-confetti`, `tailwindcss-animate`. Dark mode por clase (`darkMode: 'class'`); toda animación respeta `prefers-reduced-motion`. Estas dependencias no afectan al runtime Deno de las Edge Functions.
-- **Backend**: Supabase Edge Functions (Deno runtime) + `@openai/agents@0.3.1` SDK on top of OpenAI Responses API
-- **DB**: PostgreSQL (Supabase) with RLS, FTS (Spanish), JSONB
+- **Backend**: Supabase Edge Functions (Deno runtime) con control plane `analysis-jobs`, consumidor `analysis-worker` y `@openai/agents@0.3.1` sobre OpenAI Responses API
+- **DB**: PostgreSQL (Supabase) con RLS, FTS, JSONB, PGMQ, outbox, `pg_net`, `pg_cron` y Vault
 - **Hosting**: Vercel (frontend), Supabase Cloud (backend)
 - **CI/CD**: GitHub Actions (7-job pipeline)
 
 ### Key Patterns
 
 - **TrackedField**: Critical fields use `{ value, status, evidence?, warnings? }` wrapper
-- **Shared wire contract**: `src/shared/analysis-contract.ts` is the FE/BE source for SSE events, `TrackedFieldWire`, and `partial_reasons`; `job_created` is always the first durable event
+- **Shared wire contract**: `src/shared/analysis-contract.ts` es la fuente FE/BE para eventos de progreso, `TrackedFieldWire` y `partial_reasons`; SSE se conserva solo como rollback de Fase 1B
 - **`unwrap()`**: Extracts raw value from TrackedField or passes through legacy values
-- **SSE + recovery**: Edge Function emits `job_created`, `heartbeat`, phase events, `complete`/`error`; frontend polls `analysis_jobs` by `jobId` if the stream closes early
-- **Durable jobs**: user-scoped idempotency + input fingerprint, recoverable Storage copy, `analysis_job_steps`, transactional outbox, private PGMQ queue, lease/retry/DLQ
-- **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (3 concurrent + retries visibles) -> D:Consolidation -> E:Validation
+- **Upload + recovery**: el navegador calcula SHA-256, recibe tokens firmados y sube bytes directamente a Storage; Broadcast privado despierta al cliente, que relee `analysis_jobs` por RLS con polling como fallback
+- **Durable jobs**: idempotencia por usuario + fingerprint, `analysis_job_steps`, outbox transaccional, PGMQ privado, leases, retry/DLQ y checkpoints reutilizables antes del ack
+- **Pipeline phases**: A:Ingestion -> B:DocumentMap -> C:BlockExtraction (2 bloques por slice) -> D:Consolidation -> E:Validation
 - **`@openai/agents` (Fases B y C)**: cada fase con LLM construye `Agent<PipelineContext>` por request, con `fileSearchTool` y `jsonShapeGuardrail`. Detalles y reglas en [`AGENTS.md`](./AGENTS.md). El antiguo fallback Responses-API directo (`block-extraction.legacy.ts`) y el flag `USE_AGENTS_SDK` se eliminaron tras confirmar paridad en producción; revertir la migración requiere `git revert` del PR responsable.
 - **Tracing**: `SupabaseLogTraceProcessor` emite `[trace]` JSON por evento del SDK. `grep '\[trace\]'` reconstruye la ejecución completa.
-- **Auth**: `verify_jwt = true` en `supabase/config.toml` para **AMBAS** Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`). El gateway rechaza con 401 las peticiones sin JWT válido antes de invocar la función; el handler sólo resuelve `user` para rate-limit (analyze) y ownership (chat). El comando de despliegue NO debe llevar `--no-verify-jwt`. Detalle en `AGENTS.md` (Auth model) y `DEPLOYMENT.md` §5.
+- **Auth**: `verify_jwt = true` para las tres funciones públicas (`analysis-jobs`, `analyze-with-agents`, `chat-with-analysis-agent`). `analysis-worker` es la única excepción: `verify_jwt = false` con token M2M aleatorio en Vault y comparación SHA-256. Nunca exponer ese token ni usar `service_role` en el navegador.
 - **Primary product path**: The supported release path is one complete expediente PDF; partial docs are accepted but must surface structured `partial_reasons`
 
-### Pipeline Timeout Architecture
+### Arquitectura de ejecución asíncrona
 
-Fase 1A still executes the full pipeline in a single Supabase Edge Function invocation, but SSE is no longer the source of truth. The job, Storage copy, step ledger and PGMQ message survive a broken request; the current invocation acts as the transitional inline worker.
-Constants in `_shared/config.ts` control the timing budget:
+Fase 1B separa el request del usuario de la ejecución A–E. `analysis-jobs:init`
+crea el job y el plan de subida; `submit` verifica Storage y encola. Cada llamada
+a `analysis-worker` reclama un mensaje, guarda un checkpoint completo y luego
+hace ack+dispatch de forma atómica.
 
-| Constant                     | Value     | Notes                                                                                                    |
-| ---------------------------- | --------- | -------------------------------------------------------------------------------------------------------- |
-| `PIPELINE_TIMEOUT_MS`        | 280 000   | Requires Supabase function timeout ≥ 300s (set in Dashboard → Project Settings → Edge Functions)         |
-| `API_CALL_TIMEOUT_MS`        | 90 000    | Per-block agent run — no retry on timeout (timeouts are NOT retried, see `isRetryableError`)             |
-| `BLOCK_CONCURRENCY`          | 2         | Bajada de 3→2 (2026-07-12): con file_search cada bloque consume mucho TPM y 3 simultáneos disparaban 429 |
-| `BLOCK_MAX_RETRIES`          | 1         | Real backoff (`retryWithBackoff`) on 429/5xx per block — timeouts still NOT retried                      |
-| `BLOCK_RETRY_MAX_DELAY_MS`   | 30 000    | Caps `Retry-After` so one degraded block can't consume the whole `PIPELINE_TIMEOUT_MS` budget            |
-| `VECTOR_STORE_TIMEOUT_MS`    | 90 000    | Waits for `file_counts.in_progress === 0`, not `vs.status`                                               |
-| `CHAT_MODEL`                 | `gpt-5.4` | Conversational layer model (chat), separate from the extraction `OPENAI_MODEL`                           |
-| `CHAT_MAX_REQUESTS_PER_HOUR` | 60        | Per-user rate limit for `chat-with-analysis-agent` (`checkRateLimit`, namespaced `chat:`)                |
-| `MAX_CHAT_PAYLOAD_BYTES`     | 64 KB     | Real body-size cap for chat; `analyze-with-agents` validates real body length too                        |
+El proyecto Supabase está en plan Free, con wall clock de 150 s. Por eso el
+worker usa lease de 155 s y unidades acotadas: ingesta e indexación se
+checkpointan antes del mapa y extracción procesa como máximo dos bloques por
+slice. Un `yield` exitoso no consume el presupuesto de tres fallos; un crash sí.
+`pg_net` activa tras commit y `pg_cron` recupera en menos de 10 s.
 
-**Typical timing by document size:**
-
-| Pages | Ingestion | Extraction | Total                                  |
-| ----- | --------- | ---------- | -------------------------------------- |
-| ~30   | ~20s      | ~30-50s    | ~70-90s ✅                             |
-| ~100  | ~40s      | ~50-80s    | ~120-150s ✅                           |
-| ~300  | ~90s      | ~60-90s    | ~200-250s ⚠️ needs 300s Supabase limit |
-
-**⚠️ Remaining limitation for very large documents (300+ pages):** the worker is
-still inline and therefore keeps the Supabase wall-clock ceiling. Fase 1B must
-separate the queue consumer and signed upload endpoint; the durable schema,
-`jobId` polling and retry semantics introduced in Fase 1A remain unchanged.
+Files y Vector Store se registran en una sola transacción inmediatamente después
+de crearse, antes de esperar la indexación. El cleanup TTL borra en orden OpenAI
+→ Storage → filas de documentos y conserva referencias si falla un borrado.
+`analyze-with-agents` continúa desplegado únicamente como rollback SSE.
 
 ### Security Audit CI
 
@@ -92,10 +80,8 @@ vulnerabilities fail CI. The CI step parses JSON output and filters by
 via `pnpm.overrides` in `package.json` (e.g. `tmp`, `ws`); direct deps are
 bumped in place (e.g. `vite`).
 
-The `Smoke Test` job in `.github/workflows/ci-cd.yml` also asserts post-deploy
-that `verify_jwt=true` is actually effective on both Edge Functions (a POST
-without `Authorization` must return 401 from the gateway, otherwise the
-deploy fails).
+El `Smoke Test` comprueba 401 de gateway en las tres funciones públicas y 401
+de autenticación M2M en `analysis-worker` sin token.
 
 ## Project Structure
 
@@ -109,6 +95,8 @@ src/                          # Frontend (React)
   config/                     # Env, supabase, sentry, features, service-registry
 
 supabase/functions/           # Backend (Deno Edge Functions)
+  analysis-jobs/              # Control plane JWT: init + signed upload plan + submit
+  analysis-worker/            # Consumidor M2M de PGMQ por slices y cleanup TTL
   analyze-with-agents/        # Main pipeline
     agents/                   # Agent factories (document-map, block-extractor, custom-template)
     prompts/index.ts          # Prompt strings (1:1 desde la implementación previa)
@@ -138,9 +126,9 @@ scripts/                      # Repo automation invoked from package.json / CI
 - **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK)
 - **Backend constants**: All in `_shared/config.ts` (never hardcode model names, timeouts, etc.)
 - **Agents**: ver `AGENTS.md` para el patrón de añadir un nuevo Agent o un nuevo guardrail
-- **Auth en Edge Functions**: NO reintroducir validación manual del token. Las dos funciones se apoyan en `verify_jwt = true` del gateway. Añadir `--no-verify-jwt` al `supabase functions deploy` invalida silenciosamente esta postura (sobrescribe `config.toml`).
+- **Auth en Edge Functions**: las tres funciones públicas dependen de `verify_jwt = true`; no añadir `--no-verify-jwt`. El worker conserva obligatoriamente su validación M2M Vault-backed y nunca acepta el token desde query/body.
 - **Service role**: solo backend para mutar job/step/outbox/Storage. Nunca en `src/`, logs o responses. Browser = `SELECT` RLS de sus propios jobs/steps.
-- **Durable step invariant**: job antes de efectos externos; enqueue mediante outbox; archive solo después del checkpoint; error mediante lease/retry/DLQ.
+- **Durable step invariant**: job antes de efectos externos; bytes directos a Storage; enqueue mediante outbox; recursos OpenAI y salida reutilizable antes del ack; error mediante lease/retry/DLQ.
 - **Sin docs históricos sueltos**: el repo no mantiene archivos históricos no operativos (ej. `DEPRECATED.md`, `AUDIT.md`). El historial de cambios cerrados vive como entradas fechadas en `SPEC.md`, `ARCHITECTURE.md` (§8.x) y `CHANGELOG.md`.
 - **Sin scripts de conveniencia muertos en `scripts/`**: cada `.sh` o `.ts` bajo `scripts/` debe estar invocado desde `package.json`, `.github/workflows/` o `.husky/`. Si no se usa desde uno de esos sitios, debe eliminarse en lugar de mantenerse "por si acaso".
 
@@ -149,11 +137,11 @@ scripts/                      # Repo automation invoked from package.json / CI
 - All exposed tables have RLS enabled. `analysis_jobs`, documents and steps expose only owner-scoped `SELECT`; all mutations are backend-only.
 - Full-text search: `search_vector` tsvector column (Spanish) with GIN index
 - Search RPC: `search_licitaciones` combines FTS + ILIKE fallback
-- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `analysis_job_steps`, `analysis_job_outbox`, `extraction_feedback`
+- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `analysis_job_documents`, `analysis_job_steps`, `analysis_job_outbox`, `analysis_runtime_settings`, `extraction_feedback`
 
 ## Testing
 
-- **Unit/Integration**: Vitest (236+ tests, coverage thresholds: 65% statements, 50% branches)
+- **Unit/Integration**: Vitest (427 tests, thresholds: 79% statements, 65% branches, 72% functions, 80% lines)
 - **Worker policy**: `vitest.config.ts` caps workers (`minWorkers: 1`, `maxWorkers: 2`) to keep `pnpm verify:release` stable under coverage and jsdom-heavy suites
 - **Edge Function unit tests**: `deno test supabase/functions/<feature>/__tests__/*.test.ts` — los tests de guardrails están en `analyze-with-agents/__tests__/agents.test.ts`
 - **E2E**: Playwright (Chromium, base URL localhost:4173)
@@ -173,7 +161,7 @@ scripts/                      # Repo automation invoked from package.json / CI
 1. Run `pnpm verify:release` in the working branch before pushing
 2. Open or update a PR and wait for CI green
 3. Merge the PR into `main`
-4. GitHub Actions deploys Supabase + Vercel from `main`
+4. GitHub Actions aplica migraciones y despliega Edge Functions antes de publicar el frontend en Vercel
 
 ## Monitoring & Observability
 
@@ -229,10 +217,12 @@ single request.
 ## Key Files to Know
 
 - `src/lib/schemas.ts` — Frontend Zod schemas (LicitacionContent, TrackedField)
-- `src/services/job.service.ts` — SSE streaming orchestration
+- `src/services/job.service.ts` — upload firmado, recovery Realtime/polling y rollback SSE
 - `src/services/db.service.ts` — CRUD + search + delete
 - `src/hooks/useHistory.ts` — History hook with debounced search
-- `supabase/functions/analyze-with-agents/index.ts` — Pipeline orchestrator (registra `setTraceProcessors` y construye `PipelineContext`)
+- `supabase/functions/analysis-jobs/index.ts` — control plane autenticado `init/submit`
+- `supabase/functions/analysis-worker/index.ts` — consumidor durable, slices, retry/DLQ y cleanup
+- `supabase/functions/analyze-with-agents/index.ts` — rollback SSE y orquestador A–E compatible
 - `supabase/functions/analyze-with-agents/agents/*.agent.ts` — Agent factories
 - `supabase/functions/analyze-with-agents/prompts/index.ts` — Prompt strings
 - `supabase/functions/chat-with-analysis-agent/index.ts` — Conversational layer (verify_jwt=true en gateway)

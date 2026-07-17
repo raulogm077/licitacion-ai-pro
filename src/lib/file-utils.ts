@@ -27,6 +27,19 @@ export function bufferToBase64(buffer: ArrayBuffer): Promise<string> {
 }
 
 /**
+ * Direct-upload inspection path. It validates and hashes the bytes without
+ * materializing a base64 copy in browser memory.
+ */
+export async function inspectFile(file: File): Promise<{
+    hash: string;
+    isValidPdf: boolean;
+}> {
+    const arrayBuffer = await file.arrayBuffer();
+    const [hash] = await Promise.all([generateBufferHash(arrayBuffer)]);
+    return { hash, isValidPdf: validateBufferMagicBytes(arrayBuffer) };
+}
+
+/**
  * Optimized file processor: reads file ONCE and generates all needed artifacts.
  */
 export async function processFile(file: File): Promise<{

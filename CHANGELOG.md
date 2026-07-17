@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased] - 2026-07-16 — Fase 1B de ejecución asíncrona
+
+- **Upload firmado**: `analysis-jobs:init` crea el job primero y devuelve tokens temporales; el navegador sube bytes directamente a Storage sin base64 y `submit` encola con HTTP 202.
+- **Worker independiente**: `analysis-worker` usa lease de 155 s y slices compatibles con Supabase Free (150 s): ingesta/mapa separados y hasta dos bloques por entrega; checkpoint incremental, yield sin consumir retry, jitter y DLQ tras tres fallos reales.
+- **Transición atómica**: `advance_analysis_step` hace checkpoint + archive + siguiente outbox en una transacción; un retry reutiliza ingesta/mapa, bloques y consolidación ya persistidos.
+- **Checkpoint externo temprano**: Files y Vector Store se enlazan a job/documentos en una única transacción inmediatamente después de crearse, antes de esperar la indexación; un corte por wall clock retoma esos IDs sin duplicarlos.
+- **Activación durable**: `pg_net` despierta al worker después del commit y un sweep `pg_cron` condicionado recupera activaciones perdidas sin invocaciones vacías continuas.
+- **Recovery de UI**: Broadcast privado por job avisa de estado/fase; el cliente relee `analysis_jobs` por RLS y mantiene polling como fallback.
+- **Seguridad M2M**: el token interno aleatorio se genera en Postgres, el texto plano queda en Vault y el runtime compara SHA-256; las funciones públicas conservan JWT de gateway.
+- **Hardening de extensión**: `pg_net` se registra en el schema `extensions`; una migración de compatibilidad repara previews que hubieran aplicado la primera versión en `public` y elimina el aviso nuevo del Security Advisor.
+- **Integridad y retención**: el worker comprueba tamaño/SHA antes de OpenAI, repara planes idempotentes incompletos y limpia en orden OpenAI → Storage → filas de documentos, incluidos uploads abandonados.
+- **Release seguro**: CI comprueba y despliega las dos funciones nuevas, aplica backend antes de Vercel y añade smokes de CORS/JWT/M2M. El SSE anterior queda como rollback; no cambia modelo, prompts ni schema canónico.
+
 ## [Unreleased] - 2026-07-16 — Fase 1A de jobs durables
 
 - **Control plane durable**: `analysis_jobs` nace antes de Storage/OpenAI y aplica idempotencia por usuario + fingerprint de entrada.

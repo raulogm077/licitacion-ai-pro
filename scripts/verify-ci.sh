@@ -43,6 +43,8 @@ echo "→ E2E..."
 
 echo "→ Edge Functions (deno check)..."
 deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
+deno check --node-modules-dir=auto supabase/functions/analysis-jobs/index.ts
+deno check --node-modules-dir=auto supabase/functions/analysis-worker/index.ts
 deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
 
 echo "→ Edge Functions (deno test)..."
@@ -53,6 +55,7 @@ deno test --node-modules-dir=auto supabase/functions/_shared/services/durable-in
 deno test --node-modules-dir=auto supabase/functions/_shared/services/job.service_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/tools_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/ingestion_test.ts
+deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/block-extraction_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
 deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/validation_test.ts
 deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts

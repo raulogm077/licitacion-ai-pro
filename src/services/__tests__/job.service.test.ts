@@ -10,6 +10,22 @@ vi.mock('../../config/supabase', () => ({
             refreshSession: vi.fn(),
         },
         from: vi.fn(),
+        realtime: {
+            setAuth: vi.fn(),
+        },
+        channel: vi.fn(() => {
+            const channel = {
+                on: vi.fn(),
+                subscribe: vi.fn(),
+            };
+            channel.on.mockReturnValue(channel);
+            channel.subscribe.mockReturnValue(channel);
+            return channel;
+        }),
+        removeChannel: vi.fn().mockResolvedValue('ok'),
+        storage: {
+            from: vi.fn(),
+        },
     },
 }));
 
@@ -31,6 +47,14 @@ const mockSupabase = supabase as unknown as {
         refreshSession: ReturnType<typeof vi.fn>;
     };
     from: ReturnType<typeof vi.fn>;
+    realtime: {
+        setAuth: ReturnType<typeof vi.fn>;
+    };
+    channel: ReturnType<typeof vi.fn>;
+    removeChannel: ReturnType<typeof vi.fn>;
+    storage: {
+        from: ReturnType<typeof vi.fn>;
+    };
 };
 
 /** Build a SSE stream from an array of events */
@@ -297,6 +321,208 @@ describe('JobService', () => {
         expect(result.content).toBeDefined();
         expect(result.workflow).toEqual({ recovered: true });
         expect(mockSupabase.from).toHaveBeenCalledWith('analysis_jobs');
+    });
+
+    it('uses signed Storage uploads and submits an async durable job', async () => {
+        const file = new File(['%PDF-1.7'], 'pliego.pdf', { type: 'application/pdf' });
+        const sha256 = 'a'.repeat(64);
+        const uploadToSignedUrl = vi.fn().mockResolvedValue({ data: { path: 'signed/path' }, error: null });
+        mockSupabase.storage.from.mockReturnValue({ uploadToSignedUrl });
+
+        const single = vi.fn().mockResolvedValue({
+            data: {
+                status: 'completed',
+                result: { result: validContent, workflow: { asyncWorker: true } },
+                error: null,
+                phase: 'completed',
+                updated_at: new Date().toISOString(),
+            },
+            error: null,
+        });
+        const eq = vi.fn().mockReturnValue({ single });
+        const select = vi.fn().mockReturnValue({ eq });
+        mockSupabase.from.mockReturnValue({ select });
+
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(
+                new Response(
+                    JSON.stringify({
+                        jobId: '123e4567-e89b-42d3-a456-426614174000',
+                        created: true,
+                        status: 'awaiting_upload',
+                        uploads: [
+                            {
+                                documentId: 'doc-1',
+                                name: 'pliego.pdf',
+                                path: 'u1/job/doc-pliego.pdf',
+                                token: 'signed-token',
+                                mimeType: 'application/pdf',
+                                sizeBytes: file.size,
+                                sha256,
+                            },
+                        ],
+                    }),
+                    { status: 201 }
+                )
+            )
+            .mockResolvedValueOnce(
+                new Response(JSON.stringify({ jobId: '123e4567-e89b-42d3-a456-426614174000', status: 'queued' }), {
+                    status: 202,
+                })
+            );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const onProgress = vi.fn();
+        const result = await service.analyzeWithAgents('', 'pliego.pdf', null, onProgress, undefined, undefined, [
+            { file, sha256 },
+        ]);
+
+        expect(result.workflow).toEqual({ asyncWorker: true });
+        expect(mockSupabase.storage.from).toHaveBeenCalledWith('analysis-pdfs');
+        expect(uploadToSignedUrl).toHaveBeenCalledWith('u1/job/doc-pliego.pdf', 'signed-token', file, {
+            contentType: 'application/pdf',
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body))).toEqual({
+            action: 'submit',
+            jobId: '123e4567-e89b-42d3-a456-426614174000',
+        });
+        expect(onProgress).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: 'job_created',
+                jobId: '123e4567-e89b-42d3-a456-426614174000',
+            })
+        );
+    });
+
+    it('refreshes the JWT once when the async control plane returns 401', async () => {
+        const file = new File(['%PDF-1.7'], 'pliego.pdf', { type: 'application/pdf' });
+        const refreshedSession = { ...validSession, access_token: 'async-refreshed-token' };
+        mockSupabase.auth.refreshSession.mockResolvedValue({ data: { session: refreshedSession }, error: null });
+
+        const single = vi.fn().mockResolvedValue({
+            data: {
+                status: 'completed',
+                result: { result: validContent, workflow: { resumed: true } },
+                error: null,
+                phase: 'completed',
+            },
+            error: null,
+        });
+        mockSupabase.from.mockReturnValue({
+            select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single }) }),
+        });
+
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'expired' }), { status: 401 }))
+            .mockResolvedValueOnce(
+                new Response(
+                    JSON.stringify({
+                        jobId: '123e4567-e89b-42d3-a456-426614174001',
+                        created: false,
+                        status: 'completed',
+                        uploads: [],
+                    }),
+                    { status: 200 }
+                )
+            );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await service.analyzeWithAgents('', 'pliego.pdf', null, undefined, undefined, undefined, [
+            { file, sha256: 'a'.repeat(64) },
+        ]);
+
+        expect(result.workflow).toEqual({ resumed: true });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect((fetchMock.mock.calls[1][1] as RequestInit).headers).toMatchObject({
+            Authorization: 'Bearer async-refreshed-token',
+        });
+        expect(mockSupabase.realtime.setAuth).toHaveBeenCalledWith('async-refreshed-token');
+    });
+
+    it('infers durable upload MIME types before creating the job', async () => {
+        const sources = [
+            { file: new File(['docx'], 'anexo.docx'), sha256: 'a'.repeat(64) },
+            { file: new File(['txt'], 'notas.txt'), sha256: 'b'.repeat(64) },
+            { file: new File(['pdf'], 'sin-tipo.bin'), sha256: 'c'.repeat(64) },
+        ];
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValue(
+                new Response(JSON.stringify({ created: true, status: 'awaiting_upload', uploads: [] }), { status: 201 })
+            );
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(
+            service.analyzeWithAgents('', 'anexo.docx', null, undefined, undefined, undefined, sources)
+        ).rejects.toThrow('El servidor no devolvió el job durable');
+
+        const requestBody = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+        expect(requestBody.files.map((entry: { mimeType: string }) => entry.mimeType)).toEqual([
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain',
+            'application/pdf',
+        ]);
+    });
+
+    it('rejects a signed plan whose document count does not match the selection', async () => {
+        const file = new File(['%PDF-1.7'], 'pliego.pdf', { type: 'application/pdf' });
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        jobId: '123e4567-e89b-42d3-a456-426614174002',
+                        created: true,
+                        status: 'awaiting_upload',
+                        uploads: [{}, {}],
+                    }),
+                    { status: 201 }
+                )
+            )
+        );
+
+        await expect(
+            service.analyzeWithAgents('', 'pliego.pdf', null, undefined, undefined, undefined, [
+                { file, sha256: 'a'.repeat(64) },
+            ])
+        ).rejects.toThrow('El plan firmado no coincide con los documentos seleccionados');
+    });
+
+    it('rejects a signed upload when its integrity metadata differs', async () => {
+        const file = new File(['%PDF-1.7'], 'pliego.pdf', { type: 'application/pdf' });
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        jobId: '123e4567-e89b-42d3-a456-426614174003',
+                        created: true,
+                        status: 'awaiting_upload',
+                        uploads: [
+                            {
+                                documentId: 'doc-1',
+                                name: 'pliego.pdf',
+                                path: 'signed/path',
+                                token: 'token',
+                                mimeType: 'application/pdf',
+                                sizeBytes: file.size,
+                                sha256: 'b'.repeat(64),
+                            },
+                        ],
+                    }),
+                    { status: 201 }
+                )
+            )
+        );
+
+        await expect(
+            service.analyzeWithAgents('', 'pliego.pdf', null, undefined, undefined, undefined, [
+                { file, sha256: 'a'.repeat(64) },
+            ])
+        ).rejects.toThrow('El plan firmado no coincide con pliego.pdf');
     });
 
     it('throws "Sesión expirada" when 401 retry refresh fails', async () => {

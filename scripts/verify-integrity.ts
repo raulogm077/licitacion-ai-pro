@@ -39,6 +39,8 @@ const DOC_IMPACT_RULES = [
         matches: (file: string) =>
             !isTestLikeFile(file) &&
             (file.startsWith('supabase/functions/analyze-with-agents/') ||
+                file.startsWith('supabase/functions/analysis-jobs/') ||
+                file.startsWith('supabase/functions/analysis-worker/') ||
                 file.startsWith('supabase/functions/_shared/') ||
                 file === 'src/services/job.service.ts' ||
                 file === 'src/services/ai.service.ts' ||
@@ -255,7 +257,9 @@ function validateRemoteMigrationHistory(): void {
 
     const driftRows = rows.filter(({ local, remote }) => Boolean(remote) && local !== remote);
     if (driftRows.length > 0) {
-        const details = driftRows.map(({ local, remote }) => `local=${local || '(missing)'} remote=${remote}`).join(', ');
+        const details = driftRows
+            .map(({ local, remote }) => `local=${local || '(missing)'} remote=${remote}`)
+            .join(', ');
         throw new Error(`Remote migration history drifts from the repo: ${details}`);
     }
 }
@@ -306,9 +310,14 @@ function validateBenchmarkFixtures(): void {
         }
 
         if (benchmarkCase.sourcePdf) {
-            const sourcePdfPath = path.resolve(path.join(process.cwd(), 'benchmarks', 'pliegos'), benchmarkCase.sourcePdf);
+            const sourcePdfPath = path.resolve(
+                path.join(process.cwd(), 'benchmarks', 'pliegos'),
+                benchmarkCase.sourcePdf
+            );
             if (!existsSync(sourcePdfPath)) {
-                throw new Error(`Missing benchmark sourcePdf for case "${benchmarkCase.id}": ${benchmarkCase.sourcePdf}`);
+                throw new Error(
+                    `Missing benchmark sourcePdf for case "${benchmarkCase.id}": ${benchmarkCase.sourcePdf}`
+                );
             }
         }
     }

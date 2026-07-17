@@ -50,6 +50,11 @@ export interface BlockExtractionInput {
     context: PipelineContext;
     onProgress?: (msg: string, blockIndex: number, totalBlocks: number) => void;
     onRetry?: (details: RetryNotification) => void;
+    /** Durable worker resume/checkpoint hooks. Legacy SSE callers omit both. */
+    resume?: Partial<BlockExtractionResult>;
+    onCheckpoint?: (checkpoint: BlockExtractionResult) => Promise<void>;
+    /** Worker slice size. Omit to preserve legacy all-block execution. */
+    maxNewBlocks?: number;
 }
 
 export interface BlockResult {
@@ -94,51 +99,101 @@ function emptyBlockResult(blockName: BlockName, warning: string): BlockResult {
 }
 
 export async function runBlockExtraction(input: BlockExtractionInput): Promise<BlockExtractionResult> {
-    const { vectorStoreId, documentMap, guideContent, template, context, onProgress, onRetry } = input;
+    const {
+        vectorStoreId,
+        documentMap,
+        guideContent,
+        template,
+        context,
+        onProgress,
+        onRetry,
+        resume,
+        onCheckpoint,
+        maxNewBlocks,
+    } = input;
 
     const totalBlocks = BLOCK_NAMES.length;
-    let completedCount = 0;
-    let sawRateLimit = false;
-    let degradedByRateLimit = false;
-    const degradedBlocks = new Set<string>();
+    const blockResults = new Map<BlockName, BlockResult>();
+    for (const block of resume?.blocks || []) {
+        if (BLOCK_NAMES.includes(block.blockName)) blockResults.set(block.blockName, block);
+    }
+    let completedCount = blockResults.size;
+    let sawRateLimit = resume?.diagnostics?.sawRateLimit ?? false;
+    let degradedByRateLimit = resume?.diagnostics?.degradedByRateLimit ?? false;
+    const degradedBlocks = new Set<string>(resume?.diagnostics?.degradedBlocks || []);
+    let customTemplate = resume?.customTemplate;
+    let templateWarning = resume?.templateWarning;
+    let checkpointChain = Promise.resolve();
 
     context.guideExcerpt = guideContent.substring(0, GUIDE_EXCERPT_LENGTH);
     context.documentMap = documentMap;
 
-    const tasks = BLOCK_NAMES.map((blockName, i) => async (): Promise<BlockResult> => {
+    const buildCheckpoint = (): BlockExtractionResult => ({
+        blocks: BLOCK_NAMES.map((blockName) => blockResults.get(blockName)).filter((block): block is BlockResult =>
+            Boolean(block)
+        ),
+        customTemplate,
+        templateWarning,
+        diagnostics: {
+            sawRateLimit,
+            degradedByRateLimit,
+            degradedBlocks: [...degradedBlocks],
+        },
+    });
+
+    const persistCheckpoint = async () => {
+        if (!onCheckpoint) return;
+        const snapshot = buildCheckpoint();
+        const write = checkpointChain.then(() => onCheckpoint(snapshot));
+        checkpointChain = write.catch(() => undefined);
+        await write;
+    };
+
+    const pendingEntries = BLOCK_NAMES.map((blockName, i) => ({ blockName, i })).filter(
+        ({ blockName }) => !blockResults.has(blockName)
+    );
+    const selectedEntries = Number.isInteger(maxNewBlocks)
+        ? pendingEntries.slice(0, Math.max(0, Number(maxNewBlocks)))
+        : pendingEntries;
+    const tasks = selectedEntries.map(({ blockName, i }) => async (): Promise<BlockResult> => {
         onProgress?.(`Extrayendo: ${blockName}...`, i, totalBlocks);
+        let blockResult: BlockResult;
         try {
-            const result = await extractBlockWithAgent(blockName, vectorStoreId, context, (retry) => {
+            blockResult = await extractBlockWithAgent(blockName, vectorStoreId, context, (retry) => {
                 if (retry.reason === 'rate_limit') sawRateLimit = true;
                 onRetry?.({ ...retry, blockIndex: i + 1, totalBlocks });
             });
-            completedCount++;
-            console.log(
-                `[Extraction] Block ${blockName} completed (${completedCount}/${totalBlocks}): ${result.warnings.length} warnings`
-            );
-            onProgress?.(
-                `Completado: ${blockName} (${completedCount}/${totalBlocks})`,
-                completedCount - 1,
-                totalBlocks
-            );
-            return result;
         } catch (error) {
-            completedCount++;
             console.error(`[Extraction] Block ${blockName} failed:`, error);
             if (getRetryReason(error) === 'rate_limit') {
                 sawRateLimit = true;
                 degradedByRateLimit = true;
                 degradedBlocks.add(blockName);
             }
-            return emptyBlockResult(blockName, `Error extrayendo bloque ${blockName}: ${mapOpenAIError(error)}`);
+            blockResult = emptyBlockResult(blockName, `Error extrayendo bloque ${blockName}: ${mapOpenAIError(error)}`);
         }
+
+        blockResults.set(blockName, blockResult);
+        completedCount = blockResults.size;
+        console.log(
+            `[Extraction] Block ${blockName} checkpointed (${completedCount}/${totalBlocks}): ${blockResult.warnings.length} warnings`
+        );
+        onProgress?.(`Completado: ${blockName} (${completedCount}/${totalBlocks})`, completedCount - 1, totalBlocks);
+        await persistCheckpoint();
+        return blockResult;
     });
 
-    const blocks = await runWithConcurrency(tasks, BLOCK_CONCURRENCY);
+    await runWithConcurrency(tasks, BLOCK_CONCURRENCY);
 
-    let customTemplate: Record<string, unknown> | undefined;
-    let templateWarning: string | undefined;
-    if (template && template.schema && template.schema.length > 0) {
+    if (
+        template &&
+        template.schema &&
+        template.schema.length > 0 &&
+        blockResults.size === totalBlocks &&
+        (maxNewBlocks === undefined || selectedEntries.length === 0) &&
+        customTemplate === undefined &&
+        templateWarning === undefined
+    ) {
         onProgress?.('Extrayendo plantilla personalizada...', totalBlocks, totalBlocks + 1);
         try {
             customTemplate = await extractCustomTemplateWithAgent(vectorStoreId, template, guideContent, context);
@@ -153,18 +208,11 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
             templateWarning = `⚠️ Plantilla personalizada: ${errorMsg}`;
             onProgress?.(templateWarning, totalBlocks, totalBlocks);
         }
+        await persistCheckpoint();
     }
 
-    return {
-        blocks,
-        customTemplate,
-        templateWarning,
-        diagnostics: {
-            sawRateLimit,
-            degradedByRateLimit,
-            degradedBlocks: [...degradedBlocks],
-        },
-    };
+    await checkpointChain;
+    return buildCheckpoint();
 }
 
 async function extractBlockWithAgent(
