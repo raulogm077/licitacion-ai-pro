@@ -142,6 +142,8 @@ Las dos deben responder `401` desde el gateway (sin invocar el código de la fun
 
 `ci-cd.yml` y los `agent-*.yml` comparten toolchain: `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v4` y **Node 22**. Las herramientas externas quedan pineadas (sin `latest`) para builds reproducibles: OSV scanner `v2.4.0`, actionlint `v1.7.9`, supabase CLI `2.99.0`, vercel `55.0.0`. El job `edge-checks` cablea los tests Deno (`ingestion_test / consolidation_test`, `validation_test`, `agents.test`, `canonical_test`, `retry_test`, `tracing_test`), también invocados desde `scripts/verify-ci.sh`.
 
+**Excepciones del Security Audit.** El job `security-audit` corre OSV Scanner desde la raíz del repo, así que descubre `osv-scanner.toml` automáticamente. Ese fichero es el único sitio donde se silencia un finding, y solo cuando no hay versión parcheada alcanzable: cada entrada exige `reason` (por qué no aplica y por qué no se puede actualizar) e `ignoreUntil` (fecha tras la cual vuelve a romper el CI). Lo que sí tiene parche se arregla actualizando —`pnpm.overrides` para transitivos, bump directo para dependencias declaradas—, nunca añadiéndolo aquí. Ampliar el filtro de severidad o tocar el `jq` del workflow para dejar pasar un HIGH no es una remediación válida.
+
 ## 6. Secretos y configuración
 
 `OPENAI_API_KEY` debe estar configurada como secreto de Supabase para ambas Edge Functions. No debe exponerse en el frontend.

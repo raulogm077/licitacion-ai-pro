@@ -217,6 +217,13 @@ debe respetar las reglas duras de este documento. Operativa completa (coordinaci
 por `BACKLOG.md`, `guard.sh`, kill switch `AGENTS_ENABLED`, auto-merge sobre el CI
 existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
+> Nota (2026-07-26): remediación de vulnerabilidades. Lo que tenga versión
+> parcheada alcanzable se arregla actualizando (`pnpm.overrides` para transitivos,
+> bump directo para dependencias declaradas). Lo que no —hoy solo
+> `GHSA-qwww-vcr4-c8h2` de react-router, cuyo fix vive en la v8 y exige React 19—
+> va a `osv-scanner.toml` con `reason` e `ignoreUntil` obligatorios. Detalle en
+> `DEPLOYMENT.md`.
+
 > Nota (2026-07-12b): las herramientas de CI se descargan con versión fija
 > (OSV Scanner `v2.4.0`, actionlint, supabase/vercel CLI); las interpolaciones
 > shell de esas versiones deben ir entre comillas (`"vercel@${VERCEL_CLI_VERSION}"`)

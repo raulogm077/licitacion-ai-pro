@@ -1,0 +1,32 @@
+# Excepciones de OSV Scanner.
+#
+# Regla: aquí solo entra un finding que NO se pueda remediar actualizando, y
+# siempre con `ignoreUntil` para forzar su revisión. Todo lo que tenga versión
+# parcheada alcanzable se arregla en `pnpm.overrides` o subiendo la dependencia
+# directa; nunca se silencia.
+
+[[IgnoredVulns]]
+id = "GHSA-qwww-vcr4-c8h2"
+ignoreUntil = 2026-10-31
+reason = """
+react-router 7.18.1 — "RSC Mode CSRF Bypass Allows Action Execution Before 400 Response".
+
+No aplica y no es remediable hoy:
+
+1. No aplica. El advisory requiere el modo RSC (React Server Components) de React
+   Router. Esta app es una SPA de Vite en modo declarativo: BrowserRouter, Routes,
+   Route, Outlet, useNavigate, useLocation y MemoryRouter en tests. No hay RSC, ni
+   framework mode, ni loaders/actions, así que la ruta de código vulnerable no se
+   monta. Verificable con: grep -rn "react-router" src/
+
+2. No remediable. El fix está solo en react-router 8.3.0, y react-router@8 declara
+   peerDependencies react >=19.2.7 / react-dom >=19.2.7. El proyecto va con React
+   18.3.1, de modo que aplicarlo obliga a migrar toda la app a React 19 — con su
+   propio alcance, sus breaking changes y su propia validación. Además
+   react-router-dom, que es la dependencia declarada aquí, no tiene línea 8.x: su
+   última versión publicada es 7.18.1, la instalada.
+
+Revisar cuando se aborde la migración a React 19, o antes si el advisory se
+retro-portea a la línea 7.x. Al caducar `ignoreUntil`, el finding vuelve a fallar
+el CI y obliga a re-evaluar en vez de quedarse silenciado para siempre.
+"""
