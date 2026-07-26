@@ -154,6 +154,7 @@ Notas:
 - El benchmark también protege regresiones silenciosas de reconciliación canónica, por ejemplo presupuesto/plazo completados desde bloques económicos o diagnósticos por sección.
 - `pnpm eval:pliegos:check` valida en CI el contrato determinista de métricas. `pnpm eval:pliegos:live` ejecuta manualmente las cinco fases reales contra OpenAI y compara hechos, ausencias, grounding y calidad; consume API y no forma parte del CI.
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
+- El job `security-audit` del CI escanea `pnpm-lock.yaml` con OSV Scanner y solo falla con HIGH/CRITICAL. Los findings con parche disponible se arreglan actualizando: `pnpm.overrides` si son transitivos, bump directo si son dependencias declaradas. Los que no tienen parche alcanzable van a `osv-scanner.toml`, donde `reason` e `ignoreUntil` son obligatorios para que la excepción caduque y se revise. Detalle en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 ## Flujo de ramas y entrega
 
