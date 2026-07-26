@@ -210,6 +210,21 @@ workflow en `.github/workflows/` (`agent-pm.yml`, `agent-tech.yml`,
 `agent-ia.yml`, `agent-qa.yml`) y su prompt operativo en
 `.claude/commands/agent-<rol>.md`.
 
+**Cómo se invoca el prompt.** Cada workflow pasa `prompt: '/agent-<rol>'`: el
+input `prompt` de la action acepta la invocación de un comando/skill del repo, y
+`actions/checkout` ya ha traído `.claude/commands/` cuando corre el paso. No se
+describe el fichero en prosa para que Claude lo abra — eso gastaba un turno y
+dejaba las instrucciones como salida de herramienta en vez de como comando
+cargado.
+
+**Los cuatro comandos llevan `disable-model-invocation: true`.** Desde que los
+custom commands se unificaron con las skills, un fichero en `.claude/commands/`
+es invocable por el modelo, no solo por el usuario. Sin ese flag, Claude podía
+cargar por su cuenta —en una sesión interactiva cualquiera— un prompt que dice
+«nunca preguntes» y termina en `git push` + `gh pr merge --auto`. El flag no
+impide la invocación explícita `/agent-<rol>`, que es justo la que usan estos
+workflows.
+
 | Workflow         | Rol             | Qué hace                                                                                 | Cron (UTC)              |
 | ---------------- | --------------- | ---------------------------------------------------------------------------------------- | ----------------------- |
 | `agent-pm.yml`   | Product Manager | Audita, refina y prioriza el backlog; nunca programa ni despliega.                       | `30 5 * * 1-5`          |
@@ -240,8 +255,34 @@ si `vars.AGENTS_ENABLED == 'true'` **o** el disparo es `workflow_dispatch`
 controladas. Para parar algo ya en marcha: Actions → Cancel.
 
 **MCP.** `.mcp.json` declara `supabase` (en `--read-only`; los agentes investigan,
-no mutan) y `context7` (documentación versionada). El único camino de escritura a
-producción sigue siendo el deploy del pipeline tras el merge.
+no mutan) y `context7` (documentación versionada). El servidor de Supabase va
+pineado a una versión concreta (no `@latest`), igual que el resto de herramientas
+de CI, y sus variables llevan default (`${SUPABASE_PROJECT_REF:-...}`) para que
+una sesión local sin exportarlas no arranque el servidor con un `${VAR}` literal.
+El único camino de escritura a producción sigue siendo el deploy del pipeline
+tras el merge.
+
+### Configuración de Claude Code versionada (`.claude/`)
+
+`.claude/` y `.mcp.json` **se versionan**: CI y las sesiones cloud clonan el repo,
+así que lo que no esté commiteado no existe allí. El `.gitignore` solo excluye
+`.claude/settings.local.json` (preferencias personales por máquina).
+
+| Ruta                                  | Qué es                                                                                             |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `.claude/settings.json`               | Hook `SessionStart` (`matcher: startup\|resume`) y `permissions.deny` sobre `.env*`                 |
+| `.claude/hooks/session-start.sh`      | Prepara el entorno de sesión: `pnpm install`, `.env.local`, symlinks de Playwright                  |
+| `.claude/commands/agent-*.md`         | Prompts de la fábrica de agentes (`disable-model-invocation: true`)                                 |
+| `.claude/rules/*.md`                  | Reglas con `paths:` que entran en contexto solo al tocar los ficheros que cubren                    |
+| `.claude/skills/observability/`       | Procedimiento de diagnóstico (Actions, logs Supabase, Vercel, spans `[trace]`)                      |
+| `.claude/skills/*` (symlinks)         | Skills de `.agents/skills/` expuestas donde Claude Code sí las lee                                  |
+
+Dos avisos que ya costaron un fallo silencioso y conviene no repetir:
+
+- Un patrón de `.gitignore` sin barra inicial (`skills/`) captura el directorio a
+  **cualquier** profundidad, incluido `.claude/skills/`. Anclar a raíz: `/skills/`.
+- La lectura de secretos no se hace con `source .env.local`. `gh` y el MCP de
+  GitHub se autentican solos; `permissions.deny` bloquea además leer `.env*`.
 
 ### Configuración de repositorio requerida (manual, fuera de esta rama)
 

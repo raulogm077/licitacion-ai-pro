@@ -4,9 +4,15 @@ set -euo pipefail
 # =============================================================================
 # SessionStart hook — Analista de Pliegos
 # Prepara el entorno de Claude Code en la web antes de arrancar la sesión.
+#
+# Registrado en .claude/settings.json con matcher "startup|resume": no vuelve a
+# instalar dependencias en cada /clear ni en cada compactación.
+#
+# stdout se entrega a Claude como contexto de sesión. Los únicos campos JSON que
+# el runtime interpreta son continue/stopReason/suppressOutput/systemMessage/
+# additionalContext/hookSpecificOutput; `async` es un campo de settings.json en
+# el objeto del hook, NO de stdout — emitirlo aquí no hace nada.
 # =============================================================================
-
-echo '{"async": false}'
 
 cd "$CLAUDE_PROJECT_DIR"
 

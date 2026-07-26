@@ -209,7 +209,9 @@ Filtrar por `traceId` reconstruye una ejecución completa.
 Además del pipeline de análisis basado en `@openai/agents` documentado arriba, el
 repo opera una fábrica de cuatro agentes de desarrollo (PM, Tech, IA, QA) que se
 ejecutan con `anthropics/claude-code-action@v1` en `.github/workflows/agent-*.yml`
-y siguen sus prompts en `.claude/commands/agent-*.md`. Son planos distintos: esta
+y siguen sus prompts en `.claude/commands/agent-*.md`, invocados como
+`prompt: '/agent-<rol>'` y marcados con `disable-model-invocation: true` para que
+solo se ejecuten cuando se les llama explícitamente. Son planos distintos: esta
 fábrica **produce** cambios sobre el repo (incluido el pipeline SDK); no forma
 parte del runtime de análisis. El agente `agent-ia.md` es el único autorizado a
 tocar prompts/schemas/SSE de `analyze-with-agents` y `chat-with-analysis-agent`, y
@@ -228,3 +230,11 @@ existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 > (OSV Scanner `v2.4.0`, actionlint, supabase/vercel CLI); las interpolaciones
 > shell de esas versiones deben ir entre comillas (`"vercel@${VERCEL_CLI_VERSION}"`)
 > para no disparar `actionlint`/SC2086. Detalle en `CHANGELOG.md`.
+
+> Nota (2026-07-26): **Claude Code lee `CLAUDE.md`, no `AGENTS.md`.** Este
+> documento sigue siendo la fuente de verdad de las reglas duras del SDK, pero no
+> entra solo en contexto. `.claude/rules/agents-sdk.md` (con
+> `paths: supabase/functions/**`) lleva el índice de invariantes y apunta aquí
+> para el detalle, de modo que las reglas se cargan al tocar Edge Functions sin
+> pagar 12 KB en cada sesión. Si añades o cambias una regla dura aquí, revisa si
+> el índice de esa regla también debe cambiar.
