@@ -52,80 +52,27 @@ pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
 - **Auth**: `verify_jwt = true` en `supabase/config.toml` para **AMBAS** Edge Functions (`analyze-with-agents` y `chat-with-analysis-agent`). El gateway rechaza con 401 las peticiones sin JWT válido antes de invocar la función; el handler sólo resuelve `user` para rate-limit (analyze) y ownership (chat). El comando de despliegue NO debe llevar `--no-verify-jwt`. Detalle en `AGENTS.md` (Auth model) y `DEPLOYMENT.md` §5.
 - **Primary product path**: The supported release path is one complete expediente PDF; partial docs are accepted but must surface structured `partial_reasons`
 
-### Pipeline Timeout Architecture
+### Contexto que se carga solo cuando hace falta
 
-Fase 1A still executes the full pipeline in a single Supabase Edge Function invocation, but SSE is no longer the source of truth. The job, Storage copy, step ledger and PGMQ message survive a broken request; the current invocation acts as the transitional inline worker.
-Constants in `_shared/config.ts` control the timing budget:
+Estas reglas viven en `.claude/rules/` con `paths:`, así que entran en contexto
+únicamente al tocar los ficheros que cubren, en vez de en cada sesión:
 
-| Constant                     | Value     | Notes                                                                                                    |
-| ---------------------------- | --------- | -------------------------------------------------------------------------------------------------------- |
-| `PIPELINE_TIMEOUT_MS`        | 280 000   | Requires Supabase function timeout ≥ 300s (set in Dashboard → Project Settings → Edge Functions)         |
-| `API_CALL_TIMEOUT_MS`        | 90 000    | Per-block agent run — no retry on timeout (timeouts are NOT retried, see `isRetryableError`)             |
-| `BLOCK_CONCURRENCY`          | 2         | Bajada de 3→2 (2026-07-12): con file_search cada bloque consume mucho TPM y 3 simultáneos disparaban 429 |
-| `BLOCK_MAX_RETRIES`          | 1         | Real backoff (`retryWithBackoff`) on 429/5xx per block — timeouts still NOT retried                      |
-| `BLOCK_RETRY_MAX_DELAY_MS`   | 30 000    | Caps `Retry-After` so one degraded block can't consume the whole `PIPELINE_TIMEOUT_MS` budget            |
-| `VECTOR_STORE_TIMEOUT_MS`    | 90 000    | Waits for `file_counts.in_progress === 0`, not `vs.status`                                               |
-| `CHAT_MODEL`                 | `gpt-5.4` | Conversational layer model (chat), separate from the extraction `OPENAI_MODEL`                           |
-| `CHAT_MAX_REQUESTS_PER_HOUR` | 60        | Per-user rate limit for `chat-with-analysis-agent` (`checkRateLimit`, namespaced `chat:`)                |
-| `MAX_CHAT_PAYLOAD_BYTES`     | 64 KB     | Real body-size cap for chat; `analyze-with-agents` validates real body length too                        |
+| Regla                              | Se carga al tocar                            | Contenido                                                                    |
+| ---------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------- |
+| `.claude/rules/agents-sdk.md`      | `supabase/functions/**`                      | Índice de las reglas duras del SDK (fuente completa: `AGENTS.md`)            |
+| `.claude/rules/pipeline-runtime.md` | `supabase/functions/**`, `job.service.ts`   | Presupuesto de timeouts (`_shared/config.ts`) y tiempos típicos por tamaño   |
+| `.claude/rules/ci-security.md`     | `.github/workflows/**`, `package.json`       | OSV Scanner, política de pinning y aserción `verify_jwt` del smoke test      |
 
-**Typical timing by document size:**
-
-| Pages | Ingestion | Extraction | Total                                  |
-| ----- | --------- | ---------- | -------------------------------------- |
-| ~30   | ~20s      | ~30-50s    | ~70-90s ✅                             |
-| ~100  | ~40s      | ~50-80s    | ~120-150s ✅                           |
-| ~300  | ~90s      | ~60-90s    | ~200-250s ⚠️ needs 300s Supabase limit |
-
-**⚠️ Remaining limitation for very large documents (300+ pages):** the worker is
-still inline and therefore keeps the Supabase wall-clock ceiling. Fase 1B must
-separate the queue consumer and signed upload endpoint; the durable schema,
-`jobId` polling and retry semantics introduced in Fase 1A remain unchanged.
-
-### Security Audit CI
-
-`pnpm audit` is not used (npm retired the `/v1/security/audits` endpoint).
-Security scanning uses **OSV Scanner** (pinned to `v2.4.0`) which reads
-`pnpm-lock.yaml` directly against Google's OSV database. Only HIGH/CRITICAL
-vulnerabilities fail CI. The CI step parses JSON output and filters by
-`database_specific.severity`. Transitive HIGH/CRITICAL findings are remediated
-via `pnpm.overrides` in `package.json` (e.g. `tmp`, `ws`); direct deps are
-bumped in place (e.g. `vite`).
-
-The `Smoke Test` job in `.github/workflows/ci-cd.yml` also asserts post-deploy
-that `verify_jwt=true` is actually effective on both Edge Functions (a POST
-without `Authorization` must return 401 from the gateway, otherwise the
-deploy fails).
+Diagnóstico de despliegues y logs: skill `/observability`.
 
 ## Project Structure
 
-```
-src/                          # Frontend (React)
-  features/                   # Feature modules (analytics, auth, dashboard, history)
-  services/                   # Business logic (job, db, auth, ai, template, quality)
-  stores/                     # Zustand stores
-  hooks/                      # Custom hooks (useHistory, etc.)
-  lib/                        # Schemas (Zod), utils, tracked-field helpers
-  config/                     # Env, supabase, sentry, features, service-registry
+Lo que no es evidente navegando el árbol:
 
-supabase/functions/           # Backend (Deno Edge Functions)
-  analyze-with-agents/        # Main pipeline
-    agents/                   # Agent factories (document-map, block-extractor, custom-template)
-    prompts/index.ts          # Prompt strings (1:1 desde la implementación previa)
-    phases/                   # Pipeline phases (ingestion, document-map, block-extraction, consolidation, validation)
-    __tests__/                # Tests Deno (deno test)
-  _shared/                    # Shared utilities
-    agents/                   # SDK shim, PipelineContext, guardrails, tracing
-    config.ts                 # Centralized constants (model, timeouts, concurrency)
-    schemas/                  # Canonical schemas (Zod)
-    utils/                    # Error handling, timeout utility
-    services/                 # Job service
-
-supabase/migrations/          # SQL migrations (chronological)
-scripts/                      # Repo automation invoked from package.json / CI
-  verify-ci.sh                # `pnpm verify:release` entry point
-  verify-integrity.ts         # `pnpm verify:integrity` (drift + doc coverage)
-```
+- `src/` — React. `services/` es la lógica de negocio (job, db, auth, ai, template, quality); `config/` reúne env, supabase, sentry, features y service-registry.
+- `supabase/functions/analyze-with-agents/` — pipeline. `prompts/index.ts` son strings 1:1 de la implementación previa; `phases/` sigue el orden A→E; `agents/` son factories.
+- `supabase/functions/_shared/` — `config.ts` centraliza modelo/timeouts/concurrencia, `schemas/canonical.ts` es la fuente de verdad, `agents/` el shim del SDK + guardrails + tracing.
+- `scripts/` — solo automatización invocada desde `package.json`, `.github/workflows/` o `.husky/`: `verify-ci.sh` (`verify:release`) y `verify-integrity.ts` (drift + cobertura documental).
 
 ## Code Conventions
 
@@ -177,54 +124,13 @@ scripts/                      # Repo automation invoked from package.json / CI
 
 ## Monitoring & Observability
 
-### GitHub Actions (workflow runs, logs)
+Skill `/observability` (`.claude/skills/observability/SKILL.md`): runs de GitHub
+Actions vía `gh`, logs de Edge Functions y Postgres vía MCP de Supabase, deploys
+de Vercel y spans `[trace]` del SDK correlacionados por `requestId`.
 
-Requires `GITHUB_TOKEN` in `.env.local` — fine-grained PAT, Actions=Read + Contents=Read.
-Create at: https://github.com/settings/personal-access-tokens/new
-
-```bash
-# Source vars then query GitHub API
-source .env.local
-
-# List recent workflow runs on main
-curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-  "https://api.github.com/repos/$GITHUB_REPO/actions/runs?branch=main&per_page=5" \
-  | jq '.workflow_runs[] | {id, status, conclusion, created_at, name: .display_title}'
-
-# Get jobs for a specific run (replace RUN_ID)
-curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-  "https://api.github.com/repos/$GITHUB_REPO/actions/runs/RUN_ID/jobs" \
-  | jq '.jobs[] | {name, status, conclusion}'
-
-# Get logs URL for a failed job (replace JOB_ID)
-curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-  "https://api.github.com/repos/$GITHUB_REPO/actions/jobs/JOB_ID/logs"
-```
-
-### Supabase (edge functions, DB logs)
-
-Use Supabase MCP tools (project_id: `qsohtrvnlimymwdxiokm`):
-
-- `list_edge_functions` → deployment status and version
-- `get_logs(service: "edge-function")` → real-time invocation logs
-- `get_logs(service: "postgres")` → DB query logs
-- `execute_sql` → direct DB inspection
-
-### Vercel (frontend)
-
-Deployment status visible via GitHub PR checks ("Deployment has completed").
-
-### SDK trace spans
-
-Every agent run emits structured `[trace]` lines via `SupabaseLogTraceProcessor`:
-
-```bash
-npx supabase functions logs analyze-with-agents --tail | grep '\[trace\]'
-```
-
-Filtering by `requestId` (also threaded into `[analyze]` log lines as
-`reqId=...`) correlates SSE events, application logs, and SDK spans for a
-single request.
+**Nunca hagas `source .env.local` para leer un token.** `gh` y el MCP de GitHub
+se autentican solos; exportar el PAT al shell lo expone en transcripts y logs.
+`.claude/settings.json` bloquea además la lectura de `.env*` con `permissions.deny`.
 
 ## Key Files to Know
 
@@ -239,7 +145,7 @@ single request.
 - `supabase/functions/_shared/agents/{context,guardrails,tracing,sdk}.ts` — Infraestructura compartida del SDK
 - `supabase/functions/_shared/config.ts` — Backend constants
 - `supabase/functions/_shared/schemas/canonical.ts` — Canonical schema (source of truth)
-- `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, Auth model, etc.)
+- `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, Auth model, etc.). **Claude Code no lo auto-carga**: el índice de invariantes vive en `.claude/rules/agents-sdk.md` con scope `supabase/functions/**`
 
 ## Fábrica de agentes autónomos
 
@@ -250,6 +156,24 @@ por los prompts de `.claude/commands/agent-*.md` y coordinados por `BACKLOG.md`
 enruta al agente IA). `scripts/agents/guard.sh` serializa por rol y evita sesiones
 sin tareas. El auto-merge (`gh pr merge --auto --squash`) depende del CI existente
 `Productive CI/CD Pipeline`; el kill switch es la variable de repositorio
-`AGENTS_ENABLED`. Cualquier cambio en `.github/workflows/agent-*.yml` o en
-`scripts/agents/` arrastra los cuatro docs de release (`verify:integrity` lo
-exige). Detalle en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+`AGENTS_ENABLED`. Cada workflow invoca su prompt con `prompt: '/agent-<rol>'`.
+Cualquier cambio en `.github/workflows/agent-*.yml` o en `scripts/agents/`
+arrastra los cuatro docs de release (`verify:integrity` lo exige). Detalle en
+[`DEPLOYMENT.md`](./DEPLOYMENT.md).
+
+## Configuración de Claude Code (`.claude/`)
+
+`.claude/` y `.mcp.json` **se versionan**: CI y las sesiones cloud clonan el repo,
+así que lo que no esté commiteado no existe allí. El `.gitignore` solo excluye
+`.claude/settings.local.json`.
+
+- `settings.json` — hook `SessionStart` (`matcher: startup|resume`, no reinstala en cada `/clear`) y `permissions.deny` sobre `.env*`
+- `hooks/session-start.sh` — `pnpm install`, `.env.local`, symlinks de Playwright
+- `commands/agent-*.md` — prompts de la fábrica, con `disable-model-invocation: true`
+- `rules/*.md` — contexto con `paths:`, se carga solo al tocar sus ficheros
+- `skills/` — `/observability` y las skills de `.agents/skills/` vía symlink
+
+Al añadir prompts, reglas o skills: van bajo `.claude/`, nunca en un `skills/` de
+raíz (Claude Code no lee esa ruta). Y ojo con los patrones de `.gitignore` sin
+barra inicial: `skills/` captura también `.claude/skills/`; hay que anclar
+(`/skills/`).

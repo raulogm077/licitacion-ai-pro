@@ -135,10 +135,18 @@ Prompts/
 
 
 # Agent Skills (Exclude all agent symlink directories)
+#
+# `.claude/` y `.mcp.json` NO se ignoran: son configuración compartida de
+# Claude Code y deben viajar al repo (CI y sesiones cloud clonan el repo, así
+# que lo que no esté commiteado simplemente no existe allí). Ver docs oficiales:
+# settings.json = "checked into git, shared team configuration";
+# .mcp.json = "designed to be checked into version control".
+# Lo único personal y por tanto ignorado es `settings.local.json`.
+.claude/settings.local.json
+.claude/*.local.json
 .adal/
 .agent/
 .augment/
-.claude/
 .codebuddy/
 .commandcode/
 .continue/
@@ -151,7 +159,6 @@ Prompts/
 .kilocode/
 .kiro/
 .kode/
-.mcp.json
 .mcpjam/
 .mux/
 .neovate/
@@ -165,5 +172,7 @@ Prompts/
 .vibe/
 .windsurf/
 .zencoder/
-skills/
+# Anclado a la raíz: sin la barra inicial, `skills/` también capturaba
+# `.claude/skills/`, que sí debe versionarse.
+/skills/
 .cursor/

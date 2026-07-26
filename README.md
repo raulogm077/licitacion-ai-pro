@@ -214,6 +214,18 @@ El repo incluye cuatro agentes autónomos (PM, Tech, IA, QA) que corren en GitHu
 Actions con `anthropics/claude-code-action@v1`, se coordinan por `BACKLOG.md` e
 integran sus PRs vía auto-merge cuando el CI `Productive CI/CD Pipeline` está en
 verde. El kill switch global es la variable de repositorio `AGENTS_ENABLED`
-(arranque en frío en `false`; `workflow_dispatch` lo salta). Detalle operativo
-—workflows, prompts en `.claude/commands/`, `scripts/agents/guard.sh`, secrets y
-protección de rama— en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+(arranque en frío en `false`; `workflow_dispatch` lo salta). Cada workflow invoca
+su prompt con `prompt: '/agent-<rol>'`, y los cuatro comandos llevan
+`disable-model-invocation: true` para que ninguna sesión interactiva los cargue
+por su cuenta. Detalle operativo —workflows, prompts en `.claude/commands/`,
+`scripts/agents/guard.sh`, secrets y protección de rama— en
+[`DEPLOYMENT.md`](./DEPLOYMENT.md).
+
+## Configuración de Claude Code (`.claude/`)
+
+`.claude/` y `.mcp.json` se versionan (CI y sesiones cloud clonan el repo, así que
+lo no commiteado no existe allí); solo `.claude/settings.local.json` queda fuera.
+Contiene el hook de `SessionStart` que prepara el entorno, los prompts de la
+fábrica de agentes, reglas con `paths:` que se cargan solo al tocar los ficheros
+que cubren (`.claude/rules/`) y la skill `/observability` para diagnosticar
+despliegues y logs. Layout completo en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
