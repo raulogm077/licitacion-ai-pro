@@ -14,13 +14,15 @@ export default defineConfig({
         coverage: {
             reporter: ['text', 'json', 'html'],
             thresholds: {
-                // Raised in iteración E after adding tests for db/ai/template services.
-                // Actual: 79.95% stmt / 66% branches / 72.94% fn / 80.81% lines.
+                // Raised after covering the dashboard view-model guidance branches
+                // (pliego-vm) and the chapter render contract (chapter-config).
+                // Actual: 82.61% stmt / 71.31% branches / 82.03% fn / 83.44% lines.
                 // History: baseline(65/50/58/65) → iterD(73/59/69/73) → iterE(79/65/72/80)
-                statements: 79,
-                branches: 65,
-                functions: 72,
-                lines: 80,
+                //          → iterF(82/70/81/83)
+                statements: 82,
+                branches: 70,
+                functions: 81,
+                lines: 83,
             },
         },
     },

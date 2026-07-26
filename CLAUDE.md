@@ -100,7 +100,7 @@ Lo que no es evidente navegando el árbol:
 
 ## Testing
 
-- **Unit/Integration**: Vitest (236+ tests, coverage thresholds: 65% statements, 50% branches)
+- **Unit/Integration**: Vitest (461 tests, coverage gates: 82% statements, 70% branches, 81% functions, 83% lines — el histórico de subidas vive en `vitest.config.ts`)
 - **Worker policy**: `vitest.config.ts` caps workers (`minWorkers: 1`, `maxWorkers: 2`) to keep `pnpm verify:release` stable under coverage and jsdom-heavy suites
 - **Edge Function unit tests**: `deno test supabase/functions/<feature>/__tests__/*.test.ts` — los tests de guardrails están en `analyze-with-agents/__tests__/agents.test.ts`
 - **E2E**: Playwright (Chromium, base URL localhost:4173)

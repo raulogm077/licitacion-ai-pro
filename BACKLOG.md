@@ -60,10 +60,11 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 - [x] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
   - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
-  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
+  - Alcance: Cubiertas las ramas de `pliego-vm.ts` (guidance por motivo de parcialidad, diagnósticos de capítulo vacío, evidencias/ambigüedad, citas y normalización de display) y el contrato declarativo de `chapter-config.ts` (extractores y formateadores de cada subsección, con análisis poblado y vacío).
   - Criterios de aceptación:
     - Ejecutar `pnpm test --run --coverage` debe reportar al menos 80% en statements y 70% en branches.
-  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`
+  - Resultado (2026-07-26): **82.61% statements / 71.31% branches** (82.03% funciones, 83.44% líneas), 461 tests en 64 suites. Partía de 79.57/67.19 con 420 tests. Gates de `vitest.config.ts` subidos a 82/70/81/83 para que el nivel no se pierda.
+  - Archivos probables: `src/features/dashboard/model/__tests__/pliego-vm.test.ts`, `src/features/dashboard/components/detail/__tests__/chapter-config.test.ts`, `vitest.config.ts`
   - Dependencias: Ninguna.
 
 - [x] [Tipo: QA] [Área: Analysis] Implementar tests unitarios interactivos para FeedbackToggle y Fix E2E
@@ -85,30 +86,22 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## To Do (Iteración Actual)
 
-- [ ] [Tipo: Infra] [Área: Infra] Resolver Bloqueo Global de Vitest
-  - Objetivo: Restablecer la operatividad de la suite global de tests unitarios de Vitest.
-  - Alcance: Investigar la resolución ESM y caché de pnpm, actualizar dependencias si es necesario o purgar el entorno global para que `vitest` ejecute correctamente.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm test` debe completar la ejecución de todas las suites sin errores fatales de inicialización.
-  - Archivos probables: `package.json`, `pnpm-lock.yaml`, `vitest.config.ts`
-  - Dependencias: Ninguna.
+<!-- Saneado 2026-07-26 tras auditar la cola contra el repo real. Tres entradas
+     salieron de aquí porque ya no describían trabajo pendiente:
 
-- [ ] [Tipo: QA] [Área: Analysis] Aumentar cobertura de tests a 80%
-  - Objetivo: Cumplir con la meta de calidad de código de la iteración D.
-  - Alcance: Escribir pruebas unitarias adicionales para componentes críticos y subrepresentados en la cobertura, especialmente en src/components y src/features/dashboard.
-  - Criterios de aceptación:
-    - Ejecutar `pnpm exec vitest run --coverage` debe reportar al menos 80% en statements y 70% en branches.
-  - Archivos probables: `src/components/**/*.test.tsx`, `src/features/dashboard/**/*.test.tsx`, `src/services/__tests__/`
-  - Dependencias: Tarea "Resolver Bloqueo Global de Vitest" debe estar completada.
+     · "Resolver Bloqueo Global de Vitest" — no reproduce. `pnpm test` ejecuta
+       las 64 suites y 461 tests sin error de inicialización, y `verify:release`
+       depende de ello en cada push. Eliminada.
+     · "Configurar Dependabot" — ya hecho: `.github/dependabot.yml` existe desde
+       el commit bae8320, con npm + github-actions, agrupaciones e ignores.
+       Eliminada.
+     · "Aumentar cobertura de tests a 80%" — entregada (ver `## Ready for QA`).
+       Estaba además duplicada: figuraba a la vez aquí y allí.
 
-- [ ] [Tipo: Backend] [Área: Infra] Configurar Dependabot para actualizaciones automáticas
-  - Objetivo: Automatizar la detección y actualización de dependencias vulnerables u obsoletas.
-  - Alcance: Crear `.github/dependabot.yml` configurando actualizaciones semanales para npm y github-actions.
-  - Criterios de aceptación:
-    - El archivo `.github/dependabot.yml` existe y es válido.
-    - Dependabot ejecuta chequeos semanales.
-  - Archivos probables: `.github/dependabot.yml`
-  - Dependencias: Ninguna.
+     Una tarea que ya está hecha no es inofensiva: los agentes de cron toman la
+     primera entrada elegible de esta sección, así que una entrada muerta se
+     lleva por delante una sesión entera. Antes de añadir aquí, comprobar contra
+     el repo. -->
 
 - [ ] [Tipo: AI] [Área: Analysis] Inyectar metodología específica por bloque en el prompt de extracción
   - Objetivo: Aprovechar la "Guía de lectura" en cada bloque en vez de repetir un prefijo genérico. Hoy solo llegan ~4000 chars de la §1–§2.1 de la Guía (34 KB) idénticos en los 9 bloques; la metodología útil (§3–§7) nunca entra en el prompt.
