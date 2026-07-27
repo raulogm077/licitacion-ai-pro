@@ -156,7 +156,10 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
         ? pendingEntries.slice(0, Math.max(0, Number(maxNewBlocks)))
         : pendingEntries;
     const tasks = selectedEntries.map(({ blockName, i }) => async (): Promise<BlockResult> => {
-        onProgress?.(`Extrayendo: ${blockName}...`, i, totalBlocks);
+        // `blockIndex` es «bloques terminados» en el contrato, no el índice del
+        // bloque en curso: `blockIndex / totalBlocks` tiene que ser la fracción
+        // completada de la fase.
+        onProgress?.(`Extrayendo: ${blockName}...`, blockResults.size, totalBlocks);
         let blockResult: BlockResult;
         try {
             blockResult = await extractBlockWithAgent(blockName, vectorStoreId, context, (retry) => {
@@ -178,7 +181,9 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
         console.log(
             `[Extraction] Block ${blockName} checkpointed (${completedCount}/${totalBlocks}): ${blockResult.warnings.length} warnings`
         );
-        onProgress?.(`Completado: ${blockName} (${completedCount}/${totalBlocks})`, completedCount - 1, totalBlocks);
+        // Antes iba `completedCount - 1`, así que al terminar los 9 bloques
+        // emitía 8 y la barra nunca alcanzaba el final del rango de la fase.
+        onProgress?.(`Completado: ${blockName} (${completedCount}/${totalBlocks})`, completedCount, totalBlocks);
         await persistCheckpoint();
         return blockResult;
     });

@@ -436,6 +436,36 @@ describe('JobService', () => {
             ]);
         });
 
+        it('clamps an out-of-range block counter instead of letting the bar overshoot', async () => {
+            stubStalledJob(() => ({
+                status: 'processing',
+                phase: 'extraction',
+                result: null,
+                error: null,
+                updated_at: new Date().toISOString(),
+                // Un contador corrupto no debe traducirse en una barra que se
+                // pasa de largo ni que retrocede.
+                progress: { done: 42, total: 9 },
+            }));
+
+            const events: Array<{ done?: number; total?: number }> = [];
+            vi.useFakeTimers();
+            try {
+                const pending = service.analyzeWithAgents('base64', 'file.pdf', null, (event) => {
+                    if (event.type === 'extraction_progress') {
+                        events.push({ done: event.blockIndex, total: event.totalBlocks });
+                    }
+                });
+                const assertion = expect(pending).rejects.toThrow();
+                await vi.advanceTimersByTimeAsync(31 * 60 * 1000);
+                await assertion;
+            } finally {
+                vi.useRealTimers();
+            }
+
+            expect(events).toEqual([{ done: 9, total: 9 }]);
+        });
+
         it('carries the phase on block progress so the UI stepper can highlight it', async () => {
             stubStalledJob(() => ({
                 status: 'processing',

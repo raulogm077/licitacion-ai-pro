@@ -278,6 +278,8 @@ Ambas fuentes emiten por el mismo punto (`emitDurableProgress`), para que cuente
 
 Durante la extracción se emite `extraction_progress` en vez de `phase_progress`, que es el evento que `ai.service` sabe proyectar dentro del rango de la fase (20-80). El dato sale de la columna `analysis_jobs.progress`, un `{"done","total"}` compacto que el worker escribe en el mismo checkpoint que ya hacía. Se separó a propósito de `phase_results`: ese JSON lleva los datos y las evidencias de cada bloque —cientos de KB— y el navegador lo sondea cada 2 s, así que leerlo entero solo para pintar «4 de 9» sería desproporcionado. El trigger de Broadcast incluye `progress` en su lista de columnas vigiladas; sin eso, un checkpoint de bloque no despertaría a nadie.
 
+`blockIndex` significa **bloques terminados** (de 0 a `totalBlocks`), no el índice del bloque en curso: el cociente tiene que ser la fracción completada de la fase. `record_analysis_phase` conserva el contador mientras no cambie la fase —el worker hace checkpoints que no siempre lo aportan— y lo limpia en la transición; `completeJob` y `failJob` lo anulan. El lector del navegador acota a `[0, total]` antes de proyectarlo a porcentaje.
+
 ### 7.5. Presupuesto de ejecución atado al techo de plataforma
 
 `PIPELINE_TIMEOUT_MS` ya no es una constante suelta: se deriva de `EDGE_WALL_CLOCK_MS` (150 s por defecto, el techo del plan free) menos `PIPELINE_SHUTDOWN_MARGIN_MS` (10 s). Si el pipeline sobrevive al techo de la plataforma, el isolate muere sin ejecutar `catch`, `finally` ni el `setTimeout` del pipeline, y el paso queda en `running` para siempre. Derivarlo garantiza que el guard de código dispare primero y el fallo llegue a persistirse.

@@ -212,6 +212,8 @@ El tercero se añadió el 2026-07-27 porque el barrido colgaba del inicio de `an
 
 Se ejecutan como `postgres` con `SECURITY INVOKER`, así que dependen de grants reales y no de superusuario. Para inspeccionarlos: `select jobname, schedule, active from cron.job;`.
 
+La migración `20260727200000` vuelve a recrear `record_analysis_phase`; como en la anterior, sustituye la definición en vez de añadir una sobrecarga, porque PostgREST resuelve las RPC por nombre. Tras desplegar conviene confirmar que sigue habiendo **una sola** definición: `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'record_analysis_phase';`
+
 ## 7. Validación posterior al despliegue
 
 Después del despliegue, QA debe comprobar al menos:
