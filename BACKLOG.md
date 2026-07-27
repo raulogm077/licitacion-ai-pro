@@ -115,7 +115,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Deuda Técnica / Refactorización
 
-- [ ] [Tipo: Infra] [Área: Infra] Migrar a ESLint 9 + flat config
+- [x] [Tipo: Infra] [Área: Infra] Migrar a ESLint 9 + flat config (entregado 2026-07-27)
   - Objetivo: Desbloquear el ecosistema de plugins de ESLint, que ya está abandonando la versión 8. Hoy el repo va con ESLint 8.57.1 y `.eslintrc.cjs`, y esa versión está marcada como no soportada por upstream (`WARN deprecated eslint@8.57.1` en cada `pnpm install`).
   - Contexto: `eslint-plugin-react-refresh` 0.5.0 cambió su peerDependency de `eslint: >=8.40` a `eslint: ^9 || ^10`. Con ESLint 8 el plugin no registra sus reglas y `.eslintrc.cjs` deja 184 referencias huérfanas a `react-refresh/only-export-components`, que tumban `pnpm lint` (verificado: el PR de Dependabot #316 falló así, y se reprodujo en local). Como parche, el plugin quedó fijado a `~0.4.26` y Dependabot tiene un `ignore` para sus minor/major.
   - Alcance: convertir `.eslintrc.cjs` a `eslint.config.js` (flat config), subir `eslint` a ^9, `@typescript-eslint/*` de ^7 a ^8 (v7 no soporta ESLint 9), `eslint-plugin-react-hooks` de ^4 a ^5 y `eslint-plugin-react-refresh` a ^0.5. Retirar entonces el `ignore` de `.github/dependabot.yml` y el pin de `package.json`.

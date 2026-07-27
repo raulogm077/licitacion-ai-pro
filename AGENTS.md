@@ -243,11 +243,11 @@ debe respetar las reglas duras de este documento. Operativa completa (coordinaci
 por `BACKLOG.md`, `guard.sh`, kill switch `AGENTS_ENABLED`, auto-merge sobre el CI
 existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
-> Nota (2026-07-27): ESLint sigue en la 8 a propósito. `eslint-plugin-react-refresh`
-> está fijado a `~0.4.26` porque la 0.5 exige `eslint: ^9 || ^10`; con ESLint 8 el
-> plugin no registra sus reglas y `pnpm lint` cae con 184 errores. Dependabot lo
-> ignora para minor/major. Levantarlo va con la migración a flat config, en
-> `BACKLOG.md` → Deuda Técnica. No subir el plugin suelto.
+> Nota (2026-07-27): el repo migró a **ESLint 9 + flat config** (`eslint.config.js`;
+> `.eslintrc.cjs` eliminado). El conjunto de reglas efectivo no cambió —
+> `@typescript-eslint/no-explicit-any` sigue en `error`— y el `ignore` de
+> `eslint-plugin-react-refresh` en Dependabot se retiró. El script `lint` ya no
+> lleva `--ext`, que flat config no admite.
 
 > Nota (2026-07-26): remediación de vulnerabilidades. Lo que tenga versión
 > parcheada alcanzable se arregla actualizando (`pnpm.overrides` para transitivos,

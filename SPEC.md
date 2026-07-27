@@ -410,3 +410,15 @@ Primer paso del salto de «extractor» a «analista» descrito en la Guía §4. 
 ### Criterio de fallo asumido
 
 El simulador cubre las familias de fórmula más frecuentes en pliegos españoles, no todas. Una fórmula con tramos, topes o coeficientes correctores cae en «no simulable» — que es el comportamiento correcto, pero significa que la cobertura real depende del pliego. Ampliarla exige casos nuevos, no relajar los patrones.
+
+### 11.1. Migración a ESLint 9 + flat config (2026-07-27)
+
+Cierra la deuda técnica que mantenía `eslint-plugin-react-refresh` fijado a la 0.4 y con un `ignore` en Dependabot. El conjunto de reglas efectivo es **el mismo**: `@typescript-eslint/no-explicit-any` sigue en `error`, verificado con `eslint --print-config`.
+
+Dos cosas que aparecieron al hacerla y que no estaban previstas:
+
+**El override de seguridad de `brace-expansion` era demasiado romo.** Estaba fijado a `>=5.0.8` para todos los consumidores, y `minimatch@3` —que arrastra `@eslint/config-array`— usa la API de la v1, que cambió en la v5. ESLint 9 no arrancaba: `TypeError: expand is not a function`. La v1 tiene versión parcheada del mismo CVE (`1.1.12`), así que el override pasa a estar acotado por línea mayor (`brace-expansion@1` → `^1.1.12`, `brace-expansion@2` → `^2.0.2`) conservando la corrección de seguridad en todas ellas sin romper APIs.
+
+**`react-refresh` no estaba registrando sus reglas.** Con ESLint 8 y el plugin fijado, la regla existía en la configuración pero el plugin no llegaba a cargarla. Ahora `eslint --print-config` la devuelve activa, así que la migración no solo desbloquea el ecosistema: recupera una regla que llevaba tiempo sin aplicarse.
+
+`@typescript-eslint` v8 detectó además un binding de `catch` sin usar en `SupabaseStatus.tsx`, corregido omitiéndolo (válido desde ES2019) en vez de silenciando la regla.

@@ -99,7 +99,8 @@ Lo que no es evidente navegando el árbol:
 - **Language**: TypeScript strict mode everywhere
 - **Package manager**: pnpm only (never npm or yarn)
 - **Formatting**: Prettier (enforced by pre-commit hook via Husky + lint-staged)
-- **Linting**: ESLint with 0 warnings tolerance
+- **Linting**: ESLint 9 con flat config (`eslint.config.js`), 0 warnings tolerados
+- **Overrides de seguridad**: acotar por línea mayor (`brace-expansion@1`) cuando la API cambia entre majors; un override global a la última versión rompe a quien usa la API antigua
 - **Schemas**: Zod for both frontend and backend validation
 - **Error handling**: `Result<T>` pattern (`ok`/`err`) in services, `safeParse` chains in consolidation
 - **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK)

@@ -40,18 +40,6 @@ updates:
           # Pinned to match the managed runtime's pre-installed Chromium; a
           # newer minor expects a browser build that is not available there.
           - dependency-name: '@playwright/test'
-          # eslint-plugin-react-refresh 0.5.0 cambió su peerDependency de
-          # `eslint: >=8.40` a `eslint: ^9 || ^10`. Con ESLint 8.57.1 el plugin
-          # no llega a registrar sus reglas y `.eslintrc.cjs` deja 184
-          # referencias huérfanas a `react-refresh/only-export-components`
-          # ("Definition for rule ... was not found"), que tumban `pnpm lint`.
-          # En un paquete 0.x un salto de minor es breaking, y el grupo
-          # dev-dependencies agrupa minors, así que sin este ignore vuelve a
-          # colarse en cada tanda. Levantarlo requiere migrar a ESLint 9 +
-          # flat config; tarea registrada en BACKLOG.md (Deuda Técnica).
-          - dependency-name: 'eslint-plugin-react-refresh'
-            update-types:
-                ['version-update:semver-major', 'version-update:semver-minor']
 
     # GitHub Actions versions
     - package-ecosystem: 'github-actions'
