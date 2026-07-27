@@ -351,6 +351,49 @@ describe('JobService', () => {
             mockSupabase.from.mockReturnValue({ select });
         }
 
+        /**
+         * Broadcast is best-effort: if no frame reaches the browser, polling is
+         * the only thing left. It used to read the row and say nothing, so the UI
+         * froze on the submit-time message while the worker advanced in the DB.
+         */
+        it('reports each phase from polling when no Broadcast frame arrives', async () => {
+            const rows = [
+                { status: 'processing', phase: 'ingestion_map' },
+                { status: 'processing', phase: 'extraction' },
+                { status: 'processing', phase: 'extraction' }, // checkpoint sin cambio de fase
+                { status: 'processing', phase: 'consolidation' },
+                {
+                    status: 'completed',
+                    phase: 'completed',
+                    result: { result: validContent, workflow: {} },
+                },
+            ];
+            let call = 0;
+            stubStalledJob(() => {
+                const row = rows[Math.min(call++, rows.length - 1)];
+                return { result: null, error: null, updated_at: new Date().toISOString(), ...row };
+            });
+
+            const seen: string[] = [];
+            vi.useFakeTimers();
+            try {
+                const pending = service.analyzeWithAgents('base64', 'file.pdf', null, (event) => {
+                    if (event.type === 'phase_progress' && event.message) seen.push(event.message);
+                });
+                // 5 sondeos a 2s cada uno hasta que la fila llega a `completed`.
+                await vi.advanceTimersByTimeAsync(30_000);
+                await pending;
+            } finally {
+                vi.useRealTimers();
+            }
+
+            expect(seen).toEqual([
+                'Subiendo e indexando los documentos...',
+                'Extrayendo la información del expediente (puede tardar varios minutos)...',
+                'Consolidando los resultados...',
+            ]);
+        });
+
         it('reports an interrupted analysis when the job never advances', async () => {
             vi.useFakeTimers();
             try {

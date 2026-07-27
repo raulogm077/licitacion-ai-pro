@@ -95,6 +95,7 @@ export class JobService {
     ): Promise<{ result: unknown; workflow?: unknown }> {
         const deadline = Date.now() + RECOVERY_TIMEOUT_MS;
         let lastSignature: string | null = null;
+        let lastReportedPhase: string | null = null;
         let sawProgress = false;
 
         if (accessToken) await supabase.realtime.setAuth(accessToken);
@@ -150,6 +151,27 @@ export class JobService {
                     throw new Error(state.error || 'El análisis no pudo completarse');
                 }
 
+                // Polling is the documented fallback for Broadcast, so it has to
+                // report progress too — otherwise a browser that never receives a
+                // Broadcast frame sits frozen on whatever message it got at submit
+                // time while the worker is visibly advancing in the database.
+                // Keyed on status:phase (not updated_at) so a checkpoint that does
+                // not change the phase doesn't spam the same line.
+                const progressKey = `${state.status}:${state.phase}`;
+                if (progressKey !== lastReportedPhase) {
+                    lastReportedPhase = progressKey;
+                    try {
+                        onProgress?.({
+                            type: 'phase_progress',
+                            timestamp: Date.now(),
+                            phase: this.toAnalysisPhase(String(state.phase || '')),
+                            message: this.phaseMessage(String(state.status || ''), String(state.phase || '')),
+                        });
+                    } catch (err) {
+                        logger.error('[JobService] onProgress callback error:', err);
+                    }
+                }
+
                 // The job row only moves when a phase or step transitions, so a
                 // change here is the one reliable "still alive" signal available
                 // to the browser — block extraction writes nothing while it runs,
@@ -183,10 +205,46 @@ export class JobService {
         return undefined;
     }
 
+    /**
+     * Nombre en castellano de cada paso durable. El identificador interno
+     * (`ingestion_map`, `extraction`…) se filtraba tal cual a la UI, que es
+     * justo lo que hacía imposible saber qué estaba pasando.
+     */
+    private phaseLabel(phase: string): string | null {
+        switch (phase) {
+            case 'ingestion':
+            case 'ingestion_map':
+                return 'subiendo e indexando los documentos';
+            case 'document_map':
+                return 'analizando la estructura del expediente';
+            case 'extraction':
+                return 'extrayendo la información del expediente';
+            case 'consolidation':
+                return 'consolidando los resultados';
+            case 'validation':
+                return 'validando el resultado';
+            default:
+                return null;
+        }
+    }
+
     private phaseMessage(status: string, phase: string): string {
-        if (status === 'retrying') return `Reintentando la fase ${phase || 'actual'}...`;
-        if (status === 'queued') return `Fase ${phase || 'siguiente'} en cola...`;
-        if (status === 'processing') return `Procesando ${phase || 'análisis'}...`;
+        const label = this.phaseLabel(phase);
+
+        if (status === 'retrying') {
+            return label ? `Reintentando: ${label}...` : 'Reintentando el paso actual...';
+        }
+        if (status === 'queued' || status === 'pending') {
+            return label ? `En cola: ${label}...` : 'Análisis en cola...';
+        }
+        if (status === 'processing') {
+            // La extracción es el tramo largo: el worker la trocea en slices, así
+            // que conviene decir explícitamente que sigue avanzando y no colgada.
+            if (phase === 'extraction') {
+                return 'Extrayendo la información del expediente (puede tardar varios minutos)...';
+            }
+            return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}...` : 'Procesando el análisis...';
+        }
         return 'Actualizando el estado del análisis...';
     }
 

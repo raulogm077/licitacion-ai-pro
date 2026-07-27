@@ -270,7 +270,13 @@ Con Fase 1B esa laguna se reparte entre dos mecanismos que no se solapan, y el r
 
 Un lease todavía vigente nunca se toca, así que el barrido no puede matar trabajo en vuelo; y es idempotente (una segunda pasada recupera 0 filas). Es `SECURITY INVOKER` y ejecutable solo por `service_role`, igual que el resto de RPC durables. Lo dispara `analyze-with-agents` de forma oportunista al inicio de cada request.
 
-### 7.4. Presupuesto de ejecución atado al techo de plataforma
+### 7.4. Progreso visible durante la ejecución asíncrona
+
+El navegador tiene dos fuentes de progreso y **ambas deben emitir**: el Broadcast privado `analysis-job:<jobId>`, que es best-effort, y el polling RLS de `analysis_jobs`, que es su fallback. Durante Fase 1B el polling solo leía la fila para detectar estados terminales, así que una ejecución sin frames de Broadcast dejaba la UI congelada en el mensaje del envío pese a que el worker avanzaba (ver `SPEC.md` §10.12).
+
+El polling emite `phase_progress` al cambiar `status:phase`. La clave excluye deliberadamente `updated_at`: el worker hace checkpoint varias veces dentro de la misma fase y repetir la línea en cada uno sería ruido. La barra avanza por fase (`PHASE_PROGRESS` en `ai.service.ts`), no por bloque, porque el payload de Broadcast transporta solo estado y fase.
+
+### 7.5. Presupuesto de ejecución atado al techo de plataforma
 
 `PIPELINE_TIMEOUT_MS` ya no es una constante suelta: se deriva de `EDGE_WALL_CLOCK_MS` (150 s por defecto, el techo del plan free) menos `PIPELINE_SHUTDOWN_MARGIN_MS` (10 s). Si el pipeline sobrevive al techo de la plataforma, el isolate muere sin ejecutar `catch`, `finally` ni el `setTimeout` del pipeline, y el paso queda en `running` para siempre. Derivarlo garantiza que el guard de código dispare primero y el fallo llegue a persistirse.
 

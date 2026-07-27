@@ -347,3 +347,16 @@ Cambios aplicados:
 - `recoverDurableResult` deja de afirmar que un análisis interrumpido sigue en curso.
 
 Criterio de fallo asumido: en plan free un expediente multi-documento sigue sin caber en el techo. La entrega convierte el zombi en un fallo explicado y reintentable, no en un análisis correcto; cerrarlo del todo exige el timeout de Pro o el worker asíncrono.
+
+### 10.12. El polling no informaba del progreso (2026-07-27)
+
+Primer pliego real analizado con Fase 1B en producción: **completó correctamente en 669 s**, cuatro pasos en verde y resultado persistido — muy por encima del techo de 150 s que antes lo mataba. Pero durante los 11 minutos la interfaz mostró «Documentos guardados; análisis asíncrono en cola» y un 18 % congelado, así que era indistinguible de un cuelgue.
+
+Causa: `recoverDurableResult` solo emitía `onProgress` desde el handler de Broadcast. El bucle de polling leía `status` y `phase` para decidir si el job había terminado, pero **no informaba de nada**. Como Broadcast es best-effort —y en esta ejecución no llegó ningún frame al navegador—, la UI se quedó clavada en el último evento recibido al enviar. El 18 % es exactamente `PHASE_PROGRESS.ingestion.start` (10) proyectado por el store (`10 + 10·0,8`): el marcador de inicio de ingesta, nunca actualizado.
+
+Cambios:
+
+- el polling emite `phase_progress` cuando cambia `status:phase`, de modo que el fallback documentado deja de ser mudo; la clave excluye `updated_at` para que un checkpoint sin cambio de fase no repita línea;
+- los mensajes dejan de filtrar el identificador interno del paso (`Procesando extraction...`) y describen la fase en castellano, con aviso explícito de que la extracción puede tardar varios minutos, que es el tramo largo.
+
+Criterio de fallo asumido: durante la extracción la barra se queda en el punto medio de su rango (50 %) porque el Broadcast privado solo transporta estado y fase, sin detalle por bloque. Mostrar avance por bloque exigiría ampliar el payload y queda fuera de este arreglo.
