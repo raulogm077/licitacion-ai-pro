@@ -118,6 +118,21 @@ Primer bloque del rediseño integral de UX hacia una identidad profesional con e
 - Cabecera con logo de marca (gradiente + Space Grotesk), header glass y contenido a `max-w-7xl`.
 - Dependencias frontend nuevas (solo cliente, no afectan al runtime Deno de las Edge Functions): `motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/inter`, `@fontsource-variable/space-grotesk`.
 
+## [Unreleased] - 2026-07-27d — Simulador de oferta económica
+
+Primera capacidad de analista sobre datos que ya se extraían.
+
+### Added
+
+- `src/lib/scoring.ts`: interpreta la fórmula de precio y el umbral de baja temeraria, hasta ahora texto libre sin usar. Reconoce proporcionalidad inversa, proporcional a la baja y lineal sobre presupuesto; umbral contra presupuesto y contra la media.
+- `PriceSimulator`: introduces tu oferta y ves los puntos en varios escenarios de competencia, más el aviso de baja temeraria cuando es anticipable.
+
+### Decisiones
+
+- **No adivinar**: una fórmula no reconocida produce «no simulable» con motivo, nunca un número aproximado.
+- **Escenarios en vez de cifra única**: la fórmula depende de la oferta más baja rival, desconocida al fijar precio.
+- **El umbral sobre la media no se anticipa**: no existe hasta la apertura de plicas y se dice explícitamente.
+
 ## [Unreleased] - 2026-07-27c — Observabilidad del análisis asíncrono
 
 Tres huecos que dejó al descubierto el primer pliego real ejecutado con Fase 1B, que **completó bien en 669 s** pero sin contarlo por el camino.
