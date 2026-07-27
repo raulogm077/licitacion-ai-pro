@@ -219,6 +219,12 @@ debe respetar las reglas duras de este documento. Operativa completa (coordinaci
 por `BACKLOG.md`, `guard.sh`, kill switch `AGENTS_ENABLED`, auto-merge sobre el CI
 existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
+> Nota (2026-07-27): ESLint sigue en la 8 a propósito. `eslint-plugin-react-refresh`
+> está fijado a `~0.4.26` porque la 0.5 exige `eslint: ^9 || ^10`; con ESLint 8 el
+> plugin no registra sus reglas y `pnpm lint` cae con 184 errores. Dependabot lo
+> ignora para minor/major. Levantarlo va con la migración a flat config, en
+> `BACKLOG.md` → Deuda Técnica. No subir el plugin suelto.
+
 > Nota (2026-07-26): remediación de vulnerabilidades. Lo que tenga versión
 > parcheada alcanzable se arregla actualizando (`pnpm.overrides` para transitivos,
 > bump directo para dependencias declaradas). Lo que no —hoy solo

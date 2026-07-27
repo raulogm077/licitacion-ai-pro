@@ -122,6 +122,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Deuda Técnica / Refactorización
 
+- [ ] [Tipo: Infra] [Área: Infra] Migrar a ESLint 9 + flat config
+  - Objetivo: Desbloquear el ecosistema de plugins de ESLint, que ya está abandonando la versión 8. Hoy el repo va con ESLint 8.57.1 y `.eslintrc.cjs`, y esa versión está marcada como no soportada por upstream (`WARN deprecated eslint@8.57.1` en cada `pnpm install`).
+  - Contexto: `eslint-plugin-react-refresh` 0.5.0 cambió su peerDependency de `eslint: >=8.40` a `eslint: ^9 || ^10`. Con ESLint 8 el plugin no registra sus reglas y `.eslintrc.cjs` deja 184 referencias huérfanas a `react-refresh/only-export-components`, que tumban `pnpm lint` (verificado: el PR de Dependabot #316 falló así, y se reprodujo en local). Como parche, el plugin quedó fijado a `~0.4.26` y Dependabot tiene un `ignore` para sus minor/major.
+  - Alcance: convertir `.eslintrc.cjs` a `eslint.config.js` (flat config), subir `eslint` a ^9, `@typescript-eslint/*` de ^7 a ^8 (v7 no soporta ESLint 9), `eslint-plugin-react-hooks` de ^4 a ^5 y `eslint-plugin-react-refresh` a ^0.5. Retirar entonces el `ignore` de `.github/dependabot.yml` y el pin de `package.json`.
+  - Criterios de aceptación:
+    - `pnpm lint` en verde con 0 warnings y el mismo conjunto de reglas efectivas que hoy (no relajar `@typescript-eslint/no-explicit-any`).
+    - `pnpm verify:release` en verde; el hook de pre-commit (lint-staged) sigue funcionando.
+    - `.github/dependabot.yml` ya no ignora `eslint-plugin-react-refresh`, y `package.json` no lo fija a `~0.4.x`.
+  - Archivos probables: `.eslintrc.cjs` (eliminar), `eslint.config.js` (nuevo), `package.json`, `.github/dependabot.yml`
+  - Dependencias: Ninguna. Conviene hacerla sola, sin mezclar con otros bumps.
+
 - [ ] [Tipo: AI] [Área: Analysis] Model tiering por bloque (coste)
   - Objetivo: Reducir coste sin perder calidad donde importa. Hoy los 9 bloques usan `gpt-4.1`, incluidos triviales (`anexosYObservaciones`, `duracionYProrrogas`).
   - Alcance: Parametrizar el modelo por bloque en `config.ts` (bloque→modelo), reservando el tier alto para `criteriosAdjudicacion`, `economico`, `requisitosSolvencia` y usando un tier menor (p. ej. `gpt-4.1-mini`) en los simples. Verificar que el modelo elegido soporta Responses API + `file_search`.

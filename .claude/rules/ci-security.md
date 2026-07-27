@@ -33,3 +33,16 @@ deploy fails).
 Toda herramienta externa invocada desde CI o desde `.mcp.json` va pineada a una
 versión concreta, nunca a `@latest` (OSV Scanner `v2.4.0`,
 `@supabase/mcp-server-supabase`). Reproducibilidad y superficie de supply chain.
+
+## Dependabot: los 0.x no respetan semver
+
+El grupo `dev-dependencies` de `.github/dependabot.yml` agrupa `minor` y `patch`,
+lo cual es seguro **salvo en paquetes 0.x**, donde un salto de minor sí puede ser
+breaking. Ya ocurrió: `eslint-plugin-react-refresh` 0.4→0.5 cambió su
+peerDependency a `eslint: ^9 || ^10`, el plugin dejó de registrar sus reglas bajo
+ESLint 8 y `pnpm lint` se cayó con 184 errores de regla no encontrada.
+
+Cuando un bump de 0.x rompa, el patrón es: fijar la línea en `package.json`
+(`~0.4.26`, no `^`), añadir el `ignore` correspondiente en `dependabot.yml` **con
+el motivo escrito**, y registrar en `BACKLOG.md` la tarea que permitirá quitarlo.
+Un `ignore` sin fecha ni tarea asociada se convierte en deuda invisible.
