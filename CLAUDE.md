@@ -10,7 +10,7 @@ Analista de Pliegos: SaaS app for analyzing Spanish public procurement documents
 pnpm dev              # Dev server (localhost:5173)
 pnpm build            # TypeScript check + Vite build
 pnpm typecheck        # TypeScript strict check
-pnpm test -- --run    # Run all 236+ tests (single run)
+pnpm test -- --run    # Run the full unit suite once (461 tests / 64 suites)
 pnpm benchmark:pliegos # Benchmark funcional del caso principal de producto
 pnpm test:e2e         # Playwright E2E tests
 pnpm lint             # ESLint (0 warnings allowed)
