@@ -61,7 +61,7 @@ Estas reglas viven en `.claude/rules/` con `paths:`, así que entran en contexto
 | ---------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------- |
 | `.claude/rules/agents-sdk.md`      | `supabase/functions/**`                      | Índice de las reglas duras del SDK (fuente completa: `AGENTS.md`)            |
 | `.claude/rules/pipeline-runtime.md` | `supabase/functions/**`, `job.service.ts`   | Presupuesto de timeouts (`_shared/config.ts`) y tiempos típicos por tamaño   |
-| `.claude/rules/ci-security.md`     | `.github/workflows/**`, `package.json`       | OSV Scanner, pinning, bumps 0.x de Dependabot y aserción `verify_jwt`        |
+| `.claude/rules/ci-security.md`     | `.github/workflows/**`, `package.json`       | OSV Scanner, pinning, trampas al validar bumps y aserción `verify_jwt`       |
 
 Diagnóstico de despliegues y logs: skill `/observability`.
 
