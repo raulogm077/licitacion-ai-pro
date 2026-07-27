@@ -64,10 +64,10 @@ export async function exportLicitacionToExcel(content: LicitacionContent, filena
     const wsCriterios = workbook.addWorksheet('Criterios');
     wsCriterios.addRow(['Tipo', 'Criterio', 'Ponderación']);
     content.criteriosAdjudicacion.subjetivos.forEach((c) =>
-        wsCriterios.addRow(['Subjetivo', c.descripcion, c.ponderacion])
+        wsCriterios.addRow(['Subjetivo', c.descripcion, unwrap<number>(c.ponderacion, 0)])
     );
     content.criteriosAdjudicacion.objetivos.forEach((c) =>
-        wsCriterios.addRow(['Objetivo', c.descripcion, c.ponderacion])
+        wsCriterios.addRow(['Objetivo', c.descripcion, unwrap<number>(c.ponderacion, 0)])
     );
 
     const wsSolvencia = workbook.addWorksheet('Solvencia');

@@ -13,8 +13,13 @@ import { BLOCK_MODEL_OVERRIDES, OPENAI_MODEL } from './config.ts';
  */
 export const ANALYSIS_RUNTIME_VERSIONS = Object.freeze({
     pipeline: 'five-phase-v1.0.0',
-    prompts: 'pliegos-es-v1.0.0',
-    schema: 'canonical-v1.1.0',
+    // 1.1.0: los prompts de `economico` y `criteriosAdjudicacion` piden ahora
+    // evidencia para los importes y las ponderaciones (Guía §6.3).
+    prompts: 'pliegos-es-v1.1.0',
+    // 1.2.0: PBL, VEC, importeIVA, ponderacion y umbralAnormalidad pasan a
+    // TrackedField. La forma persistida cambia; el parseo sigue aceptando el
+    // valor plano de los análisis anteriores.
+    schema: 'canonical-v1.2.0',
     model: OPENAI_MODEL,
     // Provenance por bloque. Mientras `BLOCK_MODEL_OVERRIDES` esté vacío la
     // clave no aparece, así que la forma persistida hoy no cambia; en cuanto

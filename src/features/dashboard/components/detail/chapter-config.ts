@@ -1,4 +1,5 @@
 import { PliegoVM } from '../../model/pliego-vm';
+import { unwrap } from '../../../../lib/tracked-field';
 
 export type RenderPattern = 'row-table' | 'card-list' | 'simple-list' | 'risk-list' | 'key-value-list';
 
@@ -95,7 +96,7 @@ export const chapterConfigs: ChapterConfig[] = [
                 itemLabel: (item) => (item as { descripcion: string }).descripcion,
                 itemSubtext: (item) => (item as { formula?: string }).formula ?? null,
                 itemBadge: (item) => ({
-                    text: `${(item as { ponderacion: number }).ponderacion} pts`,
+                    text: `${unwrap<number>((item as { ponderacion: unknown }).ponderacion, 0)} pts`,
                     variant: 'blue',
                 }),
                 containerClass: 'dot-blue',
@@ -109,7 +110,7 @@ export const chapterConfigs: ChapterConfig[] = [
                 itemLabel: (item) => (item as { descripcion: string }).descripcion,
                 itemSubtext: (item) => (item as { detalles?: string }).detalles ?? null,
                 itemBadge: (item) => ({
-                    text: `${(item as { ponderacion: number }).ponderacion} pts`,
+                    text: `${unwrap<number>((item as { ponderacion: unknown }).ponderacion, 0)} pts`,
                     variant: 'purple',
                 }),
                 containerClass: 'dot-purple',

@@ -17,8 +17,9 @@ describe('QualityService', () => {
             organoContratacion: tf('Ayuntamiento de Madrid'),
         },
         criteriosAdjudicacion: {
-            subjetivos: [{ descripcion: 'Metodología', ponderacion: 40, subcriterios: [], cita: '' }],
-            objetivos: [{ descripcion: 'Precio', ponderacion: 60, cita: '' }],
+            subjetivos: [{ descripcion: 'Metodología', ponderacion: tf(40), subcriterios: [], cita: '' }],
+            objetivos: [{ descripcion: 'Precio', ponderacion: tf(60), cita: '' }],
+            umbralAnormalidad: tf(null),
         },
         requisitosTecnicos: {
             funcionales: [{ requisito: 'Experiencia mínima 3 años', obligatorio: true, cita: '' }],
@@ -57,7 +58,7 @@ describe('QualityService', () => {
                     cpv: tf([]),
                     organoContratacion: tf('Desconocido'),
                 },
-                criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                criteriosAdjudicacion: { subjetivos: [], objetivos: [], umbralAnormalidad: tf(null) },
                 requisitosTecnicos: { funcionales: [], normativa: [] },
                 requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 0 }, tecnica: [], profesional: [] },
                 restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },
@@ -72,7 +73,7 @@ describe('QualityService', () => {
         it('returns PARCIAL when some sections are present and others empty', () => {
             const partialContent = {
                 ...baseContent,
-                criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                criteriosAdjudicacion: { subjetivos: [], objetivos: [], umbralAnormalidad: tf(null) },
             };
             const report = service.evaluateQuality(partialContent);
             expect(report.overall).toBe('PARCIAL');
@@ -144,7 +145,11 @@ describe('QualityService', () => {
         it('marks criteriosAdjudicacion as PARCIAL when only one type is present', () => {
             const content = {
                 ...baseContent,
-                criteriosAdjudicacion: { subjetivos: baseContent.criteriosAdjudicacion.subjetivos, objetivos: [] },
+                criteriosAdjudicacion: {
+                    subjetivos: baseContent.criteriosAdjudicacion.subjetivos,
+                    objetivos: [],
+                    umbralAnormalidad: tf(null),
+                },
             };
             const report = service.evaluateQuality(content);
             expect(report.bySection['criteriosAdjudicacion']).toBe('PARCIAL');
@@ -153,7 +158,7 @@ describe('QualityService', () => {
         it('marks criteriosAdjudicacion as VACIO when both lists are empty', () => {
             const content = {
                 ...baseContent,
-                criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                criteriosAdjudicacion: { subjetivos: [], objetivos: [], umbralAnormalidad: tf(null) },
             };
             const report = service.evaluateQuality(content);
             expect(report.bySection['criteriosAdjudicacion']).toBe('VACIO');
@@ -229,7 +234,7 @@ describe('QualityService', () => {
         it('warns when no criterios de adjudicacion detected', () => {
             const content = {
                 ...baseContent,
-                criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+                criteriosAdjudicacion: { subjetivos: [], objetivos: [], umbralAnormalidad: tf(null) },
             };
             const report = service.evaluateQuality(content);
             expect(report.warnings).toContain('No se detectaron criterios de adjudicación.');

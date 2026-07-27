@@ -44,21 +44,6 @@ function safeCoerceNumber(fallback: number | null = 0) {
 }
 
 /**
- * Safely coerce to string. Unwraps TrackedField objects to their .value.
- * Converts null/undefined to null.
- */
-function safeCoerceString() {
-    return z.preprocess((v) => {
-        if (v === null || v === undefined) return null;
-        if (typeof v === 'object' && !Array.isArray(v) && 'value' in (v as object)) {
-            v = (v as Record<string, unknown>).value;
-            if (v === null || v === undefined) return null;
-        }
-        return String(v);
-    }, z.string().nullable().optional());
-}
-
-/**
  * Safely coerce to string array. Accepts arrays, comma/newline/semicolon-separated
  * strings, or TrackedField wrappers and always returns a normalized string array.
  */
@@ -71,9 +56,7 @@ function safeCoerceStringArray() {
         }
 
         if (Array.isArray(v)) {
-            return v
-                .map((entry) => String(entry).trim())
-                .filter((entry) => entry.length > 0);
+            return v.map((entry) => String(entry).trim()).filter((entry) => entry.length > 0);
         }
 
         if (typeof v === 'string') {
@@ -162,9 +145,14 @@ export const DatosGeneralesSchema = z.object({
 // ─── Económico ─────────────────────────────────────────────────────────────────────────────
 
 export const EconomicoSchema = z.object({
-    presupuestoBaseLicitacion: safeCoerceNumber(null),
-    valorEstimadoContrato: safeCoerceNumber(null),
-    importeIVA: safeCoerceNumber(null),
+    // Importes con grounding (Guía §6.3). El PBL alimenta la fórmula de precio y
+    // el umbral de baja temeraria, y el VEC es la base del VAM con el que se
+    // compara la solvencia económica: un importe mal leído aquí no produce un
+    // dato feo, produce una decisión equivocada. `tipoIVA` se queda plano a
+    // propósito — es un tipo impositivo, no un importe, y se deduce del resto.
+    presupuestoBaseLicitacion: TrackedField(safeCoerceNumber(null)),
+    valorEstimadoContrato: TrackedField(safeCoerceNumber(null)),
+    importeIVA: TrackedField(safeCoerceNumber(null)),
     tipoIVA: safeCoerceNumber(null),
     desglosePorLotes: z
         .array(
@@ -197,7 +185,11 @@ export const DuracionYProrrogasSchema = z.object({
 
 export const CriterioSubjetivoSchema = z.object({
     descripcion: z.string(),
-    ponderacion: safeCoerceNumber(0),
+    // La ponderación decide dónde merece la pena invertir esfuerzo en la oferta;
+    // va con evidencia propia porque el `cita` del criterio acredita el criterio
+    // entero, no el número. Los subcriterios se quedan planos: hoy no los
+    // renderiza nadie, así que envolverlos sería churn sin grounding visible.
+    ponderacion: TrackedField(safeCoerceNumber(0)),
     detalles: z.string().optional().nullable(),
     subcriterios: z.preprocess(
         (v) => {
@@ -230,7 +222,7 @@ export const CriterioSubjetivoSchema = z.object({
 
 export const CriterioObjetivoSchema = z.object({
     descripcion: z.string(),
-    ponderacion: safeCoerceNumber(0),
+    ponderacion: TrackedField(safeCoerceNumber(0)),
     formula: z.string().optional().nullable(),
     cita: z.string().optional(),
 });
@@ -238,8 +230,11 @@ export const CriterioObjetivoSchema = z.object({
 export const CriteriosAdjudicacionSchema = z.object({
     subjetivos: z.array(CriterioSubjetivoSchema).default([]),
     objetivos: z.array(CriterioObjetivoSchema).default([]),
-    // LLM sometimes returns an object {value, status} here — unwrap it safely
-    umbralAnormalidad: safeCoerceString(),
+    // El modelo ya devolvía a veces `{ value, status }` aquí y `safeCoerceString`
+    // lo desenvolvía y tiraba el status. Ahora se conserva: es el texto del que
+    // `parseAnomalyThreshold` deduce a partir de qué importe entras en baja
+    // temeraria, y decidir eso sobre una frase mal leída sale caro.
+    umbralAnormalidad: TrackedField(z.string()),
     cita: z.string().optional(),
 });
 

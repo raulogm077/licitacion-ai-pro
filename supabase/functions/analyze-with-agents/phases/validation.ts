@@ -299,8 +299,16 @@ function evaluateObjectQuality(obj: unknown): 'COMPLETO' | 'PARCIAL' | 'VACIO' {
     if (!obj || typeof obj !== 'object') return 'VACIO';
     const values = Object.values(obj);
     const nonEmpty = values.filter((v) => {
-        if (v === null || v === undefined || v === '') return false;
-        if (Array.isArray(v) && v.length === 0) return false;
+        // Un TrackedField vacío es un envoltorio, no un dato. Desde que los
+        // importes llevan grounding, `economico` siempre trae las tres claves
+        // presentes; contarlas sin mirar dentro haría que un bloque económico
+        // sin un solo importe se reportase como COMPLETO.
+        const unwrapped =
+            v !== null && typeof v === 'object' && !Array.isArray(v) && 'value' in (v as Record<string, unknown>)
+                ? (v as Record<string, unknown>).value
+                : v;
+        if (unwrapped === null || unwrapped === undefined || unwrapped === '') return false;
+        if (Array.isArray(unwrapped) && unwrapped.length === 0) return false;
         return true;
     });
     if (nonEmpty.length === 0) return 'VACIO';

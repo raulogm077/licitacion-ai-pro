@@ -2,6 +2,15 @@ import { assertEquals, assert } from 'https://deno.land/std@0.224.0/assert/mod.t
 import { runValidation } from './validation.ts';
 import type { ConsolidationResult } from './consolidation.ts';
 
+/**
+ * Envoltorio TrackedField para los fixtures. Los importes y las ponderaciones
+ * llevan grounding desde el cierre de la Guía §6.3, así que un fixture con un
+ * número plano ya no representa la forma que produce el pipeline.
+ */
+function tf<T>(value: T, status: 'extraido' | 'ambiguo' | 'no_encontrado' | 'derivado_tecnico' = 'extraido') {
+    return { value, status, warnings: [] as string[] };
+}
+
 function createConsolidatedResult(): ConsolidationResult {
     return {
         result: {
@@ -17,9 +26,9 @@ function createConsolidatedResult(): ConsolidationResult {
                 procedimiento: 'Abierto',
             },
             economico: {
-                presupuestoBaseLicitacion: 100000,
-                valorEstimadoContrato: 120000,
-                importeIVA: null,
+                presupuestoBaseLicitacion: tf(100000),
+                valorEstimadoContrato: tf(120000),
+                importeIVA: tf(null, 'no_encontrado'),
                 tipoIVA: null,
                 desglosePorLotes: [],
                 moneda: 'EUR',
@@ -33,8 +42,9 @@ function createConsolidatedResult(): ConsolidationResult {
                 observaciones: null,
             },
             criteriosAdjudicacion: {
-                subjetivos: [{ descripcion: 'Memoria técnica', ponderacion: 40, subcriterios: [] }],
-                objetivos: [{ descripcion: 'Oferta económica', ponderacion: 60 }],
+                subjetivos: [{ descripcion: 'Memoria técnica', ponderacion: tf(40), subcriterios: [] }],
+                objetivos: [{ descripcion: 'Oferta económica', ponderacion: tf(60) }],
+                umbralAnormalidad: tf('Baja del 25% sobre el PBL'),
             },
             requisitosSolvencia: {
                 economica: { cifraNegocioAnualMinima: 100000 },
@@ -152,7 +162,11 @@ Deno.test('runValidation marks very sparse results as document_insufficient', ()
     consolidated.result.datosGenerales.moneda = { value: null, status: 'no_encontrado', warnings: [] };
     consolidated.result.datosGenerales.plazoEjecucionMeses = { value: null, status: 'no_encontrado', warnings: [] };
     consolidated.result.datosGenerales.cpv = { value: [], status: 'no_encontrado', warnings: [] };
-    consolidated.result.criteriosAdjudicacion = { subjetivos: [], objetivos: [] };
+    consolidated.result.criteriosAdjudicacion = {
+        subjetivos: [],
+        objetivos: [],
+        umbralAnormalidad: tf(null, 'no_encontrado'),
+    };
     consolidated.result.requisitosSolvencia = {
         economica: { cifraNegocioAnualMinima: null },
         tecnica: [],
@@ -162,9 +176,9 @@ Deno.test('runValidation marks very sparse results as document_insufficient', ()
     consolidated.result.restriccionesYRiesgos = { killCriteria: [], riesgos: [], penalizaciones: [] };
     consolidated.result.modeloServicio = { sla: [], equipoMinimo: [] };
     consolidated.result.economico = {
-        presupuestoBaseLicitacion: null,
-        valorEstimadoContrato: null,
-        importeIVA: null,
+        presupuestoBaseLicitacion: tf(null, 'no_encontrado'),
+        valorEstimadoContrato: tf(null, 'no_encontrado'),
+        importeIVA: tf(null, 'no_encontrado'),
         tipoIVA: null,
         desglosePorLotes: [],
         moneda: 'EUR',
@@ -216,9 +230,9 @@ Deno.test('runValidation treats numeric 0 as a present value, not as empty', () 
     const consolidated = createConsolidatedResult();
     // importeIVA: 0 is real data (exempt contract), not a missing field.
     consolidated.result.economico = {
-        presupuestoBaseLicitacion: null,
-        valorEstimadoContrato: null,
-        importeIVA: 0,
+        presupuestoBaseLicitacion: tf(null, 'no_encontrado'),
+        valorEstimadoContrato: tf(null, 'no_encontrado'),
+        importeIVA: tf(0),
         tipoIVA: 0,
         desglosePorLotes: [],
         moneda: '',
@@ -233,9 +247,9 @@ Deno.test('runValidation treats numeric 0 as a present value, not as empty', () 
 Deno.test('runValidation still treats null, undefined and empty string as empty', () => {
     const consolidated = createConsolidatedResult();
     consolidated.result.economico = {
-        presupuestoBaseLicitacion: null,
-        valorEstimadoContrato: null,
-        importeIVA: null,
+        presupuestoBaseLicitacion: tf(null, 'no_encontrado'),
+        valorEstimadoContrato: tf(null, 'no_encontrado'),
+        importeIVA: tf(null, 'no_encontrado'),
         tipoIVA: null,
         desglosePorLotes: [],
         moneda: '',

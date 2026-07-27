@@ -136,7 +136,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Archivos probables: `supabase/functions/_shared/config.ts`, `supabase/functions/analyze-with-agents/agents/block-extractor.agent.ts`, `supabase/functions/analyze-with-agents/__tests__/`
     - Dependencias: requiere `OPENAI_API_KEY` para la evaluación live.
 
-- [ ] [Tipo: AI] [Área: Analysis] Extender `TrackedField` a importes y ponderaciones críticos (grounding §6.3)
+- [x] [Tipo: AI] [Área: Analysis] Extender `TrackedField` a importes y ponderaciones críticos (grounding §6.3) (entregado 2026-07-27)
     - Objetivo: Cumplir la regla de grounding de la Guía (§6.3) en todo dato numérico crítico. Hoy solo 6 campos de `datosGenerales` usan `TrackedField`; `presupuestoBaseLicitacion`, ponderaciones de criterios y `umbralAnormalidad` van sin `status/evidence`.
     - Alcance: Envolver en `TrackedField` los importes económicos clave y la `ponderacion` de criterios, preservando compatibilidad hacia atrás (unwrap legacy) y la transformación a frontend. Actualizar `canonical_test.ts`.
     - Criterios de aceptación:

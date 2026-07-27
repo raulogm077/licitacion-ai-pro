@@ -20,9 +20,10 @@ describe('PresentationMode', () => {
         },
         criteriosAdjudicacion: {
             subjetivos: [
-                { descripcion: 'Calidad Técnica', ponderacion: 40, detalles: 'Detalles tec', subcriterios: [] },
+                { descripcion: 'Calidad Técnica', ponderacion: tf(40), detalles: 'Detalles tec', subcriterios: [] },
             ],
-            objetivos: [{ descripcion: 'Precio', ponderacion: 60, formula: 'P = 60 * min/off' }],
+            objetivos: [{ descripcion: 'Precio', ponderacion: tf(60), formula: 'P = 60 * min/off' }],
+            umbralAnormalidad: tf(null),
         },
         requisitosTecnicos: { funcionales: [], normativa: [] },
         requisitosSolvencia: {

@@ -14,7 +14,7 @@ describe('QualityService - Semantic Consistency', () => {
             cpv: tf([]),
             organoContratacion: tf('Test'),
         },
-        criteriosAdjudicacion: { subjetivos: [], objetivos: [] },
+        criteriosAdjudicacion: { subjetivos: [], objetivos: [], umbralAnormalidad: tf(null) },
         requisitosTecnicos: { funcionales: [], normativa: [] },
         requisitosSolvencia: { economica: { cifraNegocioAnualMinima: 500 }, tecnica: [], profesional: [] },
         restriccionesYRiesgos: { riesgos: [], killCriteria: [], penalizaciones: [] },

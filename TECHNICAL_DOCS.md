@@ -113,20 +113,20 @@ Usuario selecciona documentos
 
 ### Utilidades compartidas (`supabase/functions/_shared/`)
 
-| Archivo                | Función                                                                                             |
-| ---------------------- | --------------------------------------------------------------------------------------------------- |
-| `agents/sdk.ts`        | Re-export nombrado explícito de `@openai/agents@0.3.1`                                              |
-| `agents/context.ts`    | `PipelineContext` + `createPipelineContext()`                                                       |
-| `agents/guardrails.ts` | `jsonShapeGuardrail<T>` + `templateSanitizationGuardrail` + parsers                                 |
-| `agents/tracing.ts`    | `SupabaseLogTraceProcessor`                                                                         |
+| Archivo                | Función                                                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agents/sdk.ts`        | Re-export nombrado explícito de `@openai/agents@0.3.1`                                                                                       |
+| `agents/context.ts`    | `PipelineContext` + `createPipelineContext()`                                                                                                |
+| `agents/guardrails.ts` | `jsonShapeGuardrail<T>` + `templateSanitizationGuardrail` + parsers                                                                          |
+| `agents/tracing.ts`    | `SupabaseLogTraceProcessor`                                                                                                                  |
 | `config.ts`            | Constantes (`OPENAI_MODEL`, `BLOCK_MODEL_OVERRIDES`/`modelForBlock`, `CHAT_MODEL`, timeouts, concurrencia, backoff, límites de payload/rate) |
-| `cors.ts`              | Whitelist de orígenes                                                                               |
-| `rate-limiter.ts`      | `checkRateLimit` parametrizable con clave namespaced: `analyze:` 10/h, `chat:` 60/h por usuario     |
-| `utils/concurrency.ts` | `runWithConcurrency` (compartida entre ingestion y block-extraction)                                |
-| `utils/retry.ts`       | `retryWithBackoff` con `maxDelayMs` (backoff real 429/5xx en Fase C)                                |
-| `schemas/canonical.ts` | Schema canónico con TrackedField (zod 3.25.76)                                                      |
-| `utils/error.utils.ts` | Mapeo de errores OpenAI + `Input/OutputGuardrailTripwireTriggered`                                  |
-| `utils/timeout.ts`     | `callWithTimeout` con `Promise.race` (90s por `run()`)                                              |
+| `cors.ts`              | Whitelist de orígenes                                                                                                                        |
+| `rate-limiter.ts`      | `checkRateLimit` parametrizable con clave namespaced: `analyze:` 10/h, `chat:` 60/h por usuario                                              |
+| `utils/concurrency.ts` | `runWithConcurrency` (compartida entre ingestion y block-extraction)                                                                         |
+| `utils/retry.ts`       | `retryWithBackoff` con `maxDelayMs` (backoff real 429/5xx en Fase C)                                                                         |
+| `schemas/canonical.ts` | Schema canónico con TrackedField (zod 3.25.76); desde `canonical-v1.2.0` cubre importes y ponderaciones                                      |
+| `utils/error.utils.ts` | Mapeo de errores OpenAI + `Input/OutputGuardrailTripwireTriggered`                                                                           |
+| `utils/timeout.ts`     | `callWithTimeout` con `Promise.race` (90s por `run()`)                                                                                       |
 
 ---
 
@@ -260,11 +260,11 @@ La migración `20260716114116_analysis_worker_async_runtime.sql` añade claim gl
 
 Con Fase 1B esa laguna se reparte entre dos mecanismos que no se solapan, y el reparto importa:
 
-| Estado abandonado                                         | Quién lo recupera                                       | Cómo                                                 |
-| ---------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------- |
-| Paso `running`, lease vencido, job `async_worker`           | `claim_next_analysis_step` + `private.recover_analysis_worker` (`pg_cron`) | Reanuda **desde el checkpoint**, sin perder bloques  |
-| Paso `running`, lease vencido, job `inline_transition`      | `reclaim_stale_analysis_steps`                          | `dead_letter` + DLQ (`reason='lease_expired'`)       |
-| Job no terminal sin ningún paso en `running`/`queued`/`retrying` | `reclaim_stale_analysis_steps`                      | job a `dead_letter` tras `p_orphan_after_seconds`    |
+| Estado abandonado                                                | Quién lo recupera                                                          | Cómo                                                |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------- |
+| Paso `running`, lease vencido, job `async_worker`                | `claim_next_analysis_step` + `private.recover_analysis_worker` (`pg_cron`) | Reanuda **desde el checkpoint**, sin perder bloques |
+| Paso `running`, lease vencido, job `inline_transition`           | `reclaim_stale_analysis_steps`                                             | `dead_letter` + DLQ (`reason='lease_expired'`)      |
+| Job no terminal sin ningún paso en `running`/`queued`/`retrying` | `reclaim_stale_analysis_steps`                                             | job a `dead_letter` tras `p_orphan_after_seconds`   |
 
 `reclaim_stale_analysis_steps(p_limit, p_orphan_after_seconds)` (migraciones `20260727130000` y `20260727150000`) es el único sitio autorizado a sacar un paso de `running` sin poseer su lease, y solo cuando el lease ya ha caducado. **No toca los jobs `async_worker` a propósito**: su consumidor los reanuda desde el checkpoint, que es estrictamente mejor que reencolar, y dos escritores sobre el mismo estado podrían marcar `retrying` —con un `error` visible en la fila— sobre un análisis que se está recuperando solo. Se queda con lo que nadie más puede retomar: la ruta inline, donde el ejecutor es la propia petición, y los jobs huérfanos, invisibles para `recover_analysis_worker` porque no tienen nada en cola.
 
@@ -379,3 +379,26 @@ El benchmark responde «¿la proyección de producto sigue interpretando correct
 ---
 
 _Documentación actualizada el 2026-07-16 con Fase 1B (upload firmado, worker independiente, checkpoints atómicos, Realtime/polling, Vault y cleanup TTL). Ver `CHANGELOG.md`, `SPEC.md` §10.10 y `ARCHITECTURE.md` §8.13._
+
+### 7.7. Grounding de importes y ponderaciones
+
+`TrackedField` cubría seis campos de `datosGenerales`. Desde `canonical-v1.2.0` cubre también los números que alimentan decisiones, no sólo la pantalla:
+
+| Campo                                     | Por qué lleva grounding                                              |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| `economico.presupuestoBaseLicitacion`     | Base de la fórmula de precio y del umbral de baja temeraria          |
+| `economico.valorEstimadoContrato`         | Base del VAM contra el que se compara la solvencia económica         |
+| `economico.importeIVA`                    | Se cruza con PBL y VEC para detectar importes mezclados              |
+| `criteriosAdjudicacion.*.ponderacion`     | Decide dónde merece la pena invertir esfuerzo en la oferta           |
+| `criteriosAdjudicacion.umbralAnormalidad` | Es el texto del que `parseAnomalyThreshold` deduce la baja temeraria |
+
+Quedan planos a propósito `tipoIVA` (es un tipo impositivo, no un importe), `desglosePorLotes[].presupuesto` (ya tiene `cita` por lote) y `subcriterios[].ponderacion` (hoy no lo renderiza nadie, así que envolverlo sería churn sin grounding visible).
+
+**Compatibilidad hacia atrás sin migrar datos.** El `preprocess` de `TrackedField` acepta el valor plano de los análisis ya guardados y lo envuelve con `status: 'extraido'` — pero **sin fabricarle evidencia**, que es lo que distingue un dato acreditado de uno heredado. `unwrap()` cubre la dirección contraria en el frontend. No hay migración de filas ni backfill.
+
+**Dos sitios que el compilador no habría cazado.** `consolidation.ts` y `validation.ts` corren sobre `CanonicalResult` con `@ts-nocheck` aguas arriba:
+
+- La suma de ponderaciones (`sum + criterio.ponderacion`) habría concatenado objetos y producido una advertencia con una cadena en vez de un total. Se resuelve con el helper local `trackedNumber`.
+- `evaluateObjectQuality` contaba claves no vacías; un `TrackedField` vacío es un objeto y habría contado como dato presente, de modo que un bloque económico sin un solo importe se habría reportado como `COMPLETO`. Ahora mira dentro del envoltorio antes de decidir.
+
+Al rellenarse desde el bloque económico, `datosGenerales.presupuesto` hereda además la evidencia del importe de origen: la cita que respalda el número es la de donde salió, no la del bloque que no lo encontró.

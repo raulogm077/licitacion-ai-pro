@@ -86,7 +86,11 @@ Para campos críticos, usa el formato: { "value": <valor>, "evidence": { "quote"
 - tipoIVA: porcentaje de IVA
 - desglosePorLotes: array de { lote, descripcion, presupuesto, cita } si hay lotes
 - moneda: código de moneda
-Si hay varios importes ambiguos (PBL vs VEC vs con IVA), márcalos y NO inventes.`,
+Si hay varios importes ambiguos (PBL vs VEC vs con IVA), márcalos y NO inventes.
+
+Campos críticos que DEBEN incluir evidencia: presupuestoBaseLicitacion, valorEstimadoContrato, importeIVA.
+Para campos críticos, usa el formato: { "value": <valor>, "evidence": { "quote": "<cita literal max 240 chars>", "pageHint": "<página>", "confidence": 0.0-1.0 }, "status": "extraido|ambiguo|no_encontrado" }
+Si el importe aparece en varios sitios con cifras distintas, usa status "ambiguo" y cita el pasaje que hayas tomado.`,
 
     duracionYProrrogas: `Extrae la información de DURACIÓN Y PRÓRROGAS:
 - duracionMeses: duración del contrato en meses
@@ -99,7 +103,11 @@ Si hay varios importes ambiguos (PBL vs VEC vs con IVA), márcalos y NO inventes
 - subjetivos: criterios de juicio de valor, cada uno con { descripcion, ponderacion, detalles, subcriterios, cita }
 - objetivos: criterios automáticos/fórmula, cada uno con { descripcion, ponderacion, formula, cita }
 - umbralAnormalidad: método o umbral de oferta anormalmente baja si se especifica
-IMPORTANTE: Extrae la ponderación numérica exacta de cada criterio.`,
+IMPORTANTE: Extrae la ponderación numérica exacta de cada criterio.
+
+Campos críticos que DEBEN incluir evidencia: la ponderacion de cada criterio (subjetivo u objetivo) y umbralAnormalidad.
+Para campos críticos, usa el formato: { "value": <valor>, "evidence": { "quote": "<cita literal max 240 chars>", "pageHint": "<página>", "confidence": 0.0-1.0 }, "status": "extraido|ambiguo|no_encontrado" }
+El resto de campos del criterio (descripcion, formula, detalles, subcriterios, cita) siguen siendo planos.`,
 
     requisitosSolvencia: `Extrae los REQUISITOS DE SOLVENCIA:
 - economica.cifraNegocioAnualMinima: cifra mínima anual (número)
