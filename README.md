@@ -73,6 +73,7 @@ Documentación viva del sistema:
 - `TECHNICAL_DOCS.md`: contratos técnicos detallados
 - `CHANGELOG.md`: historial de cambios por release (última entrada: Fase 1B de upload firmado, worker independiente y recovery durable)
 - `docs/adr/ADR-001-arquitectura-ia-durable-y-evaluable.md`: arquitectura objetivo de IA y migración incremental aprobada
+- `docs/adr/ADR-002-perfil-de-empresa-licitadora.md`: modelo de datos del licitador y Go/No-Go de la Guía §3 — **propuesta, pendiente de decisión de producto**
 
 ## Stack real
 
