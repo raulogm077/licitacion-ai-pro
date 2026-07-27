@@ -88,8 +88,7 @@
             "picomatch": ">=4.0.4",
             "tmp": ">=0.2.7",
             "ws": ">=8.21.0",
-            "brace-expansion@1": "^1.1.12",
-            "brace-expansion@2": "^2.0.2"
+            "@eslint/config-array": "^0.23.5"
         }
     },
     "lint-staged": {

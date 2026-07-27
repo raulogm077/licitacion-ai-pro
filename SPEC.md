@@ -417,7 +417,11 @@ Cierra la deuda técnica que mantenía `eslint-plugin-react-refresh` fijado a la
 
 Dos cosas que aparecieron al hacerla y que no estaban previstas:
 
-**El override de seguridad de `brace-expansion` era demasiado romo.** Estaba fijado a `>=5.0.8` para todos los consumidores, y `minimatch@3` —que arrastra `@eslint/config-array`— usa la API de la v1, que cambió en la v5. ESLint 9 no arrancaba: `TypeError: expand is not a function`. La v1 tiene versión parcheada del mismo CVE (`1.1.12`), así que el override pasa a estar acotado por línea mayor (`brace-expansion@1` → `^1.1.12`, `brace-expansion@2` → `^2.0.2`) conservando la corrección de seguridad en todas ellas sin romper APIs.
+**`minimatch@3` no puede convivir con el override de `brace-expansion`.** ESLint 9 no arrancaba: `TypeError: expand is not a function`. `@eslint/config-array@0.21.2` arrastra `minimatch@3`, que consume `brace-expansion` como export por defecto; el override de seguridad lo fija a la v5, cuya API es distinta.
+
+El primer intento fue acotar el override por línea mayor, asumiendo que la v1 tenía versión parcheada. **Era falso y el CI lo cazó**: el aviso es `GHSA-mh99-v99m-4gvg`, que afecta desde la versión 0 y **solo se corrige en 5.0.8** — no hay parche en las líneas v1 ni v2. Acotarlo reintroducía la vulnerabilidad.
+
+La solución correcta no toca la seguridad: se fuerza `@eslint/config-array` a `^0.23.5`, que ya usa `minimatch ^10` y consume `brace-expansion` por named export, compatible con la v5. El lockfile queda con una única versión, `5.0.8`.
 
 **`react-refresh` no estaba registrando sus reglas.** Con ESLint 8 y el plugin fijado, la regla existía en la configuración pero el plugin no llegaba a cargarla. Ahora `eslint --print-config` la devuelve activa, así que la migración no solo desbloquea el ecosistema: recupera una regla que llevaba tiempo sin aplicarse.
 
