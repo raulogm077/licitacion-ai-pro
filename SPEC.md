@@ -410,3 +410,32 @@ Primer paso del salto de «extractor» a «analista» descrito en la Guía §4. 
 ### Criterio de fallo asumido
 
 El simulador cubre las familias de fórmula más frecuentes en pliegos españoles, no todas. Una fórmula con tramos, topes o coeficientes correctores cae en «no simulable» — que es el comportamiento correcto, pero significa que la cobertura real depende del pliego. Ampliarla exige casos nuevos, no relajar los patrones.
+
+### 11.1. Migración a ESLint 9 + flat config (2026-07-27)
+
+Cierra la deuda técnica que mantenía `eslint-plugin-react-refresh` fijado a la 0.4 y con un `ignore` en Dependabot. El conjunto de reglas efectivo es **el mismo**: `@typescript-eslint/no-explicit-any` sigue en `error`, verificado con `eslint --print-config`.
+
+Dos cosas que aparecieron al hacerla y que no estaban previstas:
+
+**`minimatch@3` no puede convivir con el override de `brace-expansion`.** ESLint 9 no arrancaba: `TypeError: expand is not a function`. `@eslint/config-array@0.21.2` arrastra `minimatch@3`, que consume `brace-expansion` como export por defecto; el override de seguridad lo fija a la v5, cuya API es distinta.
+
+El primer intento fue acotar el override por línea mayor, asumiendo que la v1 tenía versión parcheada. **Era falso y el CI lo cazó**: el aviso es `GHSA-mh99-v99m-4gvg`, que afecta desde la versión 0 y **solo se corrige en 5.0.8** — no hay parche en las líneas v1 ni v2. Acotarlo reintroducía la vulnerabilidad.
+
+La solución correcta no toca la seguridad: se fuerza `@eslint/config-array` a `^0.23.5`, que ya usa `minimatch ^10` y consume `brace-expansion` por named export, compatible con la v5. El lockfile queda con una única versión, `5.0.8`.
+
+**`react-refresh` no estaba registrando sus reglas.** Con ESLint 8 y el plugin fijado, la regla existía en la configuración pero el plugin no llegaba a cargarla. Ahora `eslint --print-config` la devuelve activa, así que la migración no solo desbloquea el ecosistema: recupera una regla que llevaba tiempo sin aplicarse.
+
+`@typescript-eslint` v8 detectó además un binding de `catch` sin usar en `SupabaseStatus.tsx`, corregido omitiéndolo (válido desde ES2019) en vez de silenciando la regla.
+
+### 11.2. Modelo por bloque de extracción (2026-07-27)
+
+Cierra la deuda de coste registrada en `BACKLOG.md`: los nueve bloques corrían en `gpt-4.1`, incluidos los triviales (`anexosYObservaciones`, `duracionYProrrogas`). `buildBlockAgent` resuelve ahora su modelo con `modelForBlock(blockName)` y `BLOCK_MODEL_OVERRIDES` decide caso por caso.
+
+**El mapa se entrega vacío, y esa es la parte deliberada.** Rellenarlo no es configuración: es una promoción de modelo, y el criterio de aceptación que traía la tarea del backlog —`pnpm benchmark:pliegos` en verde— no sirve para autorizarla. El benchmark valida fixtures ya generados y **no llama al modelo**: seguiría verde aunque el modelo barato extrajera mucho peor. La única señal que detecta esa regresión es `pnpm eval:pliegos:live`, que es manual y requiere clave de OpenAI, y que el contrato de release ya exige antes de promover modelo, prompt, retrieval u orquestación.
+
+Así que se separa lo verificable de lo que no lo es: el mecanismo entra revisado, con tests que fallan si alguien vuelve a fijar el modelo en la factory, y con cambio de comportamiento cero. Encender un bloque queda condicionado a la baseline.
+
+Dos condiciones para quien lo encienda:
+
+- **El modelo debe soportar Responses API con `file_search`.** Sin eso el bloque pierde la recuperación documental y responde de memoria: la peor forma de fallar, porque el JSON sigue teniendo la forma correcta.
+- **La provenance viaja con el cambio.** `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` en cuanto hay overrides, porque un `model` único mentiría sobre qué modelo extrajo cada bloque justo cuando ese dato hace falta para comparar contra la baseline. Mientras el mapa esté vacío la clave no aparece y el `runtime_version` persistido en los jobs no cambia de forma.

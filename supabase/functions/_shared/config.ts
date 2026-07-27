@@ -16,6 +16,38 @@
 export const OPENAI_MODEL = 'gpt-4.1';
 
 /**
+ * Modelo por bloque de extracción (Fase C).
+ *
+ * **Está vacío a propósito.** El mecanismo existe para poder abaratar los
+ * bloques triviales —`anexosYObservaciones`, `duracionYProrrogas`— sin tocar
+ * código de agentes, pero rellenarlo **es una promoción de modelo** y el
+ * contrato de release la condiciona a registrar antes una baseline manual de
+ * `pnpm eval:pliegos:live`.
+ *
+ * Conviene entender por qué ese gate no es burocracia: `pnpm benchmark:pliegos`
+ * valida fixtures ya generados y **no llama al modelo**, así que seguiría verde
+ * aunque el modelo barato extrajera mucho peor. El benchmark no puede detectar
+ * esta clase de regresión; solo la evaluación real puede.
+ *
+ * Al rellenarlo, verificar además que el modelo elegido soporta Responses API
+ * con `file_search`: sin eso el bloque se queda sin recuperación documental y
+ * responde de memoria, que es la peor forma de fallar porque parece funcionar.
+ *
+ * @example
+ * ```ts
+ * export const BLOCK_MODEL_OVERRIDES: Record<string, string> = {
+ *     anexosYObservaciones: 'gpt-4.1-mini',
+ * };
+ * ```
+ */
+export const BLOCK_MODEL_OVERRIDES: Record<string, string> = {};
+
+/** Modelo efectivo de un bloque; `OPENAI_MODEL` salvo override explícito. */
+export function modelForBlock(blockName: string): string {
+    return BLOCK_MODEL_OVERRIDES[blockName] ?? OPENAI_MODEL;
+}
+
+/**
  * OpenAI model used by the conversational layer (chat-with-analysis-agent).
  * 'gpt-5.4' is OpenAI's current frontier model (verified against
  * https://developers.openai.com/api/docs/models/gpt-5.4 on 2026-07-12).

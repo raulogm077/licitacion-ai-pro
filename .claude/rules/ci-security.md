@@ -40,7 +40,8 @@ versión concreta, nunca a `@latest` (OSV Scanner `v2.4.0`,
 
 El grupo `dev-dependencies` de `.github/dependabot.yml` agrupa `minor` y `patch`,
 lo cual es seguro **salvo en paquetes 0.x**, donde un salto de minor sí puede ser
-breaking. Ya ocurrió: `eslint-plugin-react-refresh` 0.4→0.5 cambió su
+breaking. Ya ocurrió (caso cerrado con la migración a ESLint 9 el 2026-07-27):
+`eslint-plugin-react-refresh` 0.4→0.5 cambió su
 peerDependency a `eslint: ^9 || ^10`, el plugin dejó de registrar sus reglas bajo
 ESLint 8 y `pnpm lint` se cayó con 184 errores de regla no encontrada.
 

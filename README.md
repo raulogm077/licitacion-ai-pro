@@ -73,6 +73,7 @@ Documentación viva del sistema:
 - `TECHNICAL_DOCS.md`: contratos técnicos detallados
 - `CHANGELOG.md`: historial de cambios por release (última entrada: Fase 1B de upload firmado, worker independiente y recovery durable)
 - `docs/adr/ADR-001-arquitectura-ia-durable-y-evaluable.md`: arquitectura objetivo de IA y migración incremental aprobada
+- `docs/adr/ADR-002-perfil-de-empresa-licitadora.md`: modelo de datos del licitador y Go/No-Go de la Guía §3 — **propuesta, pendiente de decisión de producto**
 
 ## Stack real
 
@@ -160,7 +161,7 @@ Notas:
 - El benchmark también protege regresiones silenciosas de reconciliación canónica, por ejemplo presupuesto/plazo completados desde bloques económicos o diagnósticos por sección.
 - `pnpm eval:pliegos:check` valida en CI el contrato determinista de métricas. `pnpm eval:pliegos:live` ejecuta manualmente las cinco fases reales contra OpenAI y compara hechos, ausencias, grounding y calidad; consume API y no forma parte del CI.
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
-- Dependabot agrupa los `minor`/`patch` de dev-dependencies, lo cual es seguro salvo en paquetes `0.x`, donde un minor puede ser breaking. Si un bump así rompe el CI: fijar la línea en `package.json` (`~0.4.26`, no `^`), añadir el `ignore` en `.github/dependabot.yml` con el motivo, y abrir la tarea en `BACKLOG.md` para retirarlo. Caso vigente: `eslint-plugin-react-refresh`, atado a la 0.4 hasta migrar a ESLint 9.
+- Dependabot agrupa los `minor`/`patch` de dev-dependencies, lo cual es seguro salvo en paquetes `0.x`, donde un minor puede ser breaking. Si un bump así rompe el CI: fijar la línea en `package.json` (`~0.4.26`, no `^`), añadir el `ignore` en `.github/dependabot.yml` con el motivo, y abrir la tarea en `BACKLOG.md` para retirarlo. Precedente cerrado: `eslint-plugin-react-refresh` estuvo atado a la 0.4 hasta la migración a ESLint 9 + flat config (2026-07-27); su `ignore` ya se retiró.
 - El job `security-audit` del CI escanea `pnpm-lock.yaml` con OSV Scanner y solo falla con HIGH/CRITICAL. Los findings con parche disponible se arreglan actualizando: `pnpm.overrides` si son transitivos, bump directo si son dependencias declaradas. Los que no tienen parche alcanzable van a `osv-scanner.toml`, donde `reason` e `ignoreUntil` son obligatorios para que la excepción caduque y se revise. Detalle en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 ## Flujo de ramas y entrega

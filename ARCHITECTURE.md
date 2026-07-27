@@ -478,7 +478,7 @@ Al integrarse con Fase 1B (§8.13) el reparto quedó explícito, porque el consu
 
 En el frontend, `recoverDurableResult` distingue por primera vez «lento» de «muerto»: la fila del job solo avanza cuando transiciona una fase o un paso, así que un cambio en `status:phase:updated_at` es la única señal fiable de vida disponible al navegador. Si no avanza en toda la ventana de recuperación, el mensaje deja de invitar a volver más tarde a un historial que nunca se va a poblar.
 
-**Límite que esto no resuelve:** con el techo de 150 s del plan free, un expediente multi-documento sigue sin caber. El fallo pasa a ser limpio y explicado en ~140 s en vez de un zombi silencioso, pero para que ese caso *termine bien* hace falta subir el timeout en el plan Pro (`EDGE_WALL_CLOCK_MS` hasta 400 s) o sacar el worker del request. Es un techo de capacidad, no un bug de código.
+**Límite que esto no resuelve:** con el techo de 150 s del plan free, un expediente multi-documento sigue sin caber. El fallo pasa a ser limpio y explicado en ~140 s en vez de un zombi silencioso, pero para que ese caso _termine bien_ hace falta subir el timeout en el plan Pro (`EDGE_WALL_CLOCK_MS` hasta 400 s) o sacar el worker del request. Es un techo de capacidad, no un bug de código.
 
 **Fecha:** 2026-07-27
 
@@ -513,6 +513,26 @@ Cierre de las observaciones de la revisión de §8.16. `blockIndex` queda defini
 `src/lib/scoring.ts` interpreta la fórmula de precio y el umbral de anormalidad que el pipeline ya extraía como texto. Es una capa **post-extracción y de cliente**: no toca el schema canónico, ni los prompts, ni el contrato de análisis, y corre en el navegador porque la simulación es interactiva.
 
 El módulo es de funciones puras y devuelve `null` o un fallo con motivo siempre que le falte un dato o no reconozca el patrón, en lugar de asumir valores. Esa decisión es lo que separa una herramienta de decisión de un generador de cifras plausibles.
+
+**Fecha:** 2026-07-27
+
+### 8.19 Modelo por bloque: mecanismo sin promoción (Implementado 2026-07-27)
+
+`buildBlockAgent` deja de fijar `OPENAI_MODEL` y resuelve su modelo con `modelForBlock(blockName)`. `BLOCK_MODEL_OVERRIDES` queda **vacío a propósito**, así que los nueve bloques siguen en el mismo modelo y el cambio de comportamiento es cero.
+
+La separación es deliberada: el mecanismo y la decisión de abaratar bloques son dos cosas distintas y solo la primera se puede verificar en CI. `pnpm benchmark:pliegos` valida fixtures ya generados y no llama al modelo, de modo que aprobaría un modelo peor sin enterarse; la evaluación que sí lo detecta (`pnpm eval:pliegos:live`) es manual y exige clave de OpenAI. Entregar el interruptor apagado permite que el mecanismo entre revisado y con tests, y deja la promoción condicionada a la baseline que el contrato de release ya exige.
+
+La provenance acompaña al interruptor: `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` solo cuando hay overrides, porque un `model` único mentiría sobre qué modelo extrajo cada bloque justo cuando ese dato hace falta para comparar contra la baseline.
+
+**Fecha:** 2026-07-27
+
+### 8.20 Perfil de empresa licitadora (Propuesta 2026-07-27 — pendiente de decisión de producto)
+
+`docs/adr/ADR-002-perfil-de-empresa-licitadora.md` diseña el modelo de datos del licitador —VAN por ejercicio, cartera de proyectos con CPV, acreditaciones y seguros— que la Guía §3.1.1 da por existente cuando dice «recuperar $VAN_{empresa}$ de la base de datos interna». Hoy esa base de datos no existe: el pipeline extrae lo que el pliego **exige** y nadie tiene el otro lado de la comparación, así que el licitador comprueba a mano si cumple.
+
+Lo que desbloquea es el Go/No-Go de la Guía §3, que es **determinista**: comparar números en Postgres contra requisitos ya extraídos, sin LLM. Con tres estados obligatorios —cumple, bloqueante y **desconocido**—, porque un falso No-Go sobre un perfil incompleto hace perder un contrato que se podía ganar y lo hace en silencio.
+
+La ADR queda como propuesta y no como decisión aceptada porque cambia a la vez el modelo de datos, el onboarding y la naturaleza del producto —pasa de leer documentos a emitir juicios sobre la empresa del usuario—, y cuatro de esas elecciones son de producto, no de implementación (§7 de la ADR). El riesgo dominante tampoco es técnico: es un onboarding que nadie completa.
 
 **Fecha:** 2026-07-27
 

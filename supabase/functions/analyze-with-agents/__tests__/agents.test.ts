@@ -29,6 +29,8 @@ import { RunContext } from '../../_shared/agents/sdk.ts';
 import { buildDocumentMapAgent } from '../agents/document-map.agent.ts';
 import { buildBlockAgent } from '../agents/block-extractor.agent.ts';
 import { buildCustomTemplateAgent } from '../agents/custom-template.agent.ts';
+import { BLOCK_MODEL_OVERRIDES, modelForBlock, OPENAI_MODEL } from '../../_shared/config.ts';
+import { ANALYSIS_RUNTIME_VERSIONS } from '../../_shared/ai-runtime-version.ts';
 
 Deno.test('extractOutputText accepts plain string', () => {
     assertEquals(extractOutputText('hello'), 'hello');
@@ -237,4 +239,50 @@ Deno.test('templateSanitizationGuardrail no-op when no template', async () => {
     });
     assertEquals(out.tripwireTriggered, false);
     assertEquals((out.outputInfo as { reason: string }).reason, 'no_template');
+});
+
+// ─── Model tiering por bloque ────────────────────────────────────────────────
+//
+// `BLOCK_MODEL_OVERRIDES` está vacío a propósito (rellenarlo es una promoción de
+// modelo y exige baseline de `pnpm eval:pliegos:live`), así que el mecanismo
+// necesita test propio: sin él, un `model: OPENAI_MODEL` hardcodeado de vuelta
+// en la factory pasaría desapercibido hasta el día en que alguien rellene el
+// mapa y descubra que no hace nada.
+
+Deno.test('modelForBlock devuelve OPENAI_MODEL cuando no hay override', () => {
+    assertEquals(Object.keys(BLOCK_MODEL_OVERRIDES).length, 0, 'el mapa debe seguir vacío en main');
+    assertEquals(modelForBlock('economico'), OPENAI_MODEL);
+    assertEquals(modelForBlock('bloque-que-no-existe'), OPENAI_MODEL);
+});
+
+Deno.test('modelForBlock respeta el override y no contamina a los demás', () => {
+    BLOCK_MODEL_OVERRIDES.anexosYObservaciones = 'modelo-de-prueba';
+    try {
+        assertEquals(modelForBlock('anexosYObservaciones'), 'modelo-de-prueba');
+        assertEquals(modelForBlock('economico'), OPENAI_MODEL);
+    } finally {
+        delete BLOCK_MODEL_OVERRIDES.anexosYObservaciones;
+    }
+    assertEquals(modelForBlock('anexosYObservaciones'), OPENAI_MODEL);
+});
+
+Deno.test('blockExtractor agent resuelve su modelo por bloque', () => {
+    assertEquals(buildBlockAgent('economico', 'vs_test').model, OPENAI_MODEL);
+
+    BLOCK_MODEL_OVERRIDES.anexosYObservaciones = 'modelo-de-prueba';
+    try {
+        // La factory tiene que leer el override en construcción; si volviera a
+        // `model: OPENAI_MODEL` este assert es el que rompe.
+        assertEquals(buildBlockAgent('anexosYObservaciones', 'vs_test').model, 'modelo-de-prueba');
+        assertEquals(buildBlockAgent('economico', 'vs_test').model, OPENAI_MODEL);
+    } finally {
+        delete BLOCK_MODEL_OVERRIDES.anexosYObservaciones;
+    }
+});
+
+Deno.test('runtime version no declara blockModels mientras no haya overrides', () => {
+    // Provenance: la clave aparece solo cuando hay algo que declarar, de modo
+    // que este PR no altera el `runtime_version` que ya se persiste en jobs.
+    assertEquals(ANALYSIS_RUNTIME_VERSIONS.model, OPENAI_MODEL);
+    assertEquals('blockModels' in ANALYSIS_RUNTIME_VERSIONS, false);
 });

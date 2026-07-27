@@ -57,8 +57,9 @@ fases que llamen al modelo.
   importa `npm:@openai/agents@0.1.0` directo en 4 archivos (index/agents/tools/
   session), sino que consume `sdk.ts`, que re-exporta además `tool`, `user` y el
   tipo `AgentInputItem`. El modelo del chat vive en la constante `CHAT_MODEL`
-  (`_shared/config.ts`), no hardcodeado; el pipeline de análisis sigue en
-  `OPENAI_MODEL`.
+  (`_shared/config.ts`), no hardcodeado; el pipeline de análisis usa
+  `OPENAI_MODEL`, salvo los bloques de Fase C, que lo resuelven vía
+  `modelForBlock(blockName)` (ver «Modelo por bloque» más abajo).
 
 ## Auth model (funciones públicas + worker interno)
 
@@ -208,6 +209,24 @@ supabase/functions/analysis-worker/
 5. Si la respuesta es JSON, _no_ re-parsear: leer
    `result.outputGuardrailResults.find(r => r.outputInfo.label === '<label>').outputInfo.value`.
 
+## Modelo por bloque
+
+Los nueve agentes de Fase C no fijan `OPENAI_MODEL`: `buildBlockAgent` llama a
+`modelForBlock(blockName)`, que devuelve `OPENAI_MODEL` salvo que
+`BLOCK_MODEL_OVERRIDES` (`_shared/config.ts`) tenga una entrada para ese bloque.
+
+**El mapa está vacío en `main` y llenarlo no es configuración: es una promoción
+de modelo.** `pnpm benchmark:pliegos` valida fixtures ya generados y no llama al
+modelo, así que seguiría verde con un modelo peor; la señal que lo detecta es
+`pnpm eval:pliegos:live`, manual y exigida por el contrato de release antes de
+promover modelo, prompt, retrieval u orquestación. El modelo elegido debe además
+soportar Responses API con `file_search`, o el bloque responde de memoria con la
+forma JSON correcta.
+
+En cuanto exista un override, `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` y
+el `runtime_version` del job registra qué modelo extrajo cada bloque; el `model`
+del span `[trace]` ya lo dice por ejecución.
+
 ## Cómo añadir un guardrail
 
 - **Output (forma JSON / Zod)**: usar `jsonShapeGuardrail(schema, label)`.
@@ -243,11 +262,11 @@ debe respetar las reglas duras de este documento. Operativa completa (coordinaci
 por `BACKLOG.md`, `guard.sh`, kill switch `AGENTS_ENABLED`, auto-merge sobre el CI
 existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
-> Nota (2026-07-27): ESLint sigue en la 8 a propósito. `eslint-plugin-react-refresh`
-> está fijado a `~0.4.26` porque la 0.5 exige `eslint: ^9 || ^10`; con ESLint 8 el
-> plugin no registra sus reglas y `pnpm lint` cae con 184 errores. Dependabot lo
-> ignora para minor/major. Levantarlo va con la migración a flat config, en
-> `BACKLOG.md` → Deuda Técnica. No subir el plugin suelto.
+> Nota (2026-07-27): el repo migró a **ESLint 9 + flat config** (`eslint.config.js`;
+> `.eslintrc.cjs` eliminado). El conjunto de reglas efectivo no cambió —
+> `@typescript-eslint/no-explicit-any` sigue en `error`— y el `ignore` de
+> `eslint-plugin-react-refresh` en Dependabot se retiró. El script `lint` ya no
+> lleva `--ext`, que flat config no admite.
 
 > Nota (2026-07-26): remediación de vulnerabilidades. Lo que tenga versión
 > parcheada alcanzable se arregla actualizando (`pnpm.overrides` para transitivos,
