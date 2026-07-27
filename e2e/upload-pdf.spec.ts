@@ -2,8 +2,8 @@
  * E2E test: Subida y análisis de documento real (memo_p2.pdf)
  *
  * Usa el archivo real `memo_p2.pdf` del repositorio para probar el flujo completo
- * de subida → análisis → resultado, con el endpoint de la Edge Function mockeado
- * para evitar llamadas reales a OpenAI en CI.
+ * de creación de job → subida firmada → submit → recuperación durable, con los
+ * límites de Supabase mockeados para evitar llamadas reales a OpenAI en CI.
  */
 import fs from 'fs';
 import path from 'path';
@@ -13,8 +13,7 @@ import { setupAuthMock } from './test-utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-//
+const MOCK_JOB_ID = '123e4567-e89b-42d3-a456-426614174000';
 
 // ── Mock result compatible with LicitacionAgentResponse schema ──────────────
 const MOCK_AGENT_RESULT = {
@@ -56,42 +55,6 @@ const MOCK_AGENT_RESULT = {
     },
 };
 
-// ── SSE body factory ─────────────────────────────────────────────────────────
-// Playwright's route.fulfill() only guarantees delivery for Buffer/string bodies.
-// ReadableStream with setTimeout is unreliable in CI (events may never fire).
-// Instead we build the full SSE payload as a single Buffer; the frontend SSE
-// parser handles receiving all events in one chunk without issues.
-function buildMockSseBody(): Buffer {
-    const ts = Date.now();
-    const line = (obj: object) => `data: ${JSON.stringify(obj)}\n\n`;
-    // Send phase events so ai.service.ts calls onProgress → updates thinkingOutput in the store.
-    // The 'complete' event must carry result+workflow at the TOP level (not nested inside result),
-    // matching what the real Edge Function sends: sendEvent('complete', { result, workflow }).
-    const payload = [
-        line({ type: 'heartbeat', timestamp: ts }),
-        line({ type: 'phase_started', phase: 'ingestion', message: 'Subiendo documentos...', timestamp: ts }),
-        line({ type: 'phase_completed', phase: 'ingestion', message: 'Documentos indexados', timestamp: ts }),
-        line({ type: 'phase_started', phase: 'document_map', message: 'Analizando estructura...', timestamp: ts }),
-        line({ type: 'phase_completed', phase: 'document_map', message: 'Mapa completado', timestamp: ts }),
-        line({ type: 'phase_started', phase: 'extraction', message: 'Extrayendo información...', timestamp: ts }),
-        line({ type: 'phase_completed', phase: 'extraction', message: 'Extracción completa', timestamp: ts }),
-        line({ type: 'phase_started', phase: 'consolidation', message: 'Consolidando resultados...', timestamp: ts }),
-        line({ type: 'phase_completed', phase: 'consolidation', message: 'Consolidado', timestamp: ts }),
-        line({ type: 'phase_started', phase: 'validation', message: 'Validando...', timestamp: ts }),
-        line({ type: 'phase_completed', phase: 'validation', message: 'Validación completada', timestamp: ts }),
-        // result must be the LicitacionContent directly (MOCK_AGENT_RESULT.result), not the
-        // whole wrapper — matches real Edge Function: sendEvent('complete', { result, workflow })
-        line({
-            type: 'complete',
-            result: MOCK_AGENT_RESULT.result,
-            workflow: MOCK_AGENT_RESULT.workflow,
-            eventsProcessed: 11,
-            timestamp: ts,
-        }),
-    ].join('');
-    return Buffer.from(payload, 'utf-8');
-}
-
 // ── Test suite ───────────────────────────────────────────────────────────────
 test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () => {
     test.beforeEach(async ({ page }) => {
@@ -117,9 +80,10 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
             }
         );
 
-        // 3. Mock the Edge Function SSE endpoint
+        // 3. Mock the durable job control plane. The signed plan echoes the
+        // integrity metadata calculated by the browser, as production does.
         await page.route(
-            (url) => url.href.includes('/functions/v1/analyze-with-agents'),
+            (url) => url.href.includes('/functions/v1/analysis-jobs'),
             async (route) => {
                 if (route.request().method() === 'OPTIONS') {
                     return route.fulfill({
@@ -127,23 +91,87 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
                         headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' },
                     });
                 }
+
+                const body = route.request().postDataJSON() as {
+                    action?: string;
+                    jobId?: string;
+                    files?: Array<{
+                        name: string;
+                        sizeBytes: number;
+                        mimeType: string;
+                        sha256: string;
+                    }>;
+                };
+
+                if (body.action === 'init') {
+                    const files = body.files || [];
+                    return route.fulfill({
+                        status: 201,
+                        contentType: 'application/json',
+                        body: JSON.stringify({
+                            jobId: MOCK_JOB_ID,
+                            created: true,
+                            status: 'awaiting_upload',
+                            uploads: files.map((file, index) => ({
+                                documentId: `document-${index + 1}`,
+                                name: file.name,
+                                path: `test-user/${MOCK_JOB_ID}/document-${index + 1}-${file.name}`,
+                                token: `signed-token-${index + 1}`,
+                                mimeType: file.mimeType,
+                                sizeBytes: file.sizeBytes,
+                                sha256: file.sha256,
+                            })),
+                        }),
+                    });
+                }
+
+                if (body.action === 'submit' && body.jobId === MOCK_JOB_ID) {
+                    return route.fulfill({
+                        status: 202,
+                        contentType: 'application/json',
+                        body: JSON.stringify({ jobId: MOCK_JOB_ID, status: 'queued' }),
+                    });
+                }
+
                 return route.fulfill({
-                    status: 200,
-                    headers: {
-                        'Content-Type': 'text/event-stream',
-                        'Cache-Control': 'no-cache',
-                        Connection: 'keep-alive',
-                        'Access-Control-Allow-Origin': '*',
-                    },
-                    body: buildMockSseBody(),
+                    status: 400,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ error: 'Acción de job no soportada en el mock' }),
                 });
             }
         );
 
-        // 4. Mock Supabase REST (licitaciones table — DB save after analysis)
+        // 4. Mock the direct upload to the private Storage bucket.
+        await page.route(
+            (url) => url.href.includes('/storage/v1/object/upload/sign/analysis-pdfs/'),
+            async (route) => {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ Key: `analysis-pdfs/test-user/${MOCK_JOB_ID}/memo_p2.pdf` }),
+                });
+            }
+        );
+
+        // 5. Mock Supabase REST. The first durable read observes the worker's
+        // checkpointed terminal state; unrelated tables keep the generic mock.
         await page.route(
             (url) => url.href.includes('/rest/v1/'),
             async (route) => {
+                if (new URL(route.request().url()).pathname.endsWith('/rest/v1/analysis_jobs')) {
+                    return route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify({
+                            status: 'completed',
+                            result: MOCK_AGENT_RESULT,
+                            error: null,
+                            phase: 'completed',
+                            updated_at: new Date().toISOString(),
+                        }),
+                    });
+                }
+
                 await route.fulfill({
                     status: 200,
                     contentType: 'application/json',
@@ -152,7 +180,7 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
             }
         );
 
-        // 5. Mock Supabase REST templates endpoint
+        // 6. Mock Supabase REST templates endpoint
         await page.route(
             (url) => url.href.includes('/rest/v1/extraction_templates'),
             async (route) => {
@@ -234,20 +262,17 @@ test.describe('Upload real PDF (memo_p2.pdf) — E2E análisis end-to-end', () =
         await analyzeBtn.click();
 
         // ── Step 4: Wait for analysis to complete ─────────────────────────
-        // Steps 4-5 previously checked transient "Analizando…" UI state, which is
-        // unreliable because the mock SSE delivers all events instantly (<100ms),
-        // making the ANALYZING → COMPLETED transition too fast to catch.
-        // Instead, wait directly for the COMPLETED state: the result title appears
-        // in the UI (the wizard renders the result or returns to upload view).
+        // The durable row is already terminal in the mock, so wait directly for
+        // the result rendered after the control-plane round trip.
         await expect(page.getByText(/PLIEGO TEST MEMO_P2|Analizar con IA|análisis completado/i).first()).toBeVisible({
             timeout: 15000,
         });
     });
 
     test('muestra error si el servidor devuelve 401', async ({ page }) => {
-        // Override the Edge Function mock to return 401
+        // Override the async control plane mock to return 401.
         await page.route(
-            (url) => url.href.includes('/functions/v1/analyze-with-agents'),
+            (url) => url.href.includes('/functions/v1/analysis-jobs'),
             async (route) => {
                 if (route.request().method() === 'OPTIONS') {
                     return route.fulfill({ status: 200 });

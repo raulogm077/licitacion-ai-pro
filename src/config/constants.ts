@@ -4,11 +4,11 @@
 
 /**
  * Maximum PDF file size in MB. This is the single source of truth for the
- * client-side upload limit (there is no feature flag for it): the synchronous
- * SSE pipeline's payload/timeout budget is the real constraint, mirrored by
- * MAX_PAYLOAD_BYTES in supabase/functions/_shared/config.ts on the backend.
+ * client-side per-file limit (there is no feature flag for it). The upload UI
+ * also enforces a 30 MB aggregate limit; the async control plane has a 50 MB
+ * defense-in-depth ceiling.
  */
-export const MAX_PDF_SIZE_MB = 4;
+export const MAX_PDF_SIZE_MB = 30;
 
 /** Maximum PDF file size in bytes */
 export const MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024;

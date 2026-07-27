@@ -103,16 +103,16 @@ Cada step futuro debe emitir como mínimo: `job_id`, `request_id`, `trace_id`, v
 
 Los umbrales se ratificarán con un dataset de 10–20 expedientes representativos antes de bloquear producción. Objetivos iniciales:
 
-| Dimensión | Gate objetivo |
-| --- | --- |
-| Schema canónico válido | 100 % |
-| Exactitud de importes/ponderaciones críticas | ≥ 99 % |
-| Exactitud de otros hechos críticos | ≥ 95 % |
-| Evidencia grounded para hechos críticos | ≥ 95 % |
-| Alucinación en campos explícitamente ausentes | ≤ 1 % |
-| Jobs sin estado terminal por fallo de proceso | 0; recuperables por lease/retry |
-| Duplicados tras reentrega de mensaje | 0 |
-| Latencia y coste | no regresan > 15 % sin mejora de calidad aprobada |
+| Dimensión                                     | Gate objetivo                                     |
+| --------------------------------------------- | ------------------------------------------------- |
+| Schema canónico válido                        | 100 %                                             |
+| Exactitud de importes/ponderaciones críticas  | ≥ 99 %                                            |
+| Exactitud de otros hechos críticos            | ≥ 95 %                                            |
+| Evidencia grounded para hechos críticos       | ≥ 95 %                                            |
+| Alucinación en campos explícitamente ausentes | ≤ 1 %                                             |
+| Jobs sin estado terminal por fallo de proceso | 0; recuperables por lease/retry                   |
+| Duplicados tras reentrega de mensaje          | 0                                                 |
+| Latencia y coste                              | no regresan > 15 % sin mejora de calidad aprobada |
 
 ## Plan de migración
 
@@ -133,6 +133,8 @@ Los umbrales se ratificarán con un dataset de 10–20 expedientes representativ
 - migrar primero ingesta/mapa, manteniendo la proyección final actual.
 
 **Avance 2026-07-16 (Fase 1A):** implementados job previo, copia recuperable en Storage, hash/retención, ledger/outbox/PGMQ, leases/retry/DLQ e idempotencia, junto con `job_created` y polling. La ejecución sigue inline y el upload todavía llega como base64; URL firmada, consumidor independiente y Realtime quedan para Fase 1B.
+
+**Avance 2026-07-16 (Fase 1B):** implementados control plane `init/submit`, upload firmado directo, consumidor independiente por step, checkpoint+ack+dispatch atómicos, activación `pg_net`, recovery `pg_cron`, Broadcast privado con polling y token M2M en Vault. `analyze-with-agents` permanece como rollback SSE. Esta fase no cambia modelo, prompts, retrieval ni schema; Fact/Evidence Store y retrieval explícito siguen en Fase 2.
 
 ### Fase 2 — Retrieval explícito + hechos/evidencias
 

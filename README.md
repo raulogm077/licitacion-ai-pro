@@ -17,7 +17,7 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 
 - permite subir un PDF completo de pliego como camino principal y más fiable
 - acepta documentos adicionales de refuerzo cuando no existe un único PDF completo, pero ese no es el gate principal de release
-- ejecuta análisis asistido por IA con streaming en tiempo real
+- ejecuta análisis asistido por IA como job durable, con progreso Realtime y polling de respaldo
 - valida y transforma la salida a un modelo tipado
 - guarda historial de análisis para su consulta posterior
 - permite consultar un análisis persistido desde el dashboard mediante un copiloto conversacional
@@ -30,30 +30,35 @@ Dependencias frontend de UI (solo cliente, no afectan al runtime Deno de las Edg
 
 ## Arquitectura actual
 
-La arquitectura vigente está en transición durable: conserva el pipeline de 5 fases y SSE, pero cada ejecución ya nace como un job idempotente en Postgres, guarda una copia recuperable de los documentos en Supabase Storage y registra cada paso en PGMQ antes de ejecutarlo inline. Las fases B y C de `analyze-with-agents` se ejecutan a través del SDK `@openai/agents@0.3.1`.
+La arquitectura vigente separa el control HTTP del trabajo de IA. Cada ejecución nace como un job idempotente en Postgres; el navegador recibe tokens de subida firmados y envía los bytes directamente al bucket privado; `analysis-worker` consume PGMQ, persiste checkpoints por fase y publica el siguiente paso de forma atómica. El navegador recibe avisos privados de Supabase Realtime y vuelve a leer el job por RLS, con polling como respaldo. Las fases B y C siguen ejecutándose mediante `@openai/agents@0.3.1` y el schema canónico no cambia.
 
 De forma complementaria, el backend incorpora una capa conversacional aislada con **OpenAI Agents SDK** sobre análisis ya persistidos. Esta capa vive en la Edge Function `chat-with-analysis-agent` y no sustituye el pipeline principal.
 
-**Postura de auth**: ambas Edge Functions usan `verify_jwt = true` en `supabase/config.toml`. Las peticiones sin un JWT válido son rechazadas con `401` por el gateway de Supabase antes de invocar el código de la función. Detalle operativo en `DEPLOYMENT.md` §5 y `AGENTS.md`.
+**Postura de auth**: `analysis-jobs`, `analyze-with-agents` y `chat-with-analysis-agent` usan `verify_jwt = true`. `analysis-worker` no acepta usuarios: usa `verify_jwt = false` con un token M2M generado en Postgres, guardado en Vault y comparado por SHA-256. Detalle operativo en `DEPLOYMENT.md` §5 y `AGENTS.md`.
 
 El frontend consume la capa conversacional desde el dashboard mediante una sección `Copiloto IA`, visible cuando la licitación cargada tiene `analysisHash`. La conversación mantiene continuidad reutilizando `sessionId` y el historial visible en `localStorage`.
 
 Flujo lógico actual:
 
 ```text
-Usuario → Frontend (`X-Idempotency-Key`)
-              └─ Edge Function `analyze-with-agents`
-                   ├─ Postgres: analysis_jobs + step ledger + outbox
-                   ├─ Storage privado: copia recuperable + SHA-256 + retención
-                   ├─ PGMQ: lease/retry/DLQ por paso
-                   ├─ Pipeline A-E actual (worker inline de transición)
-                   └─ SSE: job_created + progreso + resultado
-                        └─ polling por jobId si el stream se interrumpe
+Usuario → Frontend (`X-Idempotency-Key` + SHA-256)
+              ├─ `analysis-jobs:init` → job + plan de upload firmado
+              ├─ Storage privado ← bytes directos del navegador
+              └─ `analysis-jobs:submit` → outbox + PGMQ → HTTP 202
+                                                └─ `analysis-worker`
+                                                     ├─ lease/retry/DLQ
+                                                     ├─ pipeline A-E por checkpoints
+                                                     └─ transición + siguiente enqueue atómicos
+                                                           ↓
+                                      Realtime Broadcast privado → lectura RLS
+                                                           └─ polling de respaldo
 ```
+
+`analyze-with-agents` y su contrato SSE permanecen desplegables durante Fase 1B como rollback controlado, pero la UI nueva no transporta documentos en base64 ni depende de mantener ese stream abierto.
 
 Contrato compartido relevante:
 
-- `src/shared/analysis-contract.ts` define el wire contract común entre frontend y backend; `job_created` entrega el `jobId` durable antes del trabajo de IA
+- `src/shared/analysis-contract.ts` mantiene los eventos de progreso; `job_created` entrega el `jobId` antes de subir o procesar documentos
 - `workflow.quality.section_diagnostics` distingue si una sección está presente, ausente en los documentos subidos o recuperada tras degradación de schema/extracción
 - `supabase/functions/_shared/schemas/canonical.ts` sigue siendo la fuente canónica del schema validado del análisis
 - el frontend debe consumir `workflow.quality` emitido por backend antes de aplicar heurísticas locales
@@ -66,7 +71,7 @@ Documentación viva del sistema:
 - `AGENTS.md`: reglas de funcionamiento de la fábrica de agentes (incluye postura de auth)
 - `DEPLOYMENT.md`: proceso actual de despliegue
 - `TECHNICAL_DOCS.md`: contratos técnicos detallados
-- `CHANGELOG.md`: historial de cambios por release (última entrada 2026-07-12: revisión integral de seguridad, bugs, accesibilidad y limpieza —ver `SPEC.md` §10.7— más el fix de CI post-#297: comillas en la instalación de Vercel y parches de `vite`/`tmp`/`ws`)
+- `CHANGELOG.md`: historial de cambios por release (última entrada: Fase 1B de upload firmado, worker independiente y recovery durable)
 - `docs/adr/ADR-001-arquitectura-ia-durable-y-evaluable.md`: arquitectura objetivo de IA y migración incremental aprobada
 
 ## Stack real
@@ -84,7 +89,8 @@ Documentación viva del sistema:
 ### Backend y servicios
 
 - Supabase
-- Supabase Edge Functions (Deno runtime)
+- Supabase Edge Functions (control plane + worker Deno)
+- Supabase Storage, Queues/PGMQ, Realtime Broadcast, pg_net, pg_cron y Vault
 - OpenAI Responses API (pipeline por fases)
 - `@openai/agents@0.3.1` para fases B y C de `analyze-with-agents`
 - OpenAI Files API / Vector Store
@@ -105,7 +111,7 @@ Documentación viva del sistema:
 - pnpm 9+
 - proyecto de Supabase configurado
 - variables de entorno locales completas
-- secreto `OPENAI_API_KEY` configurado en Supabase para la Edge Function
+- secreto `OPENAI_API_KEY` configurado en Supabase para las funciones que llaman a OpenAI
 
 ### Instalación
 
@@ -125,7 +131,7 @@ VITE_SUPABASE_ANON_KEY=<tu-anon-key>
 VITE_ENVIRONMENT=local
 ```
 
-`OPENAI_API_KEY` no debe vivir en el frontend. Debe configurarse como secreto en Supabase para las funciones `analyze-with-agents` y `chat-with-analysis-agent`.
+`OPENAI_API_KEY` no debe vivir en el frontend. Debe configurarse como secreto en Supabase para `analysis-worker`, `analyze-with-agents` y `chat-with-analysis-agent`. El token interno del worker no se configura manualmente: la migración lo genera y lo conserva en Vault.
 
 Para la evaluación live local, `OPENAI_API_KEY` se lee desde `.env.local`, que está ignorado por Git. El evaluador no usa las variables `VITE_*` ni persiste la clave en sus informes.
 

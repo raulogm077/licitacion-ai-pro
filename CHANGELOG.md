@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased] - 2026-07-16 — Fase 1B de ejecución asíncrona
+
+- **Upload firmado**: `analysis-jobs:init` crea el job primero y devuelve tokens temporales; el navegador sube bytes directamente a Storage sin base64 y `submit` encola con HTTP 202.
+- **Worker independiente**: `analysis-worker` usa lease de 155 s y slices compatibles con Supabase Free (150 s): ingesta/mapa separados y hasta dos bloques por entrega; checkpoint incremental, yield sin consumir retry, jitter y DLQ tras tres fallos reales.
+- **Transición atómica**: `advance_analysis_step` hace checkpoint + archive + siguiente outbox en una transacción; un retry reutiliza ingesta/mapa, bloques y consolidación ya persistidos.
+- **Checkpoint externo temprano**: Files y Vector Store se enlazan a job/documentos en una única transacción inmediatamente después de crearse, antes de esperar la indexación; un corte por wall clock retoma esos IDs sin duplicarlos.
+- **Activación durable**: `pg_net` despierta al worker después del commit y un sweep `pg_cron` condicionado recupera activaciones perdidas sin invocaciones vacías continuas.
+- **Recovery de UI**: Broadcast privado por job avisa de estado/fase; el cliente relee `analysis_jobs` por RLS y mantiene polling como fallback.
+- **Seguridad M2M**: el token interno aleatorio se genera en Postgres, el texto plano queda en Vault y el runtime compara SHA-256; las funciones públicas conservan JWT de gateway.
+- **Hardening de extensión**: `pg_net` se registra en el schema `extensions`; una migración de compatibilidad repara previews que hubieran aplicado la primera versión en `public` y elimina el aviso nuevo del Security Advisor.
+- **Integridad y retención**: el worker comprueba tamaño/SHA antes de OpenAI, repara planes idempotentes incompletos y limpia en orden OpenAI → Storage → filas de documentos, incluidos uploads abandonados.
+- **Release seguro**: CI comprueba y despliega las dos funciones nuevas, aplica backend antes de Vercel y añade smokes de CORS/JWT/M2M. El SSE anterior queda como rollback; no cambia modelo, prompts ni schema canónico.
+
 ## [Unreleased] - 2026-07-16 — Fase 1A de jobs durables
 
 - **Control plane durable**: `analysis_jobs` nace antes de Storage/OpenAI y aplica idempotencia por usuario + fingerprint de entrada.
@@ -104,6 +117,20 @@ Primer bloque del rediseño integral de UX hacia una identidad profesional con e
 - **Skeletons reutilizables** (`Skeleton`/`SkeletonCard`); `DashboardSkeleton` y el estado de carga de Analytics los reutilizan.
 - Cabecera con logo de marca (gradiente + Space Grotesk), header glass y contenido a `max-w-7xl`.
 - Dependencias frontend nuevas (solo cliente, no afectan al runtime Deno de las Edge Functions): `motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/inter`, `@fontsource-variable/space-grotesk`.
+
+## [Unreleased] - 2026-07-27b — Fase 1B integrada sobre el fix de jobs zombi
+
+Integra la arquitectura asíncrona de Fase 1B (#312) sobre el `main` que ya lleva el fix de jobs zombi. Detalle en `ARCHITECTURE.md` §8.13-8.14 y `SPEC.md` §10.10-10.11.
+
+### Added
+
+- Control plane `analysis-jobs` (init + plan de subida firmado + submit con `202`) y worker privado `analysis-worker` con auth M2M, PGMQ, leases, slices, DLQ y cleanup TTL.
+- Recovery `pg_cron` y activación post-commit con `pg_net`; Broadcast privado `analysis-job:<jobId>` con polling RLS como fallback.
+
+### Changed
+
+- **El barrido de leases expirados cede los jobs asíncronos a su consumidor.** `claim_next_analysis_step` ya acepta un paso `running` con lease vencido y lo reanuda desde el checkpoint, que conserva los bloques extraídos; mantener además `reclaim_stale_analysis_steps` sobre esos jobs habría dejado dos escritores sobre el mismo estado, capaces de marcar `retrying` y escribir un `error` visible sobre un análisis que se recupera solo. El barrido se queda con la ruta `inline_transition` y los jobs huérfanos, que es lo que nadie más puede retomar (migración `20260727150000`).
+- `recoverDurableResult` conserva la detección de análisis interrumpido dentro de la implementación nueva basada en Broadcast; la ventana de recuperación pasa de 5 a 30 minutos.
 
 ## [Unreleased] - 2026-07-27 — Jobs zombi tras la muerte del worker
 

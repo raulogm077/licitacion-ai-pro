@@ -161,6 +161,10 @@ jobs:
                   deno-version: v2.x
             - name: Deno Check Existing Edge Function
               run: deno check --node-modules-dir=auto supabase/functions/analyze-with-agents/index.ts
+            - name: Deno Check Async Analysis Control and Worker
+              run: |
+                  deno check --node-modules-dir=auto supabase/functions/analysis-jobs/index.ts
+                  deno check --node-modules-dir=auto supabase/functions/analysis-worker/index.ts
             - name: Deno Check Conversational Edge Function
               run: deno check --node-modules-dir=auto supabase/functions/chat-with-analysis-agent/index.ts
             - name: Deno Test Conversational Tools
@@ -175,6 +179,7 @@ jobs:
             - name: Deno Test Pipeline Phases and Agents
               run: |
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/ingestion_test.ts
+                  deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/block-extraction_test.ts
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/validation_test.ts
                   deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
@@ -320,19 +325,10 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # 5. Deploy to Vercel (Frontend) - Depends on all quality gates including E2E
+    # 6. Deploy to Vercel only after the compatible backend is live.
     deploy-vercel:
         name: 🚀 Deploy to Vercel
-        needs:
-            [
-                repo-integrity,
-                quality-checks,
-                functional-benchmark,
-                security-audit,
-                edge-checks,
-                e2e-tests,
-                release-guard,
-            ]
+        needs: deploy-supabase
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         runs-on: ubuntu-latest
         timeout-minutes: 15
@@ -420,10 +416,19 @@ jobs:
                   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
                   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-    # 6. Deploy to Supabase (Backend)
+    # 5. Deploy schema/functions before the frontend starts using them.
     deploy-supabase:
         name: ⚡ Deploy to Supabase
-        needs: deploy-vercel
+        needs:
+            [
+                repo-integrity,
+                quality-checks,
+                functional-benchmark,
+                security-audit,
+                edge-checks,
+                e2e-tests,
+                release-guard,
+            ]
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         runs-on: ubuntu-latest
         timeout-minutes: 10
@@ -450,11 +455,12 @@ jobs:
                   SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
             - name: Deploy Edge Functions
-              # JWT verification is delegated to the Supabase API gateway via
-              # `verify_jwt = true` in supabase/config.toml for both functions.
-              # The CLI honours that config when --no-verify-jwt is omitted.
+              # Public functions use gateway JWT verification. analysis-worker
+              # is internal and validates a Vault-backed M2M token instead.
               run: |
                   supabase functions deploy analyze-with-agents --project-ref "$SUPABASE_PROJECT_ID"
+                  supabase functions deploy analysis-jobs --project-ref "$SUPABASE_PROJECT_ID"
+                  supabase functions deploy analysis-worker --project-ref "$SUPABASE_PROJECT_ID"
                   supabase functions deploy chat-with-analysis-agent --project-ref "$SUPABASE_PROJECT_ID"
               env:
                   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -518,6 +524,22 @@ jobs:
                   fi
                   echo "✅ Conversational Edge Function CORS Passed."
 
+            - name: Verify Async Analysis Control CORS
+              run: |
+                  SUPABASE_URL="https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co"
+                  echo "Checking Edge Function CORS: $SUPABASE_URL/functions/v1/analysis-jobs"
+                  HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                      -X OPTIONS \
+                      -H "Origin: https://licitacion-ai-pro.vercel.app" \
+                      -H "Access-Control-Request-Method: POST" \
+                      "$SUPABASE_URL/functions/v1/analysis-jobs")
+
+                  if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "204" ]; then
+                      echo "❌ Async analysis control CORS check failed: HTTP $HTTP_STATUS"
+                      exit 1
+                  fi
+                  echo "✅ Async analysis control CORS Passed."
+
             - name: Verify Edge Function rejects unauthenticated requests
               run: |
                   SUPABASE_URL="https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co"
@@ -548,6 +570,30 @@ jobs:
                     exit 1
                   fi
                   echo "✅ chat-with-analysis-agent rejected unauthenticated request with 401 (gateway)."
+
+                  echo "Verifying analysis-jobs rejects unauthenticated requests at the gateway"
+                  HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                      -X POST \
+                      -H "Content-Type: application/json" \
+                      -d '{"action":"init"}' \
+                      "$SUPABASE_URL/functions/v1/analysis-jobs")
+                  if [ "$HTTP_STATUS" != "401" ]; then
+                      echo "❌ analysis-jobs expected gateway 401, got $HTTP_STATUS"
+                      exit 1
+                  fi
+                  echo "✅ analysis-jobs rejected unauthenticated request with 401 (gateway)."
+
+                  echo "Verifying analysis-worker rejects requests without its M2M token"
+                  HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                      -X POST \
+                      -H "Content-Type: application/json" \
+                      -d '{}' \
+                      "$SUPABASE_URL/functions/v1/analysis-worker")
+                  if [ "$HTTP_STATUS" != "401" ]; then
+                      echo "❌ analysis-worker expected custom-auth 401, got $HTTP_STATUS"
+                      exit 1
+                  fi
+                  echo "✅ analysis-worker rejected a request without its M2M token."
 
     # 8. Docker Build Validation (parallel, does not block deploy)
     docker-build:

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateBufferMagicBytes, bufferToBase64 } from '../file-utils';
+import { validateBufferMagicBytes, bufferToBase64, inspectFile } from '../file-utils';
 
 describe('file-utils', () => {
     // readFileAsBase64 requires valid FileReader which is tricky in JSDOM sometimes,
@@ -29,6 +29,22 @@ describe('file-utils', () => {
 
             const result = await bufferToBase64(buffer);
             expect(result).toBe(btoa(content));
+        });
+    });
+
+    describe('inspectFile', () => {
+        it('returns SHA-256 and PDF validity without creating base64 data', async () => {
+            const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
+            const file = new File([bytes], 'pliego.pdf', {
+                type: 'application/pdf',
+            });
+            Object.defineProperty(file, 'arrayBuffer', { value: async () => bytes.buffer });
+
+            const result = await inspectFile(file);
+
+            expect(result.isValidPdf).toBe(true);
+            expect(result.hash).toMatch(/^[0-9a-f]{64}$/);
+            expect(result).not.toHaveProperty('base64');
         });
     });
 });

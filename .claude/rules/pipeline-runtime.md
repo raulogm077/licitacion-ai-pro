@@ -54,6 +54,13 @@ Function Timeout en el Dashboard obliga a fijar también el secret
 `claim_analysis_step` solo admite `queued`/`retrying` y `fail_analysis_step`
 exige seguir siendo dueño del lease. `reclaim_stale_analysis_steps` es el único
 sitio autorizado a sacar un paso de `running` sin poseerlo, y solo con el lease
-ya caducado — un lease vigente nunca se toca, para no matar trabajo en vuelo.
-Mientras el worker sea el propio request, su único disparador es el barrido
-oportunista al inicio de cada `analyze-with-agents`.
+ya caducado — un lease vigente nunca se toca, para no matar trabajo en vuelo. Su
+disparador es el barrido oportunista al inicio de cada `analyze-with-agents`.
+
+**No amplíes ese barrido a los jobs `async_worker`.** Su consumidor
+(`claim_next_analysis_step`, despertado por `recover_analysis_worker` vía
+`pg_cron`) ya acepta un paso `running` con lease vencido y lo reanuda desde el
+checkpoint, conservando los bloques ya extraídos. Dos escritores sobre el mismo
+estado pueden marcar `retrying`, y escribir un `error` visible en la fila, sobre
+un análisis que se está recuperando solo. El reparto es deliberado: el barrido
+cubre la ruta inline y los jobs huérfanos; el consumidor cubre lo asíncrono.

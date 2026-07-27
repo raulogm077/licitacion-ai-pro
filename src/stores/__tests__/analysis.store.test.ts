@@ -13,7 +13,7 @@ vi.mock('../licitacion.store', () => ({
 }));
 
 vi.mock('../../lib/file-utils', () => ({
-    processFile: vi.fn(),
+    inspectFile: vi.fn(),
 }));
 
 vi.mock('../../config/service-registry', () => ({
@@ -116,8 +116,8 @@ describe('Analysis Store', () => {
     });
 
     it('should reject oversized files', async () => {
-        const { processFile } = await import('../../lib/file-utils');
-        vi.mocked(processFile).mockResolvedValue({ hash: 'h1', base64: 'b64', isValidPdf: true });
+        const { inspectFile } = await import('../../lib/file-utils');
+        vi.mocked(inspectFile).mockResolvedValue({ hash: 'h1', isValidPdf: true });
 
         const largeFile = new File([new ArrayBuffer(100)], 'large.pdf', { type: 'application/pdf' });
         Object.defineProperty(largeFile, 'size', { value: 200 * 1024 * 1024 }); // 200MB
@@ -129,8 +129,8 @@ describe('Analysis Store', () => {
     });
 
     it('should reject invalid PDF', async () => {
-        const { processFile } = await import('../../lib/file-utils');
-        vi.mocked(processFile).mockResolvedValue({ hash: 'h1', base64: 'b64', isValidPdf: false });
+        const { inspectFile } = await import('../../lib/file-utils');
+        vi.mocked(inspectFile).mockResolvedValue({ hash: 'h1', isValidPdf: false });
 
         const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
 
@@ -141,8 +141,8 @@ describe('Analysis Store', () => {
     });
 
     it('should handle network/CORS errors', async () => {
-        const { processFile } = await import('../../lib/file-utils');
-        vi.mocked(processFile).mockRejectedValue(new TypeError('Failed to fetch'));
+        const { inspectFile } = await import('../../lib/file-utils');
+        vi.mocked(inspectFile).mockRejectedValue(new TypeError('Failed to fetch'));
 
         const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
 
@@ -153,10 +153,10 @@ describe('Analysis Store', () => {
     });
 
     it('should handle abort/cancel during analysis', async () => {
-        const { processFile } = await import('../../lib/file-utils');
+        const { inspectFile } = await import('../../lib/file-utils');
         const abortError = new Error('Cancelado por el usuario');
         abortError.name = 'AbortError';
-        vi.mocked(processFile).mockRejectedValue(abortError);
+        vi.mocked(inspectFile).mockRejectedValue(abortError);
 
         const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
         await useAnalysisStore.getState().analyzeFiles([file]);
@@ -166,8 +166,8 @@ describe('Analysis Store', () => {
     });
 
     it('should handle generic errors', async () => {
-        const { processFile } = await import('../../lib/file-utils');
-        vi.mocked(processFile).mockRejectedValue(new Error('Something unexpected'));
+        const { inspectFile } = await import('../../lib/file-utils');
+        vi.mocked(inspectFile).mockRejectedValue(new Error('Something unexpected'));
 
         const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
         await useAnalysisStore.getState().analyzeFiles([file]);
@@ -177,8 +177,8 @@ describe('Analysis Store', () => {
     });
 
     it('should handle timeout errors', async () => {
-        const { processFile } = await import('../../lib/file-utils');
-        vi.mocked(processFile).mockRejectedValue(new Error('Tiempo de espera agotado'));
+        const { inspectFile } = await import('../../lib/file-utils');
+        vi.mocked(inspectFile).mockRejectedValue(new Error('Tiempo de espera agotado'));
 
         const file = new File([new ArrayBuffer(10)], 'test.pdf', { type: 'application/pdf' });
         await useAnalysisStore.getState().analyzeFiles([file]);
@@ -188,10 +188,10 @@ describe('Analysis Store', () => {
     });
 
     it('should complete analysis successfully and set COMPLETED status', async () => {
-        const { processFile } = await import('../../lib/file-utils');
+        const { inspectFile } = await import('../../lib/file-utils');
         const { services } = await import('../../config/service-registry');
 
-        vi.mocked(processFile).mockResolvedValue({ hash: 'h1', base64: 'b64', isValidPdf: true });
+        vi.mocked(inspectFile).mockResolvedValue({ hash: 'h1', isValidPdf: true });
         vi.mocked(services.ai.analyzePdfContent).mockResolvedValue({
             content: {
                 datosGenerales: {} as never,
@@ -210,13 +210,16 @@ describe('Analysis Store', () => {
 
         expect(useAnalysisStore.getState().status).toBe('COMPLETED');
         expect(useAnalysisStore.getState().progress).toBe(100);
+        const analysisCall = vi.mocked(services.ai.analyzePdfContent).mock.calls[0];
+        expect(analysisCall[0]).toBe('');
+        expect(analysisCall[7]).toEqual([{ file, sha256: 'h1' }]);
     });
 
     it('should set persistenceWarning when DB save fails after successful analysis', async () => {
-        const { processFile } = await import('../../lib/file-utils');
+        const { inspectFile } = await import('../../lib/file-utils');
         const { services } = await import('../../config/service-registry');
 
-        vi.mocked(processFile).mockResolvedValue({ hash: 'h1', base64: 'b64', isValidPdf: true });
+        vi.mocked(inspectFile).mockResolvedValue({ hash: 'h1', isValidPdf: true });
         vi.mocked(services.ai.analyzePdfContent).mockResolvedValue({
             content: {
                 datosGenerales: {} as never,
