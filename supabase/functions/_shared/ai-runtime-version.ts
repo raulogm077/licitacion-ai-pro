@@ -1,4 +1,4 @@
-import { OPENAI_MODEL } from './config.ts';
+import { BLOCK_MODEL_OVERRIDES, OPENAI_MODEL } from './config.ts';
 
 /**
  * Versiones semánticas del runtime de análisis.
@@ -16,6 +16,14 @@ export const ANALYSIS_RUNTIME_VERSIONS = Object.freeze({
     prompts: 'pliegos-es-v1.0.0',
     schema: 'canonical-v1.1.0',
     model: OPENAI_MODEL,
+    // Provenance por bloque. Mientras `BLOCK_MODEL_OVERRIDES` esté vacío la
+    // clave no aparece, así que la forma persistida hoy no cambia; en cuanto
+    // alguien abarate un bloque, `model` por sí solo mentiría sobre qué modelo
+    // extrajo qué, y ese es justo el dato que hace falta para comparar una
+    // regresión contra la baseline de `pnpm eval:pliegos:live`.
+    ...(Object.keys(BLOCK_MODEL_OVERRIDES).length > 0
+        ? { blockModels: { ...BLOCK_MODEL_OVERRIDES } as Record<string, string> }
+        : {}),
     agentsSdk: '0.3.1',
 });
 

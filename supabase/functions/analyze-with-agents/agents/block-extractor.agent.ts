@@ -20,13 +20,16 @@ import type { PipelineContext } from '../../_shared/agents/context.ts';
 import { jsonShapeGuardrail } from '../../_shared/agents/guardrails.ts';
 import { BLOCK_SCHEMAS } from '../../_shared/schemas/blocks.ts';
 import type { BlockName } from '../../_shared/schemas/blocks.ts';
-import { OPENAI_MODEL } from '../../_shared/config.ts';
+import { modelForBlock } from '../../_shared/config.ts';
 import { buildBlockSystemPrompt, BLOCK_USER_PROMPTS, withJsonReinforcement } from '../prompts/index.ts';
 
 export function buildBlockAgent(blockName: BlockName, vectorStoreId: string) {
     return new Agent<PipelineContext>({
         name: `blockExtractor:${blockName}`,
-        model: OPENAI_MODEL,
+        // Por bloque, no global: `modelForBlock` devuelve `OPENAI_MODEL` salvo
+        // que exista un override explícito en `BLOCK_MODEL_OVERRIDES`. Hoy el
+        // mapa está vacío, así que los 9 bloques siguen en el mismo modelo.
+        model: modelForBlock(blockName),
         // `instructions(runContext, agent)`: destructuring `{ context }` yields
         // the PipelineContext directly — do NOT add a second `.context` hop.
         instructions: ({ context }) => {

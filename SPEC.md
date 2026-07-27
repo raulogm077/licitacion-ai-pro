@@ -426,3 +426,16 @@ La solución correcta no toca la seguridad: se fuerza `@eslint/config-array` a `
 **`react-refresh` no estaba registrando sus reglas.** Con ESLint 8 y el plugin fijado, la regla existía en la configuración pero el plugin no llegaba a cargarla. Ahora `eslint --print-config` la devuelve activa, así que la migración no solo desbloquea el ecosistema: recupera una regla que llevaba tiempo sin aplicarse.
 
 `@typescript-eslint` v8 detectó además un binding de `catch` sin usar en `SupabaseStatus.tsx`, corregido omitiéndolo (válido desde ES2019) en vez de silenciando la regla.
+
+### 11.2. Modelo por bloque de extracción (2026-07-27)
+
+Cierra la deuda de coste registrada en `BACKLOG.md`: los nueve bloques corrían en `gpt-4.1`, incluidos los triviales (`anexosYObservaciones`, `duracionYProrrogas`). `buildBlockAgent` resuelve ahora su modelo con `modelForBlock(blockName)` y `BLOCK_MODEL_OVERRIDES` decide caso por caso.
+
+**El mapa se entrega vacío, y esa es la parte deliberada.** Rellenarlo no es configuración: es una promoción de modelo, y el criterio de aceptación que traía la tarea del backlog —`pnpm benchmark:pliegos` en verde— no sirve para autorizarla. El benchmark valida fixtures ya generados y **no llama al modelo**: seguiría verde aunque el modelo barato extrajera mucho peor. La única señal que detecta esa regresión es `pnpm eval:pliegos:live`, que es manual y requiere clave de OpenAI, y que el contrato de release ya exige antes de promover modelo, prompt, retrieval u orquestación.
+
+Así que se separa lo verificable de lo que no lo es: el mecanismo entra revisado, con tests que fallan si alguien vuelve a fijar el modelo en la factory, y con cambio de comportamiento cero. Encender un bloque queda condicionado a la baseline.
+
+Dos condiciones para quien lo encienda:
+
+- **El modelo debe soportar Responses API con `file_search`.** Sin eso el bloque pierde la recuperación documental y responde de memoria: la peor forma de fallar, porque el JSON sigue teniendo la forma correcta.
+- **La provenance viaja con el cambio.** `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` en cuanto hay overrides, porque un `model` único mentiría sobre qué modelo extrajo cada bloque justo cuando ese dato hace falta para comparar contra la baseline. Mientras el mapa esté vacío la clave no aparece y el `runtime_version` persistido en los jobs no cambia de forma.

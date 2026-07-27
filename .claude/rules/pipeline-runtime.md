@@ -20,6 +20,7 @@ Constants in `_shared/config.ts` control the timing budget:
 | `BLOCK_MAX_RETRIES`          | 1         | Real backoff (`retryWithBackoff`) on 429/5xx per block — timeouts still NOT retried                      |
 | `BLOCK_RETRY_MAX_DELAY_MS`   | 30 000    | Caps `Retry-After` so one degraded block can't consume the whole `PIPELINE_TIMEOUT_MS` budget            |
 | `VECTOR_STORE_TIMEOUT_MS`    | 90 000    | Waits for `file_counts.in_progress === 0`, not `vs.status`                                               |
+| `BLOCK_MODEL_OVERRIDES`      | `{}`      | Modelo por bloque de Fase C (`modelForBlock`). **Vacío**: rellenarlo es promoción de modelo, ver abajo   |
 | `CHAT_MODEL`                 | `gpt-5.4` | Conversational layer model (chat), separate from the extraction `OPENAI_MODEL`                           |
 | `CHAT_MAX_REQUESTS_PER_HOUR` | 60        | Per-user rate limit for `chat-with-analysis-agent` (`checkRateLimit`, namespaced `chat:`)                |
 | `MAX_CHAT_PAYLOAD_BYTES`     | 64 KB     | Real body-size cap for chat; `analyze-with-agents` validates real body length too                        |
@@ -64,3 +65,21 @@ checkpoint, conservando los bloques ya extraídos. Dos escritores sobre el mismo
 estado pueden marcar `retrying`, y escribir un `error` visible en la fila, sobre
 un análisis que se está recuperando solo. El reparto es deliberado: el barrido
 cubre la ruta inline y los jobs huérfanos; el consumidor cubre lo asíncrono.
+
+## Abaratar un bloque no lo valida `benchmark:pliegos`
+
+`BLOCK_MODEL_OVERRIDES` existe para bajar de tier los bloques triviales
+(`anexosYObservaciones`, `duracionYProrrogas`) sin tocar código de agentes, pero
+está vacío a propósito: rellenarlo es una **promoción de modelo**.
+
+`pnpm benchmark:pliegos` valida fixtures ya generados y **no llama al modelo**,
+así que seguiría verde aunque el modelo barato extrajera mucho peor. La señal
+que sí detecta esa regresión es `pnpm eval:pliegos:live` (manual, requiere clave
+de OpenAI), que el contrato de release ya exige antes de promover modelo,
+prompt, retrieval u orquestación.
+
+Además, el modelo elegido tiene que soportar Responses API con `file_search`:
+sin eso el bloque pierde la recuperación documental y responde de memoria, con
+la forma JSON correcta. En cuanto haya un override,
+`ANALYSIS_RUNTIME_VERSIONS.blockModels` aparece y el `runtime_version` del job
+deja constancia de qué modelo extrajo qué.

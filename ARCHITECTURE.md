@@ -516,6 +516,16 @@ El módulo es de funciones puras y devuelve `null` o un fallo con motivo siempre
 
 **Fecha:** 2026-07-27
 
+### 8.19 Modelo por bloque: mecanismo sin promoción (Implementado 2026-07-27)
+
+`buildBlockAgent` deja de fijar `OPENAI_MODEL` y resuelve su modelo con `modelForBlock(blockName)`. `BLOCK_MODEL_OVERRIDES` queda **vacío a propósito**, así que los nueve bloques siguen en el mismo modelo y el cambio de comportamiento es cero.
+
+La separación es deliberada: el mecanismo y la decisión de abaratar bloques son dos cosas distintas y solo la primera se puede verificar en CI. `pnpm benchmark:pliegos` valida fixtures ya generados y no llama al modelo, de modo que aprobaría un modelo peor sin enterarse; la evaluación que sí lo detecta (`pnpm eval:pliegos:live`) es manual y exige clave de OpenAI. Entregar el interruptor apagado permite que el mecanismo entre revisado y con tests, y deja la promoción condicionada a la baseline que el contrato de release ya exige.
+
+La provenance acompaña al interruptor: `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` solo cuando hay overrides, porque un `model` único mentiría sobre qué modelo extrajo cada bloque justo cuando ese dato hace falta para comparar contra la baseline.
+
+**Fecha:** 2026-07-27
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

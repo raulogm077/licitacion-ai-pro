@@ -119,7 +119,7 @@ Usuario selecciona documentos
 | `agents/context.ts`    | `PipelineContext` + `createPipelineContext()`                                                       |
 | `agents/guardrails.ts` | `jsonShapeGuardrail<T>` + `templateSanitizationGuardrail` + parsers                                 |
 | `agents/tracing.ts`    | `SupabaseLogTraceProcessor`                                                                         |
-| `config.ts`            | Constantes (`OPENAI_MODEL`, `CHAT_MODEL`, timeouts, concurrencia, backoff, límites de payload/rate) |
+| `config.ts`            | Constantes (`OPENAI_MODEL`, `BLOCK_MODEL_OVERRIDES`/`modelForBlock`, `CHAT_MODEL`, timeouts, concurrencia, backoff, límites de payload/rate) |
 | `cors.ts`              | Whitelist de orígenes                                                                               |
 | `rate-limiter.ts`      | `checkRateLimit` parametrizable con clave namespaced: `analyze:` 10/h, `chat:` 60/h por usuario     |
 | `utils/concurrency.ts` | `runWithConcurrency` (compartida entre ingestion y block-extraction)                                |
@@ -285,6 +285,14 @@ Durante la extracción se emite `extraction_progress` en vez de `phase_progress`
 `PIPELINE_TIMEOUT_MS` ya no es una constante suelta: se deriva de `EDGE_WALL_CLOCK_MS` (150 s por defecto, el techo del plan free) menos `PIPELINE_SHUTDOWN_MARGIN_MS` (10 s). Si el pipeline sobrevive al techo de la plataforma, el isolate muere sin ejecutar `catch`, `finally` ni el `setTimeout` del pipeline, y el paso queda en `running` para siempre. Derivarlo garantiza que el guard de código dispare primero y el fallo llegue a persistirse.
 
 Al subir el timeout en Dashboard → Project Settings → Edge Functions (plan Pro, hasta 400 s), hay que fijar el secret `EDGE_WALL_CLOCK_MS` al mismo valor; si no, el pipeline seguirá presupuestando 140 s. Valores fuera de `[60000, 400000]` o no numéricos caen al defecto.
+
+### 7.6. Modelo por bloque de extracción
+
+`buildBlockAgent` resuelve su modelo con `modelForBlock(blockName)`, que devuelve `OPENAI_MODEL` salvo que exista una entrada en `BLOCK_MODEL_OVERRIDES` (`_shared/config.ts`). **El mapa está vacío en `main`**: el mecanismo está montado y probado, pero rellenarlo es una promoción de modelo y el contrato de release la condiciona a registrar antes una baseline manual de `pnpm eval:pliegos:live`.
+
+Ese gate no es burocracia. `pnpm benchmark:pliegos` valida fixtures ya generados y **no llama al modelo**, así que seguiría en verde aunque un modelo más barato extrajera mucho peor; el benchmark no puede detectar esta clase de regresión y la evaluación live sí. El modelo elegido debe además soportar Responses API con `file_search`: sin eso el bloque se queda sin recuperación documental y responde de memoria, que es la peor forma de fallar porque parece funcionar.
+
+Trazabilidad: el span de generación del SDK ya incluye `model` en `SPAN_DATA_SAFE_KEYS`, así que cada línea `[trace]` dice con qué modelo corrió cada bloque junto a su `agent_name` (`blockExtractor:<bloque>`). En cuanto haya un override, `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` y el `runtime_version` persistido en el job deja constancia de qué modelo extrajo qué; mientras el mapa esté vacío la clave no aparece y la forma persistida no cambia.
 
 `chat-with-analysis-agent` responde con `{ answer, citations, usedTools, sessionId }`.
 

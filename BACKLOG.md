@@ -126,15 +126,18 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
   - Archivos probables: `.eslintrc.cjs` (eliminar), `eslint.config.js` (nuevo), `package.json`, `.github/dependabot.yml`
   - Dependencias: Ninguna. Conviene hacerla sola, sin mezclar con otros bumps.
 
-- [ ] [Tipo: AI] [Área: Analysis] Model tiering por bloque (coste)
+- [ ] [Tipo: AI] [Área: Analysis] Model tiering por bloque (coste) — **mecanismo entregado 2026-07-27; falta la promoción**
   - Objetivo: Reducir coste sin perder calidad donde importa. Hoy los 9 bloques usan `gpt-4.1`, incluidos triviales (`anexosYObservaciones`, `duracionYProrrogas`).
   - Alcance: Parametrizar el modelo por bloque en `config.ts` (bloque→modelo), reservando el tier alto para `criteriosAdjudicacion`, `economico`, `requisitosSolvencia` y usando un tier menor (p. ej. `gpt-4.1-mini`) en los simples. Verificar que el modelo elegido soporta Responses API + `file_search`.
-  - Criterios de aceptación:
-    - El modelo por bloque es configurable y trazable en logs `[trace]`.
-    - `pnpm benchmark:pliegos` en verde con los mismos umbrales de extracción mínima útil.
+  - Entregado: `BLOCK_MODEL_OVERRIDES` + `modelForBlock()` en `config.ts`, `buildBlockAgent` resolviendo por bloque, tests que fallan si alguien vuelve a fijar el modelo en la factory, y `blockModels` en `ANALYSIS_RUNTIME_VERSIONS` para la provenance. El mapa se entrega **vacío**: cambio de comportamiento cero.
+  - Pendiente: elegir qué bloques bajan de tier y rellenar el mapa. Es una promoción de modelo, no configuración.
+  - Criterios de aceptación (corregidos al implementar):
+    - El modelo por bloque es configurable y trazable en logs `[trace]` — ✅ el span de generación ya incluye `model`, y `agent_name` es `blockExtractor:<bloque>`.
+    - ~~`pnpm benchmark:pliegos` en verde con los mismos umbrales~~ — **este criterio no vale para autorizar la promoción**: el benchmark valida fixtures ya generados y no llama al modelo, así que seguiría verde aunque el modelo barato extrajera mucho peor. Sustituido por el siguiente.
+    - Baseline manual de `pnpm eval:pliegos:live` registrada antes y después de rellenar el mapa, comparando `runtime_version` (`model` + `blockModels`) — es el gate que el contrato de release ya exige para promover modelo.
     - Tests de contrato (schema canónico, SSE) en verde.
   - Archivos probables: `supabase/functions/_shared/config.ts`, `supabase/functions/analyze-with-agents/agents/block-extractor.agent.ts`, `supabase/functions/analyze-with-agents/__tests__/`
-  - Dependencias: Ninguna.
+  - Dependencias: requiere `OPENAI_API_KEY` para la evaluación live.
 
 - [ ] [Tipo: AI] [Área: Analysis] Extender `TrackedField` a importes y ponderaciones críticos (grounding §6.3)
   - Objetivo: Cumplir la regla de grounding de la Guía (§6.3) en todo dato numérico crítico. Hoy solo 6 campos de `datosGenerales` usan `TrackedField`; `presupuestoBaseLicitacion`, ponderaciones de criterios y `umbralAnormalidad` van sin `status/evidence`.
