@@ -1,27 +1,31 @@
 import { BarChart2 } from 'lucide-react';
 import { PliegoVM } from '../../model/pliego-vm';
+import { unwrap } from '../../../../lib/tracked-field';
 
 export function ScoringChart({ vm }: { vm: PliegoVM }) {
     const clx = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
     // Extract actual scoring criteria from VM
     const { subjetivos, objetivos } = vm.result.criteriosAdjudicacion;
-    const totalSub = subjetivos.reduce((acc, c) => acc + (c.ponderacion || 0), 0);
-    const totalObj = objetivos.reduce((acc, c) => acc + (c.ponderacion || 0), 0);
+    // `ponderacion` es TrackedField desde el grounding de importes y pesos;
+    // `unwrap` acepta también el número plano de los análisis ya guardados.
+    const weight = (c: { ponderacion: unknown }) => unwrap<number>(c.ponderacion, 0) || 0;
+    const totalSub = subjetivos.reduce((acc, c) => acc + weight(c), 0);
+    const totalObj = objetivos.reduce((acc, c) => acc + weight(c), 0);
     const total = totalSub + totalObj || 100; // Avoid division by zero
 
     const criteriaData = [
         ...objetivos.map((o) => ({
             label: o.descripcion,
-            points: o.ponderacion || 0,
-            percentage: ((o.ponderacion || 0) / total) * 100,
+            points: weight(o),
+            percentage: (weight(o) / total) * 100,
             color: 'bg-brand-600',
             type: 'automatic',
         })),
         ...subjetivos.map((s) => ({
             label: s.descripcion,
-            points: s.ponderacion || 0,
-            percentage: ((s.ponderacion || 0) / total) * 100,
+            points: weight(s),
+            percentage: (weight(s) / total) * 100,
             color: 'bg-accent-500',
             type: 'judgement',
         })),

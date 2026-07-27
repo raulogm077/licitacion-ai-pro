@@ -66,13 +66,21 @@ describe('Detailed Schema Validation', () => {
         const data = { criteriosAdjudicacion: { subjetivos: [{ descripcion: 'D', ponderacion: 10 }] } };
         const res = LicitacionSchema.parse(data);
         expect(res.criteriosAdjudicacion.subjetivos[0].descripcion).toBe('D');
-        expect(res.criteriosAdjudicacion.subjetivos[0].ponderacion).toBe(10);
+        // Un número plano (dato legacy) se envuelve como extraido, sin evidencia:
+        // el histórico se sigue leyendo sin migrar filas.
+        expect(res.criteriosAdjudicacion.subjetivos[0].ponderacion).toEqual({
+            value: 10,
+            status: 'extraido',
+        });
     });
 
     it('validates objetivo item', () => {
         const data = { criteriosAdjudicacion: { objetivos: [{ descripcion: 'O', ponderacion: 20 }] } };
         const res = LicitacionSchema.parse(data);
-        expect(res.criteriosAdjudicacion.objetivos[0].ponderacion).toBe(20);
+        expect(res.criteriosAdjudicacion.objetivos[0].ponderacion).toEqual({
+            value: 20,
+            status: 'extraido',
+        });
     });
 
     // Requisitos
@@ -151,5 +159,86 @@ describe('Detailed Schema Validation', () => {
 
     it('rejects invalid metadata state', () => {
         expect(() => LicitacionSchema.parse({ metadata: { estado: 'INVALID' } })).toThrow();
+    });
+});
+
+describe('Grounding de importes y ponderaciones (Guía §6.3)', () => {
+    // Estos campos se envolvieron en TrackedField porque alimentan decisiones,
+    // no sólo la pantalla: el PBL es la base de la fórmula de precio y del
+    // umbral de baja temeraria, el VEC es la base del VAM con el que se compara
+    // la solvencia, y la ponderación decide dónde invertir esfuerzo en la
+    // oferta. Los tests cubren las dos direcciones: que la evidencia sobrevive
+    // al parseo, y que un análisis ya guardado (valor plano) se sigue leyendo.
+
+    const evidence = { quote: 'PBL: 133.200 € (IVA excluido)', pageHint: '4', confidence: 0.9 };
+
+    it('conserva value/evidence/status del PBL', () => {
+        const res = LicitacionSchema.parse({
+            economico: {
+                presupuestoBaseLicitacion: { value: 133200, evidence, status: 'extraido' },
+            },
+        });
+        expect(res.economico?.presupuestoBaseLicitacion).toMatchObject({
+            value: 133200,
+            status: 'extraido',
+            evidence: { quote: 'PBL: 133.200 € (IVA excluido)', pageHint: '4' },
+        });
+    });
+
+    it('marca ambiguo el importe cuando el modelo lo declara así', () => {
+        const res = LicitacionSchema.parse({
+            economico: {
+                valorEstimadoContrato: { value: 266400, status: 'ambiguo', warnings: ['PBL y VEC coinciden'] },
+            },
+        });
+        expect(res.economico?.valorEstimadoContrato).toMatchObject({
+            value: 266400,
+            status: 'ambiguo',
+        });
+    });
+
+    it('envuelve importes legacy sin evidencia y sin inventarla', () => {
+        const res = LicitacionSchema.parse({ economico: { presupuestoBaseLicitacion: 80000 } });
+        expect(res.economico?.presupuestoBaseLicitacion).toMatchObject({ value: 80000, status: 'extraido' });
+        expect(res.economico?.presupuestoBaseLicitacion.evidence).toBeUndefined();
+    });
+
+    it('conserva la evidencia de la ponderación de un criterio objetivo', () => {
+        const res = LicitacionSchema.parse({
+            criteriosAdjudicacion: {
+                objetivos: [
+                    {
+                        descripcion: 'Precio',
+                        ponderacion: { value: 40, evidence: { quote: 'Precio: hasta 40 puntos' }, status: 'extraido' },
+                        formula: '40 x (oferta mínima / oferta analizada)',
+                    },
+                ],
+            },
+        });
+        expect(res.criteriosAdjudicacion.objetivos[0].ponderacion).toMatchObject({
+            value: 40,
+            evidence: { quote: 'Precio: hasta 40 puntos' },
+        });
+        // El resto del criterio sigue plano: sólo el número va con grounding.
+        expect(res.criteriosAdjudicacion.objetivos[0].formula).toBe('40 x (oferta mínima / oferta analizada)');
+    });
+
+    it('conserva el status de umbralAnormalidad en vez de tirarlo', () => {
+        // Antes se normalizaba con safeCoerceString, que desenvolvía el objeto y
+        // perdía el status: un umbral dudoso llegaba a la UI como uno firme.
+        const res = LicitacionSchema.parse({
+            criteriosAdjudicacion: {
+                umbralAnormalidad: { value: 'Ofertas un 25% por debajo del PBL', status: 'ambiguo' },
+            },
+        });
+        expect(res.criteriosAdjudicacion.umbralAnormalidad).toMatchObject({
+            value: 'Ofertas un 25% por debajo del PBL',
+            status: 'ambiguo',
+        });
+    });
+
+    it('marca no_encontrado lo que el pliego no dice', () => {
+        const res = LicitacionSchema.parse({ criteriosAdjudicacion: {} });
+        expect(res.criteriosAdjudicacion.umbralAnormalidad.status).toBe('no_encontrado');
     });
 });

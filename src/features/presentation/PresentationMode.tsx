@@ -115,7 +115,7 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                                                 {criterio.descripcion}
                                             </p>
                                             <Badge variant="default" className="shrink-0 px-3 text-lg">
-                                                {criterio.ponderacion}%
+                                                {unwrap<number>(criterio.ponderacion, 0)}%
                                             </Badge>
                                         </div>
                                     </div>
@@ -133,7 +133,7 @@ export function PresentationMode({ data, onClose }: PresentationModeProps) {
                                                 {criterio.descripcion}
                                             </p>
                                             <Badge variant="success" className="shrink-0 px-3 text-lg">
-                                                {criterio.ponderacion}%
+                                                {unwrap<number>(criterio.ponderacion, 0)}%
                                             </Badge>
                                         </div>
                                         {criterio.formula && (

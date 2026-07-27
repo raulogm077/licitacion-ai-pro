@@ -15,7 +15,7 @@ export function KpiCards({ vm }: KpiCardProps) {
 
     const rawBudget = unwrap<number>(vm.result.datosGenerales.presupuesto, 0);
     const rawMonths = unwrap<number>(vm.result.datosGenerales.plazoEjecucionMeses, 0);
-    const rawEstimated = vm.result.economico?.valorEstimadoContrato ?? 0;
+    const rawEstimated = unwrap<number>(vm.result.economico?.valorEstimadoContrato, 0) ?? 0;
     const dateLimit = vm.result.datosGenerales.fechaLimitePresentacion || 'No detectada';
 
     const kpis = [

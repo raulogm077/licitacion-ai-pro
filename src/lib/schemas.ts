@@ -130,9 +130,12 @@ export const EconomicoSchema = z.preprocess(
     (val) => val ?? {},
     z
         .object({
-            presupuestoBaseLicitacion: z.number().optional().nullable(),
-            valorEstimadoContrato: z.number().optional().nullable(),
-            importeIVA: z.number().optional().nullable(),
+            // TrackedField acepta también el número plano de los análisis ya
+            // guardados y lo envuelve con status 'extraido', así que el
+            // histórico sigue leyéndose sin migración de datos.
+            presupuestoBaseLicitacion: TrackedField(z.number().optional().nullable()),
+            valorEstimadoContrato: TrackedField(z.number().optional().nullable()),
+            importeIVA: TrackedField(z.number().optional().nullable()),
             tipoIVA: z.number().optional().nullable(),
             desglosePorLotes: z
                 .array(
@@ -172,7 +175,7 @@ export const DuracionYProrrogasSchema = z.preprocess(
 
 const CriterioSubjetivoSchema = z.object({
     descripcion: RobustString(''),
-    ponderacion: RobustNumber(0),
+    ponderacion: TrackedField(RobustNumber(0)),
     detalles: z.string().optional().nullable(),
     subcriterios: z
         .array(
@@ -199,7 +202,7 @@ const CriterioSubjetivoSchema = z.object({
 
 const CriterioObjetivoSchema = z.object({
     descripcion: RobustString(''),
-    ponderacion: RobustNumber(0),
+    ponderacion: TrackedField(RobustNumber(0)),
     formula: z.string().optional().nullable(),
     cita: z.string().optional(),
 });
@@ -216,7 +219,7 @@ export const CriteriosAdjudicacionSchema = z.preprocess(
                 (val) => (val === null || val === undefined ? [] : val),
                 z.array(CriterioObjetivoSchema).default([])
             ),
-            umbralAnormalidad: z.string().optional().nullable(),
+            umbralAnormalidad: TrackedField(z.string().optional().nullable()),
             cita: z.string().optional(),
         })
         .default({})

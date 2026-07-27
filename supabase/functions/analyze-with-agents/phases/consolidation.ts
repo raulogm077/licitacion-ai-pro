@@ -287,14 +287,36 @@ function sanitizeSubcriteriosList(input: unknown): unknown[] {
         .filter((entry) => entry !== null);
 }
 
+/**
+ * Lee un número que puede venir envuelto en TrackedField.
+ *
+ * Los importes y las ponderaciones se envolvieron para llevar evidencia, pero
+ * esta fase corre sobre `CanonicalResult` con `@ts-nocheck` aguas arriba: sin
+ * este helper, `sum + criterio.ponderacion` concatenaría un objeto y la suma de
+ * ponderaciones pasaría a ser una cadena sin que ningún check lo advirtiera.
+ */
+function trackedNumber(field: unknown): number {
+    if (field === null || field === undefined) return 0;
+    if (typeof field === 'object' && 'value' in (field as Record<string, unknown>)) {
+        const value = (field as Record<string, unknown>).value;
+        return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+    }
+    return typeof field === 'number' && Number.isFinite(field) ? field : 0;
+}
+
 function reconcileCanonicalResult(result: CanonicalResult, warnings: string[]): CanonicalResult {
     const budgetFromDatosGenerales = result.datosGenerales.presupuesto.value ?? 0;
-    const budgetFromEconomico = result.economico?.presupuestoBaseLicitacion ?? 0;
+    const economicoBudget = result.economico?.presupuestoBaseLicitacion;
+    const budgetFromEconomico = trackedNumber(economicoBudget);
 
     if (budgetFromDatosGenerales <= 0 && budgetFromEconomico > 0) {
         result.datosGenerales.presupuesto = {
             ...result.datosGenerales.presupuesto,
             value: budgetFromEconomico,
+            // La evidencia viaja con el importe: si el presupuesto se rellena
+            // desde el bloque económico, la cita que lo respalda es la de allí,
+            // no la del bloque que no lo encontró.
+            evidence: economicoBudget?.evidence ?? result.datosGenerales.presupuesto.evidence,
             status: 'derivado_tecnico',
         };
         warnings.push('datosGenerales.presupuesto completado desde economico.presupuestoBaseLicitacion');
@@ -320,8 +342,8 @@ function checkCrossBlockConsistency(result: CanonicalResult): string[] {
 
     // Check presupuesto consistency between datosGenerales and economico
     const presupuestoDG = result.datosGenerales.presupuesto.value ?? 0;
-    const presupuestoEco = result.economico?.presupuestoBaseLicitacion;
-    if (presupuestoDG > 0 && presupuestoEco && presupuestoEco > 0 && presupuestoDG !== presupuestoEco) {
+    const presupuestoEco = trackedNumber(result.economico?.presupuestoBaseLicitacion);
+    if (presupuestoDG > 0 && presupuestoEco > 0 && presupuestoDG !== presupuestoEco) {
         warnings.push(
             `Inconsistencia de presupuesto: datosGenerales=${presupuestoDG}, economico.PBL=${presupuestoEco}. Verificar cuál es el correcto.`
         );
@@ -338,8 +360,8 @@ function checkCrossBlockConsistency(result: CanonicalResult): string[] {
     const criterios = result.criteriosAdjudicacion;
     if (criterios) {
         const totalPonderacion =
-            (criterios.subjetivos || []).reduce((sum, c) => sum + (c.ponderacion || 0), 0) +
-            (criterios.objetivos || []).reduce((sum, c) => sum + (c.ponderacion || 0), 0);
+            (criterios.subjetivos || []).reduce((sum, c) => sum + trackedNumber(c.ponderacion), 0) +
+            (criterios.objetivos || []).reduce((sum, c) => sum + trackedNumber(c.ponderacion), 0);
         if (totalPonderacion > 0 && totalPonderacion !== 100) {
             warnings.push(`La suma de ponderaciones de criterios es ${totalPonderacion} (esperado: 100). Verificar.`);
         }

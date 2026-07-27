@@ -66,6 +66,7 @@ const mockData: LicitacionData = {
     criteriosAdjudicacion: {
         objetivos: [],
         subjetivos: [],
+        umbralAnormalidad: tf(null),
     },
     requisitosTecnicos: {
         funcionales: [],

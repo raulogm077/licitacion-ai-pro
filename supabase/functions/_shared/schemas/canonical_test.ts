@@ -109,3 +109,81 @@ Deno.test('WorkflowSchema accepts structured partial reasons', () => {
         throw new Error('Expected section_diagnostics to be preserved in workflow quality');
     }
 });
+
+Deno.test('CanonicalResultSchema conserva el grounding de importes y ponderaciones', () => {
+    // Contrato de la Guía §6.3 sobre los números que alimentan decisiones: PBL y
+    // VEC (fórmula de precio, umbral de temeraria, VAM de solvencia), la
+    // ponderación de cada criterio y el texto del umbral de anormalidad.
+    const parsed = CanonicalResultSchema.parse({
+        datosGenerales: {
+            titulo: { value: 'Licitacion de prueba', status: 'extraido' },
+            organoContratacion: { value: 'Organismo X', status: 'extraido' },
+        },
+        economico: {
+            presupuestoBaseLicitacion: {
+                value: 133200,
+                evidence: { quote: 'PBL: 133.200 EUR (IVA excluido)', pageHint: '4' },
+                status: 'extraido',
+            },
+            // Importe legacy sin envolver: se acepta y se marca extraido, pero
+            // NO se le inventa evidencia.
+            valorEstimadoContrato: 266400,
+        },
+        criteriosAdjudicacion: {
+            subjetivos: [{ descripcion: 'Memoria tecnica', ponderacion: 35 }],
+            objetivos: [
+                {
+                    descripcion: 'Precio',
+                    ponderacion: { value: 40, evidence: { quote: 'Precio: hasta 40 puntos' }, status: 'extraido' },
+                    formula: '40 x (oferta minima / oferta analizada)',
+                },
+            ],
+            umbralAnormalidad: { value: 'Ofertas un 25% por debajo del PBL', status: 'ambiguo' },
+        },
+    });
+
+    const pbl = parsed.economico.presupuestoBaseLicitacion;
+    if (pbl.value !== 133200 || pbl.evidence?.pageHint !== '4') {
+        throw new Error('Expected presupuestoBaseLicitacion to keep value and evidence');
+    }
+
+    const vec = parsed.economico.valorEstimadoContrato;
+    if (vec.value !== 266400 || vec.status !== 'extraido' || vec.evidence !== undefined) {
+        throw new Error('Expected a legacy plain amount to wrap without fabricating evidence');
+    }
+
+    if (parsed.criteriosAdjudicacion.subjetivos[0].ponderacion.value !== 35) {
+        throw new Error('Expected a legacy plain ponderacion to wrap to its value');
+    }
+
+    const precio = parsed.criteriosAdjudicacion.objetivos[0];
+    if (precio.ponderacion.value !== 40 || precio.ponderacion.evidence?.quote !== 'Precio: hasta 40 puntos') {
+        throw new Error('Expected ponderacion evidence to survive parsing');
+    }
+    if (precio.formula !== '40 x (oferta minima / oferta analizada)') {
+        throw new Error('Expected the rest of the criterion to stay flat');
+    }
+
+    // Antes se normalizaba con safeCoerceString, que desenvolvía el objeto y
+    // tiraba el status: un umbral dudoso llegaba a la UI como uno firme.
+    const umbral = parsed.criteriosAdjudicacion.umbralAnormalidad;
+    if (umbral.value !== 'Ofertas un 25% por debajo del PBL' || umbral.status !== 'ambiguo') {
+        throw new Error('Expected umbralAnormalidad to keep its ambiguous status');
+    }
+});
+
+Deno.test('CanonicalResultSchema marca no_encontrado los importes ausentes', () => {
+    const parsed = CanonicalResultSchema.parse({
+        datosGenerales: {
+            titulo: { value: 'Licitacion de prueba', status: 'extraido' },
+            organoContratacion: { value: 'Organismo X', status: 'extraido' },
+        },
+    });
+
+    if (parsed.economico.presupuestoBaseLicitacion.status !== 'no_encontrado') {
+        throw new Error('Expected a missing PBL to be no_encontrado, not a silent 0');
+    }
+    if (parsed.criteriosAdjudicacion.umbralAnormalidad.status !== 'no_encontrado') {
+        throw new Error('Expected a missing umbralAnormalidad to be no_encontrado');
+    }
+});

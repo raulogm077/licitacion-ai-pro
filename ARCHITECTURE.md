@@ -536,6 +536,18 @@ La ADR queda como propuesta y no como decisión aceptada porque cambia a la vez 
 
 **Fecha:** 2026-07-27
 
+### 8.21 Grounding de importes y ponderaciones (Implementado 2026-07-27)
+
+`TrackedField` cubría seis campos de `datosGenerales`. Ahora cubre también los números que alimentan decisiones: PBL, VEC e importe de IVA en `economico`, la ponderación de cada criterio y el texto de `umbralAnormalidad`. El criterio para envolver un campo deja de ser «es importante» y pasa a ser **«¿de este número depende una decisión?»**: el PBL es la base de la fórmula de precio y del umbral de temeraria, el VEC lo es del VAM contra el que se compara la solvencia, y la ponderación decide dónde invertir esfuerzo en la oferta.
+
+Quedan planos a propósito `tipoIVA` (es un tipo, no un importe), el presupuesto por lote (ya tiene `cita` propia) y la ponderación de subcriterios (hoy no la renderiza nadie).
+
+La compatibilidad no necesita migración: el `preprocess` de `TrackedField` envuelve el valor plano de los análisis ya guardados con `status: 'extraido'` y **sin fabricarle evidencia**, que es lo que separa un dato acreditado de uno heredado; `unwrap()` cubre la dirección contraria en el frontend.
+
+Lo que no se veía venir estaba en las dos fases deterministas, que corren sobre `CanonicalResult` con `@ts-nocheck` aguas arriba y por tanto sin red del compilador: la suma de ponderaciones habría concatenado objetos, y `evaluateObjectQuality` habría contado los envoltorios vacíos como datos presentes, reportando `COMPLETO` un bloque económico sin un solo importe. Envolver un campo no es sólo cambiar el schema; es revisar quién hace aritmética con él.
+
+**Fecha:** 2026-07-27
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

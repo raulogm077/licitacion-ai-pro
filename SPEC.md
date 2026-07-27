@@ -391,13 +391,13 @@ Primer paso del salto de «extractor» a «analista» descrito en la Guía §4. 
 
 ### Qué se reconoce
 
-| Familia | Ejemplo | Origen |
-| --- | --- | --- |
-| Proporcionalidad inversa | `40 x (oferta mínima / oferta analizada)` | fixture real del benchmark |
-| Proporcional a la baja | `50 x (baja de la oferta / baja máxima)` | — |
-| Lineal sobre presupuesto | `P × (PBL − oferta) / (PBL − oferta mínima)` | — |
-| Umbral contra presupuesto | `un 25% por debajo del presupuesto base` | — |
-| Umbral contra la media | `un 10% inferior a la media` | fixture real del benchmark |
+| Familia                   | Ejemplo                                      | Origen                     |
+| ------------------------- | -------------------------------------------- | -------------------------- |
+| Proporcionalidad inversa  | `40 x (oferta mínima / oferta analizada)`    | fixture real del benchmark |
+| Proporcional a la baja    | `50 x (baja de la oferta / baja máxima)`     | —                          |
+| Lineal sobre presupuesto  | `P × (PBL − oferta) / (PBL − oferta mínima)` | —                          |
+| Umbral contra presupuesto | `un 25% por debajo del presupuesto base`     | —                          |
+| Umbral contra la media    | `un 10% inferior a la media`                 | fixture real del benchmark |
 
 ### Decisiones de diseño
 
@@ -439,3 +439,30 @@ Dos condiciones para quien lo encienda:
 
 - **El modelo debe soportar Responses API con `file_search`.** Sin eso el bloque pierde la recuperación documental y responde de memoria: la peor forma de fallar, porque el JSON sigue teniendo la forma correcta.
 - **La provenance viaja con el cambio.** `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` en cuanto hay overrides, porque un `model` único mentiría sobre qué modelo extrajo cada bloque justo cuando ese dato hace falta para comparar contra la baseline. Mientras el mapa esté vacío la clave no aparece y el `runtime_version` persistido en los jobs no cambia de forma.
+
+### 11.3. Grounding de importes y ponderaciones (2026-07-27)
+
+Cierra la regla de grounding de la Guía §6.3 sobre los datos numéricos críticos. Hasta ahora `TrackedField` cubría seis campos de `datosGenerales`; `presupuestoBaseLicitacion`, las ponderaciones de criterios y `umbralAnormalidad` viajaban sin `status` ni `evidence`.
+
+El criterio para envolver un campo deja de ser «es importante» y pasa a ser **«¿de este número depende una decisión?»**. Con esa vara: el PBL es la base de la fórmula de precio y del umbral de baja temeraria; el VEC lo es del VAM contra el que se compara la solvencia económica; la ponderación decide dónde merece la pena invertir esfuerzo en la oferta. Los tres se envuelven. `tipoIVA` no —es un tipo impositivo, no un importe—, ni el presupuesto por lote —ya tiene `cita` propia—, ni la ponderación de subcriterios, que hoy no renderiza nadie.
+
+`umbralAnormalidad` merece mención aparte: se normalizaba con `safeCoerceString`, que **desenvolvía el `{ value, status }` que el modelo ya devolvía a veces y tiraba el status**. Un umbral que el modelo marcaba como dudoso llegaba a la interfaz indistinguible de uno firme, y de ese texto sale a partir de qué importe entras en baja temeraria.
+
+### Compatibilidad sin migración
+
+El `preprocess` de `TrackedField` acepta el valor plano de los análisis ya guardados y lo envuelve con `status: 'extraido'`, pero **sin fabricarle evidencia**: eso es lo que distingue un dato acreditado de uno heredado. No hay backfill de filas. En el frontend, `unwrap()` cubre la dirección contraria y ya existía.
+
+Los prompts de `economico` y `criteriosAdjudicacion` piden ahora evidencia explícita para esos campos, con la misma plantilla que ya usaba `datosGenerales`. Eso mueve `ANALYSIS_RUNTIME_VERSIONS` a `prompts: pliegos-es-v1.1.0` y `schema: canonical-v1.2.0`.
+
+### Lo que no se veía venir
+
+Envolver un campo no es sólo cambiar el schema; es revisar quién hace aritmética con él. Dos fases deterministas corren sobre `CanonicalResult` con `@ts-nocheck` aguas arriba, así que el compilador no las cubre:
+
+- **La suma de ponderaciones** (`sum + criterio.ponderacion`) habría concatenado objetos y producido «La suma de ponderaciones es 0[object Object]» en vez de un total. Resuelto con un helper local `trackedNumber`.
+- **`evaluateObjectQuality`** contaba claves no vacías para puntuar la sección. Un `TrackedField` vacío es un objeto: un bloque económico sin un solo importe habría pasado a reportarse como `COMPLETO`. Ahora mira dentro del envoltorio antes de decidir.
+
+Ninguna de las dos habría roto un test existente ni un `deno check`. Aparecieron al revisar a mano cada sitio que tocaba los campos envueltos, y son la razón por la que este cambio no era mecánico.
+
+### Mejora colateral
+
+Cuando `datosGenerales.presupuesto` se rellena desde el bloque económico, hereda ahora la evidencia del importe de origen. La cita que respalda el número es la de donde salió, no la del bloque que no lo encontró.

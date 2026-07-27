@@ -48,8 +48,12 @@ describe('Schema Robustness', () => {
         };
         const result = LicitacionSchema.parse(input);
 
-        // RobustNumber
-        expect(result.criteriosAdjudicacion.subjetivos[0].ponderacion).toBe(0);
+        // RobustNumber dentro de TrackedField: un null no produce NaN ni se hace
+        // pasar por un peso extraído — cae a 0 con status no_encontrado.
+        expect(result.criteriosAdjudicacion.subjetivos[0].ponderacion).toEqual({
+            value: 0,
+            status: 'no_encontrado',
+        });
 
         // RobustEnum
         expect(result.restriccionesYRiesgos.riesgos[0].impacto).toBe('MEDIO');

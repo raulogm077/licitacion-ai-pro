@@ -87,7 +87,7 @@ export function PriceSimulator({ vm }: { vm: PliegoVM }) {
     const bid = Number.parseFloat(bidText.replace(/\./g, '').replace(',', '.'));
     const hasBid = Number.isFinite(bid) && bid > 0;
 
-    const threshold = parseAnomalyThreshold(umbralAnormalidad);
+    const threshold = parseAnomalyThreshold(unwrap<string | null>(umbralAnormalidad, null));
     const anomalyFloor = threshold.ok ? anomalyLimit(threshold.threshold, { budget }) : null;
     const isRisky = hasBid && anomalyFloor !== null && bid < anomalyFloor;
 
