@@ -428,6 +428,21 @@ Esta entrega es deliberadamente dual: el worker todavía es la Edge Function inl
 
 **Fecha:** 2026-07-16
 
+### 8.13 Recuperación de trabajo abandonado y presupuesto atado al techo de plataforma (Implementado 2026-07-27)
+
+Un expediente subido como dos PDF (3,85 MB en total) dejó el job en `processing`/`extraction` para siempre, sin error registrado, y el navegador acabó mostrando «El análisis sigue en curso» dentro de la UI de error. El diagnóstico descubrió dos fallos encadenados:
+
+- **El techo de plataforma mataba al worker antes que el guard de código.** `PIPELINE_TIMEOUT_MS` valía 280 s, pero el plan free de Supabase corta la invocación a los 150 s. Al superarlo, el isolate muere de golpe: no corre el `catch`, ni el `finally`, ni el `setTimeout` de pipeline. El guard existía y era inalcanzable. Ahora el presupuesto se **deriva** del techo (`EDGE_WALL_CLOCK_MS`, 150 s por defecto) menos `PIPELINE_SHUTDOWN_MARGIN_MS` (10 s), así que el guard siempre dispara primero y la ejecución termina con `error` por SSE y el job en estado terminal.
+- **Un lease expirado era terminal por omisión.** `claim_analysis_step` solo admite `queued`/`retrying` y `fail_analysis_step` exige seguir siendo dueño del lease, así que ningún camino podía mover un paso abandonado en `running`. El modo de fallo que la fundación durable existe para sobrevivir era justamente el que no sabía recuperar: 27 de 80 jobs estaban en ese estado.
+
+`reclaim_stale_analysis_steps` (migración `20260727130000`) añade la transición que faltaba y es el único sitio autorizado a sacar un paso de `running` sin poseer su lease, y solo una vez que el lease ha caducado. Barre dos poblaciones: pasos con lease expirado y jobs huérfanos que murieron antes de que ningún paso tomara lease (cutoff conservador de 1 h). Si el job es `inline_transition` no hay consumidor que pueda reanudarlo, así que falla honestamente; con un `execution_mode` asíncrono devuelve el paso a la cola y hace visible el mensaje PGMQ, sin más cambios. La barre `analyze-with-agents` de forma oportunista al arrancar cada request, igual que la limpieza de recursos OpenAI.
+
+En el frontend, `recoverDurableResult` distingue por primera vez «lento» de «muerto»: la fila del job solo avanza cuando transiciona una fase o un paso, así que un cambio en `status:phase:updated_at` es la única señal fiable de vida disponible al navegador. Si no avanza en toda la ventana de recuperación, el mensaje deja de invitar a volver más tarde a un historial que nunca se va a poblar.
+
+**Límite que esto no resuelve:** con el techo de 150 s del plan free, un expediente multi-documento sigue sin caber. El fallo pasa a ser limpio y explicado en ~140 s en vez de un zombi silencioso, pero para que ese caso *termine bien* hace falta subir el timeout en el plan Pro (`EDGE_WALL_CLOCK_MS` hasta 400 s) o sacar el worker del request. Es un techo de capacidad, no un bug de código.
+
+**Fecha:** 2026-07-27
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

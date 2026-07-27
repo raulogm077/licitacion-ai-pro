@@ -158,6 +158,19 @@ Ejemplo de configuración:
 npx supabase secrets set OPENAI_API_KEY=sk-...
 ```
 
+`EDGE_WALL_CLOCK_MS` es el único secret opcional. Declara el techo de wall-clock que la plataforma impone a una invocación de Edge Function, del que se deriva `PIPELINE_TIMEOUT_MS`. **No es un valor que elijamos nosotros**: hay que ponerlo igual al que esté configurado en Dashboard → Project Settings → Edge Functions → Function Timeout.
+
+| Plan            | Techo real | Sin el secret | Con el secret ajustado |
+| --------------- | ---------- | ------------- | ---------------------- |
+| Free            | 150 s      | 140 s de pipeline (correcto) | — |
+| Pro (subido)    | hasta 400 s | 140 s de pipeline (deja tiempo sin usar) | `EDGE_WALL_CLOCK_MS=400000` → 390 s |
+
+```bash
+npx supabase secrets set EDGE_WALL_CLOCK_MS=400000   # solo tras subirlo en el Dashboard
+```
+
+Fijarlo **por encima** del techo real es la configuración peligrosa: el pipeline presupuesta más de lo que la plataforma concede, el isolate muere de golpe sin ejecutar `catch`, `finally` ni el `setTimeout` de pipeline, y el job queda en `processing` para siempre. Ese fue exactamente el fallo de 2026-07-27 (ver `SPEC.md` §10.10). Valores fuera de `[60000, 400000]` o no numéricos caen al defecto de 150 s.
+
 No hay otros secretos backend personalizados operativos. Cualquier secret remoto huérfano (ej. `USE_AGENTS_SDK`, eliminado del código el 2026-05-09) puede borrarse con `supabase secrets unset <NAME>` sin afectar runtime.
 
 ## 7. Validación posterior al despliegue

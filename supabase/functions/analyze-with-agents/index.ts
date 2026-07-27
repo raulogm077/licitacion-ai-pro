@@ -197,6 +197,26 @@ serve(async (req: Request) => {
             })
         );
 
+        // Same opportunistic pattern, different failure: work whose executor was
+        // killed mid-run. Nothing else sweeps it (the worker is this request, and
+        // there is no cron), so without this pass those jobs stay `processing`
+        // forever and their owners keep polling an analysis that cannot advance.
+        jobService
+            .reclaimStaleSteps()
+            .then((reclaimed) => {
+                if (reclaimed.length > 0) {
+                    console.warn(`[analyze] Reclaimed ${reclaimed.length} abandoned job(s) reqId=${requestId}`, {
+                        outcomes: reclaimed.map((row) => `${row.stepName ?? 'job'}:${row.outcome}`),
+                    });
+                }
+            })
+            .catch((err) =>
+                console.warn('[analyze] Stale-step reclaim failed:', {
+                    error: err instanceof Error ? err.message : String(err),
+                    requestId,
+                })
+            );
+
         const encoder = new TextEncoder();
         const readable = new ReadableStream({
             async start(controller) {
@@ -252,7 +272,12 @@ serve(async (req: Request) => {
                                 console.warn('[analyze] Timeout cleanup failed:', e)
                             );
                         }
-                        const timeoutMessage = 'Tiempo de ejecución excedido. Intente con documentos más pequeños.';
+                        // Fires before the platform's wall-clock ceiling (see
+                        // PIPELINE_SHUTDOWN_MARGIN_MS) so this path can actually
+                        // persist the failure instead of dying with the isolate.
+                        const timeoutMessage =
+                            `Tiempo de ejecución excedido (límite ${Math.round(PIPELINE_TIMEOUT_MS / 1000)}s). ` +
+                            'Vuelve a intentarlo con menos documentos o con un PDF más ligero.';
                         if (activeStep) {
                             jobService
                                 .failStep(jobId, activeStep, requestId, timeoutMessage)

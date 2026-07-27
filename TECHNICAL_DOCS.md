@@ -217,6 +217,26 @@ La migración `20260716101822_analysis_jobs_durable_foundation.sql` crea:
 
 El trigger privado de outbox llama `pgmq.send` antes del commit. Un checkpoint correcto llama `pgmq.archive`; un error con presupuesto restante aplica `pgmq.set_vt` y un error final publica en DLQ. PGMQ no se expone al Data API ni recibe permisos de cliente.
 
+### 7.2. Recuperación de pasos abandonados
+
+`claim_analysis_step` solo admite pasos en `queued`/`retrying` y `fail_analysis_step` exige que el llamante siga siendo dueño del lease. Un paso abandonado en `running` —porque la plataforma mató el isolate— no encajaba en ninguno de los dos, así que un lease expirado era terminal por omisión.
+
+`reclaim_stale_analysis_steps(p_limit, p_orphan_after_seconds)` (migración `20260727130000`) es el único sitio autorizado a sacar un paso de `running` sin poseer su lease, y solo cuando el lease ya ha caducado. Barre dos poblaciones:
+
+| Población                                    | Condición                                                                                   | Resultado                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Paso abandonado, `execution_mode` asíncrono   | `status='running'`, lease vencido, `attempt_count < max_attempts`                            | `retrying` + `pgmq.set_vt(…, 0)`                |
+| Paso abandonado, sin consumidor o sin intentos | `status='running'`, lease vencido, `inline_transition` o presupuesto agotado                 | `dead_letter` + DLQ (`reason='lease_expired'`) |
+| Job huérfano                                  | no terminal, sin paso en `running`/`queued`/`retrying`, más antiguo que `p_orphan_after_seconds` | job a `dead_letter`                             |
+
+Un lease todavía vigente nunca se toca, así que el barrido no puede matar trabajo en vuelo; y el barrido es idempotente (una segunda pasada recupera 0 filas). Es `SECURITY INVOKER` y ejecutable solo por `service_role`, igual que el resto de RPC durables. Lo invoca `analyze-with-agents` de forma oportunista al inicio de cada request, que es el único disparador disponible mientras el worker siga siendo el propio request.
+
+### 7.3. Presupuesto de ejecución atado al techo de plataforma
+
+`PIPELINE_TIMEOUT_MS` ya no es una constante suelta: se deriva de `EDGE_WALL_CLOCK_MS` (150 s por defecto, el techo del plan free) menos `PIPELINE_SHUTDOWN_MARGIN_MS` (10 s). Si el pipeline sobrevive al techo de la plataforma, el isolate muere sin ejecutar `catch`, `finally` ni el `setTimeout` del pipeline, y el paso queda en `running` para siempre. Derivarlo garantiza que el guard de código dispare primero y el fallo llegue a persistirse.
+
+Al subir el timeout en Dashboard → Project Settings → Edge Functions (plan Pro, hasta 400 s), hay que fijar el secret `EDGE_WALL_CLOCK_MS` al mismo valor; si no, el pipeline seguirá presupuestando 140 s. Valores fuera de `[60000, 400000]` o no numéricos caen al defecto.
+
 `chat-with-analysis-agent` responde con `{ answer, citations, usedTools, sessionId }`.
 
 ---

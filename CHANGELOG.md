@@ -105,6 +105,26 @@ Primer bloque del rediseño integral de UX hacia una identidad profesional con e
 - Cabecera con logo de marca (gradiente + Space Grotesk), header glass y contenido a `max-w-7xl`.
 - Dependencias frontend nuevas (solo cliente, no afectan al runtime Deno de las Edge Functions): `motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/inter`, `@fontsource-variable/space-grotesk`.
 
+## [Unreleased] - 2026-07-27 — Jobs zombi tras la muerte del worker
+
+Un pliego formado por dos PDF dejaba el análisis colgado para siempre y el navegador mostraba «El análisis sigue en curso» dentro de la UI de error. Diagnóstico completo en `SPEC.md` §10.10.
+
+### Fixed
+
+- **El guard de timeout era inalcanzable.** `PIPELINE_TIMEOUT_MS` valía 280 s contra un techo de plataforma de 150 s (plan free), así que la plataforma mataba el isolate antes: sin `catch`, sin `finally` y sin el `setTimeout` del pipeline. Ahora se deriva de `EDGE_WALL_CLOCK_MS` (150 s por defecto) menos `PIPELINE_SHUTDOWN_MARGIN_MS` (10 s), y el fallo se persiste y se emite por SSE.
+- **Un lease expirado era terminal por omisión.** `claim_analysis_step` solo admite `queued`/`retrying` y `fail_analysis_step` exige seguir siendo dueño del lease, así que ningún camino podía recuperar un paso abandonado en `running` — el modo de fallo exacto que la fundación durable existe para sobrevivir. 27 de 80 jobs estaban atrapados así.
+- **El mensaje de recuperación mentía.** `recoverDurableResult` pedía volver «en unos minutos» a un historial que nunca se iba a poblar. Ahora distingue un job que avanza de uno interrumpido usando `status:phase:updated_at`, la única señal de vida disponible al navegador.
+
+### Added
+
+- Migración `20260727130000_analysis_job_stale_step_reclaim.sql`: `reclaim_stale_analysis_steps()` recupera pasos con lease vencido y jobs huérfanos. Un lease vigente nunca se toca, el barrido es idempotente y con un `execution_mode` asíncrono devuelve el paso a la cola en lugar de fallarlo.
+- Barrido oportunista de trabajo abandonado al inicio de cada request de `analyze-with-agents`.
+- Secret opcional `EDGE_WALL_CLOCK_MS` para acompañar la subida del Function Timeout en plan Pro (ver `DEPLOYMENT.md` §6).
+
+### Límite conocido
+
+En plan free (techo de 150 s) un expediente multi-documento sigue sin caber: el fallo pasa a ser limpio y explicado en ~140 s, no un análisis correcto. Cerrarlo exige el timeout de Pro o sacar el worker del request.
+
 ## [Unreleased] - 2026-07-12c — Orden de la migración add_provider_reading_mode
 
 Corrige el bug de orden que dejaba en rojo el check `Supabase Preview` (apply en frío):

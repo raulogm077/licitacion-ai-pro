@@ -62,6 +62,8 @@ export class JobService {
         signal?: AbortSignal
     ): Promise<{ result: unknown; workflow?: unknown }> {
         const deadline = Date.now() + RECOVERY_TIMEOUT_MS;
+        let lastSignature: string | null = null;
+        let sawProgress = false;
 
         while (Date.now() < deadline) {
             if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -83,10 +85,25 @@ export class JobService {
                 throw new Error(data.error || 'El análisis no pudo completarse');
             }
 
+            // The job row only moves when a phase or step transitions, so a
+            // change here is the one reliable "still alive" signal available to
+            // the browser — block extraction writes nothing while it runs.
+            const signature = `${data.status}:${data.phase}:${data.updated_at}`;
+            if (lastSignature !== null && signature !== lastSignature) sawProgress = true;
+            lastSignature = signature;
+
             await waitForRecoveryPoll(signal);
         }
 
-        throw new Error('El análisis sigue en curso. Vuelve a abrirlo desde tu historial en unos minutos.');
+        // Slow and dead look identical if you only read `status`. A job that did
+        // not advance at all across the whole recovery window was interrupted:
+        // telling its owner to come back later would send them to a history
+        // entry that is never going to populate.
+        throw new Error(
+            sawProgress
+                ? 'El análisis sigue en curso. Vuelve a abrirlo desde tu historial en unos minutos.'
+                : 'El análisis se interrumpió antes de terminar y no dejó resultado recuperable. Vuelve a lanzarlo; si el expediente tiene varios PDF, prueba con menos documentos o más ligeros.'
+        );
     }
 
     /**
