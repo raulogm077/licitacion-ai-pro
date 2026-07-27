@@ -42,12 +42,20 @@ interface DurableJobState {
     progress?: { done?: number; total?: number } | null;
 }
 
-/** Normaliza el `progress` de la fila o del payload de Broadcast. */
+/**
+ * Normaliza el `progress` de la fila o del payload de Broadcast.
+ *
+ * Acota `done` al rango `[0, total]`: el emisor actual no puede salirse, pero
+ * `done / total` alimenta directamente el porcentaje de la barra, así que un
+ * valor fuera de rango se traduciría en una barra que retrocede o se pasa de
+ * largo. Es la clase de invariante que se rompe sola al añadir un bloque.
+ */
 function readBlockProgress(value: unknown): { done: number; total: number } | null {
     if (!value || typeof value !== 'object') return null;
     const { done, total } = value as { done?: unknown; total?: unknown };
-    if (typeof done !== 'number' || typeof total !== 'number' || total <= 0) return null;
-    return { done, total };
+    if (typeof done !== 'number' || typeof total !== 'number') return null;
+    if (!Number.isFinite(done) || !Number.isFinite(total) || total <= 0) return null;
+    return { done: Math.min(Math.max(done, 0), total), total };
 }
 
 function createIdempotencyKey(): string {

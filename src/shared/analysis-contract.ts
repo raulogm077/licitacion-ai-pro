@@ -118,6 +118,15 @@ export interface ExtractionProgressEvent {
     type: 'extraction_progress';
     timestamp: number;
     phase?: AnalysisPhase;
+    /**
+     * Bloques **terminados**, no el índice del bloque en curso. Va de 0 a
+     * `totalBlocks`, de modo que `blockIndex / totalBlocks` es directamente la
+     * fracción completada de la fase.
+     *
+     * Los dos productores lo emiten con este significado: el worker asíncrono
+     * desde el contador de `analysis_jobs.progress`, y el camino SSE desde el
+     * tamaño de su mapa de resultados.
+     */
     blockIndex?: number;
     totalBlocks?: number;
     message?: string;

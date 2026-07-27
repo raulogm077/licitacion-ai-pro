@@ -262,6 +262,8 @@ export class JobService {
                 status: 'completed',
                 phase: 'completed',
                 result,
+                // Un job terminal no tiene avance parcial que enseñar.
+                progress: null,
                 completed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })
@@ -277,6 +279,7 @@ export class JobService {
                 status: 'failed',
                 phase: 'failed',
                 error: errorMsg,
+                progress: null,
                 completed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })

@@ -372,3 +372,13 @@ Dos huecos que dejó al descubierto el primer uso real de Fase 1B en producción
 **El stepper de fases tampoco se iluminaba.** Encontrado al revisar el propio arreglo: `AnalyzingStep` resuelve la fase activa con `ANALYSIS_PHASES.indexOf(currentPhase)`, y `ai.service` solo asignaba `currentPhase` en `phase_started`/`phase_completed`, eventos exclusivos de SSE. En el camino asíncrono la fase viaja dentro del propio evento de progreso, así que `currentPhase` se quedaba en `null`, `activeIndex` en `-1` y ninguna fase aparecía activa durante todo el análisis. Ahora el evento de progreso por bloque lleva su `phase` y `ai.service` la propaga.
 
 Criterio de fallo asumido: el contador refleja bloques terminados, no el progreso dentro de un bloque. Un bloque que tarda 40 s no mueve la barra durante esos 40 s.
+
+### 10.14. Cierre de las observaciones de la revisión de #327 (2026-07-27)
+
+Tres puntos que la revisión de #327 dejó anotados y que se cierran aquí.
+
+**`blockIndex` tenía dos significados.** El camino SSE lo emitía como índice del bloque en curso y el asíncrono como bloques terminados. Al unificarlo apareció un off-by-one real: el emisor SSE pasaba `completedCount - 1`, así que al terminar los nueve bloques enviaba ocho y la barra no llegaba nunca al final del rango de la fase. El contrato fija ahora el significado —bloques **terminados**, de 0 a `totalBlocks`, de modo que el cociente es la fracción completada— y ambos productores lo respetan.
+
+**`progress` se quedaba pegado al salir de la extracción.** `COALESCE(p_progress, progress)` es lo correcto dentro de una fase, porque el worker hace checkpoints que no siempre aportan contador, pero al pasar a consolidación el valor dejaba de significar nada y sobrevivía en la fila indefinidamente. Ahora se limpia en la transición, comparando la fase entrante con la almacenada, y los cierres de job (`completeJob`, `failJob`) lo anulan explícitamente.
+
+**El contador no estaba acotado.** El emisor actual no puede salirse de rango, pero `done / total` alimenta directamente el porcentaje: un valor corrupto se traduciría en una barra que retrocede o se pasa. `readBlockProgress` acota a `[0, total]` y rechaza valores no finitos.

@@ -502,6 +502,12 @@ Y la extracción, que es el tramo largo, no reportaba avance al navegador. El da
 
 **Fecha:** 2026-07-27
 
+### 8.17 Consistencia del contador de bloques (Implementado 2026-07-27)
+
+Cierre de las observaciones de la revisión de §8.16. `blockIndex` queda definido como bloques **terminados** en los dos productores —al unificarlo se descubrió que el emisor SSE pasaba `completedCount - 1` y la barra no alcanzaba el final de la fase—, `progress` se limpia al cambiar de fase en vez de sobrevivir en la fila, y el contador se acota al rango válido antes de proyectarlo a porcentaje.
+
+**Fecha:** 2026-07-27
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM
