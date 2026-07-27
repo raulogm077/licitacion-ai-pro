@@ -46,3 +46,25 @@ Cuando un bump de 0.x rompa, el patrón es: fijar la línea en `package.json`
 (`~0.4.26`, no `^`), añadir el `ignore` correspondiente en `dependabot.yml` **con
 el motivo escrito**, y registrar en `BACKLOG.md` la tarea que permitirá quitarlo.
 Un `ignore` sin fecha ni tarea asociada se convierte en deuda invisible.
+
+## Deno bloquea versiones recién publicadas
+
+`deno check --node-modules-dir=auto` resuelve `package.json` y aplica una
+**política de antigüedad mínima de dependencias** (24 h por defecto). Una versión
+publicada hace pocas horas falla con «Could not find npm package … A newer
+matching version was found, but it was not used because it was newer than the
+specified minimum dependency date».
+
+Ocurre aunque `pnpm install`, los tests y el build pasen: el paso Deno de
+`verify:release` es el único que lo detecta. No se resuelve con
+`--minimum-dependency-age 0`; esa guarda existe para reducir superficie de
+supply chain. Lo correcto es **esperar** a que la versión cumpla las 24 h y
+revalidar.
+
+## Al validar un lote de bumps, mirar el código de salida real
+
+`pnpm verify:release > log 2>&1; echo $?` sobre un comando compuesto puede
+devolver el estado del `echo`, no el de `pnpm`. Comprobar siempre la última línea
+del log: `verify:release completado` frente a `ELIFECYCLE Command failed`. Un
+lote puede pasar lint, tests, cobertura, benchmark, build y E2E y caerse después
+en el paso Deno.

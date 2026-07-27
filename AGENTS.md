@@ -219,6 +219,12 @@ debe respetar las reglas duras de este documento. Operativa completa (coordinaci
 por `BACKLOG.md`, `guard.sh`, kill switch `AGENTS_ENABLED`, auto-merge sobre el CI
 existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
+> Nota (2026-07-27b): Vite sigue en la 7 a propósito. La 8 cambia Rollup por
+> Rolldown y `vite.config.ts` declara `manualChunks` en forma de objeto, que
+> Rolldown rechaza (`TypeError: manualChunks is not a function`). Verificado: con
+> `vite@8.1.5` todo pasa hasta `→ Build...`. Migración registrada en `BACKLOG.md`
+> → Deuda Técnica; no subir Vite suelto.
+
 > Nota (2026-07-27): ESLint sigue en la 8 a propósito. `eslint-plugin-react-refresh`
 > está fijado a `~0.4.26` porque la 0.5 exige `eslint: ^9 || ^10`; con ESLint 8 el
 > plugin no registra sus reglas y `pnpm lint` cae con 184 errores. Dependabot lo

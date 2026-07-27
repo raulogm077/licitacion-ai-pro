@@ -115,6 +115,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Deuda Técnica / Refactorización
 
+- [ ] [Tipo: Infra] [Área: Infra] Migrar el chunking de producción a Rolldown (prerrequisito de Vite 8)
+  - Objetivo: Desbloquear el bump de Vite 7 → 8, que hoy tumba el build.
+  - Contexto: Vite 8 sustituye Rollup por **Rolldown**. `vite.config.ts` declara `build.rollupOptions.output.manualChunks` en **forma de objeto** (`vendor`, `excel`, `ui`) y Rolldown 1.1.5 falla con `TypeError: manualChunks is not a function`. Verificado en local: con `vite@8.1.5` pasan lint, tsc, los 461 tests, benchmark y cobertura, y el fallo aparece en `→ Build...`.
+  - Alcance: convertir `manualChunks` a la forma de función o migrar a `output.advancedChunks.groups` de Rolldown, y **comprobar el reparto de chunks resultante** — no basta con que el build pase: cambia el bundle que se sirve en producción (`vendor`/`excel`/`ui` existen para separar `exceljs` y los iconos del bundle principal). Comparar tamaños antes/después.
+  - Criterios de aceptación:
+    - `pnpm build` en verde con `vite@^8`.
+    - Los chunks siguen separando `react`/`react-dom`, `exceljs` y la capa de UI; sin regresión relevante de tamaño del bundle inicial.
+    - `pnpm verify:release` en verde y despliegue de preview en Vercel correcto.
+  - Archivos probables: `vite.config.ts`, `package.json`
+  - Dependencias: Ninguna. No mezclar con otros bumps.
+
 - [ ] [Tipo: Infra] [Área: Infra] Migrar a ESLint 9 + flat config
   - Objetivo: Desbloquear el ecosistema de plugins de ESLint, que ya está abandonando la versión 8. Hoy el repo va con ESLint 8.57.1 y `.eslintrc.cjs`, y esa versión está marcada como no soportada por upstream (`WARN deprecated eslint@8.57.1` en cada `pnpm install`).
   - Contexto: `eslint-plugin-react-refresh` 0.5.0 cambió su peerDependency de `eslint: >=8.40` a `eslint: ^9 || ^10`. Con ESLint 8 el plugin no registra sus reglas y `.eslintrc.cjs` deja 184 referencias huérfanas a `react-refresh/only-export-components`, que tumban `pnpm lint` (verificado: el PR de Dependabot #316 falló así, y se reprodujo en local). Como parche, el plugin quedó fijado a `~0.4.26` y Dependabot tiene un `ignore` para sus minor/major.
