@@ -492,6 +492,16 @@ Ahora el polling emite `phase_progress` cuando cambia `status:phase` —clave si
 
 **Fecha:** 2026-07-27
 
+### 8.16 Barrido programado y avance por bloque (Implementado 2026-07-27)
+
+El primer uso real de Fase 1B dejó al descubierto dos huecos.
+
+`reclaim_stale_analysis_steps` colgaba del inicio de `analyze-with-agents`, que Fase 1B convirtió en ruta de rollback: el barrido se quedó sin disparador efectivo y dejó de limpiar nada. Pasa a `pg_cron` cada 5 minutos —frecuencia baja a propósito, porque no desbloquea trabajo en curso sino que cierra trabajo ya muerto— y con `p_limit` acotado para drenar una acumulación histórica poco a poco.
+
+Y la extracción, que es el tramo largo, no reportaba avance al navegador. El dato ya existía en cada checkpoint, pero vivía dentro del JSON pesado de `phase_results`. Se expone en una columna `progress` compacta que el worker escribe en el mismo checkpoint y que el trigger de Broadcast vigila, de modo que Realtime y polling ven lo mismo.
+
+**Fecha:** 2026-07-27
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

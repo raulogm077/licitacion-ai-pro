@@ -38,6 +38,16 @@ interface DurableJobState {
     error?: string | null;
     phase?: string | null;
     updated_at?: string | null;
+    /** Avance compacto de la fase en curso; el detalle vive en `phase_results`. */
+    progress?: { done?: number; total?: number } | null;
+}
+
+/** Normaliza el `progress` de la fila o del payload de Broadcast. */
+function readBlockProgress(value: unknown): { done: number; total: number } | null {
+    if (!value || typeof value !== 'object') return null;
+    const { done, total } = value as { done?: unknown; total?: unknown };
+    if (typeof done !== 'number' || typeof total !== 'number' || total <= 0) return null;
+    return { done, total };
 }
 
 function createIdempotencyKey(): string {
@@ -109,14 +119,13 @@ export class JobService {
             .channel(`analysis-job:${jobId}`, { config: { private: true } })
             .on('broadcast', { event: 'analysis_job_updated' }, (message) => {
                 const payload = (message?.payload || {}) as Record<string, unknown>;
-                const phase = this.toAnalysisPhase(String(payload.phase || ''));
                 try {
-                    onProgress?.({
-                        type: 'phase_progress',
-                        timestamp: Date.now(),
-                        phase,
-                        message: this.phaseMessage(String(payload.status || ''), String(payload.phase || '')),
-                    });
+                    this.emitDurableProgress(
+                        onProgress,
+                        String(payload.status || ''),
+                        String(payload.phase || ''),
+                        readBlockProgress(payload.progress)
+                    );
                 } catch (error) {
                     logger.error('[JobService] onProgress callback error:', error);
                 }
@@ -135,7 +144,7 @@ export class JobService {
 
                 const { data, error } = await supabase
                     .from('analysis_jobs')
-                    .select('status, result, error, phase, updated_at')
+                    .select('status, result, error, phase, updated_at, progress')
                     .eq('id', jobId)
                     .single();
 
@@ -155,18 +164,20 @@ export class JobService {
                 // report progress too — otherwise a browser that never receives a
                 // Broadcast frame sits frozen on whatever message it got at submit
                 // time while the worker is visibly advancing in the database.
-                // Keyed on status:phase (not updated_at) so a checkpoint that does
-                // not change the phase doesn't spam the same line.
-                const progressKey = `${state.status}:${state.phase}`;
+                // Keyed on status:phase plus the block counter, never on
+                // updated_at: a checkpoint that advances no block must not repeat
+                // the same line, but one that does has to be reported.
+                const blocks = readBlockProgress(state.progress);
+                const progressKey = `${state.status}:${state.phase}:${blocks ? `${blocks.done}/${blocks.total}` : ''}`;
                 if (progressKey !== lastReportedPhase) {
                     lastReportedPhase = progressKey;
                     try {
-                        onProgress?.({
-                            type: 'phase_progress',
-                            timestamp: Date.now(),
-                            phase: this.toAnalysisPhase(String(state.phase || '')),
-                            message: this.phaseMessage(String(state.status || ''), String(state.phase || '')),
-                        });
+                        this.emitDurableProgress(
+                            onProgress,
+                            String(state.status || ''),
+                            String(state.phase || ''),
+                            blocks
+                        );
                     } catch (err) {
                         logger.error('[JobService] onProgress callback error:', err);
                     }
@@ -226,6 +237,41 @@ export class JobService {
             default:
                 return null;
         }
+    }
+
+    /**
+     * Punto único por el que Broadcast y polling emiten progreso, para que las
+     * dos fuentes cuenten exactamente lo mismo.
+     *
+     * Durante la extracción emite `extraction_progress`, que es el evento que el
+     * mapeo de `ai.service` sabe convertir en avance dentro del rango de la
+     * fase; en el resto de fases basta con `phase_progress`.
+     */
+    private emitDurableProgress(
+        onProgress: ((event: AnalysisStreamEvent) => void) | undefined,
+        status: string,
+        phase: string,
+        blocks: { done: number; total: number } | null
+    ): void {
+        if (!onProgress) return;
+
+        if (phase === 'extraction' && blocks) {
+            onProgress({
+                type: 'extraction_progress',
+                timestamp: Date.now(),
+                blockIndex: blocks.done,
+                totalBlocks: blocks.total,
+                message: `Extrayendo información: ${blocks.done} de ${blocks.total} bloques...`,
+            });
+            return;
+        }
+
+        onProgress({
+            type: 'phase_progress',
+            timestamp: Date.now(),
+            phase: this.toAnalysisPhase(phase),
+            message: this.phaseMessage(status, phase),
+        });
     }
 
     private phaseMessage(status: string, phase: string): string {

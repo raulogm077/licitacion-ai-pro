@@ -259,7 +259,10 @@ async function processExtraction(input: {
         resume: extraction,
         onCheckpoint: async (checkpoint) => {
             extraction = checkpoint;
-            await input.jobService.updatePhase(jobId, 'extraction', checkpoint);
+            await input.jobService.updatePhase(jobId, 'extraction', checkpoint, {
+                done: Array.isArray(checkpoint.blocks) ? checkpoint.blocks.length : 0,
+                total: BLOCK_NAMES.length,
+            });
         },
         maxNewBlocks: EXTRACTION_BLOCKS_PER_SLICE,
     });

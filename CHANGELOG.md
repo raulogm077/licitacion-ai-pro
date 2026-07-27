@@ -118,6 +118,24 @@ Primer bloque del rediseño integral de UX hacia una identidad profesional con e
 - Cabecera con logo de marca (gradiente + Space Grotesk), header glass y contenido a `max-w-7xl`.
 - Dependencias frontend nuevas (solo cliente, no afectan al runtime Deno de las Edge Functions): `motion`, `sonner`, `recharts`, `canvas-confetti`, `tailwindcss-animate`, `@fontsource-variable/inter`, `@fontsource-variable/space-grotesk`.
 
+## [Unreleased] - 2026-07-27c — Observabilidad del análisis asíncrono
+
+Tres huecos que dejó al descubierto el primer pliego real ejecutado con Fase 1B, que **completó bien en 669 s** pero sin contarlo por el camino.
+
+### Fixed
+
+- **El polling no informaba de nada.** `recoverDurableResult` emitía `onProgress` solo desde el handler de Broadcast; su fallback documentado leía la fila para detectar estados terminales y callaba. Sin frames de Broadcast, la UI se quedaba congelada 11 minutos en el mensaje del envío y un 18 % que era el marcador de inicio de ingesta.
+- **El barrido de trabajo abandonado se quedó sin disparador.** Colgaba del inicio de `analyze-with-agents`, que Fase 1B convirtió en ruta de rollback. Pasa a `pg_cron` cada 5 minutos (migración `20260727170000`).
+- **La extracción no reportaba avance por bloque.** Nueva columna `analysis_jobs.progress` compacta, escrita en el checkpoint que el worker ya hacía e incluida en el trigger de Broadcast (migración `20260727180000`).
+
+### Changed
+
+- Los mensajes de fase dejan de filtrar el identificador interno del paso y se describen en castellano, avisando de que la extracción puede tardar varios minutos.
+
+### Límite conocido
+
+El contador refleja bloques terminados, no el progreso dentro de un bloque: uno que tarde 40 s no mueve la barra durante esos 40 s.
+
 ## [Unreleased] - 2026-07-27b — Fase 1B integrada sobre el fix de jobs zombi
 
 Integra la arquitectura asíncrona de Fase 1B (#312) sobre el `main` que ya lleva el fix de jobs zombi. Detalle en `ARCHITECTURE.md` §8.13-8.14 y `SPEC.md` §10.10-10.11.

@@ -360,3 +360,13 @@ Cambios:
 - los mensajes dejan de filtrar el identificador interno del paso (`Procesando extraction...`) y describen la fase en castellano, con aviso explícito de que la extracción puede tardar varios minutos, que es el tramo largo.
 
 Criterio de fallo asumido: durante la extracción la barra se queda en el punto medio de su rango (50 %) porque el Broadcast privado solo transporta estado y fase, sin detalle por bloque. Mostrar avance por bloque exigiría ampliar el payload y queda fuera de este arreglo.
+
+### 10.13. Barrido sin disparador y avance por bloque (2026-07-27)
+
+Dos huecos que dejó al descubierto el primer uso real de Fase 1B en producción.
+
+**El barrido de trabajo abandonado se quedó sin disparador.** `reclaim_stale_analysis_steps` se invocaba de forma oportunista al inicio de cada request de `analyze-with-agents`, que era el camino principal cuando se escribió. Fase 1B lo dejó como ruta de rollback: el flujo normal entra ahora por `analysis-jobs`, así que en la práctica el barrido dejó de ejecutarse. Verificado tras el despliegue: ~30 jobs no terminales y 0 en `dead_letter`. Pasa a un `pg_cron` cada 5 minutos, que además cubre el caso que la invocación oportunista nunca podía cubrir —un usuario que no vuelve a subir nada se quedaba con su análisis colgado indefinidamente en el historial—. Comprobado contra producción que `postgres`, el rol que ejecuta el cron y que no es superusuario, tiene los permisos reales necesarios sobre `pgmq`.
+
+**La extracción no reportaba avance.** Es el tramo largo y la barra se quedaba en el punto medio del rango de la fase durante minutos. El dato ya se persistía en cada checkpoint (`phase_results.extraction.blocks`), pero leerlo desde el navegador cada 2 s significaba descargar cientos de KB de datos y evidencias para mostrar «4 de 9». Se añade `analysis_jobs.progress`, un `{"done","total"}` compacto que el worker escribe en el mismo checkpoint, incluido en el trigger de Broadcast y en el sondeo.
+
+Criterio de fallo asumido: el contador refleja bloques terminados, no el progreso dentro de un bloque. Un bloque que tarda 40 s no mueve la barra durante esos 40 s.

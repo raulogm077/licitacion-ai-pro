@@ -394,6 +394,48 @@ describe('JobService', () => {
             ]);
         });
 
+        /**
+         * La extracción es el tramo largo. Sin contador de bloques la barra se
+         * queda clavada en el punto medio del rango de la fase durante minutos.
+         */
+        it('reports block-level progress while extraction advances', async () => {
+            const rows = [
+                { status: 'processing', phase: 'extraction', progress: { done: 2, total: 9 } },
+                { status: 'processing', phase: 'extraction', progress: { done: 2, total: 9 } }, // sin avance
+                { status: 'processing', phase: 'extraction', progress: { done: 5, total: 9 } },
+                {
+                    status: 'completed',
+                    phase: 'completed',
+                    result: { result: validContent, workflow: {} },
+                },
+            ];
+            let call = 0;
+            stubStalledJob(() => {
+                const row = rows[Math.min(call++, rows.length - 1)];
+                return { result: null, error: null, updated_at: new Date().toISOString(), ...row };
+            });
+
+            const events: Array<{ done?: number; total?: number }> = [];
+            vi.useFakeTimers();
+            try {
+                const pending = service.analyzeWithAgents('base64', 'file.pdf', null, (event) => {
+                    if (event.type === 'extraction_progress') {
+                        events.push({ done: event.blockIndex, total: event.totalBlocks });
+                    }
+                });
+                await vi.advanceTimersByTimeAsync(30_000);
+                await pending;
+            } finally {
+                vi.useRealTimers();
+            }
+
+            // El checkpoint sin avance no debe repetir evento.
+            expect(events).toEqual([
+                { done: 2, total: 9 },
+                { done: 5, total: 9 },
+            ]);
+        });
+
         it('reports an interrupted analysis when the job never advances', async () => {
             vi.useFakeTimers();
             try {
