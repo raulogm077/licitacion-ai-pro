@@ -24,9 +24,11 @@ rango abierto (`>=X`) resuelve al máximo publicado y puede arrastrar un major s
 querer; acotar (`>=4.3.0 <5.0.0`) cuando basta con la línea actual.
 
 The `Smoke Test` job in `.github/workflows/ci-cd.yml` also asserts post-deploy
-that `verify_jwt=true` is actually effective on both Edge Functions (a POST
-without `Authorization` must return 401 from the gateway, otherwise the
-deploy fails).
+that the auth posture is actually effective: un POST sin `Authorization` debe
+devolver 401 del gateway en las tres funciones públicas (`analyze-with-agents`,
+`chat-with-analysis-agent` y `analysis-jobs`), y `analysis-worker` debe devolver
+401 de autenticación M2M cuando se le llama sin su token. Si alguna responde
+otra cosa, el deploy falla.
 
 ## Pinning
 

@@ -389,6 +389,18 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # `supabase functions deploy` command (see DEPLOYMENT.md).
 verify_jwt = true
 
+[functions.analysis-jobs]
+# Authenticated control plane. The gateway validates the user's JWT before
+# issuing signed upload tokens or accepting a submit transition.
+verify_jwt = true
+
+[functions.analysis-worker]
+# The worker is called by pg_net with a high-entropy token generated and held
+# in Supabase Vault. The handler validates its SHA-256 digest before touching
+# PGMQ or service-role data; JWT verification is disabled only for this custom
+# machine-to-machine authentication path.
+verify_jwt = false
+
 [functions.chat-with-analysis-agent]
 # Same auth posture as analyze-with-agents: gateway rejects unauthenticated
 # requests with 401 before invoking the function. The handler still calls

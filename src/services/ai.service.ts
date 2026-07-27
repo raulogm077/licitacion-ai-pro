@@ -72,7 +72,8 @@ export class AIService {
         filename?: string,
         hash?: string,
         template?: ExtractionTemplate | null,
-        files?: { name: string; base64: string }[]
+        files?: { name: string; base64: string }[],
+        uploadSources?: Array<{ file: File; sha256: string }>
     ): Promise<{ content: LicitacionContent; workflow: unknown }> {
         try {
             if (!filename || !hash) {
@@ -180,7 +181,8 @@ export class AIService {
                         }
                     },
                     files,
-                    signal
+                    signal,
+                    uploadSources
                 );
 
                 if (onProgress) onProgress(100, 100, 'Resultado validado recibido del servidor', currentPhase);
