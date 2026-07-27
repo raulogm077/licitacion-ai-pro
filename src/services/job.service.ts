@@ -259,6 +259,9 @@ export class JobService {
             onProgress({
                 type: 'extraction_progress',
                 timestamp: Date.now(),
+                // El stepper de `AnalyzingStep` se ilumina con la fase, así que
+                // el evento debe llevarla aunque el progreso vaya por bloque.
+                phase: 'extraction',
                 blockIndex: blocks.done,
                 totalBlocks: blocks.total,
                 message: `Extrayendo información: ${blocks.done} de ${blocks.total} bloques...`,

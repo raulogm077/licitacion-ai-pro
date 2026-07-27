@@ -436,6 +436,32 @@ describe('JobService', () => {
             ]);
         });
 
+        it('carries the phase on block progress so the UI stepper can highlight it', async () => {
+            stubStalledJob(() => ({
+                status: 'processing',
+                phase: 'extraction',
+                result: null,
+                error: null,
+                updated_at: new Date().toISOString(),
+                progress: { done: 3, total: 9 },
+            }));
+
+            const phases: Array<string | undefined> = [];
+            vi.useFakeTimers();
+            try {
+                const pending = service.analyzeWithAgents('base64', 'file.pdf', null, (event) => {
+                    if (event.type === 'extraction_progress') phases.push(event.phase);
+                });
+                const assertion = expect(pending).rejects.toThrow();
+                await vi.advanceTimersByTimeAsync(31 * 60 * 1000);
+                await assertion;
+            } finally {
+                vi.useRealTimers();
+            }
+
+            expect(phases).toEqual(['extraction']);
+        });
+
         it('reports an interrupted analysis when the job never advances', async () => {
             vi.useFakeTimers();
             try {

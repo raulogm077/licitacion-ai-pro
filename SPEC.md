@@ -369,4 +369,6 @@ Dos huecos que dejó al descubierto el primer uso real de Fase 1B en producción
 
 **La extracción no reportaba avance.** Es el tramo largo y la barra se quedaba en el punto medio del rango de la fase durante minutos. El dato ya se persistía en cada checkpoint (`phase_results.extraction.blocks`), pero leerlo desde el navegador cada 2 s significaba descargar cientos de KB de datos y evidencias para mostrar «4 de 9». Se añade `analysis_jobs.progress`, un `{"done","total"}` compacto que el worker escribe en el mismo checkpoint, incluido en el trigger de Broadcast y en el sondeo.
 
+**El stepper de fases tampoco se iluminaba.** Encontrado al revisar el propio arreglo: `AnalyzingStep` resuelve la fase activa con `ANALYSIS_PHASES.indexOf(currentPhase)`, y `ai.service` solo asignaba `currentPhase` en `phase_started`/`phase_completed`, eventos exclusivos de SSE. En el camino asíncrono la fase viaja dentro del propio evento de progreso, así que `currentPhase` se quedaba en `null`, `activeIndex` en `-1` y ninguna fase aparecía activa durante todo el análisis. Ahora el evento de progreso por bloque lleva su `phase` y `ai.service` la propaga.
+
 Criterio de fallo asumido: el contador refleja bloques terminados, no el progreso dentro de un bloque. Un bloque que tarda 40 s no mueve la barra durante esos 40 s.
