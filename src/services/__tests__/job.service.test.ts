@@ -299,6 +299,92 @@ describe('JobService', () => {
         expect(mockSupabase.from).toHaveBeenCalledWith('analysis_jobs');
     });
 
+    /**
+     * A killed Edge Function isolate leaves the job in `processing` with no
+     * error: slow and dead look identical if you only read `status`. The only
+     * signal the browser has is whether the row moves at all.
+     */
+    describe('durable recovery of a job that stopped advancing', () => {
+        function stubStalledJob(rows: () => Record<string, unknown>) {
+            vi.stubGlobal(
+                'fetch',
+                vi.fn().mockResolvedValue(
+                    buildSseStream([
+                        {
+                            type: 'job_created',
+                            jobId: 'job-stalled',
+                            status: 'processing',
+                            created: true,
+                            timestamp: Date.now(),
+                        },
+                    ])
+                )
+            );
+
+            const single = vi.fn().mockImplementation(() => Promise.resolve({ data: rows(), error: null }));
+            const eq = vi.fn().mockReturnValue({ single });
+            const select = vi.fn().mockReturnValue({ eq });
+            mockSupabase.from.mockReturnValue({ select });
+        }
+
+        it('reports an interrupted analysis when the job never advances', async () => {
+            vi.useFakeTimers();
+            try {
+                // Exactly what the worker leaves behind when the platform pulls
+                // the isolate mid-extraction: frozen row, no error written.
+                stubStalledJob(() => ({
+                    status: 'processing',
+                    result: null,
+                    error: null,
+                    phase: 'extraction',
+                    updated_at: '2026-07-27T12:09:16.916Z',
+                }));
+
+                const pending = service.analyzeWithAgents('base64', 'file.pdf');
+                const assertion = expect(pending).rejects.toThrow(/se interrumpió antes de terminar/);
+                await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+                await assertion;
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('keeps the "still running" message while the job is still advancing', async () => {
+            vi.useFakeTimers();
+            try {
+                let tick = 0;
+                stubStalledJob(() => ({
+                    status: 'processing',
+                    result: null,
+                    error: null,
+                    phase: 'extraction',
+                    updated_at: new Date(Date.UTC(2026, 6, 27, 12, 9, ++tick)).toISOString(),
+                }));
+
+                const pending = service.analyzeWithAgents('base64', 'file.pdf');
+                const assertion = expect(pending).rejects.toThrow(/sigue en curso/);
+                await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+                await assertion;
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('surfaces the durable error once the job is reclaimed into a terminal state', async () => {
+            stubStalledJob(() => ({
+                status: 'dead_letter',
+                result: null,
+                error: 'El análisis se interrumpió antes de terminar y no dejó resultado recuperable.',
+                phase: 'failed',
+                updated_at: '2026-07-27T13:00:00.000Z',
+            }));
+
+            await expect(service.analyzeWithAgents('base64', 'file.pdf')).rejects.toThrow(
+                /no dejó resultado recuperable/
+            );
+        });
+    });
+
     it('throws "Sesión expirada" when 401 retry refresh fails', async () => {
         mockSupabase.auth.refreshSession.mockResolvedValue({
             data: { session: null },

@@ -34,22 +34,66 @@ export const CHAT_MODEL = 'gpt-5.4';
 export const API_CALL_TIMEOUT_MS = 90_000;
 
 /**
- * Global pipeline timeout in milliseconds (280s).
- * ⚠️  Requires Supabase Edge Function timeout ≥ 300s.
- *     Configure at: Dashboard → Project Settings → Edge Functions → Function Timeout.
- *     Free tier default is 150s — upgrade to Pro or increase the limit before
- *     this value takes effect. If the Supabase hard limit is lower than this
- *     value, the function will be killed abruptly (502) instead of sending a
- *     graceful SSE error to the client.
+ * Reads a positive integer from the environment, falling back to `fallback`.
+ * `deno test` runs the shared modules without `--allow-env`, so a denied read
+ * must degrade to the default instead of throwing at import time.
+ */
+function readEnvMs(name: string, fallback: number, min: number, max: number): number {
+    let raw: string | undefined;
+    try {
+        raw = Deno.env.get(name);
+    } catch {
+        return fallback;
+    }
+    if (!raw) return fallback;
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < min || parsed > max) return fallback;
+    return parsed;
+}
+
+/**
+ * Wall-clock ceiling the Supabase platform enforces on a single Edge Function
+ * invocation. This is NOT a value we choose — it is the platform's, and the
+ * pipeline budget has to fit underneath it.
+ *
+ * Free plan: 150s. Pro can raise it to 400s at
+ * Dashboard → Project Settings → Edge Functions → Function Timeout.
+ * After raising it there, set the `EDGE_WALL_CLOCK_MS` function secret to the
+ * same value so the pipeline actually uses the extra budget.
+ *
+ * Getting this wrong is not a soft failure: when the pipeline outlives the
+ * platform ceiling the isolate is killed abruptly — no catch, no finally, no
+ * in-code timeout — so the durable step stays `running` and the job stays
+ * `processing` forever. That is exactly how zombie jobs were produced before
+ * `reclaim_stale_analysis_steps` existed.
+ */
+export const EDGE_WALL_CLOCK_MS = readEnvMs('EDGE_WALL_CLOCK_MS', 150_000, 60_000, 400_000);
+
+/**
+ * Head-room reserved so the graceful-failure path can still run: persist the
+ * step failure (one RPC) and flush the SSE `error` event before the platform
+ * pulls the isolate. 10s is generous for that work while giving up as little
+ * usable analysis time as possible.
+ */
+export const PIPELINE_SHUTDOWN_MARGIN_MS = 10_000;
+
+/**
+ * Global pipeline timeout, derived from the platform ceiling so the in-code
+ * guard always fires FIRST. A run that would exceed this was going to be killed
+ * anyway; tripping the guard converts a silent zombie into a clean, explained
+ * failure the user can act on.
  *
  * Budget breakdown for a ~100-page document:
  *   Ingestion (upload + indexing): ~45s
  *   Document Map: ~20s
- *   Block Extraction (9 blocks, all concurrent): ~60-90s
+ *   Block Extraction (9 blocks, BLOCK_CONCURRENCY at a time): ~60-90s
  *   Consolidation + Validation: ~15s
- *   Total typical: ~140-170s  — worst case: ~250s
+ *   Total typical: ~140-170s
+ *
+ * On the free plan that budget is ~140s, so multi-document expedientes sit at
+ * or over the ceiling: they need either the Pro timeout or the async worker.
  */
-export const PIPELINE_TIMEOUT_MS = 280_000;
+export const PIPELINE_TIMEOUT_MS = EDGE_WALL_CLOCK_MS - PIPELINE_SHUTDOWN_MARGIN_MS;
 
 /** Maximum payload size in bytes (50MB) */
 export const MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;

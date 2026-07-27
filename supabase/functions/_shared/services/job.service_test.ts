@@ -46,3 +46,39 @@ Deno.test('startStep enqueues before trying to claim the lease', async () => {
 
     assertEquals(calls, ['enqueue_analysis_step', 'claim_analysis_step']);
 });
+
+Deno.test('reclaimStaleSteps maps the sweep rows for logging', async () => {
+    const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+    const client = {
+        rpc(name: string, args: Record<string, unknown>) {
+            calls.push({ name, args });
+            return Promise.resolve({
+                data: [
+                    { reclaimed_job_id: 'job-1', reclaimed_step_name: 'extraction', outcome: 'dead_letter' },
+                    { reclaimed_job_id: 'job-2', reclaimed_step_name: null, outcome: 'orphaned' },
+                ],
+                error: null,
+            });
+        },
+    } as unknown as SupabaseClient;
+
+    const service = new JobService(client);
+    const reclaimed = await service.reclaimStaleSteps(5);
+
+    assertEquals(calls[0].name, 'reclaim_stale_analysis_steps');
+    assertEquals(calls[0].args.p_limit, 5);
+    assertEquals(reclaimed, [
+        { jobId: 'job-1', stepName: 'extraction', outcome: 'dead_letter' },
+        { jobId: 'job-2', stepName: null, outcome: 'orphaned' },
+    ]);
+});
+
+Deno.test('reclaimStaleSteps treats an empty sweep as a no-op', async () => {
+    const client = {
+        rpc() {
+            return Promise.resolve({ data: null, error: null });
+        },
+    } as unknown as SupabaseClient;
+
+    assertEquals(await new JobService(client).reclaimStaleSteps(), []);
+});

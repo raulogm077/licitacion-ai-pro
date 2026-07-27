@@ -186,6 +186,33 @@ export class JobService {
         if (error) throw new Error(`Failed to mark job as failed: ${error.message}`);
     }
 
+    /**
+     * Moves abandoned work out of its non-terminal state.
+     *
+     * The transitional worker is the HTTP request itself, so when the platform
+     * kills the isolate nothing runs: no catch, no finally, no in-code timeout.
+     * The step is left `running` with a lease nobody owns, and `claim_analysis_step`
+     * only accepts `queued`/`retrying` — without this sweep the job never leaves
+     * `processing` and the user waits on an analysis that will never advance.
+     */
+    async reclaimStaleSteps(limit = 10): Promise<Array<{ jobId: string; stepName: string | null; outcome: string }>> {
+        const { data, error } = await this.supabase.rpc('reclaim_stale_analysis_steps', {
+            p_limit: limit,
+        });
+        if (error) throw new Error(`Failed to reclaim stale steps: ${error.message}`);
+
+        const rows = (data || []) as Array<{
+            reclaimed_job_id: string;
+            reclaimed_step_name: string | null;
+            outcome: string;
+        }>;
+        return rows.map((row) => ({
+            jobId: row.reclaimed_job_id,
+            stepName: row.reclaimed_step_name,
+            outcome: row.outcome,
+        }));
+    }
+
     async markForCleanup(jobId: string, cleanupAt: string): Promise<void> {
         const { error } = await this.supabase.from('analysis_jobs').update({ cleanup_at: cleanupAt }).eq('id', jobId);
         if (error) throw new Error(`Failed to mark job for cleanup: ${error.message}`);

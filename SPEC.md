@@ -310,3 +310,24 @@ Primer corte productivo de la Fase 1 aprobada en ADR-001:
 - anon/authenticated no pueden mutar jobs, documentos, steps ni outbox; las mutaciones usan `service_role` solo dentro de la Edge Function.
 
 Compatibilidad: el resultado canónico, los eventos de fase y la proyección del dashboard no cambian. En este corte el worker continúa inline y el request todavía transporta base64; consumidor independiente, Realtime y upload firmado quedan para el siguiente corte de Fase 1.
+
+### 10.10. Jobs zombi: techo de plataforma y lease sin recuperación (2026-07-27)
+
+Reporte de producción: un pliego formado por dos PDF terminaba en «Error en el análisis» con el cuerpo «El análisis sigue en curso. Vuelve a abrirlo desde tu historial en unos minutos». El mensaje se contradecía porque el estado real no era ninguno de los dos: el job estaba muerto y nadie lo sabía.
+
+Evidencia sobre el job afectado:
+
+- `ingestion_map` completó en 34 s; `extraction` arrancó y no volvió a escribir nunca, sin `last_error`;
+- tres caminos de error independientes (el `catch` del pipeline, el `finally` y el `setTimeout` de `PIPELINE_TIMEOUT_MS`) no dejaron rastro, lo que solo es compatible con una muerte abrupta del isolate;
+- el plan de la organización es free, cuyo techo de invocación son 150 s, mientras `PIPELINE_TIMEOUT_MS` valía 280 s: el guard de código era inalcanzable;
+- un análisis de un solo PDF (0,68 MB) completaba en 119 s, justo por debajo del techo; el fallido llevaba 3,85 MB en dos documentos;
+- 27 de 80 jobs estaban atrapados en estado no terminal por el mismo motivo.
+
+Cambios aplicados:
+
+- `PIPELINE_TIMEOUT_MS` se deriva de `EDGE_WALL_CLOCK_MS` menos un margen de apagado, para que el guard dispare antes que la plataforma y el fallo se persista;
+- `reclaim_stale_analysis_steps` recupera pasos con lease expirado y jobs huérfanos, con `dead_letter` cuando no existe consumidor capaz de reanudarlos y reencolado cuando sí lo hay;
+- el barrido corre oportunistamente en cada request de `analyze-with-agents`;
+- `recoverDurableResult` deja de afirmar que un análisis interrumpido sigue en curso.
+
+Criterio de fallo asumido: en plan free un expediente multi-documento sigue sin caber en el techo. La entrega convierte el zombi en un fallo explicado y reintentable, no en un análisis correcto; cerrarlo del todo exige el timeout de Pro o el worker asíncrono.
