@@ -508,6 +508,14 @@ Cierre de las observaciones de la revisión de §8.16. `blockIndex` queda defini
 
 **Fecha:** 2026-07-27
 
+### 8.18 Capa de simulación económica (Implementado 2026-07-27)
+
+`src/lib/scoring.ts` interpreta la fórmula de precio y el umbral de anormalidad que el pipeline ya extraía como texto. Es una capa **post-extracción y de cliente**: no toca el schema canónico, ni los prompts, ni el contrato de análisis, y corre en el navegador porque la simulación es interactiva.
+
+El módulo es de funciones puras y devuelve `null` o un fallo con motivo siempre que le falte un dato o no reconozca el patrón, en lugar de asumir valores. Esa decisión es lo que separa una herramienta de decisión de un generador de cifras plausibles.
+
+**Fecha:** 2026-07-27
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

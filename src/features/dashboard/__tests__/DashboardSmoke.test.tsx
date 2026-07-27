@@ -8,6 +8,7 @@ import { tf } from '../../../test-utils/tracked-field-factory';
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
     Menu: () => <span data-testid="icon-menu" />,
+    Calculator: () => <span data-testid="icon-calculator" />,
     X: () => <span data-testid="icon-x" />,
     Search: () => <span data-testid="icon-search" />,
     LogOut: () => <span data-testid="icon-logout" />,

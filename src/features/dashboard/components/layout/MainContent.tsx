@@ -3,6 +3,7 @@ import { KpiCards } from '../widgets/KpiCards';
 import { SummarySection } from '../widgets/SummarySection';
 import { AlertsPanel } from '../widgets/AlertsPanel';
 import { ScoringChart } from '../widgets/ScoringChart';
+import { PriceSimulator } from '../widgets/PriceSimulator';
 import { RiskSummary } from '../widgets/RiskSummary';
 
 export function MainContent({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (section: string) => void }) {
@@ -21,6 +22,7 @@ export function MainContent({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (sec
                             <ScoringChart vm={vm} />
                             <RiskSummary vm={vm} />
                         </div>
+                        <PriceSimulator vm={vm} />
                     </div>
 
                     {/* Right column — Alerts */}

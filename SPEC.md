@@ -382,3 +382,31 @@ Tres puntos que la revisión de #327 dejó anotados y que se cierran aquí.
 **`progress` se quedaba pegado al salir de la extracción.** `COALESCE(p_progress, progress)` es lo correcto dentro de una fase, porque el worker hace checkpoints que no siempre aportan contador, pero al pasar a consolidación el valor dejaba de significar nada y sobrevivía en la fila indefinidamente. Ahora se limpia en la transición, comparando la fase entrante con la almacenada, y los cierres de job (`completeJob`, `failJob`) lo anulan explícitamente.
 
 **El contador no estaba acotado.** El emisor actual no puede salirse de rango, pero `done / total` alimenta directamente el porcentaje: un valor corrupto se traduciría en una barra que retrocede o se pasa. `readBlockProgress` acota a `[0, total]` y rechaza valores no finitos.
+
+## 11. Simulación de oferta económica (2026-07-27)
+
+Primer paso del salto de «extractor» a «analista» descrito en la Guía §4. El pipeline ya extraía `formula`, `ponderacion` y `umbralAnormalidad`, pero como texto libre: se mostraban tal cual y nadie los interpretaba.
+
+`src/lib/scoring.ts` los convierte en algo evaluable y responde dos preguntas que decide un licitador antes de presentarse: cuántos puntos saca con un precio y a partir de qué importe entra en baja temeraria.
+
+### Qué se reconoce
+
+| Familia | Ejemplo | Origen |
+| --- | --- | --- |
+| Proporcionalidad inversa | `40 x (oferta mínima / oferta analizada)` | fixture real del benchmark |
+| Proporcional a la baja | `50 x (baja de la oferta / baja máxima)` | — |
+| Lineal sobre presupuesto | `P × (PBL − oferta) / (PBL − oferta mínima)` | — |
+| Umbral contra presupuesto | `un 25% por debajo del presupuesto base` | — |
+| Umbral contra la media | `un 10% inferior a la media` | fixture real del benchmark |
+
+### Decisiones de diseño
+
+**No adivinar.** Cuando el texto no encaja con un patrón conocido se devuelve un fallo explícito con el motivo y la interfaz dice que no es simulable. Un número calculado sobre una fórmula mal interpretada es peor que no dar ninguno: parece autoridad y no lo es.
+
+**La puntuación se presenta como escenarios, no como cifra única.** La fórmula más común depende de la oferta más baja de los rivales, que el licitador no conoce al decidir su precio. Dar un número exacto sería falsa precisión, así que se muestra qué pasa si alguien baja un 5, 10 o 15 %.
+
+**El umbral sobre la media se declara no anticipable.** No existe hasta la apertura de plicas; `anomalyLimit` devuelve `null` y la interfaz lo explica en vez de callarlo.
+
+### Criterio de fallo asumido
+
+El simulador cubre las familias de fórmula más frecuentes en pliegos españoles, no todas. Una fórmula con tramos, topes o coeficientes correctores cae en «no simulable» — que es el comportamiento correcto, pero significa que la cobertura real depende del pliego. Ampliarla exige casos nuevos, no relajar los patrones.
