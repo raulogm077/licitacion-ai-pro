@@ -482,6 +482,26 @@ En el frontend, `recoverDurableResult` distingue por primera vez «lento» de «
 
 **Fecha:** 2026-07-27
 
+### 8.15 El fallback de polling deja de ser mudo (Implementado 2026-07-27)
+
+El primer pliego real ejecutado con Fase 1B completó en 669 s —cuatro pasos en verde, resultado persistido, muy por encima del techo de 150 s que antes lo mataba—, pero la interfaz estuvo esos 11 minutos mostrando «análisis asíncrono en cola» y un 18 % congelado.
+
+`recoverDurableResult` emitía `onProgress` únicamente desde el handler de Broadcast. El bucle de polling leía `status` y `phase` para detectar estados terminales, pero no informaba de nada. Broadcast es best-effort por diseño y el polling es su fallback documentado; un fallback que no reporta progreso deja al navegador clavado en el último evento recibido al enviar, indistinguible de un cuelgue.
+
+Ahora el polling emite `phase_progress` cuando cambia `status:phase` —clave sin `updated_at`, para que un checkpoint que no cambia de fase no repita línea— y los mensajes describen la fase en castellano en vez de filtrar el identificador interno del paso.
+
+**Fecha:** 2026-07-27
+
+### 8.16 Barrido programado y avance por bloque (Implementado 2026-07-27)
+
+El primer uso real de Fase 1B dejó al descubierto dos huecos.
+
+`reclaim_stale_analysis_steps` colgaba del inicio de `analyze-with-agents`, que Fase 1B convirtió en ruta de rollback: el barrido se quedó sin disparador efectivo y dejó de limpiar nada. Pasa a `pg_cron` cada 5 minutos —frecuencia baja a propósito, porque no desbloquea trabajo en curso sino que cierra trabajo ya muerto— y con `p_limit` acotado para drenar una acumulación histórica poco a poco.
+
+Y la extracción, que es el tramo largo, no reportaba avance al navegador. El dato ya existía en cada checkpoint, pero vivía dentro del JSON pesado de `phase_results`. Se expone en una columna `progress` compacta que el worker escribe en el mismo checkpoint y que el trigger de Broadcast vigila, de modo que Realtime y polling ven lo mismo.
+
+**Fecha:** 2026-07-27
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

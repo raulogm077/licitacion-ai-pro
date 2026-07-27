@@ -270,7 +270,15 @@ Con Fase 1B esa laguna se reparte entre dos mecanismos que no se solapan, y el r
 
 Un lease todavía vigente nunca se toca, así que el barrido no puede matar trabajo en vuelo; y es idempotente (una segunda pasada recupera 0 filas). Es `SECURITY INVOKER` y ejecutable solo por `service_role`, igual que el resto de RPC durables. Lo dispara `analyze-with-agents` de forma oportunista al inicio de cada request.
 
-### 7.4. Presupuesto de ejecución atado al techo de plataforma
+### 7.4. Progreso visible durante la ejecución asíncrona
+
+El navegador tiene dos fuentes de progreso y **ambas deben emitir**: el Broadcast privado `analysis-job:<jobId>`, que es best-effort, y el polling RLS de `analysis_jobs`, que es su fallback. Durante Fase 1B el polling solo leía la fila para detectar estados terminales, así que una ejecución sin frames de Broadcast dejaba la UI congelada en el mensaje del envío pese a que el worker avanzaba (ver `SPEC.md` §10.12).
+
+Ambas fuentes emiten por el mismo punto (`emitDurableProgress`), para que cuenten lo mismo. La clave de deduplicación es `status:phase` más el contador de bloques, nunca `updated_at`: el worker hace varios checkpoints dentro de una fase y repetir la línea en cada uno sería ruido, pero uno que sí avanza un bloque tiene que reportarse.
+
+Durante la extracción se emite `extraction_progress` en vez de `phase_progress`, que es el evento que `ai.service` sabe proyectar dentro del rango de la fase (20-80). El dato sale de la columna `analysis_jobs.progress`, un `{"done","total"}` compacto que el worker escribe en el mismo checkpoint que ya hacía. Se separó a propósito de `phase_results`: ese JSON lleva los datos y las evidencias de cada bloque —cientos de KB— y el navegador lo sondea cada 2 s, así que leerlo entero solo para pintar «4 de 9» sería desproporcionado. El trigger de Broadcast incluye `progress` en su lista de columnas vigiladas; sin eso, un checkpoint de bloque no despertaría a nadie.
+
+### 7.5. Presupuesto de ejecución atado al techo de plataforma
 
 `PIPELINE_TIMEOUT_MS` ya no es una constante suelta: se deriva de `EDGE_WALL_CLOCK_MS` (150 s por defecto, el techo del plan free) menos `PIPELINE_SHUTDOWN_MARGIN_MS` (10 s). Si el pipeline sobrevive al techo de la plataforma, el isolate muere sin ejecutar `catch`, `finally` ni el `setTimeout` del pipeline, y el paso queda en `running` para siempre. Derivarlo garantiza que el guard de código dispare primero y el fallo llegue a persistirse.
 

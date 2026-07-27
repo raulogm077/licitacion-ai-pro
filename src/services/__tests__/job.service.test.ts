@@ -351,6 +351,117 @@ describe('JobService', () => {
             mockSupabase.from.mockReturnValue({ select });
         }
 
+        /**
+         * Broadcast is best-effort: if no frame reaches the browser, polling is
+         * the only thing left. It used to read the row and say nothing, so the UI
+         * froze on the submit-time message while the worker advanced in the DB.
+         */
+        it('reports each phase from polling when no Broadcast frame arrives', async () => {
+            const rows = [
+                { status: 'processing', phase: 'ingestion_map' },
+                { status: 'processing', phase: 'extraction' },
+                { status: 'processing', phase: 'extraction' }, // checkpoint sin cambio de fase
+                { status: 'processing', phase: 'consolidation' },
+                {
+                    status: 'completed',
+                    phase: 'completed',
+                    result: { result: validContent, workflow: {} },
+                },
+            ];
+            let call = 0;
+            stubStalledJob(() => {
+                const row = rows[Math.min(call++, rows.length - 1)];
+                return { result: null, error: null, updated_at: new Date().toISOString(), ...row };
+            });
+
+            const seen: string[] = [];
+            vi.useFakeTimers();
+            try {
+                const pending = service.analyzeWithAgents('base64', 'file.pdf', null, (event) => {
+                    if (event.type === 'phase_progress' && event.message) seen.push(event.message);
+                });
+                // 5 sondeos a 2s cada uno hasta que la fila llega a `completed`.
+                await vi.advanceTimersByTimeAsync(30_000);
+                await pending;
+            } finally {
+                vi.useRealTimers();
+            }
+
+            expect(seen).toEqual([
+                'Subiendo e indexando los documentos...',
+                'Extrayendo la información del expediente (puede tardar varios minutos)...',
+                'Consolidando los resultados...',
+            ]);
+        });
+
+        /**
+         * La extracción es el tramo largo. Sin contador de bloques la barra se
+         * queda clavada en el punto medio del rango de la fase durante minutos.
+         */
+        it('reports block-level progress while extraction advances', async () => {
+            const rows = [
+                { status: 'processing', phase: 'extraction', progress: { done: 2, total: 9 } },
+                { status: 'processing', phase: 'extraction', progress: { done: 2, total: 9 } }, // sin avance
+                { status: 'processing', phase: 'extraction', progress: { done: 5, total: 9 } },
+                {
+                    status: 'completed',
+                    phase: 'completed',
+                    result: { result: validContent, workflow: {} },
+                },
+            ];
+            let call = 0;
+            stubStalledJob(() => {
+                const row = rows[Math.min(call++, rows.length - 1)];
+                return { result: null, error: null, updated_at: new Date().toISOString(), ...row };
+            });
+
+            const events: Array<{ done?: number; total?: number }> = [];
+            vi.useFakeTimers();
+            try {
+                const pending = service.analyzeWithAgents('base64', 'file.pdf', null, (event) => {
+                    if (event.type === 'extraction_progress') {
+                        events.push({ done: event.blockIndex, total: event.totalBlocks });
+                    }
+                });
+                await vi.advanceTimersByTimeAsync(30_000);
+                await pending;
+            } finally {
+                vi.useRealTimers();
+            }
+
+            // El checkpoint sin avance no debe repetir evento.
+            expect(events).toEqual([
+                { done: 2, total: 9 },
+                { done: 5, total: 9 },
+            ]);
+        });
+
+        it('carries the phase on block progress so the UI stepper can highlight it', async () => {
+            stubStalledJob(() => ({
+                status: 'processing',
+                phase: 'extraction',
+                result: null,
+                error: null,
+                updated_at: new Date().toISOString(),
+                progress: { done: 3, total: 9 },
+            }));
+
+            const phases: Array<string | undefined> = [];
+            vi.useFakeTimers();
+            try {
+                const pending = service.analyzeWithAgents('base64', 'file.pdf', null, (event) => {
+                    if (event.type === 'extraction_progress') phases.push(event.phase);
+                });
+                const assertion = expect(pending).rejects.toThrow();
+                await vi.advanceTimersByTimeAsync(31 * 60 * 1000);
+                await assertion;
+            } finally {
+                vi.useRealTimers();
+            }
+
+            expect(phases).toEqual(['extraction']);
+        });
+
         it('reports an interrupted analysis when the job never advances', async () => {
             vi.useFakeTimers();
             try {

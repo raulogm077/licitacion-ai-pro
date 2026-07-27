@@ -219,14 +219,26 @@ export class JobService {
         }
     }
 
-    async updatePhase(jobId: string, phase: string, phaseResult?: unknown): Promise<void> {
-        console.log(`[Job ${jobId}] Phase: ${phase}`);
+    /**
+     * `progress` es el avance compacto ({done,total}) que el navegador sondea
+     * cada pocos segundos. Deliberadamente separado de `phaseResult`: ese lleva
+     * los bloques con sus datos y evidencias, demasiado pesado para leerlo solo
+     * para pintar «4 de 9».
+     */
+    async updatePhase(
+        jobId: string,
+        phase: string,
+        phaseResult?: unknown,
+        progress?: { done: number; total: number }
+    ): Promise<void> {
+        console.log(`[Job ${jobId}] Phase: ${phase}${progress ? ` (${progress.done}/${progress.total})` : ''}`);
 
         const { error } = await this.supabase.rpc('record_analysis_phase', {
             p_job_id: jobId,
             p_phase: phase,
             p_phase_result: phaseResult ?? null,
             p_document_map: phase === 'document_map' ? (phaseResult ?? null) : null,
+            p_progress: progress ?? null,
         });
         if (error) throw new Error(`Failed to update job phase: ${error.message}`);
     }

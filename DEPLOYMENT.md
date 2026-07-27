@@ -198,6 +198,20 @@ El token `analysis_worker_token` no se crea con `supabase secrets set`: la migra
 
 No hay otros secretos backend personalizados operativos. Cualquier secret remoto huérfano (ej. `USE_AGENTS_SDK`, eliminado del código el 2026-05-09) puede borrarse con `supabase secrets unset <NAME>` sin afectar runtime.
 
+## 6.1. Tareas programadas en Postgres (`pg_cron`)
+
+Tres trabajos, todos registrados por migración con `cron.schedule`, que hace upsert por nombre:
+
+| Nombre | Frecuencia | Qué hace |
+| --- | --- | --- |
+| `analysis-worker-recovery-sweep` | cada 10 s | Despierta al worker si hay pasos en cola, reintentando o con lease vencido |
+| `analysis-resource-cleanup` | cada hora | Limpieza TTL de recursos OpenAI, Storage y filas de documentos |
+| `analysis-stale-step-reclaim` | cada 5 min | Cierra trabajo abandonado que ningún consumidor puede retomar |
+
+El tercero se añadió el 2026-07-27 porque el barrido colgaba del inicio de `analyze-with-agents`, que Fase 1B dejó como ruta de rollback: sin ese cron dejó de ejecutarse (ver `SPEC.md` §10.13). Su frecuencia es baja a propósito — no desbloquea trabajo en curso, solo cierra el ya muerto.
+
+Se ejecutan como `postgres` con `SECURITY INVOKER`, así que dependen de grants reales y no de superusuario. Para inspeccionarlos: `select jobname, schedule, active from cron.job;`.
+
 ## 7. Validación posterior al despliegue
 
 Después del despliegue, QA debe comprobar al menos:

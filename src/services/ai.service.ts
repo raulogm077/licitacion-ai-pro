@@ -116,6 +116,12 @@ export class AIService {
                         if (!onProgress) return;
 
                         const phase = ('phase' in event ? event.phase : undefined) || currentPhase;
+                        // `currentPhase` alimenta el stepper de la UI y antes solo
+                        // lo movían `phase_started`/`phase_completed`, que son
+                        // eventos exclusivos de SSE. En el camino asíncrono la fase
+                        // llega dentro del propio evento de progreso, así que sin
+                        // esto el stepper se quedaba sin ninguna fase activa.
+                        if (phase) currentPhase = phase;
 
                         if (event.type !== 'retry_scheduled' && event.type !== 'heartbeat') {
                             clearRetryCountdown();

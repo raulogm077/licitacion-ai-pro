@@ -38,6 +38,16 @@ interface DurableJobState {
     error?: string | null;
     phase?: string | null;
     updated_at?: string | null;
+    /** Avance compacto de la fase en curso; el detalle vive en `phase_results`. */
+    progress?: { done?: number; total?: number } | null;
+}
+
+/** Normaliza el `progress` de la fila o del payload de Broadcast. */
+function readBlockProgress(value: unknown): { done: number; total: number } | null {
+    if (!value || typeof value !== 'object') return null;
+    const { done, total } = value as { done?: unknown; total?: unknown };
+    if (typeof done !== 'number' || typeof total !== 'number' || total <= 0) return null;
+    return { done, total };
 }
 
 function createIdempotencyKey(): string {
@@ -95,6 +105,7 @@ export class JobService {
     ): Promise<{ result: unknown; workflow?: unknown }> {
         const deadline = Date.now() + RECOVERY_TIMEOUT_MS;
         let lastSignature: string | null = null;
+        let lastReportedPhase: string | null = null;
         let sawProgress = false;
 
         if (accessToken) await supabase.realtime.setAuth(accessToken);
@@ -108,14 +119,13 @@ export class JobService {
             .channel(`analysis-job:${jobId}`, { config: { private: true } })
             .on('broadcast', { event: 'analysis_job_updated' }, (message) => {
                 const payload = (message?.payload || {}) as Record<string, unknown>;
-                const phase = this.toAnalysisPhase(String(payload.phase || ''));
                 try {
-                    onProgress?.({
-                        type: 'phase_progress',
-                        timestamp: Date.now(),
-                        phase,
-                        message: this.phaseMessage(String(payload.status || ''), String(payload.phase || '')),
-                    });
+                    this.emitDurableProgress(
+                        onProgress,
+                        String(payload.status || ''),
+                        String(payload.phase || ''),
+                        readBlockProgress(payload.progress)
+                    );
                 } catch (error) {
                     logger.error('[JobService] onProgress callback error:', error);
                 }
@@ -134,7 +144,7 @@ export class JobService {
 
                 const { data, error } = await supabase
                     .from('analysis_jobs')
-                    .select('status, result, error, phase, updated_at')
+                    .select('status, result, error, phase, updated_at, progress')
                     .eq('id', jobId)
                     .single();
 
@@ -148,6 +158,29 @@ export class JobService {
 
                 if (['failed', 'cancelled', 'dead_letter'].includes(state.status)) {
                     throw new Error(state.error || 'El análisis no pudo completarse');
+                }
+
+                // Polling is the documented fallback for Broadcast, so it has to
+                // report progress too — otherwise a browser that never receives a
+                // Broadcast frame sits frozen on whatever message it got at submit
+                // time while the worker is visibly advancing in the database.
+                // Keyed on status:phase plus the block counter, never on
+                // updated_at: a checkpoint that advances no block must not repeat
+                // the same line, but one that does has to be reported.
+                const blocks = readBlockProgress(state.progress);
+                const progressKey = `${state.status}:${state.phase}:${blocks ? `${blocks.done}/${blocks.total}` : ''}`;
+                if (progressKey !== lastReportedPhase) {
+                    lastReportedPhase = progressKey;
+                    try {
+                        this.emitDurableProgress(
+                            onProgress,
+                            String(state.status || ''),
+                            String(state.phase || ''),
+                            blocks
+                        );
+                    } catch (err) {
+                        logger.error('[JobService] onProgress callback error:', err);
+                    }
                 }
 
                 // The job row only moves when a phase or step transitions, so a
@@ -183,10 +216,84 @@ export class JobService {
         return undefined;
     }
 
+    /**
+     * Nombre en castellano de cada paso durable. El identificador interno
+     * (`ingestion_map`, `extraction`…) se filtraba tal cual a la UI, que es
+     * justo lo que hacía imposible saber qué estaba pasando.
+     */
+    private phaseLabel(phase: string): string | null {
+        switch (phase) {
+            case 'ingestion':
+            case 'ingestion_map':
+                return 'subiendo e indexando los documentos';
+            case 'document_map':
+                return 'analizando la estructura del expediente';
+            case 'extraction':
+                return 'extrayendo la información del expediente';
+            case 'consolidation':
+                return 'consolidando los resultados';
+            case 'validation':
+                return 'validando el resultado';
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Punto único por el que Broadcast y polling emiten progreso, para que las
+     * dos fuentes cuenten exactamente lo mismo.
+     *
+     * Durante la extracción emite `extraction_progress`, que es el evento que el
+     * mapeo de `ai.service` sabe convertir en avance dentro del rango de la
+     * fase; en el resto de fases basta con `phase_progress`.
+     */
+    private emitDurableProgress(
+        onProgress: ((event: AnalysisStreamEvent) => void) | undefined,
+        status: string,
+        phase: string,
+        blocks: { done: number; total: number } | null
+    ): void {
+        if (!onProgress) return;
+
+        if (phase === 'extraction' && blocks) {
+            onProgress({
+                type: 'extraction_progress',
+                timestamp: Date.now(),
+                // El stepper de `AnalyzingStep` se ilumina con la fase, así que
+                // el evento debe llevarla aunque el progreso vaya por bloque.
+                phase: 'extraction',
+                blockIndex: blocks.done,
+                totalBlocks: blocks.total,
+                message: `Extrayendo información: ${blocks.done} de ${blocks.total} bloques...`,
+            });
+            return;
+        }
+
+        onProgress({
+            type: 'phase_progress',
+            timestamp: Date.now(),
+            phase: this.toAnalysisPhase(phase),
+            message: this.phaseMessage(status, phase),
+        });
+    }
+
     private phaseMessage(status: string, phase: string): string {
-        if (status === 'retrying') return `Reintentando la fase ${phase || 'actual'}...`;
-        if (status === 'queued') return `Fase ${phase || 'siguiente'} en cola...`;
-        if (status === 'processing') return `Procesando ${phase || 'análisis'}...`;
+        const label = this.phaseLabel(phase);
+
+        if (status === 'retrying') {
+            return label ? `Reintentando: ${label}...` : 'Reintentando el paso actual...';
+        }
+        if (status === 'queued' || status === 'pending') {
+            return label ? `En cola: ${label}...` : 'Análisis en cola...';
+        }
+        if (status === 'processing') {
+            // La extracción es el tramo largo: el worker la trocea en slices, así
+            // que conviene decir explícitamente que sigue avanzando y no colgada.
+            if (phase === 'extraction') {
+                return 'Extrayendo la información del expediente (puede tardar varios minutos)...';
+            }
+            return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}...` : 'Procesando el análisis...';
+        }
         return 'Actualizando el estado del análisis...';
     }
 
