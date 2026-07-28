@@ -125,7 +125,7 @@ Deno.test('runValidation does NOT blame the document when the indexing poll fail
             indexingElapsedMs: 90000,
             indexingTimedOut: true,
             zeroCompletedFiles: false,
-            pollFailed: true,
+            countsUnreliable: true,
         },
         extraction: {
             sawRateLimit: true,
@@ -150,7 +150,7 @@ Deno.test('runValidation keeps the low-signal reason when file counts are real',
             indexingElapsedMs: 90000,
             indexingTimedOut: false,
             zeroCompletedFiles: true,
-            pollFailed: false,
+            countsUnreliable: false,
         },
     });
 

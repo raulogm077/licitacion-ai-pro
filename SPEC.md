@@ -536,3 +536,35 @@ Ser más estricto es seguro —como mucho cuesta una re-consulta sobre una secci
 La Fase C **sabe** que el bloque volvió vacío; la Fase E solo tiene una heurística que confunde un default con contenido. Cuando la certeza y la heurística chocan, manda la certeza — acotada por `evidenceCount === 0` para no pisar una sección que la consolidación sí rellenó desde otro bloque.
 
 **Lección transferible:** al añadir una comprobación que depende de otra fase, la definición compartida (aquí, «qué es una sección vacía») tiene que ser explícitamente la misma o explícitamente más estricta. Dos definiciones parecidas y distintas producen un mecanismo que parece activo y no lo está.
+
+### 11.6. El contador que nunca se midió (2026-07-28)
+
+Tercera aparición de la misma familia. Las dos ejecuciones de validación de §11.5 mostraban al usuario:
+
+> «PDF con señal baja o indexación incompleta… Reintenta con un PDF con mejor OCR»
+
+sobre el mismo expediente del que la extracción sacaba el PBL con cita literal y página, y del que la segunda ejecución extrajo los criterios completos. Los diagnósticos de ingesta:
+
+```
+completedFiles: 0,  inProgressFiles: 0,  failedFiles: 0
+indexingElapsedMs: 0      ← el bucle salió en la primera vuelta
+zeroCompletedFiles: true  ← y de ese cero salía el aviso
+```
+
+**Causa.** `waitForVectorStoreIndexing` trataba `in_progress === 0` como «la indexación terminó». Pero al adjuntar ficheros a un Vector Store hay un instante en que `file_counts` responde con **todo a cero**: el lote existe y aún no se ha contabilizado. En ese momento `in_progress === 0` no significa «terminó», significa **«no ha empezado»** — no hay trabajo en curso porque no hay trabajo aún. El bucle salía con `indexingElapsedMs: 0` y derivaba `zeroCompletedFiles` de un cero que nunca fue una medición.
+
+**Arreglo.** `in_progress === 0` solo cierra el bucle si algo llegó a contarse (`completed + failed + in_progress > 0`). Con todo a cero se sigue esperando hasta `VECTOR_STORE_REGISTRATION_GRACE_MS` (10 s; en la práctica el lote se registra en 1-2 s, así que el caso normal no paga nada). Si tras la gracia sigue vacío, se continúa —el índice suele ser utilizable— pero declarando que los contadores no miden nada.
+
+### Una sola bandera, no dos parecidas
+
+`pollFailed` pasa a llamarse `countsUnreliable` y cubre las dos causas: el sondeo falló, o respondió sin nada que contar. Mantenerlas separadas obligaría a recordar comprobar ambas en cada consumidor — que es literalmente cómo se apagó el mecanismo de §11.5, con dos definiciones parecidas de «vacío». La lección de §11.5 aplicada antes de tropezar otra vez.
+
+### El patrón, ya con tres casos
+
+| Fecha              | Qué se afirmaba                              | Sobre qué evidencia                                   |
+| ------------------ | -------------------------------------------- | ----------------------------------------------------- |
+| 2026-07-12         | «PDF con señal baja / OCR pobre»             | contadores tras un sondeo que **falló**               |
+| 2026-07-28 (§11.4) | «la sección no está en tus documentos»       | extracción vacía **sin contrastar** con el mapa       |
+| 2026-07-28 (§11.6) | «PDF con señal baja / indexación incompleta» | contadores de un sondeo que **no llegó a ejecutarse** |
+
+La regla que los une, y que conviene aplicar antes de escribir el siguiente diagnóstico: **antes de afirmar algo sobre el documento del usuario, comprobar que el dato en el que se apoya es una medición y no un valor por defecto.** Un cero no medido y un cero medido son indistinguibles en el tipo, y solo se separan si alguien lo hace explícito.

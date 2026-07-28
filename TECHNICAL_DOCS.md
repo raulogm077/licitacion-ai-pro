@@ -447,3 +447,18 @@ El contraste lo aporta el mapa documental de la Fase B, que ya marcaba por docum
 Ser más estricto es seguro: como mucho cuesta una re-consulta sobre una sección pobre. Ser más laxo **apaga el mecanismo sin que nada falle** — ocurrió con `umbralAnormalidad` en el job `8e851069`.
 
 Por el mismo motivo, el diagnóstico `retrieval_failed` no exige `status === 'VACIO'`: se aplica si el bloque está en `emptyDespiteMapBlocks` y la sección está `VACIO` **o** no aporta evidencias. La Fase C tiene certeza; la Fase E, una heurística.
+
+### 7.10. `countsUnreliable`: cuándo los contadores de ingesta no dicen nada
+
+`IngestionDiagnostics.countsUnreliable` (antes `pollFailed`) marca que los contadores **no son una medición** y por tanto no permiten juzgar el documento. `derivePartialReasons` lo comprueba antes de emitir `ocr_or_indexing_low_signal`.
+
+Se activa en dos situaciones, deliberadamente bajo la misma bandera:
+
+| Causa                                                | Qué ocurrió                    | `zeroCompletedFiles` |
+| ---------------------------------------------------- | ------------------------------ | -------------------- |
+| El sondeo de estado falló (429, red)                 | nunca se leyó `file_counts`    | `false`              |
+| El sondeo respondió con todo a cero pasada la gracia | el lote no llegó a registrarse | `false`              |
+
+En ambas, `zeroCompletedFiles` se deja en `false` a propósito: solo puede afirmarse sobre un recuento real.
+
+El bucle de espera cierra únicamente cuando `in_progress === 0` **y** `completed + failed + in_progress > 0`. Con los tres a cero sigue esperando hasta `VECTOR_STORE_REGISTRATION_GRACE_MS` (10 s), porque en ese estado `in_progress === 0` significa «aún no ha empezado», no «terminó». La ventana es parametrizable en la firma —igual que `pollRetryOptions`— para que el test del caso no duerma 13 s de reloj real.
