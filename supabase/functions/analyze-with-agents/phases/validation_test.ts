@@ -303,6 +303,42 @@ Deno.test('runValidation no acusa al documento cuando el fallo fue de recuperaci
     );
 });
 
+Deno.test('runValidation no reporta "present" sobre una sección que la Fase C sabe vacía', () => {
+    // Regresión del job `8e851069`: `economico` falló el guardrail JSON dos
+    // veces y la búsqueda dirigida tampoco recuperó nada, pero la Fase E lo
+    // puntuó PARCIAL porque `moneda: 'EUR'` cuenta como valor presente. El
+    // diagnóstico salió `present` —«contiene información utilizable»— con
+    // evidenceCount 0 y los tres importes en null. La certeza de la Fase C
+    // tiene que ganar a la heurística de la Fase E.
+    const consolidated = createConsolidatedResult();
+    consolidated.result.economico = {
+        presupuestoBaseLicitacion: tf(null, 'no_encontrado'),
+        valorEstimadoContrato: tf(null, 'no_encontrado'),
+        importeIVA: tf(null, 'no_encontrado'),
+        tipoIVA: null,
+        desglosePorLotes: [],
+        moneda: 'EUR',
+    };
+    consolidated.allEvidences = [];
+
+    const { workflow } = runValidation({
+        consolidated,
+        extraction: {
+            sawRateLimit: false,
+            degradedByRateLimit: false,
+            degradedBlocks: [],
+            emptyDespiteMapBlocks: ['economico'],
+        },
+    });
+
+    const diagnostico = workflow.quality?.section_diagnostics?.economico;
+    assertEquals(diagnostico?.code, 'retrieval_failed');
+    assert(
+        !diagnostico?.message.includes('utilizable'),
+        'no puede afirmarse que una sección sin un solo dato sea utilizable'
+    );
+});
+
 Deno.test('runValidation sigue acusando al documento cuando el mapa tampoco lo situaba', () => {
     // El bug espejo: si la sección de verdad no está en el expediente, el
     // consejo correcto SIGUE siendo completar la documentación.

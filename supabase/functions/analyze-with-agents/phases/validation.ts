@@ -273,7 +273,17 @@ function deriveSectionDiagnostics(context: SectionDiagnosticContext): Record<str
         // tras la búsqueda dirigida, el fallo es nuestro, no del expediente.
         // Decir lo contrario manda al usuario a buscar un documento que ya
         // subió (mismo error que el falso «OCR pobre» de 2026-07-12).
-        if (status === 'VACIO' && context.emptyDespiteMapBlocks.includes(sectionName)) {
+        //
+        // No basta con exigir `VACIO`. La Fase C **sabe** que el bloque volvió
+        // vacío; la Fase E solo tiene una heurística que confunde un default
+        // con contenido: `economico` puntúa PARCIAL por `moneda: 'EUR'` aunque
+        // los tres importes sean null, y así el job `8e851069` acabó
+        // reportando `present` —«contiene información utilizable»— sobre una
+        // sección sin un solo dato ni evidencia. Cuando la certeza y la
+        // heurística chocan manda la certeza, acotada por `evidenceCount === 0`
+        // para no pisar una sección que la consolidación sí rellenó desde otro
+        // bloque.
+        if (context.emptyDespiteMapBlocks.includes(sectionName) && (status === 'VACIO' || evidenceCount === 0)) {
             diagnostics[sectionName] = {
                 code: 'retrieval_failed',
                 message: `La sección ${sectionName} figura en el expediente según el mapa documental, pero la extracción no logró recuperarla.`,

@@ -560,6 +560,18 @@ El reparto de responsabilidad queda: la Fase C detecta la contradicción y re-co
 
 **Fecha:** 2026-07-28
 
+### 8.23 La definición compartida de «vacío» tiene que ser una sola (Implementado 2026-07-28)
+
+Validar §8.22 con un pliego real reveló que el mecanismo estaba activo solo a medias, por dos defectos suyos (`SPEC.md` §11.5).
+
+El primero es el que deja lección arquitectónica: la Fase C decidía si un bloque estaba vacío con un predicado propio, y la Fase E puntuaba la misma sección con otro. Parecidos, pero distintos — el de la Fase C aceptaba `umbralAnormalidad` como señal y el de la Fase E solo mira `subjetivos` y `objetivos`. Bastó esa diferencia para que un bloque con el umbral citado y cero criterios se declarase «con contenido», no se re-consultase, y acabase reportado como `VACIO` culpando al documento. **Un mecanismo que depende de dos definiciones parecidas de lo mismo parece activo y no lo está.**
+
+La invariante queda escrita en el propio módulo: cada predicado de bloque debe ser **al menos tan estricto** como la noción de vacío de la Fase E para esa sección. La asimetría es intencionada — pasarse de estricto cuesta una re-consulta sobre una sección pobre; quedarse corto apaga el mecanismo en silencio.
+
+El segundo defecto invierte la jerarquía entre fases: la Fase C **sabe** que un bloque volvió vacío, mientras que la Fase E solo tiene una heurística que puede confundir un default (`moneda: 'EUR'`) con contenido. Cuando la certeza y la heurística chocan, manda la certeza.
+
+**Fecha:** 2026-07-28
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

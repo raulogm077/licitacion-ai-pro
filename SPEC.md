@@ -518,3 +518,21 @@ Subir reintentos o temperatura (el fallo es de recuperación, no de muestreo); u
 ### Límite conocido
 
 El mecanismo depende de que el mapa documental acierte. En las tres ejecuciones el mapa marcó `contieneCriterios: false` en el PCAP dos veces —cuando un PCAP siempre los lleva—, así que el prior es útil pero no perfecto: basta con que **algún** documento prometa el bloque. Un expediente donde el mapa fallase en todos los documentos seguiría cayendo en el diagnóstico antiguo, que en ese caso ya no es una mentira sino una limitación declarada.
+
+### 11.5. Dos defectos del propio arreglo, encontrados validándolo (2026-07-28)
+
+La primera ejecución de validación de §11.4 (job `8e851069`) demostró que el mecanismo funcionaba a medias y destapó dos fallos introducidos por él.
+
+**Funcionó lo que tenía que funcionar.** El bloque `economico` falló el guardrail JSON dos veces, la re-consulta dirigida tampoco recuperó nada y quedó correctamente registrado en `emptyDespiteMapBlocks`.
+
+**Defecto 1 — el predicado de vacío era más laxo que la Fase E.** El bloque de criterios volvió con `umbralAnormalidad` citado (pág. 7) y **cero criterios**. `isBlockEmpty` aceptaba el umbral como señal, así que declaró el bloque «con contenido» y la re-consulta no se disparó; pero `evaluateArraysQuality` solo mira `subjetivos` y `objetivos`, de modo que la Fase E puntuó `VACIO` y el diagnóstico cayó otra vez en `missing_in_uploaded_docs`. De ahí la invariante que ahora encabeza el módulo:
+
+> Cada predicado de bloque debe ser **al menos tan estricto** como la noción de vacío que la Fase E aplica a la misma sección.
+
+Ser más estricto es seguro —como mucho cuesta una re-consulta sobre una sección pobre—; ser más laxo apaga el mecanismo en silencio.
+
+**Defecto 2 — el diagnóstico honesto exigía `VACIO`.** `economico` sí estaba en `emptyDespiteMapBlocks`, pero la Fase E lo puntuó `PARCIAL` porque `moneda: 'EUR'` cuenta como valor presente en `evaluateObjectQuality`. Resultado: `present`, «la sección contiene información utilizable para el dashboard», con `evidenceCount: 0` y los tres importes en `null`. Una mentira nueva, distinta de la que se venía a corregir.
+
+La Fase C **sabe** que el bloque volvió vacío; la Fase E solo tiene una heurística que confunde un default con contenido. Cuando la certeza y la heurística chocan, manda la certeza — acotada por `evidenceCount === 0` para no pisar una sección que la consolidación sí rellenó desde otro bloque.
+
+**Lección transferible:** al añadir una comprobación que depende de otra fase, la definición compartida (aquí, «qué es una sección vacía») tiene que ser explícitamente la misma o explícitamente más estricta. Dos definiciones parecidas y distintas producen un mecanismo que parece activo y no lo está.
