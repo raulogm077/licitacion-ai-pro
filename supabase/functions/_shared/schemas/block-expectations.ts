@@ -128,7 +128,12 @@ const HAS_SIGNAL: Record<ExpectedBlockName, (data: Record<string, unknown>) => b
         hasText(d.fechaInicio) ||
         hasText(d.fechaFin),
 
-    criteriosAdjudicacion: (d) => count(d.subjetivos) > 0 || count(d.objetivos) > 0 || hasText(d.umbralAnormalidad),
+    // El umbral de anormalidad NO cuenta como señal. Es un campo accesorio y la
+    // sección existe para los criterios. Incluirlo —como hacía la primera
+    // versión— dejó pasar en producción (job `8e851069`) un bloque con el
+    // umbral citado y CERO criterios: el mecanismo no disparó, no hubo
+    // re-consulta, y el usuario volvió a leer que sus documentos no los traían.
+    criteriosAdjudicacion: (d) => count(d.subjetivos) > 0 || count(d.objetivos) > 0,
 
     requisitosSolvencia: (d) => {
         const economica = section(d.economica);
@@ -141,6 +146,25 @@ const HAS_SIGNAL: Record<ExpectedBlockName, (data: Record<string, unknown>) => b
 
     modeloServicio: (d) => count(d.sla) > 0 || count(d.equipoMinimo) > 0,
 };
+
+/**
+ * Invariante que hace que todo esto funcione, aprendida rompiéndola en
+ * producción (2026-07-28, job `8e851069`):
+ *
+ * > **Cada predicado debe ser al menos tan estricto como la noción de vacío que
+ * > la Fase E aplica a la misma sección.**
+ *
+ * Si el bloque se declara «con contenido» y la Fase E puntúa la sección
+ * `VACIO`, la re-consulta no se dispara nunca y el diagnóstico cae en
+ * `missing_in_uploaded_docs` — es decir, se culpa al documento, que es
+ * exactamente el fallo que este módulo viene a cerrar. `criteriosAdjudicacion`
+ * incumplía la invariante al aceptar `umbralAnormalidad` como señal mientras
+ * `evaluateArraysQuality` solo mira `subjetivos` y `objetivos`.
+ *
+ * Ser **más** estricto que la Fase E sí es seguro: como mucho provoca una
+ * re-consulta de más sobre una sección pobre. Por eso `economico` ignora
+ * `moneda` aunque `evaluateObjectQuality` la cuente.
+ */
 
 /**
  * `true` solo si el bloque tiene predicado conocido **y** no aporta señal.

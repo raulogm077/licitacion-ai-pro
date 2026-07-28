@@ -160,14 +160,15 @@ Deno.test('isBlockEmpty distingue vacío de contenido en criterios', () => {
         isBlockEmpty('criteriosAdjudicacion', { subjetivos: [], objetivos: [{ descripcion: 'Precio' }] }),
         false
     );
-    // El umbral de anormalidad por sí solo ya es contenido útil.
+    // El umbral por sí solo NO salva la sección: ver el test dedicado más
+    // abajo. Esta aserción decía lo contrario y era el bug.
     assertEquals(
         isBlockEmpty('criteriosAdjudicacion', {
             subjetivos: [],
             objetivos: [],
             umbralAnormalidad: { value: 'Baja del 25%', status: 'extraido' },
         }),
-        false
+        true
     );
 });
 
@@ -191,6 +192,26 @@ Deno.test('isBlockEmpty no se deja engañar por los defaults del schema', () => 
     );
     // Importe legacy sin envolver: sigue contando como contenido.
     assertEquals(isBlockEmpty('economico', { valorEstimadoContrato: 120000 }), false);
+});
+
+Deno.test('el umbral de anormalidad NO salva a un bloque de criterios sin criterios', () => {
+    // Regresión del job `8e851069`: el bloque volvió con umbralAnormalidad
+    // citado (pág. 7) y cero criterios. La primera versión del predicado lo
+    // daba por «con contenido», así que no hubo re-consulta y el usuario leyó
+    // otra vez que sus documentos no traían los criterios — mientras la Fase E
+    // puntuaba la sección VACIO. El predicado tiene que ser al menos tan
+    // estricto como la Fase E.
+    const soloUmbral = {
+        subjetivos: [],
+        objetivos: [],
+        umbralAnormalidad: {
+            value: 'Se aplicará el artículo 149.2 de la LCSP para ofertas anormalmente bajas.',
+            status: 'extraido',
+            evidence: { quote: 'artículo 149.2', pageHint: '7' },
+        },
+    };
+    assertEquals(isBlockEmpty('criteriosAdjudicacion', soloUmbral), true);
+    assertEquals(isEmptyDespiteMap('criteriosAdjudicacion', soloUmbral, MAP), true);
 });
 
 Deno.test('isBlockEmpty nunca afirma vacío sobre un bloque que no sabe juzgar', () => {

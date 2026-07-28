@@ -430,3 +430,20 @@ El contraste lo aporta el mapa documental de la Fase B, que ya marcaba por docum
 | lo sitúa    | con contenido          | `present`                                    | —                             |
 
 `extraction_incomplete` se evalúa **antes** que `missing_administrative_content` en la guía del dashboard, y las secciones marcadas quedan excluidas del recuento de huecos documentales: sin eso el usuario recibía las dos mentiras a la vez, el capítulo diciendo que su PCAP no trae los criterios y la guía global pidiéndole el PCAP que ya había subido.
+
+### 7.9. Invariante del predicado de vacío
+
+`isBlockEmpty` (Fase C) y `evaluateArraysQuality`/`evaluateObjectQuality` (Fase E) juzgan lo mismo desde sitios distintos. Para que la re-consulta dirigida de §7.8 se dispare cuando debe:
+
+> **Cada predicado de `HAS_SIGNAL` debe ser al menos tan estricto como la noción de vacío que la Fase E aplica a esa sección.**
+
+| Sección                 | Fase E cuenta                       | `HAS_SIGNAL` cuenta          | Relación       |
+| ----------------------- | ----------------------------------- | ---------------------------- | -------------- |
+| `criteriosAdjudicacion` | `subjetivos`, `objetivos`           | `subjetivos`, `objetivos`    | igual ✔        |
+| `economico`             | todas las claves, incluida `moneda` | solo PBL / VEC / IVA / lotes | más estricto ✔ |
+| `duracionYProrrogas`    | todas las claves                    | solo duraciones y fechas     | más estricto ✔ |
+| resto                   | arrays de la sección                | los mismos arrays            | igual ✔        |
+
+Ser más estricto es seguro: como mucho cuesta una re-consulta sobre una sección pobre. Ser más laxo **apaga el mecanismo sin que nada falle** — ocurrió con `umbralAnormalidad` en el job `8e851069`.
+
+Por el mismo motivo, el diagnóstico `retrieval_failed` no exige `status === 'VACIO'`: se aplica si el bloque está en `emptyDespiteMapBlocks` y la sección está `VACIO` **o** no aporta evidencias. La Fase C tiene certeza; la Fase E, una heurística.
