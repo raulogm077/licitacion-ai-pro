@@ -21,7 +21,12 @@ import { jsonShapeGuardrail } from '../../_shared/agents/guardrails.ts';
 import { BLOCK_SCHEMAS } from '../../_shared/schemas/blocks.ts';
 import type { BlockName } from '../../_shared/schemas/blocks.ts';
 import { modelForBlock } from '../../_shared/config.ts';
-import { buildBlockSystemPrompt, BLOCK_USER_PROMPTS, withJsonReinforcement } from '../prompts/index.ts';
+import {
+    buildBlockSystemPrompt,
+    BLOCK_USER_PROMPTS,
+    withJsonReinforcement,
+    withTargetedRetrieval,
+} from '../prompts/index.ts';
 
 export function buildBlockAgent(blockName: BlockName, vectorStoreId: string) {
     return new Agent<PipelineContext>({
@@ -52,6 +57,15 @@ export function buildBlockAgent(blockName: BlockName, vectorStoreId: string) {
     });
 }
 
-export function buildBlockInput(blockName: BlockName, reinforceJson: boolean | undefined): string {
-    return withJsonReinforcement(BLOCK_USER_PROMPTS[blockName], reinforceJson);
+export function buildBlockInput(
+    blockName: BlockName,
+    reinforceJson: boolean | undefined,
+    /**
+     * Documentos que el mapa documental señaló como portadores de este bloque.
+     * Solo se pasa en la re-consulta dirigida, cuando la primera pasada volvió
+     * vacía pese a la promesa del mapa.
+     */
+    targetDocuments: Array<{ nombre: string; tipo: string }> = []
+): string {
+    return withTargetedRetrieval(withJsonReinforcement(BLOCK_USER_PROMPTS[blockName], reinforceJson), targetDocuments);
 }

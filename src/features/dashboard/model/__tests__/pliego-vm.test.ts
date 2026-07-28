@@ -291,6 +291,23 @@ describe('buildPliegoVM — guidance por motivo de parcialidad', () => {
     });
 });
 
+describe('buildPliegoVM — el fallo de recuperación se cuenta como propio', () => {
+    it('prioriza el aviso de extracción incompleta sobre pedir más documentación', () => {
+        // Sin esta prioridad el usuario recibía las dos mentiras a la vez: el
+        // capítulo diciendo que su PCAP no trae los criterios, y la guía global
+        // pidiéndole que subiera el PCAP que ya había subido.
+        const vm = buildPliegoVM(
+            withQuality(createEmptyLicitacionData(), {
+                partial_reasons: ['extraction_incomplete', 'missing_administrative_content'],
+            })
+        );
+
+        expect(vm.guidance?.title).toContain('Extracción incompleta');
+        expect(vm.guidance?.nextStep).toContain('Reintenta');
+        expect(vm.guidance?.nextStep).not.toContain('Sube');
+    });
+});
+
 describe('buildPliegoVM — mensajes de capítulo vacío según diagnóstico', () => {
     const diagnosticFor = (code: string) =>
         withQuality(createEmptyLicitacionData(), {
@@ -304,6 +321,17 @@ describe('buildPliegoVM — mensajes de capítulo vacío según diagnóstico', (
         const servicio = vm.chapters.find((c) => c.id === 'servicio');
 
         expect(servicio?.emptyMessage?.text).toContain('evidencia útil');
+    });
+
+    it('no manda a subir nada cuando el fallo fue de recuperación, no del documento', () => {
+        // Incidente 2026-07-28: el PCAP sí traía los criterios y la app decía
+        // que sus documentos no mostraban señal suficiente. El consejo correcto
+        // es reintentar, nunca buscar un documento que ya está subido.
+        const vm = buildPliegoVM(diagnosticFor('retrieval_failed'));
+        const servicio = vm.chapters.find((c) => c.id === 'servicio');
+
+        expect(servicio?.emptyMessage?.text).toContain('Reintenta');
+        expect(servicio?.emptyMessage?.text).not.toContain('Sube');
     });
 
     it('usa el mensaje por defecto ante un código de diagnóstico desconocido', () => {

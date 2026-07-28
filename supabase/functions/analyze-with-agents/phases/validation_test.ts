@@ -106,6 +106,7 @@ Deno.test('runValidation surfaces ingestion and retry degradation reasons', () =
             sawRateLimit: true,
             degradedByRateLimit: true,
             degradedBlocks: ['datosGenerales'],
+            emptyDespiteMapBlocks: [],
         },
     });
 
@@ -130,6 +131,7 @@ Deno.test('runValidation does NOT blame the document when the indexing poll fail
             sawRateLimit: true,
             degradedByRateLimit: false,
             degradedBlocks: [],
+            emptyDespiteMapBlocks: [],
         },
     });
 
@@ -258,4 +260,69 @@ Deno.test('runValidation still treats null, undefined and empty string as empty'
     const { workflow } = runValidation({ consolidated });
 
     assertEquals(workflow.quality?.bySection?.economico, 'VACIO');
+});
+
+// ─── No culpar al documento de un fallo propio ───────────────────────────────
+//
+// Incidente 2026-07-28: el mapa documental situaba los criterios de
+// adjudicación en el PCAP, la extracción volvió vacía, y la Fase E respondió
+// `missing_in_uploaded_docs` — «tus documentos no muestran señal suficiente» —
+// sobre un PCAP que sí los llevaba. Es la misma familia del falso «OCR pobre»
+// de 2026-07-12: el pipeline falla y el usuario carga con la culpa.
+
+Deno.test('runValidation no acusa al documento cuando el fallo fue de recuperación', () => {
+    const consolidated = createConsolidatedResult();
+    consolidated.result.criteriosAdjudicacion = {
+        subjetivos: [],
+        objetivos: [],
+        umbralAnormalidad: tf(null, 'no_encontrado'),
+    };
+
+    const { workflow } = runValidation({
+        consolidated,
+        extraction: {
+            sawRateLimit: false,
+            degradedByRateLimit: false,
+            degradedBlocks: [],
+            emptyDespiteMapBlocks: ['criteriosAdjudicacion'],
+        },
+    });
+
+    const diagnostico = workflow.quality?.section_diagnostics?.criteriosAdjudicacion;
+    assertEquals(diagnostico?.code, 'retrieval_failed');
+    assert(
+        !diagnostico?.message.includes('documentos subidos'),
+        'el mensaje no debe insinuar que falta documentación del usuario'
+    );
+
+    const reasons = workflow.quality?.partial_reasons || [];
+    assert(reasons.includes('extraction_incomplete'), 'debe declararse como fallo de extracción');
+    assert(
+        !reasons.includes('missing_administrative_content'),
+        'una sección perdida por recuperación no cuenta como documentación administrativa ausente'
+    );
+});
+
+Deno.test('runValidation sigue acusando al documento cuando el mapa tampoco lo situaba', () => {
+    // El bug espejo: si la sección de verdad no está en el expediente, el
+    // consejo correcto SIGUE siendo completar la documentación.
+    const consolidated = createConsolidatedResult();
+    consolidated.result.criteriosAdjudicacion = {
+        subjetivos: [],
+        objetivos: [],
+        umbralAnormalidad: tf(null, 'no_encontrado'),
+    };
+
+    const { workflow } = runValidation({
+        consolidated,
+        extraction: {
+            sawRateLimit: false,
+            degradedByRateLimit: false,
+            degradedBlocks: [],
+            emptyDespiteMapBlocks: [],
+        },
+    });
+
+    assertEquals(workflow.quality?.section_diagnostics?.criteriosAdjudicacion?.code, 'missing_in_uploaded_docs');
+    assert(!(workflow.quality?.partial_reasons || []).includes('extraction_incomplete'));
 });

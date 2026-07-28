@@ -548,6 +548,18 @@ Lo que no se veía venir estaba en las dos fases deterministas, que corren sobre
 
 **Fecha:** 2026-07-27
 
+### 8.22 El guardrail sintáctico no cubre el vacío semántico (Implementado 2026-07-28)
+
+`jsonShapeGuardrail` valida la forma de la salida, no su sustancia. Cuando `file_search` no recupera nada, el modelo responde —correctamente— con un JSON vacío y conforme al schema, y esa respuesta atraviesa intacta el guardrail, la fase de extracción, la consolidación y la validación, hasta convertirse en «tus documentos no traen esta sección». Ocurrió en producción con un PCAP de 8,5 M€ que sí traía los criterios de adjudicación (`SPEC.md` §11.4).
+
+La corrección no añade un juez ni un modelo nuevo: **usa un prior que el pipeline ya calculaba y tiraba**. El mapa documental de la Fase B marca por documento qué contiene, y es una lectura independiente del mismo corpus. Cuando esa lectura y la extracción se contradicen, hay señal de fallo de recuperación; cuando coinciden, la ausencia es real.
+
+`_shared/schemas/block-expectations.ts` concentra la relación bloque ↔ bandera del mapa y el predicado de vacío. Es el único módulo del pipeline **sin `@ts-nocheck`**, deliberadamente: de él depende decidir si un bloque se reintenta o se da por bueno, y es lógica pura sin SDK, así que puede estar type-checkeada y cubierta por tests deterministas — que importa porque el único gate semántico del repo, `eval:pliegos:live`, es manual.
+
+El reparto de responsabilidad queda: la Fase C detecta la contradicción y re-consulta dirigiendo la búsqueda; la Fase E traduce el resultado a un diagnóstico que solo acusa al documento cuando su propia lectura independiente está de acuerdo.
+
+**Fecha:** 2026-07-28
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

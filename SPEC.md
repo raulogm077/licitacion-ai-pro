@@ -466,3 +466,55 @@ Ninguna de las dos habría roto un test existente ni un `deno check`. Apareciero
 ### Mejora colateral
 
 Cuando `datosGenerales.presupuesto` se rellena desde el bloque económico, hereda ahora la evidencia del importe de origen. La cita que respalda el número es la de donde salió, no la del bloque que no lo encontró.
+
+### 11.4. El vacío silencioso de la extracción (2026-07-28)
+
+Primer análisis con el grounding de importes en producción. El expediente (PCAP + PPT, 8,5 M€) completó en 164 s, el PBL salió con cita literal y página, y **`criteriosAdjudicacion` volvió vacío**: cero criterios, cero ponderaciones. La app respondió `missing_in_uploaded_docs` — «la sección no muestra señal suficiente en los documentos subidos» — sobre un PCAP que sí los llevaba.
+
+Cuatro ejecuciones de los mismos dos PDFs, tres de ellas con los prompts anteriores, sitúan el fallo antes de este cambio y lo describen como intermitente: 21:25 completo, 21:30 vacío, mismos ficheros.
+
+### La cadena causal
+
+```
+file_search no recupera → el modelo (bien) no inventa → JSON vacío y VÁLIDO
+  → jsonShapeGuardrail: pasa, porque valida forma y no sustancia
+  → extractBlockWithAgent: retorna normal, sin excepción → sin degradedBlocks
+  → consolidación: fusiona arrays vacíos, nada que reconciliar
+  → validación: 0 ítems → VACIO → missing_in_uploaded_docs → culpa al usuario
+```
+
+El checkpoint lo confirma: `blockCount: 9`, `sawRateLimit: false`, `degradedBlocks: []`, `attempt_count: 1`. No hubo error, ni 429, ni timeout. **El pipeline no distinguía «no lo encontré» de «no existe»**, y el guardrail es una puerta sintáctica que por diseño no puede distinguirlas.
+
+### El prior que ya existía y se tiraba
+
+La Fase B construye el mapa documental y marca por documento `contieneCriterios`, `contienePresupuesto`, `contieneSolvencia`… Hasta ahora eso solo alimentaba el contexto del prompt. Es una **segunda lectura independiente del mismo corpus**, y en las tres ejecuciones fallidas decía que los criterios estaban ahí:
+
+| Job        | Mapa             | Extracción  |                |
+| ---------- | ---------------- | ----------- | -------------- |
+| `0f707cdb` | PCAP sí + PPT sí | vacío       | se contradicen |
+| `54fadbb0` | PPT sí           | vacío       | se contradicen |
+| `b48b69f4` | PPT sí           | encontrados | coherente      |
+
+Cuando las dos lecturas se contradicen, el sistema elegía en silencio la que da peor resultado.
+
+### Qué se hace ahora
+
+`_shared/schemas/block-expectations.ts` declara qué bandera del mapa promete cada bloque (siete de nueve; `datosGenerales` y `anexosYObservaciones` no tienen bandera y quedan fuera) y un predicado de vacío explícito por bloque. Si un bloque vuelve vacío **y** el mapa lo prometía, se re-consulta **una** vez nombrando el documento concreto, para darle a `file_search` un ancla léxica que la consulta genérica no tenía. Si sigue vacío, se registra en `emptyDespiteMapBlocks` y la Fase E responde `retrieval_failed` en vez de `missing_in_uploaded_docs`, con `extraction_incomplete` en `partial_reasons` y un consejo que dice «reintenta», no «sube más documentación».
+
+### Decisiones de diseño
+
+**El prior es gratis y el coste solo aparece cuando algo falla.** No hay llamada nueva en el camino feliz; el reintento vive dentro de la tarea del bloque, así que el modelo de slices y el lease de 155 s no se tocan.
+
+**La re-consulta cambia la consulta, no la repite.** Repetir una llamada no determinista sin cambiar nada es superstición: lo que falló fue la recuperación, no el muestreo. El sufijo nombra el fichero y **cierra autorizando el vacío** — sin esa cláusula, «búscalo otra vez» se convierte en presión para inventar, y un bloque alucinado es peor que uno vacío.
+
+**El predicado de vacío es explícito por bloque, no un recorrido genérico.** Los defaults del schema mienten: `EconomicoSchema.moneda` vale `'EUR'` aunque no se haya extraído un solo importe, así que un walker declararía «con contenido» un bloque económico completamente vacío.
+
+**Nunca se afirma vacío sobre un bloque sin predicado.** El sesgo es deliberado: un falso «vacío» dispararía re-consultas inútiles y acusaría de fallo a extracciones correctas, que es el bug espejo del que se cierra aquí. Ese espejo tiene test propio.
+
+### Lo que se descartó
+
+Subir reintentos o temperatura (el fallo es de recuperación, no de muestreo); un LLM-juez de completitud (caro, inverificable y añade un segundo modo de fallo que depurar); tocar `BLOCK_CONCURRENCY` o los timeouts (`sawRateLimit: false`, sin timeouts); y convertir «vacío» en error incondicional, que rompería los pliegos que legítimamente carecen de una sección.
+
+### Límite conocido
+
+El mecanismo depende de que el mapa documental acierte. En las tres ejecuciones el mapa marcó `contieneCriterios: false` en el PCAP dos veces —cuando un PCAP siempre los lleva—, así que el prior es útil pero no perfecto: basta con que **algún** documento prometa el bloque. Un expediente donde el mapa fallase en todos los documentos seguiría cayendo en el diagnóstico antiguo, que en ese caso ya no es una mentira sino una limitación declarada.

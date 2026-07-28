@@ -9,6 +9,10 @@ export const ANALYSIS_PARTIAL_REASONS = [
     'missing_technical_content',
     'rate_limited_recovered',
     'rate_limited_degraded',
+    // La extracción no recuperó una sección que el mapa documental situaba en
+    // el expediente. Es un fallo del pipeline, no una carencia del documento:
+    // el mensaje al usuario NO debe pedirle que suba nada.
+    'extraction_incomplete',
 ] as const;
 
 export type AnalysisPartialReason = (typeof ANALYSIS_PARTIAL_REASONS)[number];
@@ -18,6 +22,11 @@ export const SECTION_DIAGNOSTIC_CODES = [
     'missing_in_uploaded_docs',
     'schema_recovered',
     'extraction_gap',
+    // El mapa documental (Fase B) situaba la sección en un fichero concreto y
+    // la extracción (Fase C) volvió vacía aun tras la búsqueda dirigida. Se
+    // separa de `missing_in_uploaded_docs` porque la acción del usuario es la
+    // contraria: reintentar, no buscar un documento que ya subió.
+    'retrieval_failed',
     'supplemented_from_official_notice',
 ] as const;
 

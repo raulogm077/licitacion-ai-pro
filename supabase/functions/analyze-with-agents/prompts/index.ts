@@ -152,6 +152,31 @@ export function withJsonReinforcement(prompt: string, reinforce: boolean | undef
     return reinforce ? prompt + REINFORCE_JSON_SUFFIX : prompt;
 }
 
+/**
+ * Sufijo de re-consulta dirigida cuando un bloque vuelve vacío pero el mapa
+ * documental prometía su contenido (ver `_shared/schemas/block-expectations.ts`).
+ *
+ * Dos decisiones deliberadas en la redacción:
+ *
+ * 1. **Nombra el documento concreto.** Repetir la misma llamada sin cambiar
+ *    nada sería superstición: lo que falló no fue el muestreo, fue la
+ *    recuperación. Al citar el fichero que la Fase B marcó, `file_search`
+ *    recibe un ancla léxica que la consulta genérica no tenía.
+ *
+ * 2. **Cierra autorizando el vacío.** La última frase existe para que la
+ *    presión de «búscalo otra vez» no se convierta en presión para inventar.
+ *    Un bloque vacío es un resultado aceptable; un bloque alucinado no. Si se
+ *    edita este texto, esa frase es la que no puede caerse.
+ */
+export function withTargetedRetrieval(prompt: string, documentos: Array<{ nombre: string; tipo: string }>): string {
+    if (documentos.length === 0) return prompt;
+    const lista = documentos.map((d) => `«${d.nombre}» (${d.tipo})`).join(', ');
+    return `${prompt}
+
+BÚSQUEDA DIRIGIDA: una lectura previa del expediente identificó que ${lista} contiene esta información. Búscala explícitamente en ese documento, incluyendo tablas, anexos y cuadros resumen, antes de concluir que no está.
+Si tras buscarla de verdad no aparece, devuelve el resultado vacío. NO inventes ni deduzcas valores para rellenar: un bloque vacío es preferible a uno inventado.`;
+}
+
 export function buildBlockSystemPrompt(
     blockName: BlockName,
     documentMap: DocumentMap,

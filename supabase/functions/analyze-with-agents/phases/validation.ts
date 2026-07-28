@@ -128,6 +128,7 @@ export function runValidation(input: ValidationInput): ValidationOutput {
         bySection,
         evidences: allEvidences,
         warnings: allWarnings,
+        emptyDespiteMapBlocks: extraction?.emptyDespiteMapBlocks || [],
     });
 
     // 6. Build workflow
@@ -177,6 +178,11 @@ interface SectionDiagnosticContext {
     bySection: Record<string, 'COMPLETO' | 'PARCIAL' | 'VACIO'>;
     evidences: Array<{ fieldPath: string; quote: string; pageHint?: string; confidence?: number }>;
     warnings: string[];
+    /**
+     * Bloques que la Fase C dejó vacíos pese a que el mapa documental prometía
+     * su contenido. Es la única señal que permite no acusar al documento.
+     */
+    emptyDespiteMapBlocks: string[];
 }
 
 function derivePartialReasons(context: PartialReasonContext): AnalysisPartialReason[] {
@@ -201,11 +207,22 @@ function derivePartialReasons(context: PartialReasonContext): AnalysisPartialRea
         reasons.add('rate_limited_recovered');
     }
 
+    // Una sección vacía por fallo de recuperación NO es documentación que falte.
+    // Sin esta exclusión el usuario recibía las dos mentiras a la vez: el
+    // diagnóstico de sección diciendo que su PCAP no trae los criterios, y el
+    // motivo global pidiéndole que subiera la pieza administrativa que ya había
+    // subido. Aquí se cuenta como fallo nuestro y se declara como tal.
+    const retrievalFailures = extraction?.emptyDespiteMapBlocks || [];
+    if (retrievalFailures.length > 0) {
+        reasons.add('extraction_incomplete');
+    }
+    const isDocumentGap = (section: string) => bySection[section] === 'VACIO' && !retrievalFailures.includes(section);
+
     const adminSections = ['datosGenerales', 'criteriosAdjudicacion', 'requisitosSolvencia'] as const;
     const technicalSections = ['requisitosTecnicos', 'restriccionesYRiesgos', 'modeloServicio'] as const;
-    const weakAdminSections = adminSections.filter((section) => bySection[section] === 'VACIO').length;
+    const weakAdminSections = adminSections.filter(isDocumentGap).length;
     const strongAdminSignal = adminSections.some((section) => bySection[section] !== 'VACIO');
-    const weakTechnicalSections = technicalSections.filter((section) => bySection[section] === 'VACIO').length;
+    const weakTechnicalSections = technicalSections.filter(isDocumentGap).length;
     const strongTechnicalSignal = technicalSections.some((section) => bySection[section] !== 'VACIO');
 
     if ((weakAdminSections >= 2 || missingCriticalFields.length >= 3) && strongTechnicalSignal) {
@@ -246,6 +263,20 @@ function deriveSectionDiagnostics(context: SectionDiagnosticContext): Record<str
             diagnostics[sectionName] = {
                 code: 'extraction_gap',
                 message: `La sección ${sectionName} tiene evidencias útiles, pero el resultado consolidado quedó vacío o degradado.`,
+                evidenceCount,
+            };
+            continue;
+        }
+
+        // Antes de culpar al documento: si el mapa documental situaba esta
+        // sección en un fichero concreto y aun así la extracción volvió vacía
+        // tras la búsqueda dirigida, el fallo es nuestro, no del expediente.
+        // Decir lo contrario manda al usuario a buscar un documento que ya
+        // subió (mismo error que el falso «OCR pobre» de 2026-07-12).
+        if (status === 'VACIO' && context.emptyDespiteMapBlocks.includes(sectionName)) {
+            diagnostics[sectionName] = {
+                code: 'retrieval_failed',
+                message: `La sección ${sectionName} figura en el expediente según el mapa documental, pero la extracción no logró recuperarla.`,
                 evidenceCount,
             };
             continue;
