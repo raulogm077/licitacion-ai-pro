@@ -13,6 +13,7 @@
 import { run, OutputGuardrailTripwireTriggered } from '../../_shared/agents/sdk.ts';
 import OpenAI from 'npm:openai@6.33.0';
 import { BLOCK_NAMES, BLOCK_SCHEMAS } from '../../_shared/schemas/blocks.ts';
+import { documentsPromising, isBlockEmpty } from '../../_shared/schemas/block-expectations.ts';
 import type { BlockName } from '../../_shared/schemas/blocks.ts';
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
 import type { PipelineContext } from '../../_shared/agents/context.ts';
@@ -76,6 +77,12 @@ export interface BlockExtractionDiagnostics {
     sawRateLimit: boolean;
     degradedByRateLimit: boolean;
     degradedBlocks: string[];
+    /**
+     * Bloques que volvieron vacíos aunque el mapa documental prometía su
+     * contenido, incluso tras la re-consulta dirigida. La Fase E los usa para
+     * distinguir «no pudimos extraerlo» de «tus documentos no lo traen».
+     */
+    emptyDespiteMapBlocks: string[];
 }
 
 export interface RetryNotification {
@@ -121,6 +128,7 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     let sawRateLimit = resume?.diagnostics?.sawRateLimit ?? false;
     let degradedByRateLimit = resume?.diagnostics?.degradedByRateLimit ?? false;
     const degradedBlocks = new Set<string>(resume?.diagnostics?.degradedBlocks || []);
+    const emptyDespiteMapBlocks = new Set<string>(resume?.diagnostics?.emptyDespiteMapBlocks || []);
     let customTemplate = resume?.customTemplate;
     let templateWarning = resume?.templateWarning;
     let checkpointChain = Promise.resolve();
@@ -138,6 +146,7 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
             sawRateLimit,
             degradedByRateLimit,
             degradedBlocks: [...degradedBlocks],
+            emptyDespiteMapBlocks: [...emptyDespiteMapBlocks],
         },
     });
 
@@ -162,10 +171,50 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
         onProgress?.(`Extrayendo: ${blockName}...`, blockResults.size, totalBlocks);
         let blockResult: BlockResult;
         try {
-            blockResult = await extractBlockWithAgent(blockName, vectorStoreId, context, (retry) => {
+            const notifyRetry = (retry: RetryNotification) => {
                 if (retry.reason === 'rate_limit') sawRateLimit = true;
                 onRetry?.({ ...retry, blockIndex: i + 1, totalBlocks });
-            });
+            };
+            blockResult = await extractBlockWithAgent(blockName, vectorStoreId, context, notifyRetry);
+
+            // Contradicción entre las dos lecturas del corpus: el mapa (Fase B)
+            // prometía este bloque y la extracción (Fase C) volvió vacía. No es
+            // un error —no hubo excepción, ni 429, ni timeout— sino un
+            // `file_search` que no recuperó nada, así que ninguna de las redes
+            // existentes lo ve. Se re-consulta UNA vez nombrando el documento
+            // que el mapa marcó, para darle a la búsqueda un ancla léxica.
+            const promising = documentsPromising(documentMap, blockName);
+            if (promising.length > 0 && isBlockEmpty(blockName, blockResult.data)) {
+                console.warn(
+                    `[Extraction] Block ${blockName} came back empty but the document map promised it in ` +
+                        `${promising.map((d) => d.tipo).join(', ')} — retrying with targeted retrieval`
+                );
+                notifyRetry({ blockName, attempt: 2, maxAttempts: 2, waitMs: 0, reason: 'unknown' });
+                const retried = await extractBlockWithAgent(
+                    blockName,
+                    vectorStoreId,
+                    context,
+                    notifyRetry,
+                    promising.map((d) => ({ nombre: d.nombre, tipo: d.tipo }))
+                );
+                if (!isBlockEmpty(blockName, retried.data)) {
+                    blockResult = retried;
+                } else {
+                    // Sigue vacío tras buscar en el documento concreto. Se marca
+                    // para que la Fase E pueda decir «no pudimos extraerlo» en
+                    // vez de acusar al documento de no traerlo.
+                    emptyDespiteMapBlocks.add(blockName);
+                    blockResult = {
+                        ...retried,
+                        warnings: [
+                            ...retried.warnings,
+                            `El mapa documental situaba ${blockName} en ${promising
+                                .map((d) => d.tipo)
+                                .join(', ')}, pero la extracción no recuperó contenido tras la búsqueda dirigida.`,
+                        ],
+                    };
+                }
+            }
         } catch (error) {
             console.error(`[Extraction] Block ${blockName} failed:`, error);
             if (getRetryReason(error) === 'rate_limit') {
@@ -224,14 +273,19 @@ async function extractBlockWithAgent(
     blockName: BlockName,
     vectorStoreId: string,
     sharedContext: PipelineContext,
-    onRetry: (details: RetryNotification) => void
+    onRetry: (details: RetryNotification) => void,
+    /**
+     * Documentos que el mapa señaló para este bloque. Vacío en la primera
+     * pasada; poblado solo en la re-consulta dirigida.
+     */
+    targetDocuments: Array<{ nombre: string; tipo: string }> = []
 ): Promise<BlockResult> {
     const agent = buildBlockAgent(blockName, vectorStoreId);
     const blockSchema = BLOCK_SCHEMAS[blockName];
 
     const attempt = async (reinforceJson: boolean) => {
         const ctx: PipelineContext = { ...sharedContext, blockName, reinforceJson };
-        const userInput = buildBlockInput(blockName, reinforceJson);
+        const userInput = buildBlockInput(blockName, reinforceJson, targetDocuments);
         return await callWithTimeout(
             run(agent, userInput, { context: ctx }),
             API_CALL_TIMEOUT_MS,

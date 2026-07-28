@@ -396,6 +396,20 @@ function buildGuidance(
     const warningsText = backendWarnings.join(' ').toLowerCase();
     const missingCount = quality.missingCriticalFields?.length || 0;
 
+    // El fallo de recuperación va ANTES que todo lo demás. Si el mapa
+    // documental situaba la sección en el expediente y la extracción no la
+    // sacó, cualquier consejo de «sube el PCAP» o «mejora el OCR» manda al
+    // usuario a arreglar algo que no está roto. La acción útil es reintentar.
+    if (reasons.has('extraction_incomplete')) {
+        return {
+            title: 'Extracción incompleta en este intento',
+            description:
+                'El expediente contiene secciones que no hemos logrado recuperar en esta ejecución. No es un problema de tus documentos: la búsqueda dentro del expediente volvió vacía para alguna sección que sí figura en él.',
+            nextStep: 'Reintenta el análisis. No hace falta subir documentación adicional.',
+            tone: 'warning' as const,
+        };
+    }
+
     // El diagnóstico de composición documental (falta PCAP/PPT) va ANTES que el
     // de OCR: cuando ambos aparecen (p. ej. un memo analizado bajo rate limit),
     // el consejo útil es completar el expediente, no reescanear un PDF sano.
@@ -499,6 +513,16 @@ function buildEmptyMessage(
         return {
             title: fallback.title,
             text: 'Hay evidencia útil en el documento, pero la extracción final quedó degradada. Conviene revisar la cita asociada o reintentar el análisis.',
+        };
+    }
+
+    // Nunca mandar al usuario a subir un documento que ya subió: aquí el mapa
+    // documental sitúa la sección en el expediente y quien falló fue la
+    // recuperación, así que la acción útil es reintentar.
+    if (diagnostic.code === 'retrieval_failed') {
+        return {
+            title: fallback.title,
+            text: 'Esta sección sí figura en el expediente que subiste, pero no logramos extraerla en este intento. Reintenta el análisis; no hace falta que subas nada más.',
         };
     }
 

@@ -12,14 +12,19 @@ import { BLOCK_MODEL_OVERRIDES, OPENAI_MODEL } from './config.ts';
  * de modo que un cambio olvidado en estas etiquetas sigue siendo detectable.
  */
 export const ANALYSIS_RUNTIME_VERSIONS = Object.freeze({
-    pipeline: 'five-phase-v1.0.0',
+    // 1.1.0: la Fase C puede emitir una re-consulta dirigida cuando un bloque
+    // vuelve vacío pese a que el mapa documental prometía su contenido.
+    pipeline: 'five-phase-v1.1.0',
     // 1.1.0: los prompts de `economico` y `criteriosAdjudicacion` piden ahora
     // evidencia para los importes y las ponderaciones (Guía §6.3).
-    prompts: 'pliegos-es-v1.1.0',
+    // 1.2.0: sufijo de búsqueda dirigida en la re-consulta de bloque vacío.
+    prompts: 'pliegos-es-v1.2.0',
     // 1.2.0: PBL, VEC, importeIVA, ponderacion y umbralAnormalidad pasan a
     // TrackedField. La forma persistida cambia; el parseo sigue aceptando el
     // valor plano de los análisis anteriores.
-    schema: 'canonical-v1.2.0',
+    // 1.3.0: `section_diagnostics.code` admite `retrieval_failed` y
+    // `partial_reasons` admite `extraction_incomplete`.
+    schema: 'canonical-v1.3.0',
     model: OPENAI_MODEL,
     // Provenance por bloque. Mientras `BLOCK_MODEL_OVERRIDES` esté vacío la
     // clave no aparece, así que la forma persistida hoy no cambia; en cuanto

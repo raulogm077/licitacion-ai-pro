@@ -402,3 +402,31 @@ Quedan planos a propósito `tipoIVA` (es un tipo impositivo, no un importe), `de
 - `evaluateObjectQuality` contaba claves no vacías; un `TrackedField` vacío es un objeto y habría contado como dato presente, de modo que un bloque económico sin un solo importe se habría reportado como `COMPLETO`. Ahora mira dentro del envoltorio antes de decidir.
 
 Al rellenarse desde el bloque económico, `datosGenerales.presupuesto` hereda además la evidencia del importe de origen: la cita que respalda el número es la de donde salió, no la del bloque que no lo encontró.
+
+### 7.8. Contradicción entre mapa y extracción
+
+`jsonShapeGuardrail` valida la **forma** de la salida de cada bloque, no su sustancia. Un `file_search` que no recupera nada produce un JSON vacío y perfectamente conforme al schema, así que atraviesa el guardrail, la extracción, la consolidación y la validación sin que ninguna red lo vea (`SPEC.md` §11.4).
+
+El contraste lo aporta el mapa documental de la Fase B, que ya marcaba por documento `contieneCriterios`, `contienePresupuesto`, `contieneSolvencia`, `contienePlazos`, `contieneRequisitos`, `contieneRestricciones` y `contieneModeloServicio`.
+
+| Pieza                   | Dónde                                   | Qué hace                                                                                                         |
+| ----------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `BLOCK_EXPECTATIONS`    | `_shared/schemas/block-expectations.ts` | Bloque → bandera del mapa. Siete de nueve bloques; añadir una entrada es lo único necesario para incorporar otro |
+| `isBlockEmpty`          | ídem                                    | Predicado explícito por bloque. **Nunca** afirma vacío sobre un bloque sin predicado                             |
+| `documentsPromising`    | ídem                                    | Documentos que el mapa señaló, para dirigir la re-consulta                                                       |
+| `withTargetedRetrieval` | `analyze-with-agents/prompts/index.ts`  | Sufijo que nombra el fichero y **autoriza el vacío**                                                             |
+| `emptyDespiteMapBlocks` | `BlockExtractionDiagnostics`            | Viaja en el checkpoint hasta la Fase E                                                                           |
+
+**El módulo no lleva `@ts-nocheck`** — es el único del pipeline sin él. Es lógica pura sin SDK y de ella depende decidir si un bloque se reintenta, así que se type-checkea de verdad y se cubre con tests deterministas: el único gate semántico del repo (`pnpm eval:pliegos:live`) es manual, de modo que lo que pueda verificarse sin clave debe verificarse sin clave.
+
+**Coste.** Cero llamadas nuevas en el camino feliz. La re-consulta ocurre dentro de la tarea del bloque, así que no altera el modelo de slices ni el lease de 155 s; el peor caso realista es un bloque extra, ~15-25 s.
+
+**Diagnóstico resultante:**
+
+| Mapa        | Extracción             | Código                                       | Consejo al usuario            |
+| ----------- | ---------------------- | -------------------------------------------- | ----------------------------- |
+| no lo sitúa | vacía                  | `missing_in_uploaded_docs`                   | completar la documentación    |
+| lo sitúa    | vacía tras re-consulta | `retrieval_failed` + `extraction_incomplete` | **reintentar; no subir nada** |
+| lo sitúa    | con contenido          | `present`                                    | —                             |
+
+`extraction_incomplete` se evalúa **antes** que `missing_administrative_content` en la guía del dashboard, y las secciones marcadas quedan excluidas del recuento de huecos documentales: sin eso el usuario recibía las dos mentiras a la vez, el capítulo diciendo que su PCAP no trae los criterios y la guía global pidiéndole el PCAP que ya había subido.
