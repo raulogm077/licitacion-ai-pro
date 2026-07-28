@@ -189,13 +189,16 @@ function derivePartialReasons(context: PartialReasonContext): AnalysisPartialRea
     const { overall, bySection, missingCriticalFields, ingestion, extraction } = context;
     const reasons = new Set<AnalysisPartialReason>();
 
-    // Only blame the document when the indexing counts are REAL. If the status
-    // poll itself failed (pollFailed), the counts are unknown and claiming
-    // "OCR pobre/señal baja" would mislead the user (prod incident 2026-07-12:
-    // a perfectly digital PDF was flagged as low-signal after a rate-limited poll).
+    // Only blame the document when the indexing counts are REAL. `countsUnreliable`
+    // cubre las dos formas en que dejan de serlo —el sondeo falló, o respondió
+    // con todo a cero porque el lote nunca se registró— y en ambas afirmar
+    // "OCR pobre/señal baja" desorienta al usuario. Pasó dos veces: 2026-07-12
+    // con un sondeo limitado por rate limit, y 2026-07-28 con un sondeo que
+    // salió en la primera vuelta antes de que hubiera nada que contar. Ambos
+    // sobre PDFs con texto digital perfecto.
     if (
         ingestion &&
-        !ingestion.pollFailed &&
+        !ingestion.countsUnreliable &&
         (ingestion.indexingTimedOut || ingestion.failedFiles > 0 || ingestion.zeroCompletedFiles)
     ) {
         reasons.add('ocr_or_indexing_low_signal');

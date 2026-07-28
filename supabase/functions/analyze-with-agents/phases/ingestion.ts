@@ -7,7 +7,7 @@
  * - NO sube la guía al vector store (va en system prompt)
  */
 import OpenAI from 'npm:openai@6.33.0';
-import { VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
+import { VECTOR_STORE_REGISTRATION_GRACE_MS, VECTOR_STORE_TIMEOUT_MS } from '../../_shared/config.ts';
 import { callWithTimeout } from '../../_shared/utils/timeout.ts';
 import { runWithConcurrency } from '../../_shared/utils/concurrency.ts';
 import { isRetryableError, type RetryOptions, retryWithBackoff } from '../../_shared/utils/retry.ts';
@@ -44,12 +44,18 @@ export interface IngestionDiagnostics {
     indexingTimedOut: boolean;
     zeroCompletedFiles: boolean;
     /**
-     * True when the indexing-status poll itself failed (e.g. rate limit on the
-     * status endpoint) and the final file counts are UNKNOWN. Downstream must
-     * not infer document quality (OCR/señal baja) from the zeroed counts in
-     * that case — blaming the PDF for an API hiccup misleads the user.
+     * True cuando los contadores NO son una medición real y por tanto no dicen
+     * nada del documento. Downstream no puede inferir calidad (OCR/señal baja)
+     * a partir de ellos: acusar al PDF de un problema nuestro desorienta.
+     *
+     * Una sola bandera para las dos causas conocidas, a propósito. Tenerlas
+     * separadas obligaría a recordar comprobar ambas en cada consumidor, que es
+     * exactamente cómo se apagan estos mecanismos en silencio:
+     *   1. el sondeo de estado falló (p. ej. 429 en el endpoint), o
+     *   2. el sondeo respondió pero con todos los contadores a cero pasada la
+     *      ventana de gracia — el lote nunca llegó a registrarse.
      */
-    pollFailed?: boolean;
+    countsUnreliable?: boolean;
 }
 
 export interface IngestionResult {
@@ -90,7 +96,13 @@ export async function waitForVectorStoreIndexing(
     openai: OpenAI,
     vectorStoreId: string,
     onProgress?: (update: IngestionProgressUpdate) => void,
-    pollRetryOptions: Pick<RetryOptions, 'maxRetries' | 'baseDelayMs' | 'maxDelayMs'> = POLL_RETRY_DEFAULTS
+    pollRetryOptions: Pick<RetryOptions, 'maxRetries' | 'baseDelayMs' | 'maxDelayMs'> = POLL_RETRY_DEFAULTS,
+    /**
+     * Ventana de gracia para que el lote se registre. Parametrizada por el
+     * mismo motivo que `pollRetryOptions`: sin esto el test del caso «todo a
+     * cero» tendría que dormir 13 s de reloj real en cada ejecución del suite.
+     */
+    registrationGraceMs: number = VECTOR_STORE_REGISTRATION_GRACE_MS
 ): Promise<IngestionDiagnostics> {
     let delay = 1000;
     const maxDelay = 5000;
@@ -116,7 +128,15 @@ export async function waitForVectorStoreIndexing(
             failedFiles: fc.failed,
         });
 
-        if (fc.in_progress === 0) {
+        // `in_progress === 0` solo significa «terminó» si algo llegó a contarse.
+        // Con los tres contadores a cero significa «aún no ha empezado»: el lote
+        // está adjuntado pero OpenAI todavía no lo ha contabilizado. Salir aquí
+        // derivaba `zeroCompletedFiles` de un cero que nunca se midió, y así un
+        // PDF con texto digital perfecto acababa acusado de OCR pobre
+        // (incidente 2026-07-28, `SPEC.md` §11.6).
+        const counted = fc.completed + fc.failed + fc.in_progress;
+
+        if (fc.in_progress === 0 && counted > 0) {
             return {
                 completedFiles: fc.completed,
                 failedFiles: fc.failed,
@@ -124,7 +144,25 @@ export async function waitForVectorStoreIndexing(
                 indexingElapsedMs: totalTime,
                 indexingTimedOut: false,
                 zeroCompletedFiles: fc.completed === 0,
-                pollFailed: false,
+                countsUnreliable: false,
+            };
+        }
+
+        if (fc.in_progress === 0 && counted === 0 && totalTime >= registrationGraceMs) {
+            // Esperamos y el lote nunca apareció. El índice puede seguir siendo
+            // utilizable —la extracción lo demuestra a menudo—, así que se
+            // continúa, pero declarando que estos contadores no miden nada.
+            console.warn(
+                `[Ingestion] file_counts siguió a cero tras ${totalTime}ms — contadores no fiables, no se juzga el documento`
+            );
+            return {
+                completedFiles: 0,
+                failedFiles: 0,
+                inProgressFiles: 0,
+                indexingElapsedMs: totalTime,
+                indexingTimedOut: false,
+                zeroCompletedFiles: false,
+                countsUnreliable: true,
             };
         }
 
@@ -302,7 +340,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
                 // final read shows everything settled, the index is usable.
                 indexingTimedOut: fc.in_progress > 0,
                 zeroCompletedFiles: fc.completed === 0,
-                pollFailed: false,
+                countsUnreliable: false,
             };
             console.warn(
                 `[Ingestion] Indexing wait aborted (${isRealTimeout ? 'timeout' : 'poll error'}) — ` +
@@ -324,7 +362,7 @@ export async function runIngestion(input: IngestionInput): Promise<IngestionResu
                 indexingElapsedMs: VECTOR_STORE_TIMEOUT_MS,
                 indexingTimedOut: isRealTimeout,
                 zeroCompletedFiles: false,
-                pollFailed: true,
+                countsUnreliable: true,
             };
             console.warn('[Ingestion] Indexing status unknown (poll failed twice) — proceeding.', finalReadError);
             onProgress?.({

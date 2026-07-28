@@ -53,7 +53,7 @@ Deno.test('waitForVectorStoreIndexing survives transient 429s on the status poll
     assertEquals(diagnostics.completedFiles, 1);
     assertEquals(diagnostics.indexingTimedOut, false);
     assertEquals(diagnostics.zeroCompletedFiles, false);
-    assertEquals(diagnostics.pollFailed, false);
+    assertEquals(diagnostics.countsUnreliable, false);
     assert(fake.calls() >= 3, 'must have retried the failing polls');
 });
 
@@ -65,7 +65,7 @@ Deno.test('waitForVectorStoreIndexing reports clean diagnostics when indexing se
     assertEquals(diagnostics.completedFiles, 2);
     assertEquals(diagnostics.failedFiles, 1);
     assertEquals(diagnostics.indexingTimedOut, false);
-    assertEquals(diagnostics.pollFailed, false);
+    assertEquals(diagnostics.countsUnreliable, false);
 });
 
 Deno.test('waitForVectorStoreIndexing surfaces persistent poll failure to the caller', async () => {
@@ -195,4 +195,47 @@ Deno.test('runIngestion cleans OpenAI resources when the durable checkpoint fail
     assert(threw, 'the checkpoint error must be propagated to the durable retry policy');
     assertEquals(deletedFiles, ['file-uncheckpointed']);
     assertEquals(deletedVectorStores, ['vs-uncheckpointed']);
+});
+
+// ─── El lote que aún no se ha registrado ─────────────────────────────────────
+//
+// Incidente 2026-07-28 (jobs `8e851069` y `01e7a0a4`): el primer sondeo
+// respondió con los tres contadores a cero — el lote estaba adjuntado pero
+// OpenAI no lo había contabilizado todavía — y el bucle salió interpretando
+// `in_progress === 0` como «terminó». De ese cero sin medir salía
+// `zeroCompletedFiles: true` y el usuario recibía «PDF con señal baja o
+// indexación incompleta» sobre un expediente con texto digital perfecto, del
+// que la extracción sacaba el PBL con cita y página.
+
+Deno.test('no concluye "cero indexados" cuando el lote todavía no se ha registrado', async () => {
+    // Primer sondeo todo a cero (aún no arrancó), segundo ya con el lote vivo.
+    const fake = fakeOpenAI([
+        { completed: 0, in_progress: 0, failed: 0 },
+        { completed: 2, in_progress: 0, failed: 0 },
+    ]);
+
+    const diagnostics = await waitForVectorStoreIndexing(fake.client, 'vs_test', undefined, FAST_RETRY);
+
+    assertEquals(diagnostics.completedFiles, 2, 'debe esperar al recuento real en vez de salir en la primera vuelta');
+    assertEquals(diagnostics.zeroCompletedFiles, false);
+    assertEquals(diagnostics.countsUnreliable, false);
+    assert(fake.calls() >= 2, 'no puede darse por terminado con todos los contadores a cero');
+});
+
+Deno.test('si los contadores siguen a cero tras la gracia, no se juzga al documento', async () => {
+    // Todos los sondeos vuelven vacíos. El índice puede seguir siendo usable
+    // —la extracción lo demuestra a menudo—, así que se continúa, pero
+    // declarando que estos contadores no miden nada en vez de culpar al PDF.
+    const fake = fakeOpenAI(Array.from({ length: 40 }, () => ({ completed: 0, in_progress: 0, failed: 0 })));
+
+    // Gracia de 0 ms: el comportamiento bajo prueba es la decisión, no la espera.
+    const diagnostics = await waitForVectorStoreIndexing(fake.client, 'vs_test', undefined, FAST_RETRY, 0);
+
+    assertEquals(diagnostics.countsUnreliable, true);
+    assertEquals(
+        diagnostics.zeroCompletedFiles,
+        false,
+        'zeroCompletedFiles solo puede afirmarse sobre una medición real'
+    );
+    assertEquals(diagnostics.indexingTimedOut, false, 'no llegó a agotarse el tiempo de indexación');
 });

@@ -173,6 +173,21 @@ export const BLOCK_RETRY_MAX_DELAY_MS = 30_000;
  */
 export const VECTOR_STORE_TIMEOUT_MS = 90_000;
 
+/**
+ * Ventana de gracia para que OpenAI registre el lote de indexación.
+ *
+ * Al adjuntar ficheros a un Vector Store, `file_counts` puede responder con
+ * TODO a cero durante un instante: el lote existe pero aún no se ha contabilizado.
+ * `in_progress === 0` en ese momento no significa «terminó», significa «no ha
+ * empezado». Sin esta espera, el primer sondeo concluía «cero ficheros
+ * indexados» y el usuario recibía un aviso de OCR pobre sobre un PDF con texto
+ * digital perfecto (incidente 2026-07-28, `SPEC.md` §11.6).
+ *
+ * 10s es holgado —en la práctica el lote se registra en 1-2s— y solo se
+ * consume cuando los contadores vienen vacíos, nunca en el caso normal.
+ */
+export const VECTOR_STORE_REGISTRATION_GRACE_MS = 10_000;
+
 /** Guide excerpt length for system prompts (chars) */
 export const GUIDE_EXCERPT_LENGTH = 4000;
 

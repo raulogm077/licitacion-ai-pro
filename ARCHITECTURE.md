@@ -572,6 +572,16 @@ El segundo defecto invierte la jerarquía entre fases: la Fase C **sabe** que un
 
 **Fecha:** 2026-07-28
 
+### 8.24 Un cero medido y un cero por defecto no son el mismo cero (Implementado 2026-07-28)
+
+Tercer diagnóstico falso de la misma familia (`SPEC.md` §11.6). `waitForVectorStoreIndexing` cerraba el bucle con `in_progress === 0`, pero al adjuntar ficheros a un Vector Store hay un instante en que los tres contadores valen cero porque el lote aún no se ha contabilizado. Ahí `in_progress === 0` no dice «terminó», dice «no ha empezado», y de ese cero salía un aviso de OCR pobre sobre un PDF con texto digital perfecto.
+
+El bucle exige ahora que algo se haya contado antes de darse por terminado, y espera una ventana de gracia acotada cuando no hay nada. Lo estructural es la otra mitad: `pollFailed` se convierte en `countsUnreliable`, **una sola bandera para todas las formas de «este dato no es una medición»**. Tener una por causa obliga a recordar comprobarlas todas en cada consumidor, y olvidar una apaga el mecanismo sin que nada falle — es el mismo modo de fallo que §8.23.
+
+La invariante generalizable, con tres incidentes detrás: antes de afirmar algo sobre el documento del usuario, verificar que el dato en el que se apoya la afirmación es una medición real. Un cero medido y un cero por defecto tienen el mismo tipo y significados opuestos.
+
+**Fecha:** 2026-07-28
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM
