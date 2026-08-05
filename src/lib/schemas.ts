@@ -16,6 +16,7 @@ import { z } from 'zod';
 import {
     ANALYSIS_PARTIAL_REASONS,
     ANALYSIS_QUALITY_STATUSES,
+    EVIDENCE_VERIFICATION_STATES,
     SECTION_DIAGNOSTIC_CODES,
     TRACKED_FIELD_STATUSES,
 } from '../shared/analysis-contract';
@@ -43,6 +44,9 @@ export const EvidenceSchema = z.object({
     quote: z.string(),
     pageHint: z.string().optional(),
     confidence: z.number().min(0).max(1).optional(),
+    // Opcional para leer el histórico anterior a ADR-003; `evidenceVerification()`
+    // aplica el defecto `unverified`. No se lee este campo a pelo en ningún sitio.
+    verification: z.enum(EVIDENCE_VERIFICATION_STATES).optional(),
 });
 
 export type Evidence = z.infer<typeof EvidenceSchema>;

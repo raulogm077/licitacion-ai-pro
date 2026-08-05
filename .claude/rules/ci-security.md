@@ -23,6 +23,13 @@ nadie revisa es una vulnerabilidad aceptada en silencio. Un override que fija un
 rango abierto (`>=X`) resuelve al máximo publicado y puede arrastrar un major sin
 querer; acotar (`>=4.3.0 <5.0.0`) cuando basta con la línea actual.
 
+Un override fijado tampoco es definitivo. `GHSA-rgw5-rvv9-x895` (2026-08-05)
+elude la mitigación del aviso anterior de `brace-expansion`, así que el 5.0.8 que
+se había fijado para cerrarlo volvió a estar afectado sin tocar nada del repo; la
+salida fue `>=5.0.9`. Ante un HIGH en un paquete que **ya tiene override**,
+consultar el aviso por su ID —`curl https://api.osv.dev/v1/vulns/<GHSA>`— y leer
+sus cortes `fixed` por línea, en vez de suponer que el override sigue cubriendo.
+
 The `Smoke Test` job in `.github/workflows/ci-cd.yml` also asserts post-deploy
 that the auth posture is actually effective: un POST sin `Authorization` debe
 devolver 401 del gateway en las tres funciones públicas (`analyze-with-agents`,

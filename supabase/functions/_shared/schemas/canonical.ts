@@ -17,6 +17,7 @@ import { z } from 'npm:zod@3.25.76';
 import {
     ANALYSIS_PARTIAL_REASONS,
     ANALYSIS_QUALITY_STATUSES,
+    EVIDENCE_VERIFICATION_STATES,
     SECTION_DIAGNOSTIC_CODES,
     TRACKED_FIELD_STATUSES,
 } from '../../../../src/shared/analysis-contract.ts';
@@ -74,6 +75,10 @@ export const EvidenceSchema = z.object({
     quote: z.string().describe('Extracto literal del pliego (max 240 chars)'),
     pageHint: z.string().optional().describe('Número de página si se puede inferir'),
     confidence: z.number().min(0).max(1).optional().describe('0..1'),
+    // Lo escribe el pipeline, NO el modelo: es el resultado de contrastar la
+    // cita contra el texto del documento. Hoy nadie lo pone, así que todo se
+    // lee como `unverified` (ADR-003 Fase 1). La Fase 3 lo rellenará.
+    verification: z.enum(EVIDENCE_VERIFICATION_STATES).optional(),
 });
 
 /**

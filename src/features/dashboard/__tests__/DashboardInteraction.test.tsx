@@ -9,6 +9,11 @@ import { tf } from '../../../test-utils/tracked-field-factory';
 vi.mock('lucide-react', () => ({
     Menu: () => <span data-testid="icon-menu" />,
     Calculator: () => <span data-testid="icon-calculator" />,
+    // Estados de verificación de la cita (ADR-003 Fase 1). `ShieldAlert` ya
+    // estaba declarado más abajo en este mismo mock.
+    ShieldCheck: () => <span data-testid="icon-shield-check" />,
+    ShieldX: () => <span data-testid="icon-shield-x" />,
+    HelpCircle: () => <span data-testid="icon-help-circle" />,
     X: () => <span data-testid="icon-x" />,
     Search: () => <span data-testid="icon-search" />,
     LogOut: () => <span data-testid="icon-logout" />,

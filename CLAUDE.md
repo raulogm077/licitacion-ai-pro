@@ -100,7 +100,7 @@ Lo que no es evidente navegando el árbol:
 - **Package manager**: pnpm only (never npm or yarn)
 - **Formatting**: Prettier (enforced by pre-commit hook via Husky + lint-staged)
 - **Linting**: ESLint 9 con flat config (`eslint.config.js`), 0 warnings tolerados
-- **Overrides de seguridad**: comprobar en OSV qué versiones corrige **el aviso concreto** antes de acotar un override por línea mayor. Si el aviso no tiene parche en la línea antigua (caso `brace-expansion`/`GHSA-mh99-v99m-4gvg`, corregido solo en 5.0.8), acotarlo reintroduce la vulnerabilidad: la salida es actualizar al consumidor incompatible, no relajar el override
+- **Overrides de seguridad**: comprobar en OSV qué versiones corrige **el aviso concreto** antes de acotar un override por línea mayor. Si el aviso no tiene parche en la línea antigua (caso `brace-expansion`/`GHSA-mh99-v99m-4gvg`, corregido solo en 5.0.8), acotarlo reintroduce la vulnerabilidad: la salida es actualizar al consumidor incompatible, no relajar el override. Y un override fijado **no caduca solo**: `GHSA-rgw5-rvv9-x895` (2026-08-05) elude la mitigación del aviso anterior, así que ese mismo 5.0.8 volvió a estar afectado y hubo que subir a 5.0.9. Ante un HIGH en un paquete que ya tenía override, la pregunta no es «¿no lo habíamos arreglado?» sino «¿qué corrige **este** aviso?»
 - **Schemas**: Zod for both frontend and backend validation
 - **Error handling**: `Result<T>` pattern (`ok`/`err`) in services, `safeParse` chains in consolidation
 - **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK)

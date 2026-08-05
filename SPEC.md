@@ -568,3 +568,33 @@ zeroCompletedFiles: true  ← y de ese cero salía el aviso
 | 2026-07-28 (§11.6) | «PDF con señal baja / indexación incompleta» | contadores de un sondeo que **no llegó a ejecutarse** |
 
 La regla que los une, y que conviene aplicar antes de escribir el siguiente diagnóstico: **antes de afirmar algo sobre el documento del usuario, comprobar que el dato en el que se apoya es una medición y no un valor por defecto.** Un cero no medido y un cero medido son indistinguibles en el tipo, y solo se separan si alguien lo hace explícito.
+
+### 11.7. La evidencia no acreditaba nada (2026-07-28)
+
+El hallazgo que cierra el día y que **invalida la premisa** sobre la que se construyó §11.2 y §11.4.
+
+Seis análisis de los mismos dos PDFs —SHA-256 idénticos, verificados byte a byte— produjeron seis licitaciones distintas, de seis administraciones distintas, con presupuestos entre 0 € y 2,2 M€. El expediente real es **DDT 163/2026, suministro de una solución para «Contratación de Clientes»**; ninguno de los seis lo identifica.
+
+**Cada uno traía su cita literal.** Seis extractos textuales mutuamente excluyentes del mismo documento: como máximo uno es real.
+
+Y no es que el documento no se leyera: en `9617574e` el bloque de criterios extrajo _«apartado 3.1 del PPT: Suministro de la solución: 'Contratación de Clientes'»_ —el pliego real, textual— mientras `datosGenerales`, en la misma ejecución y sobre el mismo vector store, describía un contrato del Servicio Madrileño de Salud.
+
+### Los dos defectos de diseño
+
+**RAG para un corpus que cabe en contexto.** `file_search` es una herramienta _opcional_ que el modelo decide invocar; nunca forzamos `tool_choice` ni miramos los tool calls. Si no la llama, el prompt le sigue exigiendo rellenar el formulario, e inventar una licitación plausible es el camino de menor resistencia. Los PDFs suman 3,9 MB y el límite de un request son 50 MB: la recuperación no aportaba nada y traía su peor modo de fallo.
+
+**La evidencia se la autoacredita el modelo.** `evidence.quote` es prosa generada, no un fragmento extraído; nadie comprueba que exista en el PDF. Un grounding que el propio modelo se acredita no es grounding.
+
+El segundo es el que mantuvo esto invisible: un bloque vacío se nota, uno inventado con cita convincente no. Y §11.2 lo empeoró al aumentar la _confianza_ en un dato no verificable. La premisa que dejé escrita entonces —«cuando `file_search` no recupera nada, el modelo responde con un JSON vacío en lugar de inventar»— es **falsa**: a veces devuelve vacío y a veces fabrica.
+
+### Decisión y primera entrega
+
+`docs/adr/ADR-003` sustituye _recuperación opcional + evidencia autoacreditada_ por **documento en contexto + evidencia verificada contra la fuente**, en cinco fases.
+
+**Fase 1, entregada:** las citas dejan de presentarse como acreditadas. `TrackedEvidenceWire` gana `verification` con cuatro estados (`unverified` por defecto y único hoy, `verified`, `not_found`, `unverifiable`), leído siempre por `evidenceVerification()` para que el defecto del histórico esté definido en un solo sitio. `EvidenceToggle` muestra el estado y advierte de que la cita la redactó el modelo.
+
+No arregla la extracción. **Retira una autoridad que nunca existió**, que es lo único honesto que se puede desplegar antes de tener la primitiva que falta: el texto del documento en nuestro lado.
+
+### Regla que unifica los cuatro incidentes del mes
+
+Un contador que nunca se midió (§11.6), un bloque vacío que no se contrastó (§11.4), una cita que nadie buscó en el documento (§11.7): **antes de afirmar algo, comprobar que el dato en el que se apoya la afirmación es verificable.**

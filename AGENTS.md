@@ -275,6 +275,14 @@ existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 > va a `osv-scanner.toml` con `reason` e `ignoreUntil` obligatorios. Detalle en
 > `DEPLOYMENT.md`.
 
+> Nota (2026-08-05): un override de seguridad **no caduca solo**.
+> `GHSA-rgw5-rvv9-x895` elude la mitigación del aviso que ya habíamos cerrado, y
+> con eso `brace-expansion@5.0.8` —la versión que fijamos precisamente para
+> cerrarlo— volvió a estar afectada sin que cambiase nada en el repo. Ante un
+> HIGH en un paquete que ya tiene override, consultar el aviso por su ID en OSV y
+> mirar sus cortes por línea, en vez de dar por bueno el override existente.
+> Detalle en `DEPLOYMENT.md` §5.3.
+
 > Nota (2026-07-12b): las herramientas de CI se descargan con versión fija
 > (OSV Scanner `v2.4.0`, actionlint, supabase/vercel CLI); las interpolaciones
 > shell de esas versiones deben ir entre comillas (`"vercel@${VERCEL_CLI_VERSION}"`)
