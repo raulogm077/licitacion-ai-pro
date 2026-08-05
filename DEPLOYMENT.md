@@ -168,6 +168,10 @@ Las tres públicas deben responder `401` desde el gateway. El worker también de
 
 **Excepciones del Security Audit.** El job `security-audit` corre OSV Scanner desde la raíz del repo, así que descubre `osv-scanner.toml` automáticamente. Ese fichero es el único sitio donde se silencia un finding, y solo cuando no hay versión parcheada alcanzable: cada entrada exige `reason` (por qué no aplica y por qué no se puede actualizar) e `ignoreUntil` (fecha tras la cual vuelve a romper el CI). Lo que sí tiene parche se arregla actualizando —`pnpm.overrides` para transitivos, bump directo para dependencias declaradas—, nunca añadiéndolo aquí. Ampliar el filtro de severidad o tocar el `jq` del workflow para dejar pasar un HIGH no es una remediación válida.
 
+**Un override fijado no es una remediación permanente.** El 2026-08-05 el CI cayó con `GHSA-rgw5-rvv9-x895` sobre `brace-expansion@5.0.8` — exactamente la versión que se había fijado semanas antes para cerrar `GHSA-mh99-v99m-4gvg`. El aviso nuevo describe un DoS que **elude la mitigación** del anterior, así que la versión «parcheada» dejó de serlo sin que nada cambiase en el repo. El arreglo fue subir el override a `>=5.0.9`, el corte que OSV da para la línea 4.x+ de ese aviso concreto.
+
+Lo operativo: cuando el `security-audit` señala un paquete que **ya tiene override**, no se asume que el override esté roto ni que el finding sea un falso positivo. Se consulta el aviso por su ID (`https://api.osv.dev/v1/vulns/<GHSA>`), se leen sus cortes por línea y se sube al que corresponda. Que el CI lo detecte es el mecanismo funcionando: es la única alarma que existe para un aviso que aparece después de la mitigación.
+
 ## 6. Secretos y configuración
 
 `OPENAI_API_KEY` debe estar configurada como secreto de Supabase para `analysis-worker`, `analyze-with-agents` y `chat-with-analysis-agent`. No debe exponerse en el frontend.
