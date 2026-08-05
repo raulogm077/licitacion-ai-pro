@@ -6,18 +6,15 @@ Analista de Pliegos: SaaS app for analyzing Spanish public procurement documents
 
 ## Quick Commands
 
+Los que no se adivinan por el nombre. El resto (`dev`, `build`, `typecheck`,
+`lint`, `format`, `test:e2e`) son la invocación estándar y están en los scripts
+de `package.json`.
+
 ```bash
-pnpm dev              # Dev server (localhost:5173)
-pnpm build            # TypeScript check + Vite build
-pnpm typecheck        # TypeScript strict check
-pnpm test -- --run    # Run the full unit suite once (471 tests / 64 suites)
+pnpm test -- --run     # Suite unitaria completa, una sola pasada
 pnpm benchmark:pliegos # Benchmark funcional del caso principal de producto
-pnpm test:e2e         # Playwright E2E tests
-pnpm lint             # ESLint (0 warnings allowed)
-pnpm format           # Prettier auto-fix
-pnpm format:check     # Prettier check
-pnpm verify:integrity # Drift de migraciones + workflows + docs/instructions
-pnpm verify:release   # Cierre obligatorio de sesión antes de push/PR
+pnpm verify:integrity  # Drift de migraciones + workflows + docs/instructions
+pnpm verify:release    # Cierre obligatorio de sesión antes de push/PR
 ```
 
 <!-- release-contract:start -->
@@ -75,11 +72,13 @@ de crearse, antes de esperar la indexación. El cleanup TTL borra en orden OpenA
 Estas reglas viven en `.claude/rules/` con `paths:`, así que entran en contexto
 únicamente al tocar los ficheros que cubren, en vez de en cada sesión:
 
-| Regla                              | Se carga al tocar                            | Contenido                                                                    |
-| ---------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------- |
-| `.claude/rules/agents-sdk.md`      | `supabase/functions/**`                      | Índice de las reglas duras del SDK (fuente completa: `AGENTS.md`)            |
-| `.claude/rules/pipeline-runtime.md` | `supabase/functions/**`, `job.service.ts`   | Presupuesto de timeouts (`_shared/config.ts`) y tiempos típicos por tamaño   |
-| `.claude/rules/ci-security.md`     | `.github/workflows/**`, `package.json`       | OSV Scanner, pinning, bumps 0.x de Dependabot y aserciones de auth del smoke |
+| Regla                               | Se carga al tocar                                                  | Contenido                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `.claude/rules/agents-sdk.md`       | `supabase/functions/**`                                            | Índice de las reglas duras del SDK (fuente completa: `AGENTS.md`)            |
+| `.claude/rules/pipeline-runtime.md` | `supabase/functions/**`, `job.service.ts`                          | Presupuesto de timeouts (`_shared/config.ts`) y tiempos típicos por tamaño   |
+| `.claude/rules/ci-security.md`      | `.github/workflows/**`, `package.json`                             | OSV Scanner, pinning, bumps 0.x de Dependabot y aserciones de auth del smoke |
+| `.claude/rules/agent-factory.md`    | `.github/workflows/agent-*.yml`, `scripts/agents/**`, `BACKLOG.md` | Los cuatro agentes autónomos, el flujo del backlog y el kill switch          |
+| `.claude/rules/claude-config.md`    | `.claude/**`, `.mcp.json`                                          | Qué se versiona de `.claude/`, hook de arranque y dónde va cada prompt/regla |
 
 Diagnóstico de despliegues y logs: skill `/observability`.
 
@@ -96,12 +95,9 @@ Lo que no es evidente navegando el árbol:
 
 ## Code Conventions
 
-- **Language**: TypeScript strict mode everywhere
 - **Package manager**: pnpm only (never npm or yarn)
-- **Formatting**: Prettier (enforced by pre-commit hook via Husky + lint-staged)
 - **Linting**: ESLint 9 con flat config (`eslint.config.js`), 0 warnings tolerados
 - **Overrides de seguridad**: comprobar en OSV qué versiones corrige **el aviso concreto** antes de acotar un override por línea mayor. Si el aviso no tiene parche en la línea antigua (caso `brace-expansion`/`GHSA-mh99-v99m-4gvg`, corregido solo en 5.0.8), acotarlo reintroduce la vulnerabilidad: la salida es actualizar al consumidor incompatible, no relajar el override. Y un override fijado **no caduca solo**: `GHSA-rgw5-rvv9-x895` (2026-08-05) elude la mitigación del aviso anterior, así que ese mismo 5.0.8 volvió a estar afectado y hubo que subir a 5.0.9. Ante un HIGH en un paquete que ya tenía override, la pregunta no es «¿no lo habíamos arreglado?» sino «¿qué corrige **este** aviso?»
-- **Schemas**: Zod for both frontend and backend validation
 - **Error handling**: `Result<T>` pattern (`ok`/`err`) in services, `safeParse` chains in consolidation
 - **Imports in Edge Functions**: Use `npm:` specifiers (not `esm.sh`). The `@openai/agents` SDK is re-exported from `_shared/agents/sdk.ts` — importar siempre desde ahí, nunca con `npm:@openai/agents@x` directo (riesgo de múltiples instancias del SDK)
 - **Backend constants**: All in `_shared/config.ts` (never hardcode model names, timeouts, etc.)
@@ -117,11 +113,12 @@ Lo que no es evidente navegando el árbol:
 - All exposed tables have RLS enabled. `analysis_jobs`, documents and steps expose only owner-scoped `SELECT`; all mutations are backend-only.
 - Full-text search: `search_vector` tsvector column (Spanish) with GIN index
 - Search RPC: `search_licitaciones` combines FTS + ILIKE fallback
-- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `analysis_job_documents`, `analysis_job_steps`, `analysis_job_outbox`, `analysis_runtime_settings`, `extraction_feedback`
+- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `analysis_job_documents`, `analysis_job_document_texts`, `analysis_job_steps`, `analysis_job_outbox`, `analysis_runtime_settings`, `extraction_feedback`
+- `analysis_job_document_texts` es la excepción a «RLS con `SELECT` del dueño»: lleva RLS **sin políticas**, así que solo `service_role` la lee. Es el oráculo de verificación de citas (ADR-003), no dato de pantalla; añadirle un `SELECT` para `authenticated` expondría el texto completo del expediente al navegador sin que nada lo necesite
 
 ## Testing
 
-- **Unit/Integration**: Vitest (471 tests, coverage gates: 82% statements, 70% branches, 81% functions, 83% lines — el histórico de subidas vive en `vitest.config.ts`)
+- **Unit/Integration**: Vitest. Las puertas de cobertura y el histórico de subidas viven en `vitest.config.ts`; no se bajan sin justificarlo en el PR
 - **Worker policy**: `vitest.config.ts` caps workers (`minWorkers: 1`, `maxWorkers: 2`) to keep `pnpm verify:release` stable under coverage and jsdom-heavy suites
 - **Edge Function unit tests**: `deno test supabase/functions/<feature>/__tests__/*.test.ts` — los tests de guardrails están en `analyze-with-agents/__tests__/agents.test.ts`
 - **E2E**: Playwright (Chromium, base URL localhost:4173)
@@ -166,37 +163,15 @@ se autentican solos; exportar el PAT al shell lo expone en transcripts y logs.
 - `supabase/functions/analyze-with-agents/prompts/index.ts` — Prompt strings
 - `supabase/functions/chat-with-analysis-agent/index.ts` — Conversational layer (verify_jwt=true en gateway)
 - `supabase/functions/_shared/agents/{context,guardrails,tracing,sdk}.ts` — Infraestructura compartida del SDK
+- `supabase/functions/_shared/document-text.ts` — Extracción local de texto: el oráculo contra el que se verifican las citas (ADR-003 Fase 2). `absenceIsConclusive()` es el único sitio que decide si una cita ausente puede declararse fabricada
 - `supabase/functions/_shared/config.ts` — Backend constants
 - `supabase/functions/_shared/schemas/canonical.ts` — Canonical schema (source of truth)
 - `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, Auth model, etc.). **Claude Code no lo auto-carga**: el índice de invariantes vive en `.claude/rules/agents-sdk.md` con scope `supabase/functions/**`
 
-## Fábrica de agentes autónomos
+## Fábrica de agentes autónomos y configuración de `.claude/`
 
-Cuatro agentes (PM, Tech, IA, QA) corren en GitHub Actions
-(`.github/workflows/agent-*.yml`) con `anthropics/claude-code-action@v1`, guiados
-por los prompts de `.claude/commands/agent-*.md` y coordinados por `BACKLOG.md`
-(`## To Do` → `## In Progress` → `## Ready for QA` → `## Done`; el tag `[Tipo: AI]`
-enruta al agente IA). `scripts/agents/guard.sh` serializa por rol y evita sesiones
-sin tareas. El auto-merge (`gh pr merge --auto --squash`) depende del CI existente
-`Productive CI/CD Pipeline`; el kill switch es la variable de repositorio
-`AGENTS_ENABLED`. Cada workflow invoca su prompt con `prompt: '/agent-<rol>'`.
-Cualquier cambio en `.github/workflows/agent-*.yml` o en `scripts/agents/`
-arrastra los cuatro docs de release (`verify:integrity` lo exige). Detalle en
-[`DEPLOYMENT.md`](./DEPLOYMENT.md).
-
-## Configuración de Claude Code (`.claude/`)
-
-`.claude/` y `.mcp.json` **se versionan**: CI y las sesiones cloud clonan el repo,
-así que lo que no esté commiteado no existe allí. El `.gitignore` solo excluye
-`.claude/settings.local.json`.
-
-- `settings.json` — hook `SessionStart` (`matcher: startup|resume`, no reinstala en cada `/clear`) y `permissions.deny` sobre `.env*`
-- `hooks/session-start.sh` — `pnpm install`, `.env.local`, symlinks de Playwright
-- `commands/agent-*.md` — prompts de la fábrica, con `disable-model-invocation: true`
-- `rules/*.md` — contexto con `paths:`, se carga solo al tocar sus ficheros
-- `skills/` — `/observability` y las skills de `.agents/skills/` vía symlink
-
-Al añadir prompts, reglas o skills: van bajo `.claude/`, nunca en un `skills/` de
-raíz (Claude Code no lee esa ruta). Y ojo con los patrones de `.gitignore` sin
-barra inicial: `skills/` captura también `.claude/skills/`; hay que anclar
-(`/skills/`).
+Cuatro agentes (PM, Tech, IA, QA) corren en GitHub Actions coordinados por
+`BACKLOG.md`; el kill switch es la variable de repositorio `AGENTS_ENABLED`.
+`.claude/` y `.mcp.json` **se versionan**. El detalle de ambos vive en
+`.claude/rules/agent-factory.md` y `.claude/rules/claude-config.md`, que se
+cargan solos al tocar esos ficheros, y en [`DEPLOYMENT.md`](./DEPLOYMENT.md).

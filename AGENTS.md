@@ -275,6 +275,14 @@ existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 > va a `osv-scanner.toml` con `reason` e `ignoreUntil` obligatorios. Detalle en
 > `DEPLOYMENT.md`.
 
+> Nota (2026-08-05b): el texto local del documento (`_shared/document-text.ts`)
+> es un **oráculo de verificación**, no una fuente de extracción. El documento se
+> sigue subiendo entero a la Files API: sustituir el parseo de OpenAI por el
+> nuestro rompería los PDFs escaneados. Dos invariantes al tocarlo: extraer el
+> texto solo de bytes ya verificados por SHA-256, y no ampliar
+> `absenceIsConclusive()` más allá de `extracted` — es lo único que separa «la
+> cita es falsa» de «no lo sabemos». Detalle en `TECHNICAL_DOCS.md` §7.12.
+
 > Nota (2026-08-05): un override de seguridad **no caduca solo**.
 > `GHSA-rgw5-rvv9-x895` elude la mitigación del aviso que ya habíamos cerrado, y
 > con eso `brace-expansion@5.0.8` —la versión que fijamos precisamente para

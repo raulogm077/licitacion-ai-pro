@@ -1,6 +1,6 @@
 # ADR-003 — Evidencia verificable y documento en contexto
 
-- **Estado:** Aceptada — implementación por fases, la primera ya entregada
+- **Estado:** Aceptada — implementación por fases; entregadas la 1 y la 2
 - **Fecha:** 2026-07-28
 - **Ámbito:** Fases A–C del pipeline de análisis, contrato de evidencias, presentación de citas
 - **Sustituye parcialmente a:** ADR-001 (retrieval explícito vía Vector Store como camino principal)
@@ -56,7 +56,7 @@ Hoy el pipeline **nunca ve el contenido de los PDFs**: los sube a OpenAI y pregu
 
 | Pieza                                                  | Qué aporta                                                   | Determinista |
 | ------------------------------------------------------ | ------------------------------------------------------------ | ------------ |
-| Texto extraído en ingesta, persistido con el job       | Oráculo de verificación                                      | sí           |
+| Texto extraído en ingesta, persistido con el job ✅    | Oráculo de verificación                                      | sí           |
 | `input_file` (por `file_id`) en lugar de `file_search` | El modelo **no puede** no ver el documento                   | sí           |
 | Verificación de cada `evidence.quote` contra el texto  | Cita ausente ⇒ campo rechazado                               | sí, sin LLM  |
 | Ancla de identidad del expediente entre bloques        | Coherencia; detecta el caso «bloques de contratos distintos» | sí           |
@@ -73,7 +73,7 @@ Límites verificados en la documentación de OpenAI: 50 MB por fichero y 50 MB p
 
 **Fase 1 — Dejar de mentir (entregada con esta ADR).** Las citas dejan de presentarse como acreditadas. El contrato de evidencias gana un estado de verificación que hoy vale «sin verificar» para todo, y la interfaz lo dice. No arregla la extracción; retira una autoridad que nunca existió.
 
-**Fase 2 — Texto en ingesta.** Extraer y persistir el texto de cada documento. Habilita la verificación.
+**Fase 2 — Texto en ingesta (entregada 2026-08-05).** Cada documento pasa por un extractor local (`unpdf`) y su texto queda en `analysis_job_document_texts`, backend-only. Se extrae de los bytes que acaban de pasar el SHA-256 en el worker: un oráculo sacado de bytes sin verificar no acredita nada. No sustituye el parseo de OpenAI —el documento se sigue subiendo igual—, así que los escaneos conservan su OCR. Cinco estados, y solo `extracted` autoriza a declarar fabricada una cita ausente; esa traducción vive en `absenceIsConclusive()`. Un fallo aquí no es fatal: deja al documento sin oráculo, que downstream es `unverifiable`. Medido: 250 páginas → 1,2 s.
 
 **Fase 3 — Verificación de citas.** Toda `evidence.quote` que no aparezca en el texto invalida su campo, que pasa a `no_encontrado` con motivo. Determinista y testeable sin clave de OpenAI.
 

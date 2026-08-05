@@ -188,6 +188,30 @@ export const VECTOR_STORE_TIMEOUT_MS = 90_000;
  */
 export const VECTOR_STORE_REGISTRATION_GRACE_MS = 10_000;
 
+/**
+ * Tope de texto extraído localmente por documento (caracteres).
+ *
+ * El texto solo existe como **oráculo de verificación de citas** (ADR-003), y
+ * eso fija el compromiso: recortarlo no degrada la extracción, degrada nuestra
+ * capacidad de falsar una cita. Por eso el recorte nunca es silencioso — el
+ * estado pasa a `truncated` y una cita ausente deja de ser concluyente.
+ *
+ * 1.000.000 de caracteres son ~350 páginas de pliego real, holgado sobre el
+ * camino de producto (un expediente completo). Medido: 250 páginas densas
+ * producen 1,3 MB de texto y tardan ~1,2 s en extraerse.
+ */
+export const DOCUMENT_TEXT_MAX_CHARS = 1_000_000;
+
+/**
+ * Techo de tiempo para extraer el texto de un documento.
+ *
+ * Muy holgado a propósito (lo medido son ~1,2 s para 250 páginas): no está para
+ * acotar el caso normal sino para que un PDF hostil o degenerado no se coma el
+ * presupuesto de la slice. Agotarlo no rompe el análisis, deja el documento sin
+ * oráculo.
+ */
+export const DOCUMENT_TEXT_TIMEOUT_MS = 20_000;
+
 /** Guide excerpt length for system prompts (chars) */
 export const GUIDE_EXCERPT_LENGTH = 4000;
 

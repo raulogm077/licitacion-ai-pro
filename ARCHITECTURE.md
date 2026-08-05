@@ -596,6 +596,22 @@ Esa última distinción no es cosmética: `not_found` afirma que la cita es fals
 
 **Fecha:** 2026-07-28
 
+### 8.26 El texto del documento en nuestro lado (Implementado 2026-08-05)
+
+`docs/adr/ADR-003` Fase 2. La primitiva que §8.25 declaraba ausente. Hasta aquí el pipeline subía los PDFs a OpenAI y preguntaba: nunca veía su contenido, así que no existía forma de comprobar si una cita estaba en el documento.
+
+**Se extrae de los bytes ya verificados, no de otros.** El sitio es `downloadAndVerifyDocuments` en el worker, justo después de que el SHA-256 case con lo que subió el usuario. Extraerlo en `runIngestion` habría sido contrastar las citas contra algo que nadie ha comprobado que sea el documento — un oráculo que no se sabe de qué es no sirve de oráculo.
+
+**No sustituye el parseo de OpenAI.** El documento sigue yendo a la Files API igual que antes; el texto local es solo con qué contrastar. Esto conserva el OCR de OpenAI para los escaneos, frecuentes en contratación pública, en vez de romperlos por quedarnos con nuestro extractor.
+
+**Tabla aparte, backend-only.** `analysis_job_document_texts` no son columnas de `analysis_job_documents` por dos razones que se refuerzan: esa tabla se lee en cada slice y un `text` de cientos de KB dentro haría cara cualquier lectura futura, y una columna nueva heredaría su `SELECT` de usuario. Separada, la postura se elige: RLS activo **sin políticas**, solo `service_role`.
+
+**El fallo no es fatal.** Perder el oráculo degrada la verificación, no el producto. Un error al extraer o al guardar deja al documento sin texto, y eso downstream significa `unverifiable` — nunca «la cita es falsa».
+
+Esa última frase es la regla entera de la fase, y vive en una sola función, `absenceIsConclusive`: solo un texto **completo** autoriza a declarar fabricada una cita ausente. Un escaneo sin OCR, un texto recortado por el tope o un parser que falló no autorizan nada. Colapsar esos casos con «no aparece» repetiría, sobre la evidencia, el error de §8.24 con los contadores: presentar la ausencia de medición como si fuera una medición.
+
+**Fecha:** 2026-08-05
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

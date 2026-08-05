@@ -17,6 +17,7 @@ import { SupabaseLogTraceProcessor } from '../_shared/agents/tracing.ts';
 import { createPipelineContext } from '../_shared/agents/context.ts';
 import { type AnalysisStepName, JobService } from '../_shared/services/job.service.ts';
 import { sha256Hex } from '../_shared/services/durable-input.service.ts';
+import { extractDocumentText } from '../_shared/document-text.ts';
 import { mapOpenAIError } from '../_shared/utils/error.utils.ts';
 import { runIngestion, waitForVectorStoreIndexing } from '../analyze-with-agents/phases/ingestion.ts';
 import { runDocumentMap } from '../analyze-with-agents/phases/document-map.ts';
@@ -88,6 +89,52 @@ async function loadDocuments(serviceClient: ReturnType<typeof createClient>, job
     return data as AnalysisDocumentRow[];
 }
 
+/**
+ * Extrae el texto del documento y lo guarda como oráculo de verificación.
+ *
+ * **No es fatal.** Un fallo aquí deja al job sin con qué contrastar sus citas,
+ * que downstream se traduce en `unverifiable` — la respuesta honesta. Tumbar el
+ * análisis del usuario porque no pudimos guardar el oráculo sería cambiar un
+ * producto degradado por ninguno.
+ *
+ * La ausencia de fila y un `status` de fallo significan lo mismo para la Fase 3:
+ * no se puede falsar ninguna cita de este documento.
+ */
+async function persistDocumentText(
+    serviceClient: ReturnType<typeof createClient>,
+    jobId: string,
+    document: AnalysisDocumentRow,
+    bytes: Uint8Array
+) {
+    try {
+        const extraction = await extractDocumentText(bytes, document.file_name, document.mime_type);
+        const { error } = await serviceClient.from('analysis_job_document_texts').upsert(
+            {
+                document_id: document.id,
+                job_id: jobId,
+                status: extraction.status,
+                content: extraction.text,
+                char_count: extraction.charCount,
+                page_count: extraction.pageCount,
+                reason: extraction.reason ?? null,
+                extracted_at: new Date().toISOString(),
+            },
+            { onConflict: 'document_id' }
+        );
+        if (error) throw error;
+        console.log(
+            `[analysis-worker] Texto de ${document.file_name}: ${extraction.status} ` +
+                `(${extraction.charCount} chars, ${extraction.pageCount ?? '?'} páginas)`
+        );
+    } catch (error) {
+        console.warn(
+            `[analysis-worker] No se pudo registrar el texto de ${document.file_name} — ` +
+                'las citas de este documento quedarán sin verificar:',
+            error
+        );
+    }
+}
+
 async function downloadAndVerifyDocuments(
     serviceClient: ReturnType<typeof createClient>,
     jobId: string,
@@ -114,6 +161,12 @@ async function downloadAndVerifyDocuments(
                 .eq('job_id', jobId);
             throw new Error(`La integridad SHA-256 no coincide para ${document.file_name}`);
         }
+
+        // El oráculo de verificación se saca de ESTOS bytes, los que acaban de
+        // pasar el SHA-256 contra lo que subió el usuario. Extraerlo en otro
+        // sitio sería contrastar las citas contra algo que nadie ha comprobado
+        // que sea el documento (ADR-003 Fase 2).
+        await persistDocumentText(serviceClient, jobId, document, bytes);
 
         const blob = new Blob([bytes], { type: document.mime_type });
         sourceFiles.push({

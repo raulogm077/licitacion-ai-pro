@@ -46,6 +46,8 @@ Antes de desplegar una tarea, QA debe verificar:
     - baseline de `pnpm eval:pliegos:live` si cambia modelo, prompt, retrieval u orquestación
 5. documentación mínima actualizada
 
+> `verify:release` es repetible desde 2026-08-05. Antes lo era solo la primera vez: los pasos Deno dejan `node_modules/.deno` y repuntan los enlaces de `node_modules/.bin`, así que la siguiente ejecución —o cualquier `deno test` suelto lanzado entre medias— moría en el paso de Playwright con «two different versions of @playwright/test», mucho antes de llegar a los pasos Deno que lo causaron. El script ahora limpia ese residuo antes del E2E. En CI no aplica: `edge-checks` y `e2e-tests` son jobs distintos con su propio `node_modules`.
+
 ## 3.1. Gate funcional de release
 
 El despliegue productivo no se considera seguro solo porque lint, tests unitarios y build estén en verde. Cambios que afecten al análisis deben mantener verde el benchmark funcional:
@@ -98,6 +100,7 @@ Migraciones relevantes recientes:
 - `20260716105353_analysis_job_advisor_hardening.sql` — índices de las FK del outbox y política RLS deny explícita; cierra los tres avisos introducidos detectados por advisors en el preview de la PR.
 - `20260716114116_analysis_worker_async_runtime.sql` — `pg_net`/`pg_cron`, token M2M en Vault, upload state/orden, claim/advance atómicos, activación y recovery del worker, Broadcast privado y cleanup TTL. Debe validarse en Preview antes de producción; no contiene una API key de OpenAI ni un token en texto plano versionado.
 - `20260717094234_harden_pg_net_extension_schema.sql` — garantiza que `pg_net` quede registrado en `extensions`; repara de forma idempotente previews que ya lo hubieran instalado en `public` y evita introducir un aviso del Security Advisor.
+- `20260805120000_analysis_job_document_texts.sql` — tabla `analysis_job_document_texts`: el texto extraído localmente de cada documento, oráculo de verificación de citas (ADR-003 Fase 2). **RLS activo y sin políticas** a propósito, de modo que solo `service_role` la lee; no añadir un `SELECT` para `authenticated` sin una pantalla que lo necesite, porque expondría el texto completo del expediente al navegador. Tabla aparte —y no columnas en `analysis_job_documents`— porque esa tabla se lee en cada slice del worker y un `text` de cientos de KB dentro convertiría cualquier `select('*')` futuro en megabytes por slice. El borrado va en cascada desde el documento, así que el cleanup TTL existente ya la vacía sin cambios.
 
 > **Nota**: `db push` es no destructivo para migraciones nuevas, pero revisar siempre el plan antes de aplicar en producción.
 
