@@ -74,7 +74,7 @@ Documentación viva del sistema:
 - `CHANGELOG.md`: historial de cambios por release (última entrada: Fase 1B de upload firmado, worker independiente y recovery durable)
 - `docs/adr/ADR-001-arquitectura-ia-durable-y-evaluable.md`: arquitectura objetivo de IA y migración incremental aprobada
 - `docs/adr/ADR-002-perfil-de-empresa-licitadora.md`: modelo de datos del licitador y Go/No-Go de la Guía §3 — **propuesta, pendiente de decisión de producto**
-- `docs/adr/ADR-003-evidencia-verificable-y-documento-en-contexto.md`: por qué la evidencia autoacreditada no vale y cómo se sustituye — **aceptada, Fase 1 entregada**
+- `docs/adr/ADR-003-evidencia-verificable-y-documento-en-contexto.md`: por qué la evidencia autoacreditada no vale y cómo se sustituye — **aceptada, Fases 1 y 2 entregadas** (las citas ya no aparentan estar verificadas, y el texto del documento vive en `analysis_job_document_texts` para poder contrastarlas)
 
 ## Stack real
 

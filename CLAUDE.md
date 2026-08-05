@@ -117,7 +117,8 @@ Lo que no es evidente navegando el árbol:
 - All exposed tables have RLS enabled. `analysis_jobs`, documents and steps expose only owner-scoped `SELECT`; all mutations are backend-only.
 - Full-text search: `search_vector` tsvector column (Spanish) with GIN index
 - Search RPC: `search_licitaciones` combines FTS + ILIKE fallback
-- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `analysis_job_documents`, `analysis_job_steps`, `analysis_job_outbox`, `analysis_runtime_settings`, `extraction_feedback`
+- Key tables: `licitaciones`, `extraction_templates`, `analysis_jobs`, `analysis_job_documents`, `analysis_job_document_texts`, `analysis_job_steps`, `analysis_job_outbox`, `analysis_runtime_settings`, `extraction_feedback`
+- `analysis_job_document_texts` es la excepción a «RLS con `SELECT` del dueño»: lleva RLS **sin políticas**, así que solo `service_role` la lee. Es el oráculo de verificación de citas (ADR-003), no dato de pantalla; añadirle un `SELECT` para `authenticated` expondría el texto completo del expediente al navegador sin que nada lo necesite
 
 ## Testing
 
@@ -166,6 +167,7 @@ se autentican solos; exportar el PAT al shell lo expone en transcripts y logs.
 - `supabase/functions/analyze-with-agents/prompts/index.ts` — Prompt strings
 - `supabase/functions/chat-with-analysis-agent/index.ts` — Conversational layer (verify_jwt=true en gateway)
 - `supabase/functions/_shared/agents/{context,guardrails,tracing,sdk}.ts` — Infraestructura compartida del SDK
+- `supabase/functions/_shared/document-text.ts` — Extracción local de texto: el oráculo contra el que se verifican las citas (ADR-003 Fase 2). `absenceIsConclusive()` es el único sitio que decide si una cita ausente puede declararse fabricada
 - `supabase/functions/_shared/config.ts` — Backend constants
 - `supabase/functions/_shared/schemas/canonical.ts` — Canonical schema (source of truth)
 - `AGENTS.md` — Reglas duras del SDK (no `outputType` con `file_search`, per-request agents, Auth model, etc.). **Claude Code no lo auto-carga**: el índice de invariantes vive en `.claude/rules/agents-sdk.md` con scope `supabase/functions/**`

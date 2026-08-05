@@ -53,6 +53,7 @@
     "npm:tsx@^4.23.1": "4.23.1",
     "npm:typescript-eslint@^8.65.0": "8.65.0_eslint@9.39.5_typescript@5.9.3",
     "npm:typescript@^5.5.4": "5.9.3",
+    "npm:unpdf@1.4.0": "1.4.0",
     "npm:vite@^7.3.6": "7.3.6_@types+node@25.6.0_tsx@4.23.1",
     "npm:vitest@^4.1.10": "4.1.10_@types+node@25.6.0_@vitest+coverage-v8@4.1.10_jsdom@27.4.0_vite@7.3.6__@types+node@25.6.0__tsx@4.23.1_tsx@4.23.1",
     "npm:zod@3.22.4": "3.22.4",
@@ -3760,6 +3761,9 @@
     },
     "undici-types@7.19.2": {
       "integrity": "sha512-qYVnV5OEm2AW8cJMCpdV20CDyaN3g0AjDlOGf1OW4iaDEx8MwdtChUp4zu4H0VP3nDRF/8RKWH+IPp9uW0YGZg=="
+    },
+    "unpdf@1.4.0": {
+      "integrity": "sha512-TahIk0xdH/4jh/MxfclzU79g40OyxtP00VnEUZdEkJoYtXAHWLiir6t3FC6z3vDqQTzc2ZHcla6uEiVTNjejuA=="
     },
     "unpipe@1.0.0": {
       "integrity": "sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ=="

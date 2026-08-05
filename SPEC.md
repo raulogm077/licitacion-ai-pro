@@ -598,3 +598,29 @@ No arregla la extracción. **Retira una autoridad que nunca existió**, que es l
 ### Regla que unifica los cuatro incidentes del mes
 
 Un contador que nunca se midió (§11.6), un bloque vacío que no se contrastó (§11.4), una cita que nadie buscó en el documento (§11.7): **antes de afirmar algo, comprobar que el dato en el que se apoya la afirmación es verificable.**
+
+### 11.8. El texto del documento en nuestro lado (2026-08-05)
+
+La primitiva que §11.7 declaraba ausente, y sin la cual las Fases 3–5 del ADR-003 no pueden existir. Hasta ahora el pipeline **nunca veía el contenido de los PDFs**: los subía a OpenAI y preguntaba.
+
+**Qué hace.** Cada documento pasa por un extractor local (`unpdf`, pdf.js empaquetado, cero dependencias nativas) y su texto se guarda en `analysis_job_document_texts`. Medido sobre 250 páginas densas: 1,2 s y 1,3 MB de texto — irrelevante frente a los 150 s de la slice.
+
+**Dónde ocurre, y por qué ahí.** En `downloadAndVerifyDocuments`, del worker, inmediatamente después de que el SHA-256 case con lo que subió el usuario. Un oráculo extraído de unos bytes que nadie ha comprobado no acredita nada; sería repetir el defecto de §11.7 un nivel más abajo.
+
+**Lo que NO hace.** No sustituye el parseo de OpenAI: el documento sigue subiéndose igual. El texto local existe solo para contrastar. Así los PDFs escaneados —frecuentes en contratación pública— conservan el OCR de OpenAI en vez de romperse contra nuestro extractor.
+
+### Los cinco estados, y cuál de ellos autoriza a acusar
+
+| Estado        | Qué pasó                                   | ¿Una cita ausente es falsa? |
+| ------------- | ------------------------------------------ | --------------------------- |
+| `extracted`   | texto completo                             | **sí**                      |
+| `truncated`   | se alcanzó el tope de 1.000.000 caracteres | no — podría estar en el resto |
+| `empty`       | se parseó bien y no hay texto (escaneo)    | no                          |
+| `unsupported` | no hay extractor para ese formato          | no                          |
+| `failed`      | el parser falló o agotó el tiempo          | no                          |
+
+La traducción a la Fase 3 vive en **una sola función**, `absenceIsConclusive()`, por la misma razón que `evidenceVerification()` en §11.7: un defecto repetido en cada consumidor es un defecto que alguien olvidará. Encontrar la cita sí es concluyente siempre; lo que exige el texto completo es afirmar que **no** está.
+
+**Nada de esto es fatal.** Si la extracción o el guardado fallan, el análisis continúa sin oráculo y sus citas quedan `unverifiable`. Tumbar el análisis del usuario porque no pudimos guardar con qué comprobarlo sería cambiar un producto degradado por ninguno.
+
+**El camino de rollback SSE se queda sin oráculo**, y es correcto: `analyze-with-agents` no verifica SHA-256 de nada. Sus citas serán `unverifiable`, que es exactamente lo que sabemos de ellas.

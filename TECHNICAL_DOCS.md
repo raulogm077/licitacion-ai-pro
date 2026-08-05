@@ -479,3 +479,30 @@ Es opcional en el wire a propósito: todo el histórico lo trae ausente. Por eso
 `not_found` y `unverifiable` se separan deliberadamente. El primero afirma algo sobre la cita; el segundo admite que no lo sabemos. Colapsarlos repetiría en el terreno de la evidencia el error de §7.10 con los contadores: presentar la ausencia de medición como si fuera una medición.
 
 Hoy el pipeline no emite ningún estado distinto de `unverified` porque **falta la primitiva**: el texto del documento en nuestro lado. `EvidenceToggle` refleja los cuatro casos ya (título del botón, icono y nota), de modo que la Fase 3 solo tenga que empezar a escribir el campo.
+
+### 7.12. Oráculo de verificación: el texto local del documento
+
+`supabase/functions/_shared/document-text.ts` (ADR-003 Fase 2). Extrae el texto de un documento y lo devuelve con un estado. **Nunca lanza**: cualquier fallo vuelve como estado, porque perder el oráculo no puede tumbar el análisis del usuario.
+
+```ts
+extractDocumentText(bytes, fileName, mimeType?, { maxChars?, timeoutMs? })
+  → { status, text, charCount, pageCount, reason? }
+```
+
+| Estado        | Cuándo                                          | `absenceIsConclusive` |
+| ------------- | ----------------------------------------------- | --------------------- |
+| `extracted`   | texto completo                                  | **true**              |
+| `truncated`   | superó `DOCUMENT_TEXT_MAX_CHARS` (1.000.000)    | false                 |
+| `empty`       | parseó bien y el texto está vacío tras `trim()` | false                 |
+| `unsupported` | sin extractor para ese formato (p. ej. `.docx`) | false                 |
+| `failed`      | el parser falló o agotó `DOCUMENT_TEXT_TIMEOUT_MS` | false              |
+
+`absenceIsConclusive(status)` es la **única** función autorizada a responder si una cita ausente puede declararse fabricada. La Fase 3 traduce `true → not_found` y `false → unverifiable`. Encontrar la cita es concluyente en todos los estados; lo que exige texto completo es afirmar que no está.
+
+**PDF: `unpdf`.** Es pdf.js empaquetado para entornos serverless: cero dependencias en tiempo de ejecución y ningún módulo nativo en el camino de texto. `@napi-rs/canvas` figura como peer opcional y solo se resuelve al **renderizar** páginas, algo que este módulo no hace — importante, porque un módulo nativo no cargaría en el runtime de las Edge Functions.
+
+**La copia del buffer no es defensiva de más.** `getDocumentProxy` recibe `new Uint8Array(bytes)` porque pdf.js toma posesión del buffer y puede dejarlo separado. El worker sube **esos mismos bytes** a OpenAI justo después: sin la copia subiría un fichero vacío sin que nada fallara. Hay un test que lo fija.
+
+**Dónde se invoca.** `persistDocumentText`, en `analysis-worker`, dentro de `downloadAndVerifyDocuments` y después de la comprobación SHA-256. El `upsert` va sobre `document_id`, así que un reintento de la slice reescribe en vez de duplicar. Un error de guardado se registra y se continúa: la ausencia de fila y un estado de fallo significan lo mismo para la Fase 3.
+
+**Coste medido.** 250 páginas densas → 1,3 MB de texto en ~1,2 s. Frente al presupuesto de slice (150 s) no compite con nada; el tope de 20 s existe solo para que un PDF degenerado no se lo coma.
