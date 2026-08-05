@@ -17,8 +17,43 @@ set -euo pipefail
 cd "$CLAUDE_PROJECT_DIR"
 
 # ── 1. Dependencias npm ───────────────────────────────────────────────────────
-echo "→ Instalando dependencias del proyecto..."
-pnpm install
+# Cada despertar por webhook —un comentario en una PR, un resultado de CI— llega
+# como `resume` y vuelve a disparar este hook. Con `pnpm install` incondicional
+# eso costaba una mediana de 10 s (hasta 23 s en frío) por despertar para
+# reimprimir «Already up to date»: 42 arranques y ~8 min de reloj bloqueado en
+# una sola sesión de vigilancia de PRs. Comprobar si hace falta cuesta 7 ms.
+#
+# El sello vive DENTRO de `node_modules` a propósito: si el contenedor se recicla
+# y `node_modules` desaparece, el sello se va con él y la instalación vuelve a
+# correr. No puede quedarse afirmando «ya está instalado» sobre un árbol que ya
+# no existe, que es justo la garantía por la que el hook corre también en
+# `resume`. Eso incluye `prepare` → `husky`, que es quien pone `core.hooksPath`
+# para el pre-push de `verify:release`.
+#
+# `.modules.yaml` lo escribe pnpm al COMPLETAR una instalación, así que su
+# ausencia delata un árbol a medio instalar aunque el hash del lockfile cuadre.
+LOCK_STAMP="node_modules/.session-start-stamp"
+LOCK_HASH=""
+if [ -f pnpm-lock.yaml ]; then
+  LOCK_HASH=$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)
+fi
+
+DEPS_IN_SYNC=false
+if [ -n "$LOCK_HASH" ] && [ -f node_modules/.modules.yaml ] && [ -f "$LOCK_STAMP" ]; then
+  if [ "$(cat "$LOCK_STAMP")" = "$LOCK_HASH" ]; then
+    DEPS_IN_SYNC=true
+  fi
+fi
+
+if [ "$DEPS_IN_SYNC" = true ]; then
+  echo "✓ Dependencias ya sincronizadas con pnpm-lock.yaml"
+else
+  echo "→ Instalando dependencias del proyecto..."
+  pnpm install
+  if [ -n "$LOCK_HASH" ]; then
+    printf '%s\n' "$LOCK_HASH" > "$LOCK_STAMP"
+  fi
+fi
 
 # ── 2. .env.local ─────────────────────────────────────────────────────────────
 # Requerido para servidor de dev y E2E tests.
@@ -100,7 +135,9 @@ fi
 
 echo ""
 echo "✅ Entorno listo"
-echo "   node $(node --version) | pnpm $(pnpm --version)"
+# Sin `pnpm --version`: 0,8 s —un tercio de lo que cuesta una instalación en
+# caliente— por imprimir un número que nadie consulta.
+echo "   node $(node --version)"
 echo "   Unit tests:  pnpm test:run"
 echo "   Lint:        pnpm lint"
 echo "   Typecheck:   pnpm typecheck"
