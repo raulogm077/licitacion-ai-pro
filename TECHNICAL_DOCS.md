@@ -462,3 +462,20 @@ Se activa en dos situaciones, deliberadamente bajo la misma bandera:
 En ambas, `zeroCompletedFiles` se deja en `false` a propósito: solo puede afirmarse sobre un recuento real.
 
 El bucle de espera cierra únicamente cuando `in_progress === 0` **y** `completed + failed + in_progress > 0`. Con los tres a cero sigue esperando hasta `VECTOR_STORE_REGISTRATION_GRACE_MS` (10 s), porque en ese estado `in_progress === 0` significa «aún no ha empezado», no «terminó». La ventana es parametrizable en la firma —igual que `pollRetryOptions`— para que el test del caso no duerma 13 s de reloj real.
+
+### 7.11. Estado de verificación de una cita
+
+`TrackedEvidenceWire.verification` (`src/shared/analysis-contract.ts`, espejado en `_shared/schemas/canonical.ts` y en `src/lib/schemas.ts`) responde a una única pregunta: **¿alguien ha buscado esta cita en el documento?** No a si el dato es correcto.
+
+| Estado         | Significa                                              | Quién lo escribe          |
+| -------------- | ------------------------------------------------------ | ------------------------- |
+| `unverified`   | nadie la ha contrastado                                | defecto — **el único hoy** |
+| `verified`     | aparece literalmente en el texto del documento         | Fase 3 de `ADR-003`       |
+| `not_found`    | se buscó y no aparece ⇒ la cita es fabricada           | Fase 3 de `ADR-003`       |
+| `unverifiable` | no hay texto contra el que contrastar (escaneo sin OCR) | Fase 3 de `ADR-003`       |
+
+Es opcional en el wire a propósito: todo el histórico lo trae ausente. Por eso **nunca se lee `evidence.verification` directamente** —eso obligaría a repetir el defecto en cada consumidor— sino a través de `evidenceVerification(evidence)`, que centraliza el `?? 'unverified'` en un sitio.
+
+`not_found` y `unverifiable` se separan deliberadamente. El primero afirma algo sobre la cita; el segundo admite que no lo sabemos. Colapsarlos repetiría en el terreno de la evidencia el error de §7.10 con los contadores: presentar la ausencia de medición como si fuera una medición.
+
+Hoy el pipeline no emite ningún estado distinto de `unverified` porque **falta la primitiva**: el texto del documento en nuestro lado. `EvidenceToggle` refleja los cuatro casos ya (título del botón, icono y nota), de modo que la Fase 3 solo tenga que empezar a escribir el campo.

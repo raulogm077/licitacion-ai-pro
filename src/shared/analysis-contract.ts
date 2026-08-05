@@ -44,10 +44,44 @@ export const RETRY_REASONS = ['rate_limit', 'server_error', 'network', 'timeout'
 
 export type AnalysisRetryReason = (typeof RETRY_REASONS)[number];
 
+/**
+ * Estados de verificación de una cita.
+ *
+ * `quote` lo **escribe el modelo**, no se extrae del documento. Mientras nadie
+ * lo compruebe contra la fuente es una afirmación más del mismo generador, no
+ * una acreditación — y presentarla como tal fue lo que mantuvo invisible el
+ * incidente del 2026-07-28 (`docs/adr/ADR-003`), donde seis análisis de los
+ * mismos PDFs inventaron seis licitaciones distintas, cada una con su cita.
+ *
+ * - `unverified`: nadie la ha contrastado. **Estado por defecto y único hoy.**
+ * - `verified`: aparece literalmente en el texto del documento.
+ * - `not_found`: se buscó en el texto y NO aparece → la cita es fabricada.
+ * - `unverifiable`: no hay texto contra el que contrastar (p. ej. PDF escaneado
+ *   sin OCR local). No es lo mismo que `not_found`: aquí no sabemos.
+ */
+export const EVIDENCE_VERIFICATION_STATES = ['unverified', 'verified', 'not_found', 'unverifiable'] as const;
+
+export type EvidenceVerification = (typeof EVIDENCE_VERIFICATION_STATES)[number];
+
 export interface TrackedEvidenceWire {
     quote: string;
     pageHint?: string;
     confidence?: number;
+    /**
+     * Ausente en los análisis anteriores a ADR-003, que deben leerse como
+     * `unverified`: nunca se comprobaron. Usa `evidenceVerification()` en vez
+     * de leer este campo directamente, para que ese defecto sea uno solo.
+     */
+    verification?: EvidenceVerification;
+}
+
+/**
+ * Estado de verificación de una cita, con el defecto correcto para el
+ * histórico. Una sola definición: leer `evidence.verification` a pelo
+ * reintroduce el «ausente = da igual» que es justo lo que no puede pasar.
+ */
+export function evidenceVerification(evidence: TrackedEvidenceWire | undefined | null): EvidenceVerification {
+    return evidence?.verification ?? 'unverified';
 }
 
 export interface TrackedFieldWire<T> {

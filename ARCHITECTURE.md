@@ -582,6 +582,20 @@ La invariante generalizable, con tres incidentes detrás: antes de afirmar algo 
 
 **Fecha:** 2026-07-28
 
+### 8.25 Un grounding autoacreditado no es grounding (Implementado 2026-07-28)
+
+`docs/adr/ADR-003`. Seis análisis de PDFs byte-idénticos produjeron seis licitaciones distintas, cada una con su cita literal de apoyo. La causa no es un bug: son dos elecciones de arquitectura.
+
+**RAG para un corpus que cabe en contexto.** `file_search` es una herramienta opcional; el modelo decide si la invoca y nadie lo comprueba. Un expediente son 2-5 PDFs muy por debajo del límite de 50 MB por request, así que la recuperación no aportaba capacidad y sí su peor modo de fallo.
+
+**Evidencia autoacreditada.** `evidence.quote` la escribe el modelo y nunca se contrasta con el documento. Es una afirmación más del mismo generador, presentada con la autoridad de una comprobación inexistente — y por eso el fallo fue invisible mientras un bloque vacío sí se veía.
+
+La corrección estructural exige una primitiva que el pipeline no tiene: **el texto del documento en nuestro lado**. Sin él no hay nada contra lo que falsar una cita. La ADR lo desarrolla en cinco fases; la primera, ya en el código, retira la autoridad falsa: el contrato lleva `verification` y la interfaz distingue «sin verificar» de «verificada», de «no aparece» y de «no se pudo comprobar».
+
+Esa última distinción no es cosmética: `not_found` afirma que la cita es falsa y `unverifiable` admite que no lo sabemos. Confundirlas repetiría, en el terreno de la evidencia, el error de §8.24 con los contadores.
+
+**Fecha:** 2026-07-28
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM
