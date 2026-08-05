@@ -190,10 +190,10 @@ npx supabase secrets set OPENAI_API_KEY=sk-...
 <<<<<<< HEAD
 `EDGE_WALL_CLOCK_MS` es el único secret opcional. Declara el techo de wall-clock que la plataforma impone a una invocación de Edge Function, del que se deriva `PIPELINE_TIMEOUT_MS`. **No es un valor que elijamos nosotros**: hay que ponerlo igual al que esté configurado en Dashboard → Project Settings → Edge Functions → Function Timeout.
 
-| Plan            | Techo real | Sin el secret | Con el secret ajustado |
-| --------------- | ---------- | ------------- | ---------------------- |
-| Free            | 150 s      | 140 s de pipeline (correcto) | — |
-| Pro (subido)    | hasta 400 s | 140 s de pipeline (deja tiempo sin usar) | `EDGE_WALL_CLOCK_MS=400000` → 390 s |
+| Plan         | Techo real  | Sin el secret                            | Con el secret ajustado              |
+| ------------ | ----------- | ---------------------------------------- | ----------------------------------- |
+| Free         | 150 s       | 140 s de pipeline (correcto)             | —                                   |
+| Pro (subido) | hasta 400 s | 140 s de pipeline (deja tiempo sin usar) | `EDGE_WALL_CLOCK_MS=400000` → 390 s |
 
 ```bash
 npx supabase secrets set EDGE_WALL_CLOCK_MS=400000   # solo tras subirlo en el Dashboard
@@ -209,11 +209,11 @@ No hay otros secretos backend personalizados operativos. Cualquier secret remoto
 
 Tres trabajos, todos registrados por migración con `cron.schedule`, que hace upsert por nombre:
 
-| Nombre | Frecuencia | Qué hace |
-| --- | --- | --- |
-| `analysis-worker-recovery-sweep` | cada 10 s | Despierta al worker si hay pasos en cola, reintentando o con lease vencido |
-| `analysis-resource-cleanup` | cada hora | Limpieza TTL de recursos OpenAI, Storage y filas de documentos |
-| `analysis-stale-step-reclaim` | cada 5 min | Cierra trabajo abandonado que ningún consumidor puede retomar |
+| Nombre                           | Frecuencia | Qué hace                                                                   |
+| -------------------------------- | ---------- | -------------------------------------------------------------------------- |
+| `analysis-worker-recovery-sweep` | cada 10 s  | Despierta al worker si hay pasos en cola, reintentando o con lease vencido |
+| `analysis-resource-cleanup`      | cada hora  | Limpieza TTL de recursos OpenAI, Storage y filas de documentos             |
+| `analysis-stale-step-reclaim`    | cada 5 min | Cierra trabajo abandonado que ningún consumidor puede retomar              |
 
 El tercero se añadió el 2026-07-27 porque el barrido colgaba del inicio de `analyze-with-agents`, que Fase 1B dejó como ruta de rollback: sin ese cron dejó de ejecutarse (ver `SPEC.md` §10.13). Su frecuencia es baja a propósito — no desbloquea trabajo en curso, solo cierra el ya muerto.
 
@@ -336,14 +336,14 @@ tras el merge.
 así que lo que no esté commiteado no existe allí. El `.gitignore` solo excluye
 `.claude/settings.local.json` (preferencias personales por máquina).
 
-| Ruta                                  | Qué es                                                                                             |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `.claude/settings.json`               | Hook `SessionStart` (`matcher: startup\|resume`) y `permissions.deny` sobre `.env*`                 |
-| `.claude/hooks/session-start.sh`      | Prepara el entorno de sesión: `pnpm install`, `.env.local`, symlinks de Playwright                  |
-| `.claude/commands/agent-*.md`         | Prompts de la fábrica de agentes (`disable-model-invocation: true`)                                 |
-| `.claude/rules/*.md`                  | Reglas con `paths:` que entran en contexto solo al tocar los ficheros que cubren                    |
-| `.claude/skills/observability/`       | Procedimiento de diagnóstico (Actions, logs Supabase, Vercel, spans `[trace]`)                      |
-| `.claude/skills/*` (symlinks)         | Skills de `.agents/skills/` expuestas donde Claude Code sí las lee                                  |
+| Ruta                             | Qué es                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| `.claude/settings.json`          | Hook `SessionStart` (`matcher: startup\|resume`) y `permissions.deny` sobre `.env*` |
+| `.claude/hooks/session-start.sh` | Prepara el entorno de sesión: dependencias, `.env.local`, symlinks de Playwright    |
+| `.claude/commands/agent-*.md`    | Prompts de la fábrica de agentes (`disable-model-invocation: true`)                 |
+| `.claude/rules/*.md`             | Reglas con `paths:` que entran en contexto solo al tocar los ficheros que cubren    |
+| `.claude/skills/observability/`  | Procedimiento de diagnóstico (Actions, logs Supabase, Vercel, spans `[trace]`)      |
+| `.claude/skills/*` (symlinks)    | Skills de `.agents/skills/` expuestas donde Claude Code sí las lee                  |
 
 Dos avisos que ya costaron un fallo silencioso y conviene no repetir:
 
