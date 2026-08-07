@@ -109,6 +109,49 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Pendiente: los pasos 3 (captura incremental), 4 (panel) y 5 (tool del copiloto) siguen en ADR-002.
     - Archivos: `src/lib/go-no-go.ts` (nuevo), `src/lib/__tests__/go-no-go.test.ts` (nuevo)
 
+- [x] [Tipo: Backend] [Área: Analysis] Perfil de empresa licitadora — Servicio de acceso al perfil (entregado 2026-08-07)
+    - Objetivo: Conectar las tablas del Paso 1 con el motor del Paso 2. Existían los dos extremos y no el cable; los tres pasos restantes lo necesitan.
+    - Entregado: `src/services/perfil.service.ts` con `getPerfil`, `ensurePerfil`, `getPerfilParaEvaluacion` (traduce a la forma de `evaluarGoNoGo`) y las tres escrituras owner-scoped.
+    - Criterios de aceptación:
+        - Ninguna escritura a una tabla hija lleva `user_id` — ✅ test sobre las tres, con `perfil_id` resuelto en un único método privado.
+        - Un perfil vacío es `ok`, no `err` — ✅ y el test encadena hasta el motor para comprobar que produce «desconocido» y ningún `no_cumple`.
+        - Sin sesión no se lee ni se escribe — ✅.
+    - Defecto corregido antes de entregar: `onConflict: 'perfil_id,ejercicio'` se aplicaba a las tres tablas, pero solo `empresa_ejercicio` tiene esa restricción única; en las otras dos Postgres habría rechazado la escritura. Hay test que fija cuál hace upsert y cuáles insertan.
+    - Archivos: `src/services/perfil.service.ts` (nuevo), `src/services/__tests__/perfil.service.test.ts` (nuevo)
+
+- [x] [Tipo: AI] [Área: Analysis] Perfil de empresa licitadora — Paso 5: tool read-only del copiloto (entregado 2026-08-07)
+    - Objetivo: Que el copiloto responda «¿cumplo la solvencia?» sin que los datos del perfil salgan hacia OpenAI.
+    - Entregado: `get_go_no_go` en `chat-with-analysis-agent/tools.ts`, que calcula el veredicto en nuestro lado y devuelve solo estado, chequeo, sección de la Guía y campos que faltan. `evaluarGoNoGo` se movió a `src/shared/`, que es el sitio que el repo ya usa para código FE/BE compartido.
+    - Criterios de aceptación:
+        - Ningún campo del perfil aparece en el payload al modelo — ✅ test que lo comprueba **por valor** y no por nombre de clave, para que renombrar un campo no baste para colar un dato.
+        - Ownership del usuario de la sesión — ✅ `loadPerfilForUser` filtra por `user_id` y las hijas por `perfil_id`.
+        - `deno test` de la función en verde — ✅ 9 tests.
+    - Fuga encontrada por el propio test en su primera ejecución: `Chequeo.detalle` es la frase legible que cita las cifras comparadas, y una de ellas es del licitador. Se excluyó del payload; el modelo tiene estado y campos que faltan, que basta para responder, y las cifras las ve el usuario en el panel local.
+    - El prompt del `SolvencyAgent` declara que `no_verificable` es un dato ausente y no un incumplimiento. Sin esa frase el copiloto desaconsejaría licitaciones a las que el usuario sí podía presentarse.
+    - Archivos: `supabase/functions/chat-with-analysis-agent/{tools,index,agents}.ts`, `tools_test.ts`, `src/shared/go-no-go.ts` (movido desde `src/lib/`)
+
+- [x] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 4: panel Go/No-Go en el dashboard (entregado 2026-08-07)
+    - Objetivo: Mostrar el veredicto con sus tres estados, sin que «falta un dato» se lea como «no cumples».
+    - Entregado: `GoNoGoPanel` en la columna derecha del dashboard, antes de las alertas: «¿me presento?» es la pregunta que se hace antes que ninguna otra.
+    - Criterios de aceptación:
+        - `no_verificable` nunca se presenta como incumplimiento — ✅ gris y no ámbar (el ámbar se lee como advertencia y esto no lo es), icono de interrogación, etiqueta «Falta un dato tuyo» y test que comprueba que no aparece «No cumples» con perfil vacío.
+        - Cada chequeo cita su sección de la Guía — ✅ test.
+        - El estado no se transmite solo por color — ✅ etiqueta de texto por chequeo y `aria-label` con el estado en palabras; test que lo recorre.
+    - Extra: sin perfil no se enseña un veredicto vacío, sino la invitación a completarlo. Un «desconocido» a secas parece una avería.
+    - Archivos: `src/features/dashboard/components/widgets/GoNoGoPanel.tsx` (nuevo), su test, `components/layout/MainContent.tsx`
+
+- [x] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 3: captura incremental del perfil (entregado 2026-08-07)
+    - Objetivo: Que el usuario rellene el perfil sin onboarding. Es el riesgo dominante de toda la ADR: si nadie lo completa, el Go/No-Go responde «desconocido» a todo.
+    - Entregado: `CapturaCampo` dentro de cada chequeo `no_verificable` del panel. Pide **el campo concreto que falta, donde falta**, con el motivo delante; al guardar, el veredicto se recalcula sin recargar.
+    - Criterios de aceptación:
+        - Se rellena el campo sin salir de la pantalla y el veredicto se recalcula — ✅ `onGuardado` incrementa el contador de recarga del panel.
+        - El NIF no aparece en logs ni analytics — ✅ la captura nunca lo pide: solo se piden los campos que un chequeo concreto necesita.
+        - Tests de interacción sin bajar cobertura — ✅ 8 tests; cobertura sube.
+    - Decisión que define el componente: **un `camposFaltantes` que apunta al pliego no ofrece captura**. «El expediente no traía CPV utilizable» no lo arregla el usuario rellenando su perfil, y ofrecer un formulario ahí sería pedirle que corrija un documento que no es suyo. `esCampoDelPerfil` es la frontera, con test.
+    - Sin valor no se escribe: guardar `0` sería declarar «facturo cero», que no es lo mismo que «todavía no lo he puesto» — la distinción que sostiene el motor entero.
+    - Se usó `fireEvent` en vez de añadir `@testing-library/user-event`: la política del repo prefiere lo que ya está a una dependencia nueva.
+    - Archivos: `src/features/dashboard/components/widgets/CapturaCampo.tsx` (nuevo), su test, `GoNoGoPanel.tsx`
+
 ## In Progress
 
 <!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
@@ -134,12 +177,10 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      lleva por delante una sesión entera. Antes de añadir aquí, comprobar contra
      el repo. -->
 
-<!-- Los pasos 3 (captura incremental de perfil), 4 (panel Go/No-Go) y 5 (tool
-     read-only del copiloto sobre el veredicto ya calculado, decisión 7.3) se
-     añaden aquí cuando los pasos 1 y 2 estén entregados. No se adelantan: el
-     paso 3 es el que decide si esto se usa, y diseñarlo antes de tener el
-     motor sería diseñar contra un veredicto que aún no existe. Win Themes
-     queda FUERA de este alcance por decisión 7.2. -->
+<!-- Pasos 1 y 2 entregados y mergeados el 2026-08-07, así que los tres
+     restantes entran aquí como estaba previsto. Win Themes sigue FUERA por
+     decisión 7.2. El orden importa: el paso 3 es el que decide si esto se usa
+     de verdad. -->
 
 ## Deuda Técnica / Refactorización
 

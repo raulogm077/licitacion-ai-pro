@@ -551,3 +551,22 @@ La Fase C materializa nueve extractores distintos, pero hasta 2026-08-07 los nue
 **Ninguna columna de datos lleva `DEFAULT` numérico.** La diferencia entre «cero» y «no lo he rellenado» tiene que sobrevivir hasta el motor de Go/No-Go, que responderá «no verificable» y nombrará el campo que falta (decisión 7.4). Un `DEFAULT 0` aquí produciría exactamente el veredicto sobre un dato ausente que esa decisión prohíbe — el mismo error que `absenceIsConclusive()` evita sobre las citas (§7.12).
 
 **Lo que este paso NO trae**: ni UI, ni motor de evaluación, ni schemas Zod. Los schemas llegan con su primer consumidor real; añadirlos ahora sería código sin uso, que este repo no conserva.
+
+### 7.17. Go/No-Go en el copiloto: el veredicto sale, el perfil no
+
+`ADR-002` Paso 5. El copiloto debe poder responder «¿cumplo la solvencia?», y la decisión 7.3 dice cómo: consultando el **veredicto ya calculado** mediante una tool read-only, no recibiendo el perfil en el prompt.
+
+| Pieza               | Dónde                               | Qué hace                                                                                                   |
+| ------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `evaluarGoNoGo`     | `src/shared/go-no-go.ts`            | Motor compartido FE/BE. Las Edge Functions lo importan por ruta relativa, igual que `analysis-contract.ts` |
+| `loadPerfilForUser` | `chat-with-analysis-agent/index.ts` | Lee `empresa_*` del usuario de la sesión. Su salida **no** llega al modelo                                 |
+| `get_go_no_go`      | `chat-with-analysis-agent/tools.ts` | Calcula y devuelve solo estado, chequeo, sección de Guía y campos que faltan                               |
+| `extraerRequisitos` | ídem                                | Desenvuelve `TrackedField` del análisis persistido a `RequisitosPliego`                                    |
+
+**`detalle` no se envía, y no es un olvido.** `Chequeo.detalle` está pensado para mostrarse al usuario y cita las cifras comparadas: «VAN de 3.000.000 € frente a 1.500.000 € exigidos». El segundo número es del pliego y ya está en el contexto; el primero es del licitador. Mandarlo sería la fuga que la decisión 7.3 evita, disfrazada de texto explicativo. El test lo detectó en su primera ejecución, antes de que el código se entregara.
+
+**El test comprueba por valor, no por nombre de clave.** Buscar `volumenNegocio` en el payload no sirve: renombrar el campo bastaría para colar el dato. Se buscan los importes concretos del perfil de prueba.
+
+**Un campo ausente del pliego llega como `undefined`, no como `0`.** `extraerRequisitos` lo conserva porque el motor trata un mínimo de cero como requisito no declarado; colapsarlos aquí destruiría esa distinción antes de que llegue a decidir (§8.24 documenta el mismo error sobre los contadores de ingesta).
+
+**El prompt es parte del contrato.** El `SolvencyAgent` declara que `no_verificable` significa dato ausente y no incumplimiento. Sin esa frase el modelo lo lee como un problema y desaconseja una licitación viable — la decisión 7.4 trasladada al lenguaje.

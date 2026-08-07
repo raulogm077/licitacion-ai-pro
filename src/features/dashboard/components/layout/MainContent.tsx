@@ -5,6 +5,7 @@ import { AlertsPanel } from '../widgets/AlertsPanel';
 import { ScoringChart } from '../widgets/ScoringChart';
 import { PriceSimulator } from '../widgets/PriceSimulator';
 import { RiskSummary } from '../widgets/RiskSummary';
+import { GoNoGoPanel } from '../widgets/GoNoGoPanel';
 
 export function MainContent({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (section: string) => void }) {
     return (
@@ -25,8 +26,11 @@ export function MainContent({ vm, onNavigate }: { vm: PliegoVM; onNavigate: (sec
                         <PriceSimulator vm={vm} />
                     </div>
 
-                    {/* Right column — Alerts */}
-                    <div className="xl:min-h-[500px]">
+                    {/* Right column — «¿me presento?» primero, porque es la
+                        pregunta que se hace antes que cualquier otra, y luego
+                        las alertas del expediente. */}
+                    <div className="space-y-5 xl:min-h-[500px]">
+                        <GoNoGoPanel vm={vm} />
                         <AlertsPanel vm={vm} onNavigate={onNavigate} />
                     </div>
                 </div>

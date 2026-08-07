@@ -1,5 +1,37 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07j — Rellenar el perfil deja de ser un onboarding
+
+- **`CapturaCampo`** dentro de cada chequeo `no_verificable`: pide **el campo concreto que falta, donde falta**, con el motivo delante. Al guardar, el veredicto se recalcula sin recargar — ver el estado cambiar al instante es lo que hace que rellenar el siguiente campo merezca la pena.
+- **Un campo del pliego no ofrece captura.** «El expediente no traía CPV utilizable» no lo arregla el usuario rellenando su perfil; ofrecer un formulario ahí sería pedirle que corrija un documento que no es suyo. `esCampoDelPerfil` es la frontera y tiene test.
+- **Sin valor no se escribe**: guardar `0` sería declarar «facturo cero», distinto de «todavía no lo he puesto». Es la misma distinción que sostiene el motor.
+- Se usó `fireEvent` en lugar de añadir `@testing-library/user-event`: la política del repo prefiere lo que ya está a una dependencia nueva.
+- Con esto **ADR-002 queda entregada de extremo a extremo**: modelo de datos, motor, servicio, copiloto, panel y captura.
+
+## [Unreleased] - 2026-08-07i — El panel que responde «¿me presento?»
+
+- **`GoNoGoPanel`** en el dashboard, en la columna derecha y **antes** de las alertas: es la pregunta que el licitador se hace antes que ninguna otra.
+- **`no_verificable` en gris, no en ámbar.** El ámbar se lee como advertencia y esto no lo es: es una pregunta sin responder. Icono de interrogación, etiqueta «Falta un dato tuyo» y el campo concreto que falta. Un test comprueba que con perfil vacío no aparece «No cumples» por ninguna parte.
+- **El estado no viaja solo por color**: etiqueta de texto en cada chequeo y `aria-label` con el estado en palabras.
+- **Cada chequeo cita su sección de la Guía.** Sin esa referencia el panel sería una opinión y no un veredicto auditable.
+- **`requisitosDesdeAnalisis` se unifica en `src/shared/go-no-go.ts`**: el panel y la tool del copiloto tienen que llegar al mismo veredicto sobre el mismo expediente, y dos extracciones separadas divergirían en cuanto una aprendiera algo que la otra no.
+
+## [Unreleased] - 2026-08-07h — El copiloto responde «¿cumplo?» sin ver las cifras
+
+- **`get_go_no_go`** en `chat-with-analysis-agent`: calcula el veredicto en nuestro lado y devuelve al modelo estado, chequeo, sección de la Guía y campos que faltan. Es la decisión 7.3 de ADR-002, que pedía tool read-only sobre el veredicto y no el perfil en el prompt.
+- **`evaluarGoNoGo` pasa a `src/shared/`**, que es donde el repo ya aloja el código compartido FE/BE. Las Edge Functions lo importan por ruta relativa igual que `analysis-contract.ts`; no hacía falta duplicarlo ni moverlo a `_shared/`.
+- **Fuga detectada por su propio test antes de entregar**: `Chequeo.detalle` cita las cifras comparadas —«VAN de 3.000.000 € frente a 1.500.000 € exigidos»— y la primera es del licitador. Excluido del payload. El test comprueba **por valor** y no por nombre de clave, para que renombrar un campo no baste para colar un dato.
+- **El prompt es parte del contrato**: el `SolvencyAgent` declara que `no_verificable` es un dato ausente, no un incumplimiento. Sin esa frase el copiloto desaconsejaría licitaciones viables.
+- 9 tests Deno en `tools_test.ts`, incluido el caso de despliegue sin perfil disponible, donde la tool lo dice en vez de inventar un veredicto.
+
+## [Unreleased] - 2026-08-07g — El perfil y el motor, por fin conectados
+
+- **`src/services/perfil.service.ts`**: lectura y escritura del perfil del licitador, con la traducción a la forma que consume `evaluarGoNoGo`. Las tablas del Paso 1 y el motor del Paso 2 existían pero nada los unía.
+- **Un solo camino de escritura a las hijas**, que resuelve `perfil_id` desde la sesión. Un test comprueba que ninguna escritura lleva `user_id` (decisión 7.1), porque ese error no da síntoma hasta el día de migrar a perfil de organización.
+- **Un perfil vacío devuelve `ok` con listas vacías**, no un error: el motor lo traduce a «no verificable» con el campo que falta (decisión 7.4).
+- **Corregido antes de entregar**: `onConflict: 'perfil_id,ejercicio'` solo aplica a `empresa_ejercicio`, que es la única con esa restricción única. Aplicarlo a proyectos o acreditaciones habría hecho fallar la escritura en Postgres; ahora las otras dos insertan y hay test que lo fija.
+- **Backlog**: con los pasos 1 y 2 entregados, los pasos 3 a 5 de ADR-002 entran en `## To Do` como estaba previsto.
+
 ## [Unreleased] - 2026-08-07f — Go/No-Go: la app responde «¿me presento?»
 
 - **`src/lib/go-no-go.ts`**: los cuatro chequeos deterministas de la Guía §3 —VAN, seguro de RC, similitud CPV a tres dígitos y certificaciones— comparando el pliego extraído con el perfil del licitador. Sin LLM, funciones puras, 29 tests.

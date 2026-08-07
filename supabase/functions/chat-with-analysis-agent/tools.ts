@@ -1,11 +1,18 @@
 import { tool } from '../_shared/agents/sdk.ts';
 import { z } from 'npm:zod@3.25.76';
 import type { StoredAnalysisEnvelope, Citation } from './types.ts';
+import { evaluarGoNoGo, requisitosDesdeAnalisis, type PerfilEmpresa } from '../../../src/shared/go-no-go.ts';
 
 type ToolDeps = {
     analysisHash: string;
     loadAnalysis: (analysisHash: string) => Promise<StoredAnalysisEnvelope>;
     trackToolUse: (toolName: string) => void;
+    /**
+     * Perfil del licitador de la sesión. Se inyecta como dependencia y NO se
+     * expone a ninguna tool: solo `get_go_no_go` lo consume, y lo que devuelve
+     * es el veredicto ya calculado (ADR-002 decisión 7.3).
+     */
+    loadPerfil?: () => Promise<PerfilEmpresa>;
 };
 
 export function createAnalysisTools(deps: ToolDeps) {
@@ -99,7 +106,70 @@ export function createAnalysisTools(deps: ToolDeps) {
         },
     });
 
-    return [getAnalysisOverview, getFieldValue, getFieldEvidence, listQualityWarnings, searchAnalysisText];
+    /**
+     * Go/No-Go del licitador sobre el expediente cargado (ADR-002 Paso 5).
+     *
+     * **Devuelve el veredicto, nunca el perfil.** Es la decisión 7.3 y la razón
+     * de que el cálculo ocurra aquí y no en el prompt: si el modelo recibiera
+     * `PerfilEmpresa` en crudo, la facturación, los clientes y los importes de
+     * la empresa viajarían a OpenAI en cada conversación, y no hacen falta para
+     * responder «¿cumplo la solvencia?». Lo que sale de esta función es una
+     * lista de chequeos con estado, motivo y el campo que falta.
+     *
+     * El estado `no_verificable` llega tal cual al modelo: un chequeo sin dato
+     * no es un incumplimiento, y dejar que el modelo lo interprete como tal
+     * haría que el copiloto desaconseje una licitación a la que el usuario sí
+     * podía presentarse.
+     */
+    const getGoNoGo = tool({
+        name: 'get_go_no_go',
+        description:
+            'Evalúa si el licitador cumple los requisitos de solvencia del expediente. ' +
+            'Devuelve chequeos con estado cumple/no_cumple/no_verificable. ' +
+            'Un chequeo "no_verificable" significa que falta un dato del perfil, NO que se incumpla.',
+        parameters: z.object({}),
+        async execute() {
+            deps.trackToolUse('get_go_no_go');
+
+            if (!deps.loadPerfil) {
+                return {
+                    disponible: false,
+                    motivo: 'El perfil de empresa no está disponible en esta sesión.',
+                };
+            }
+
+            const analysis = await deps.loadAnalysis(deps.analysisHash);
+            const resultRoot = getResultRoot(analysis.data);
+            const requisitos = requisitosDesdeAnalisis(resultRoot);
+            const perfil = await deps.loadPerfil();
+            const veredicto = evaluarGoNoGo(requisitos, perfil);
+
+            // Se enumeran los campos de salida uno a uno en vez de propagar el
+            // objeto entero: así, si el veredicto crece con algo derivado del
+            // perfil, hay que añadirlo aquí a mano y alguien lo mira.
+            return {
+                disponible: true,
+                veredicto: veredicto.veredicto,
+                // `detalle` NO se envía. Es una frase pensada para mostrar al
+                // usuario y cita las cifras comparadas —«VAN de 3.000.000 €
+                // frente a 1.500.000 € exigidos»—, así que el primer número es
+                // del licitador. Mandarlo sería exactamente la fuga que la
+                // decisión 7.3 evita, disfrazada de texto explicativo. El
+                // modelo tiene estado, chequeo y campos que faltan: suficiente
+                // para responder «¿cumplo la solvencia?» sin las cifras. Las
+                // ve el usuario en el panel, que es local.
+                chequeos: veredicto.chequeos.map((c) => ({
+                    id: c.id,
+                    estado: c.estado,
+                    guia: c.guia,
+                    camposFaltantes: c.camposFaltantes ?? [],
+                })),
+                camposFaltantes: veredicto.camposFaltantes,
+            };
+        },
+    });
+
+    return [getAnalysisOverview, getFieldValue, getFieldEvidence, listQualityWarnings, searchAnalysisText, getGoNoGo];
 }
 
 export function getResultRoot(data: Record<string, unknown>): Record<string, unknown> {

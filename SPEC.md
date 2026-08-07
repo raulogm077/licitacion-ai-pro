@@ -122,6 +122,36 @@ Decisiones vigentes:
 - **Una acreditación caducada es un no-cumple**, nunca un cumple: presentarla acreditaría algo que el órgano rechazaría.
 - Capa post-extracción: no altera el contrato de extracción, ni el schema canónico, ni el pipeline. Sin UI todavía.
 
+## 2.11. Servicio de perfil del licitador (2026-08-07)
+
+- `src/services/perfil.service.ts` conecta las tablas `empresa_*` con el motor de Go/No-Go. Hasta aquí las tablas existían y el motor sabía decidir, pero nada las unía; los pasos 3 a 5 de ADR-002 pasan todos por este servicio.
+- **Traduce en el servicio, no en el motor.** `snake_case` de Postgres a camelCase ocurre aquí para que `evaluarGoNoGo` pueda evaluar datos que no vengan de esta base —un formulario, una importación, un test— sin arrastrar el esquema de la tabla.
+- **`perfil_id` se resuelve en un solo sitio.** Toda escritura a una tabla hija pasa por un método privado que lo obtiene de la sesión. Si cada método lo hiciera por su cuenta, bastaría un olvido para colgar una fila de `user_id` y encarecer la migración a perfil de organización (decisión 7.1); un test comprueba que ninguna escritura lleva `user_id`.
+- **Un perfil vacío es `ok`, no `err`.** Es el estado de quien acaba de registrarse. El motor lo traduce a «no verificable» nombrando el campo que falta; devolver error obligaría a la UI a distinguir «fallo» de «todavía no».
+- Sin UI todavía.
+
+## 2.12. Go/No-Go en el copiloto sin exponer el perfil (2026-08-07)
+
+- `get_go_no_go` en `chat-with-analysis-agent` responde «¿cumplo la solvencia?» calculando el veredicto **en nuestro lado**. El modelo recibe estado, chequeo, sección de la Guía y campos que faltan; nunca las cifras del licitador (decisión 7.3 de ADR-002).
+- `evaluarGoNoGo` pasa de `src/lib/` a `src/shared/`, que es donde el repo ya aloja el código que comparten frontend y Edge Functions (`analysis-contract.ts` sigue ese mismo patrón).
+- `Chequeo.detalle` queda **fuera** del payload al modelo: cita las cifras comparadas y una de ellas es del perfil. Un test lo fija comprobando por valor, no por nombre de campo.
+- El `SolvencyAgent` declara explícitamente que `no_verificable` es un dato ausente y no un incumplimiento, para que el copiloto no desaconseje una licitación a la que el usuario sí podía presentarse.
+
+## 2.13. Panel Go/No-Go en el dashboard (2026-08-07)
+
+- `GoNoGoPanel` responde «¿me presento?» en la columna derecha, antes de las alertas del expediente.
+- **`no_verificable` se presenta en gris, no en ámbar**: el ámbar se lee como advertencia y esto no lo es. Un dato que el usuario no ha rellenado no es un requisito incumplido, y confundirlos haría que descartase una licitación a la que sí podía presentarse (decisión 7.4).
+- El estado no se transmite solo por color: etiqueta de texto por chequeo y `aria-label` con el estado en palabras.
+- Cada chequeo cita su sección de la Guía, que es lo que hace auditable el veredicto.
+- `requisitosDesdeAnalisis` vive en `src/shared/go-no-go.ts` para que el panel y la tool del copiloto lleguen al mismo veredicto sobre el mismo expediente.
+
+## 2.14. Captura incremental del perfil (2026-08-07)
+
+- `CapturaCampo` pide el campo que falta **dentro del chequeo que no se pudo verificar**, no en un formulario de perfil por adelantado. El riesgo dominante de ADR-002 nunca fue técnico: un onboarding largo que nadie completa deja el Go/No-Go respondiendo «desconocido» a todo.
+- Un `camposFaltantes` que apunta al pliego (`pliego.cpv`) **no ofrece captura**: no lo puede arreglar el usuario.
+- Sin valor no se escribe. Guardar `0` sería declarar «facturo cero», que no es «todavía no lo he puesto».
+- Con esto ADR-002 queda entregada salvo lo que la propia ADR dejó fuera (Win Themes, decisión 7.2).
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo
