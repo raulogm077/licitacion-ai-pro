@@ -14,6 +14,7 @@
 
 import type { DocumentMap } from '../../_shared/schemas/document-map.ts';
 import type { BlockName } from '../../_shared/schemas/blocks.ts';
+import { methodologyForBlock } from './guide-methodology.ts';
 
 // ─── Document Map (Fase B) ───────────────────────────────────────────────────────────────────
 
@@ -177,11 +178,16 @@ BÚSQUEDA DIRIGIDA: una lectura previa del expediente identificó que ${lista} c
 Si tras buscarla de verdad no aparece, devuelve el resultado vacío. NO inventes ni deduzcas valores para rellenar: un bloque vacío es preferible a uno inventado.`;
 }
 
-export function buildBlockSystemPrompt(
-    blockName: BlockName,
-    documentMap: DocumentMap,
-    guideSummary: string
-): string {
+/**
+ * Prompt de sistema de un bloque de la Fase C.
+ *
+ * La sección de guía es **por bloque** desde 2026-08-07 (ver
+ * `prompts/guide-methodology.ts`): antes los 9 bloques recibían el mismo
+ * prefijo de la guía —§1 y §2.1, introducción y prelación documental— y la
+ * metodología que cada bloque necesitaba (§3 solvencia, §4 scoring, §7 riesgos)
+ * no entraba nunca en el prompt.
+ */
+export function buildBlockSystemPrompt(blockName: BlockName, documentMap: DocumentMap): string {
     const mapSummary = documentMap.documentos.map((d) => `- ${d.nombre} (${d.tipo})`).join('\n');
 
     return `Eres "Analista de Pliegos". Extraes información EXCLUSIVAMENTE del expediente de licitación indexado.
@@ -198,8 +204,8 @@ MAPA DOCUMENTAL DEL EXPEDIENTE:
 ${mapSummary}
 ${documentMap.lotes.hayLotes ? `\nLOTES: ${documentMap.lotes.numeroLotes} lotes detectados.` : ''}
 
-GUÍA DE LECTURA (solo metodología, NO es fuente de datos):
-${guideSummary}
+METODOLOGÍA PARA ESTE BLOQUE (extracto de la guía de lectura; es MÉTODO, NO es fuente de datos):
+${methodologyForBlock(blockName)}
 
 FORMATO DE RESPUESTA:
 Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin comentarios) con esta estructura:

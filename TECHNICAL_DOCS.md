@@ -467,12 +467,12 @@ El bucle de espera cierra únicamente cuando `in_progress === 0` **y** `complete
 
 `TrackedEvidenceWire.verification` (`src/shared/analysis-contract.ts`, espejado en `_shared/schemas/canonical.ts` y en `src/lib/schemas.ts`) responde a una única pregunta: **¿alguien ha buscado esta cita en el documento?** No a si el dato es correcto.
 
-| Estado         | Significa                                              | Quién lo escribe          |
-| -------------- | ------------------------------------------------------ | ------------------------- |
-| `unverified`   | nadie la ha contrastado                                | defecto — **el único hoy** |
-| `verified`     | aparece literalmente en el texto del documento         | Fase 3 de `ADR-003`       |
-| `not_found`    | se buscó y no aparece ⇒ la cita es fabricada           | Fase 3 de `ADR-003`       |
-| `unverifiable` | no hay texto contra el que contrastar (escaneo sin OCR) | Fase 3 de `ADR-003`       |
+| Estado         | Significa                                               | Quién lo escribe           |
+| -------------- | ------------------------------------------------------- | -------------------------- |
+| `unverified`   | nadie la ha contrastado                                 | defecto — **el único hoy** |
+| `verified`     | aparece literalmente en el texto del documento          | Fase 3 de `ADR-003`        |
+| `not_found`    | se buscó y no aparece ⇒ la cita es fabricada            | Fase 3 de `ADR-003`        |
+| `unverifiable` | no hay texto contra el que contrastar (escaneo sin OCR) | Fase 3 de `ADR-003`        |
 
 Es opcional en el wire a propósito: todo el histórico lo trae ausente. Por eso **nunca se lee `evidence.verification` directamente** —eso obligaría a repetir el defecto en cada consumidor— sino a través de `evidenceVerification(evidence)`, que centraliza el `?? 'unverified'` en un sitio.
 
@@ -489,13 +489,13 @@ extractDocumentText(bytes, fileName, mimeType?, { maxChars?, timeoutMs? })
   → { status, text, charCount, pageCount, reason? }
 ```
 
-| Estado        | Cuándo                                          | `absenceIsConclusive` |
-| ------------- | ----------------------------------------------- | --------------------- |
-| `extracted`   | texto completo                                  | **true**              |
-| `truncated`   | superó `DOCUMENT_TEXT_MAX_CHARS` (1.000.000)    | false                 |
-| `empty`       | parseó bien y el texto está vacío tras `trim()` | false                 |
-| `unsupported` | sin extractor para ese formato (p. ej. `.docx`) | false                 |
-| `failed`      | el parser falló o agotó `DOCUMENT_TEXT_TIMEOUT_MS` | false              |
+| Estado        | Cuándo                                             | `absenceIsConclusive` |
+| ------------- | -------------------------------------------------- | --------------------- |
+| `extracted`   | texto completo                                     | **true**              |
+| `truncated`   | superó `DOCUMENT_TEXT_MAX_CHARS` (1.000.000)       | false                 |
+| `empty`       | parseó bien y el texto está vacío tras `trim()`    | false                 |
+| `unsupported` | sin extractor para ese formato (p. ej. `.docx`)    | false                 |
+| `failed`      | el parser falló o agotó `DOCUMENT_TEXT_TIMEOUT_MS` | false                 |
 
 `absenceIsConclusive(status)` es la **única** función autorizada a responder si una cita ausente puede declararse fabricada. La Fase 3 traduce `true → not_found` y `false → unverifiable`. Encontrar la cita es concluyente en todos los estados; lo que exige texto completo es afirmar que no está.
 
@@ -512,3 +512,23 @@ extractDocumentText(bytes, fileName, mimeType?, { maxChars?, timeoutMs? })
 La auditoría de 2026-08-07 confirmó que `_shared/schemas/index.ts`, `job.ts` y `validation.ts` no tenían consumidores de runtime, tests, scripts ni workflows. El barrel solo enlazaba los dos schemas huérfanos con módulos que ya se importaban directamente; mantenerlo producía una segunda representación del job y del informe de validación sin validación efectiva.
 
 La superficie vigente se importa por fichero: `canonical.ts`, `blocks.ts`, `document-map.ts` y `block-expectations.ts`. El estado durable se valida en los límites de servicio/RPC y la calidad final la calcula `analyze-with-agents/phases/validation.ts`; no debe recrearse un barrel genérico salvo que exista un consumidor real y comprobado.
+
+### 7.14. Metodología por bloque en el prompt de extracción
+
+La Fase C materializa nueve extractores distintos, pero hasta 2026-08-07 los nueve recibían el mismo bloque de guía en su prompt de sistema: `guideContent.substring(0, GUIDE_EXCERPT_LENGTH)`, es decir la introducción (§1) y la prelación documental (§2.1). El resto de la «Guía de lectura de pliegos» —§3 viabilidad, §4 motor de puntuación, §5 requisitos, §7 riesgos— no entraba en ningún prompt. Tampoco estaba desplegado: `guide-content.ts` se recortaba a ~4900 de los 34 KB de la guía porque su único consumidor tomaba un prefijo de 4000.
+
+| Pieza                    | Dónde                                              | Qué hace                                                                                         |
+| ------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `GUIDE_CONTENT`          | `analyze-with-agents/guide-content.ts`             | Guía íntegra inlineada (el runtime Deno no lee el `.md`); regenerar desde el markdown            |
+| `SECTION_INDEX`          | `analyze-with-agents/prompts/guide-methodology.ts` | Encabezados numerados en orden; si uno no aparece, el módulo falla al cargar                     |
+| `BLOCK_SECTIONS`         | ídem                                               | Mapa bloque → secciones pertinentes. Es el único sitio donde se decide qué método ve cada bloque |
+| `methodologyForBlock`    | ídem                                               | Extracto resuelto por nombre de bloque, recortado a `GUIDE_EXCERPT_LENGTH`                       |
+| `buildBlockSystemPrompt` | `analyze-with-agents/prompts/index.ts`             | Recibe `blockName` y embebe su metodología bajo una etiqueta que la declara método, no fuente    |
+
+**Por nombre de bloque, no por contexto.** `PipelineContext` lo comparten los bloques que corren en paralelo (`BLOCK_CONCURRENCY = 2`), así que `context.guideExcerpt` nunca pudo llevar un valor distinto por bloque; escribirlo antes de cada `run()` habría sido una carrera. Por eso el extracto se resuelve dentro del builder a partir del `blockName`, y el campo de contexto queda para la Fase B y la plantilla personalizada, que tienen un solo consumidor por ejecución.
+
+**Se trocea, no se reescribe.** Las secciones se recortan de la guía por sus encabezados y se entregan literales; un test comprueba que cada fragmento sigue apareciendo tal cual en `GUIDE_CONTENT`. Parafrasear crearía una segunda versión de la guía que nadie mantiene. Las dos tablas que la extracción del PDF dejó como celdas sueltas se cortan por su marcador `Tabla N:`: son ruido, no método.
+
+**Coste de contexto.** Ninguna llamada nueva y menos tokens: 1,1–3,1 KB por bloque frente a los 4 KB del prefijo genérico. `GUIDE_EXCERPT_LENGTH` pasa a ser el techo por bloque para que un mapeo futuro más goloso no infle el prompt sin que nadie lo note.
+
+**Lo que no cambia.** La guía sigue siendo metodología: las citas se verifican contra el texto local del expediente (§7.12), nunca contra ella. Ni el schema canónico, ni el contrato de eventos, ni la forma de salida de los bloques se tocan.

@@ -97,6 +97,14 @@ Decisiones vigentes:
 - `_shared/schemas/` expone módulos concretos. Se retiraron el barrel sin consumidores y dos schemas huérfanos (`job.ts` y `validation.ts`); el contrato canónico sigue en `canonical.ts` y la validación efectiva en `analyze-with-agents/phases/validation.ts`.
 - Los prompts exploratorios de 2025, el plan de integridad de abril ya superado y el enlace raíz legacy de skills se eliminaron. Las fuentes vigentes siguen siendo los documentos enumerados en `ARCHITECTURE.md` y las skills canónicas viven en `.agents/skills/`.
 
+## 2.8. Metodología por bloque en la extracción (2026-08-07)
+
+- Cada bloque de la Fase C recibe el extracto de la «Guía de lectura de pliegos» pertinente a su contenido en lugar del mismo prefijo genérico (§1–§2.1) que recibían los nueve. El mapa bloque→sección vive en `analyze-with-agents/prompts/guide-methodology.ts`.
+- `guide-content.ts` pasa a contener la guía íntegra. Antes se recortaba a ~4900 caracteres, así que las secciones con la metodología aprovechable (§3 viabilidad, §4 motor de puntuación, §5 requisitos, §7 riesgos) no llegaban al runtime.
+- La guía sigue siendo **método y no fuente de datos**: el prompt lo declara y las citas se verifican contra el texto del expediente (ADR-003), nunca contra la guía.
+- El contexto por bloque no crece: los extractos ocupan entre 1,1 y 3,1 KB frente a los 4 KB del prefijo anterior, con `GUIDE_EXCERPT_LENGTH` como techo por bloque.
+- Sin cambios en el schema canónico, el contrato de eventos ni la forma de la respuesta de los bloques.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo
@@ -617,13 +625,13 @@ La primitiva que §11.7 declaraba ausente, y sin la cual las Fases 3–5 del ADR
 
 ### Los cinco estados, y cuál de ellos autoriza a acusar
 
-| Estado        | Qué pasó                                   | ¿Una cita ausente es falsa? |
-| ------------- | ------------------------------------------ | --------------------------- |
-| `extracted`   | texto completo                             | **sí**                      |
+| Estado        | Qué pasó                                   | ¿Una cita ausente es falsa?   |
+| ------------- | ------------------------------------------ | ----------------------------- |
+| `extracted`   | texto completo                             | **sí**                        |
 | `truncated`   | se alcanzó el tope de 1.000.000 caracteres | no — podría estar en el resto |
-| `empty`       | se parseó bien y no hay texto (escaneo)    | no                          |
-| `unsupported` | no hay extractor para ese formato          | no                          |
-| `failed`      | el parser falló o agotó el tiempo          | no                          |
+| `empty`       | se parseó bien y no hay texto (escaneo)    | no                            |
+| `unsupported` | no hay extractor para ese formato          | no                            |
+| `failed`      | el parser falló o agotó el tiempo          | no                            |
 
 La traducción a la Fase 3 vive en **una sola función**, `absenceIsConclusive()`, por la misma razón que `evidenceVerification()` en §11.7: un defecto repetido en cada consumidor es un defecto que alguien olvidará. Encontrar la cita sí es concluyente siempre; lo que exige el texto completo es afirmar que **no** está.
 

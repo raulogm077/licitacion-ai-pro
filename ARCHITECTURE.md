@@ -620,6 +620,22 @@ La misma auditoría eliminó dos prompts exploratorios ya ignorados por Git, un 
 
 **Fecha:** 2026-08-07
 
+### 8.28 La guía dejó de ser un preámbulo idéntico para los nueve bloques (Implementado 2026-08-07)
+
+La Fase C construye nueve extractores distintos, pero los nueve recibían el mismo texto de la «Guía de lectura de pliegos»: los primeros 4000 caracteres, que son la introducción (§1) y la prelación documental (§2.1). El bloque de criterios de adjudicación nunca leyó la §4 —fórmula de precio, baja temeraria, descomposición de subcriterios—, que es justamente el método que necesita; el de solvencia nunca leyó la §3 ni su regla VAN ≥ 1,5 × VAM.
+
+**La metodología ni siquiera llegaba al runtime.** `guide-content.ts` venía recortado a ~4900 caracteres de los 34 KB de la guía, porque su único consumidor tomaba un prefijo de 4000. Las secciones §3–§7, las que llevan el método, no estaban desplegadas. Ahora se inlinea la guía entera y `prompts/guide-methodology.ts` la trocea por sus encabezados numerados.
+
+**El mapeo es código revisable, no un extracto congelado.** Se podría haber generado un fichero con los nueve textos ya recortados; se prefirió que el mapa bloque→sección viva en el repositorio y el troceo ocurra sobre la guía, para que la relación «este bloque necesita esta sección» se pueda leer, discutir y testear. Un test comprueba que cada fragmento entregado sigue apareciendo **literal** en la guía: trocear no autoriza a parafrasear.
+
+**El presupuesto de contexto baja, no sube.** Los extractos por bloque van de 1,1 a 3,1 KB frente a los 4 KB del prefijo genérico, y `GUIDE_EXCERPT_LENGTH` pasa a ser el techo por bloque para que un cambio futuro de mapeo no infle el prompt en silencio.
+
+**Se resuelve por nombre de bloque, no por contexto.** `PipelineContext` es compartido por los bloques que corren en paralelo, así que nunca pudo transportar un extracto distinto por bloque: `buildBlockSystemPrompt` recibe el `blockName` y resuelve su metodología. `context.guideExcerpt` sigue vivo para la Fase B y la plantilla personalizada, que sí tienen un único consumidor por ejecución.
+
+No cambia el schema canónico, el contrato de eventos ni el formato de salida de los bloques.
+
+**Fecha:** 2026-08-07
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM

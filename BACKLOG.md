@@ -75,6 +75,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Tipo: QA
     - Área: Analysis
 
+- [x] [Tipo: AI] [Área: Analysis] Inyectar metodología específica por bloque en el prompt de extracción (entregado 2026-08-07)
+    - Objetivo: Aprovechar la "Guía de lectura" en cada bloque en vez de repetir un prefijo genérico. Los 9 bloques recibían los mismos ~4000 chars de la §1–§2.1; la metodología útil (§3–§7) no entraba en ningún prompt.
+    - Entregado: `prompts/guide-methodology.ts` trocea la guía por sus encabezados numerados y asigna secciones por bloque (`criteriosAdjudicacion`→§4.1/§4.2, `requisitosSolvencia`→§3.1/§3.2, `restriccionesYRiesgos`→§3.3/§7, `requisitosTecnicos`→§2.2/§5.1, `anexosYObservaciones`→§2.3/§5.4…). `buildBlockSystemPrompt` resuelve por `blockName` en vez de por `context.guideExcerpt`, porque el contexto lo comparten los bloques concurrentes.
+    - Hallazgo durante la implementación: la metodología ni siquiera estaba desplegada. `guide-content.ts` venía recortado a ~4900 de los 34 KB de la guía porque el único consumidor tomaba un prefijo de 4000; ahora se inlinea entera.
+    - Criterios de aceptación:
+        - Cada bloque recibe un extracto distinto y pertinente — ✅ cinco tests nuevos en `__tests__/agents.test.ts` (distinción, literalidad contra la guía, techo de contexto, mapeo pertinente y prompt de sistema resuelto por el camino del SDK).
+        - Contrato del schema canónico y de eventos en verde; `pnpm benchmark:pliegos` sin regresión — ✅.
+        - No aumenta el nº de tokens de contexto por bloque — ✅ baja: 1,1–3,1 KB por bloque frente a 4 KB, con `GUIDE_EXCERPT_LENGTH` como techo.
+    - Pendiente de QA: el efecto en calidad de extracción solo lo mide `pnpm eval:pliegos:live` (manual, requiere `OPENAI_API_KEY`). Es un cambio de prompt, así que el contrato de release pide baseline live antes de promoverlo.
+    - Archivos: `supabase/functions/analyze-with-agents/prompts/guide-methodology.ts` (nuevo), `prompts/index.ts`, `agents/block-extractor.agent.ts`, `phases/block-extraction.ts`, `guide-content.ts`, `_shared/config.ts`, `__tests__/agents.test.ts`
+
 ## In Progress
 
 <!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
@@ -100,15 +111,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      lleva por delante una sesión entera. Antes de añadir aquí, comprobar contra
      el repo. -->
 
-- [ ] [Tipo: AI] [Área: Analysis] Inyectar metodología específica por bloque en el prompt de extracción
-    - Objetivo: Aprovechar la "Guía de lectura" en cada bloque en vez de repetir un prefijo genérico. Hoy solo llegan ~4000 chars de la §1–§2.1 de la Guía (34 KB) idénticos en los 9 bloques; la metodología útil (§3–§7) nunca entra en el prompt.
-    - Alcance: En `prompts/index.ts` sustituir el `guideSummary` genérico por un mapa bloque→extracto de metodología (p. ej. `criteriosAdjudicacion`→§4 scoring; `restriccionesYRiesgos`→§3/§7; `requisitosSolvencia`→§3.1/§3.2). Mantener el excerpt como metodología, NUNCA como fuente de datos. Sin cambios en el schema canónico ni en el contrato SSE.
-    - Criterios de aceptación:
-        - Cada bloque recibe un extracto de metodología distinto y pertinente (test unitario sobre el builder de prompt lo verifica).
-        - Tests de contrato del schema canónico y SSE siguen en verde; `pnpm benchmark:pliegos` en verde (sin regresión de extracción mínima útil).
-        - No aumenta el nº de tokens de contexto por bloque respecto al baseline.
-    - Archivos probables: `supabase/functions/analyze-with-agents/prompts/index.ts`, `supabase/functions/_shared/config.ts`, `supabase/functions/analyze-with-agents/__tests__/`
-    - Dependencias: Ninguna.
+<!-- Vacía tras entregar la metodología por bloque (ver "## Ready for QA"). -->
 
 ## Deuda Técnica / Refactorización
 

@@ -26,7 +26,6 @@ import {
     BLOCK_CONCURRENCY,
     BLOCK_MAX_RETRIES,
     BLOCK_RETRY_MAX_DELAY_MS,
-    GUIDE_EXCERPT_LENGTH,
     GUIDE_EXCERPT_TEMPLATE_LENGTH,
 } from '../../_shared/config.ts';
 import { mapOpenAIError } from '../../_shared/utils/error.utils.ts';
@@ -133,7 +132,11 @@ export async function runBlockExtraction(input: BlockExtractionInput): Promise<B
     let templateWarning = resume?.templateWarning;
     let checkpointChain = Promise.resolve();
 
-    context.guideExcerpt = guideContent.substring(0, GUIDE_EXCERPT_LENGTH);
+    // `context.guideExcerpt` ya no se rellena aquí: los bloques resuelven su
+    // metodología por nombre (`prompts/guide-methodology.ts`). El contexto es
+    // compartido por los bloques concurrentes, así que nunca pudo llevar un
+    // extracto distinto por bloque. La plantilla personalizada sí sigue
+    // usándolo, con su propio contexto derivado (ver `extractCustomTemplateWithAgent`).
     context.documentMap = documentMap;
 
     const buildCheckpoint = (): BlockExtractionResult => ({
