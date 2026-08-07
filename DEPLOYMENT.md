@@ -173,6 +173,8 @@ Las tres públicas deben responder `401` desde el gateway. El worker también de
 
 **Un override fijado no es una remediación permanente.** El 2026-08-05 el CI cayó con `GHSA-rgw5-rvv9-x895` sobre `brace-expansion@5.0.8` — exactamente la versión que se había fijado semanas antes para cerrar `GHSA-mh99-v99m-4gvg`. El aviso nuevo describe un DoS que **elude la mitigación** del anterior, así que la versión «parcheada» dejó de serlo sin que nada cambiase en el repo. El arreglo fue subir el override a `>=5.0.9`, el corte que OSV da para la línea 4.x+ de ese aviso concreto.
 
+**Backport alcanzable en una dependencia transitiva.** El 2026-08-07 `GHSA-5p4m-2wfm-xmqj` afectó a `js-yaml@4.3.0`, introducido por `@eslint/eslintrc@3.3.6`. El override existente ya admitía la línea corregida y la dependencia consumidora declara `^4.3.0`, por lo que la remediación mínima fue regenerar el lockfile con `js-yaml@4.3.1`. No se cambió runtime, no hubo salto a `js-yaml` 5 y no se añadió una excepción a `osv-scanner.toml`.
+
 Lo operativo: cuando el `security-audit` señala un paquete que **ya tiene override**, no se asume que el override esté roto ni que el finding sea un falso positivo. Se consulta el aviso por su ID (`https://api.osv.dev/v1/vulns/<GHSA>`), se leen sus cortes por línea y se sube al que corresponda. Que el CI lo detecte es el mecanismo funcionando: es la única alarma que existe para un aviso que aparece después de la mitigación.
 
 ## 6. Secretos y configuración

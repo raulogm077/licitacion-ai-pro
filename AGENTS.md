@@ -291,6 +291,11 @@ existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 > mirar sus cortes por línea, en vez de dar por bueno el override existente.
 > Detalle en `DEPLOYMENT.md` §5.3.
 
+> Nota (2026-08-07): `GHSA-5p4m-2wfm-xmqj` se remedia resolviendo la
+> dependencia transitiva de ESLint `js-yaml` en `4.3.1`. Es un backport
+> compatible con `@eslint/eslintrc@3.3.6`; no requiere `js-yaml` 5 ni una
+> excepción en `osv-scanner.toml`. Detalle en `DEPLOYMENT.md` §5.3.
+
 > Nota (2026-07-12b): las herramientas de CI se descargan con versión fija
 > (OSV Scanner `v2.4.0`, actionlint, supabase/vercel CLI); las interpolaciones
 > shell de esas versiones deben ir entre comillas (`"vercel@${VERCEL_CLI_VERSION}"`)
