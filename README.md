@@ -164,6 +164,7 @@ Notas:
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
 - Dependabot agrupa los `minor`/`patch` de dev-dependencies, lo cual es seguro salvo en paquetes `0.x`, donde un minor puede ser breaking. Si un bump así rompe el CI: fijar la línea en `package.json` (`~0.4.26`, no `^`), añadir el `ignore` en `.github/dependabot.yml` con el motivo, y abrir la tarea en `BACKLOG.md` para retirarlo. Precedente cerrado: `eslint-plugin-react-refresh` estuvo atado a la 0.4 hasta la migración a ESLint 9 + flat config (2026-07-27); su `ignore` ya se retiró.
 - El job `security-audit` del CI escanea `pnpm-lock.yaml` con OSV Scanner y solo falla con HIGH/CRITICAL. Los findings con parche disponible se arreglan actualizando: `pnpm.overrides` si son transitivos, bump directo si son dependencias declaradas. Los que no tienen parche alcanzable van a `osv-scanner.toml`, donde `reason` e `ignoreUntil` son obligatorios para que la excepción caduque y se revise. Detalle en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+- Remediación 2026-08-07: `GHSA-5p4m-2wfm-xmqj` se cerró resolviendo la dependencia transitiva de ESLint `js-yaml` en `4.3.1`, backport compatible con el override y con `@eslint/eslintrc@3.3.6`; no se añadió una excepción OSV.
 
 ## Flujo de ramas y entrega
 
