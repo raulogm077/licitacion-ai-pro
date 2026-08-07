@@ -140,6 +140,18 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Extra: sin perfil no se enseña un veredicto vacío, sino la invitación a completarlo. Un «desconocido» a secas parece una avería.
     - Archivos: `src/features/dashboard/components/widgets/GoNoGoPanel.tsx` (nuevo), su test, `components/layout/MainContent.tsx`
 
+- [x] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 3: captura incremental del perfil (entregado 2026-08-07)
+    - Objetivo: Que el usuario rellene el perfil sin onboarding. Es el riesgo dominante de toda la ADR: si nadie lo completa, el Go/No-Go responde «desconocido» a todo.
+    - Entregado: `CapturaCampo` dentro de cada chequeo `no_verificable` del panel. Pide **el campo concreto que falta, donde falta**, con el motivo delante; al guardar, el veredicto se recalcula sin recargar.
+    - Criterios de aceptación:
+        - Se rellena el campo sin salir de la pantalla y el veredicto se recalcula — ✅ `onGuardado` incrementa el contador de recarga del panel.
+        - El NIF no aparece en logs ni analytics — ✅ la captura nunca lo pide: solo se piden los campos que un chequeo concreto necesita.
+        - Tests de interacción sin bajar cobertura — ✅ 8 tests; cobertura sube.
+    - Decisión que define el componente: **un `camposFaltantes` que apunta al pliego no ofrece captura**. «El expediente no traía CPV utilizable» no lo arregla el usuario rellenando su perfil, y ofrecer un formulario ahí sería pedirle que corrija un documento que no es suyo. `esCampoDelPerfil` es la frontera, con test.
+    - Sin valor no se escribe: guardar `0` sería declarar «facturo cero», que no es lo mismo que «todavía no lo he puesto» — la distinción que sostiene el motor entero.
+    - Se usó `fireEvent` en vez de añadir `@testing-library/user-event`: la política del repo prefiere lo que ya está a una dependencia nueva.
+    - Archivos: `src/features/dashboard/components/widgets/CapturaCampo.tsx` (nuevo), su test, `GoNoGoPanel.tsx`
+
 ## In Progress
 
 <!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
@@ -169,16 +181,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      restantes entran aquí como estaba previsto. Win Themes sigue FUERA por
      decisión 7.2. El orden importa: el paso 3 es el que decide si esto se usa
      de verdad. -->
-
-- [ ] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 3: captura incremental del perfil
-    - Objetivo: Que el usuario rellene el perfil sin un onboarding largo, que es el riesgo dominante de toda la ADR: si nadie lo completa, el Go/No-Go responde «desconocido» a todo y la funcionalidad no existe.
-    - Alcance: Pedir **el campo concreto que falta, en el contexto donde falta** — desde el veredicto «no verificable», con el `camposFaltantes` que el motor ya devuelve — en vez de un formulario de todo el perfil por adelantado. `perfilService` ya expone `upsertEjercicio`, `addProyecto` y `addAcreditacion`.
-    - Criterios de aceptación:
-        - Desde un chequeo `no_verificable` se puede rellenar su campo sin salir de la pantalla, y el veredicto se recalcula.
-        - El NIF no aparece en logs, trazas ni analytics.
-        - Tests de interacción del componente; sin bajar las puertas de cobertura.
-    - Archivos probables: `src/features/dashboard/`, `src/features/perfil/` (nuevo)
-    - Dependencias: Pasos 1 y 2 (entregados).
 
 ## Deuda Técnica / Refactorización
 

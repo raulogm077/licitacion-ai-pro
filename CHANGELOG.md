@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07j — Rellenar el perfil deja de ser un onboarding
+
+- **`CapturaCampo`** dentro de cada chequeo `no_verificable`: pide **el campo concreto que falta, donde falta**, con el motivo delante. Al guardar, el veredicto se recalcula sin recargar — ver el estado cambiar al instante es lo que hace que rellenar el siguiente campo merezca la pena.
+- **Un campo del pliego no ofrece captura.** «El expediente no traía CPV utilizable» no lo arregla el usuario rellenando su perfil; ofrecer un formulario ahí sería pedirle que corrija un documento que no es suyo. `esCampoDelPerfil` es la frontera y tiene test.
+- **Sin valor no se escribe**: guardar `0` sería declarar «facturo cero», distinto de «todavía no lo he puesto». Es la misma distinción que sostiene el motor.
+- Se usó `fireEvent` en lugar de añadir `@testing-library/user-event`: la política del repo prefiere lo que ya está a una dependencia nueva.
+- Con esto **ADR-002 queda entregada de extremo a extremo**: modelo de datos, motor, servicio, copiloto, panel y captura.
+
 ## [Unreleased] - 2026-08-07i — El panel que responde «¿me presento?»
 
 - **`GoNoGoPanel`** en el dashboard, en la columna derecha y **antes** de las alertas: es la pregunta que el licitador se hace antes que ninguna otra.

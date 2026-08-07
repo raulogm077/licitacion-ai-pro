@@ -145,6 +145,13 @@ Decisiones vigentes:
 - Cada chequeo cita su sección de la Guía, que es lo que hace auditable el veredicto.
 - `requisitosDesdeAnalisis` vive en `src/shared/go-no-go.ts` para que el panel y la tool del copiloto lleguen al mismo veredicto sobre el mismo expediente.
 
+## 2.14. Captura incremental del perfil (2026-08-07)
+
+- `CapturaCampo` pide el campo que falta **dentro del chequeo que no se pudo verificar**, no en un formulario de perfil por adelantado. El riesgo dominante de ADR-002 nunca fue técnico: un onboarding largo que nadie completa deja el Go/No-Go respondiendo «desconocido» a todo.
+- Un `camposFaltantes` que apunta al pliego (`pliego.cpv`) **no ofrece captura**: no lo puede arreglar el usuario.
+- Sin valor no se escribe. Guardar `0` sería declarar «facturo cero», que no es «todavía no lo he puesto».
+- Con esto ADR-002 queda entregada salvo lo que la propia ADR dejó fuera (Win Themes, decisión 7.2).
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo

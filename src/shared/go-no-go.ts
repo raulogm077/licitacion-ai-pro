@@ -428,3 +428,16 @@ function arrayDeTexto(raw: unknown): string[] {
             : raw;
     return Array.isArray(valor) ? valor.filter((v): v is string => typeof v === 'string') : [];
 }
+
+/**
+ * Si un campo ausente es del perfil del licitador o del propio pliego.
+ *
+ * `camposFaltantes` mezcla los dos: «falta tu volumen de negocio» y «el
+ * expediente no traía CPV utilizable» impiden decidir por igual, pero solo el
+ * primero lo puede resolver el usuario. La interfaz necesita la distinción para
+ * no ofrecerle rellenar un documento que no es suyo, y vive aquí —junto a quien
+ * emite esos campos— para que añadir un motivo nuevo obligue a clasificarlo.
+ */
+export function esCampoDelPerfil(campo: string): boolean {
+    return !campo.startsWith('pliego.');
+}

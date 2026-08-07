@@ -8,6 +8,7 @@ import {
     type PerfilEmpresa,
 } from '../../../../shared/go-no-go';
 import { perfilService } from '../../../../services/perfil.service';
+import { CapturaCampo } from './CapturaCampo';
 
 /**
  * Panel Go/No-Go (ADR-002 Paso 4).
@@ -79,6 +80,10 @@ interface Props {
 export function GoNoGoPanel({ vm, cargarPerfil }: Props) {
     const [perfil, setPerfil] = useState<PerfilEmpresa | null>(null);
     const [cargando, setCargando] = useState(true);
+    // Se incrementa al guardar un campo, para releer el perfil y recalcular el
+    // veredicto sin recargar la página. Ver el número cambiar al instante es lo
+    // que hace que rellenar el siguiente campo merezca la pena.
+    const [recarga, setRecarga] = useState(0);
 
     useEffect(() => {
         let vigente = true;
@@ -100,7 +105,7 @@ export function GoNoGoPanel({ vm, cargarPerfil }: Props) {
         return () => {
             vigente = false;
         };
-    }, [cargarPerfil]);
+    }, [cargarPerfil, recarga]);
 
     const veredicto = useMemo(() => {
         if (!perfil) return null;
@@ -173,6 +178,7 @@ export function GoNoGoPanel({ vm, cargarPerfil }: Props) {
                                             Falta en tu perfil: {chequeo.camposFaltantes.join(', ')}
                                         </p>
                                     )}
+                                    <CapturaCampo chequeo={chequeo} onGuardado={() => setRecarga((n) => n + 1)} />
                                 </div>
                             </div>
                         </li>
