@@ -2,7 +2,7 @@
 
 Aplicación interna para analizar pliegos de licitación en PDF, extraer información estructurada y presentar el resultado de forma navegable para acelerar la revisión funcional y técnica.
 
-**Alcance decidido el 2026-08-07** (`SPEC.md` §2.11): uso propio, un solo usuario, **no es un SaaS**. El criterio de éxito es *cero datos inventados* y el presupuesto es el plan Free de Supabase, así que el techo de 150 s sigue siendo una restricción dura. Quedan fuera de alcance multi-tenancy, onboarding, i18n y facturación. Razonamiento completo y superficies descartadas en [`docs/ideas/rumbo-2026-08.md`](docs/ideas/rumbo-2026-08.md).
+**Alcance decidido el 2026-08-07** (`SPEC.md` §2.15): uso propio, un solo usuario, **no es un SaaS**. El criterio de éxito es *cero datos inventados* y el presupuesto es el plan Free de Supabase, así que el techo de 150 s sigue siendo una restricción dura. Quedan fuera de alcance multi-tenancy, onboarding, i18n y facturación. Razonamiento completo y superficies descartadas en [`docs/ideas/rumbo-2026-08.md`](docs/ideas/rumbo-2026-08.md).
 
 <!-- release-contract:start -->
 

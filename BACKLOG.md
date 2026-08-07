@@ -299,7 +299,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Descartado por alcance (2026-08-07)
 
-Al decidir que el producto es de **uso interno y un solo usuario** (`SPEC.md` §2.11), estas
+Al decidir que el producto es de **uso interno y un solo usuario** (`SPEC.md` §2.15), estas
 líneas dejan de tener destinatario. No se listan para lamentarlas: se listan para que nadie
 las reabra sin reabrir antes la decisión de alcance.
 

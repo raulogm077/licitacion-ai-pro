@@ -4,7 +4,7 @@
 
 Analista de Pliegos: **internal-use** app for analyzing Spanish public procurement documents (pliegos de licitacion) using AI. Extracts structured data from PDFs via a 5-phase pipeline.
 
-Scope decided 2026-08-07 (`SPEC.md` §2.11): single internal user, **not** a SaaS. Success is
+Scope decided 2026-08-07 (`SPEC.md` §2.15): single internal user, **not** a SaaS. Success is
 measured as *zero invented data*, and the platform budget is the Supabase Free tier — so the
 150 s wall clock stays a hard constraint. Multi-tenancy, onboarding, i18n and billing are out
 of scope; see `docs/ideas/rumbo-2026-08.md` for the full reasoning and the discarded surfaces.
