@@ -1,6 +1,16 @@
 # ADR-002 — Perfil de empresa licitadora
 
 - **Estado:** Aceptada — decisiones de producto tomadas el 2026-08-07 (ver §7)
+- **Matizada el 2026-08-07** por la decisión de alcance de `SPEC.md` §2.9 (uso interno, un
+  solo usuario): el riesgo dominante que esta ADR identifica —«un onboarding que nadie
+  completa deja un Go/No-Go que responde desconocido a todo»— **desaparece cuando el usuario
+  es quien conoce sus propias cifras**. El Paso 3 (captura incremental) deja de ser el paso
+  que decide si esto se usa; lo sustituye un formulario que se rellena una vez. El modelo de
+  datos, el motor determinista y las cuatro decisiones de §7 siguen vigentes sin cambios —
+  incluida la de `perfil_id` en las tablas hijas, que se conserva por higiene aunque hoy no
+  haya organizaciones. La ADR entra además **detrás** de la Fase 3 de ADR-003 en el orden de
+  trabajo: construir un veredicto de negocio sobre una extracción que todavía inventa sería
+  emitir juicios a partir de datos fabricados.
 - **Fecha:** 2026-07-27 (propuesta) · 2026-08-07 (decidida)
 - **Ámbito:** modelo de datos del licitador, onboarding y capacidades de la Guía §3 y §5
 - **Depende de:** ADR-001 (arquitectura durable, grounded y evaluable)
