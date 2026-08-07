@@ -113,6 +113,15 @@ Decisiones vigentes:
 - Ninguna columna de datos lleva `DEFAULT` numérico ni `NOT NULL` con relleno: «no lo sé» debe seguir siendo distinguible de «cero» cuando llegue el motor de Go/No-Go, que responderá «no verificable» en vez de emitir veredicto sobre un dato ausente (decisión 7.4).
 - Sin UI, sin motor y sin cambios en el pipeline de análisis ni en el contrato de extracción.
 
+## 2.10. Motor determinista de Go/No-Go (2026-08-07)
+
+- `src/lib/go-no-go.ts` compara lo que el pliego exige con lo que el perfil declara, siguiendo los cuatro chequeos de la Guía §3: VAN (§3.1.1), seguro de responsabilidad civil (§3.1.2), similitud por familia CPV a tres dígitos (§3.2.1) y certificaciones bloqueantes (§3.2.2). Funciones puras, sin LLM, al lado de `scoring.ts`.
+- **Tres estados, no dos.** Cada chequeo devuelve `cumple`, `no_cumple` o `no_verificable`, y el tercero nombra siempre qué campo falta. Un «no cumples» calculado sobre un campo que nadie rellenó haría que el licitador descartase una licitación a la que sí podía presentarse.
+- **Nunca `go` sobre datos incompletos**: si algo queda sin verificar, el veredicto global es `desconocido`. Un `no_cumple` sí manda sobre un `no_verificable`, porque saber que estás excluido es información aunque el resto falte.
+- **El cero que no es un cero**: `cifraNegocioAnualMinima` llega del schema canónico con `safeCoerceNumber(0)`, así que un requisito ausente aparece como `0`. Se trata como no declarado; leerlo literalmente daría un «cumples» a cualquiera.
+- **Una acreditación caducada es un no-cumple**, nunca un cumple: presentarla acreditaría algo que el órgano rechazaría.
+- Capa post-extracción: no altera el contrato de extracción, ni el schema canónico, ni el pipeline. Sin UI todavía.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo

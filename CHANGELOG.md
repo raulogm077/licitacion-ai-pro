@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07f — Go/No-Go: la app responde «¿me presento?»
+
+- **`src/lib/go-no-go.ts`**: los cuatro chequeos deterministas de la Guía §3 —VAN, seguro de RC, similitud CPV a tres dígitos y certificaciones— comparando el pliego extraído con el perfil del licitador. Sin LLM, funciones puras, 29 tests.
+- **Tres estados por chequeo**: `cumple`, `no_cumple` y `no_verificable`. El tercero nombra siempre el campo que falta, para poder pedirlo en vez de solo no responder.
+- **Nunca `go` sobre datos incompletos**. Un `no_cumple` sí manda sobre un `no_verificable`: saber que estás excluido es información aunque el resto falte.
+- **El cero que no es un cero**: un requisito ausente llega del schema canónico como `0` por `safeCoerceNumber`. Tratarlo literalmente daría un «cumples» a cualquiera, así que cuenta como no declarado.
+- **Detalles de dominio que cambian el veredicto**: el mejor de los tres últimos ejercicios (no el más reciente), el volumen «en el ámbito» por encima del total, la familia CPV a tres dígitos y no el código completo, y una acreditación caducada como no-cumple.
+- Capa post-extracción: sin cambios en el contrato de extracción, el schema canónico ni el pipeline. Sin UI todavía.
+
 ## [Unreleased] - 2026-08-07e — El otro lado de la comparación: modelo de datos del licitador
 
 - **Cuatro tablas nuevas** (`empresa_perfil`, `empresa_ejercicio`, `empresa_proyecto`, `empresa_acreditacion`): el Paso 1 de ADR-002, ya decidida. Hasta ahora la app enseñaba el requisito del pliego y el licitador comprobaba a mano si lo cumplía; la Guía §3.1.1 pide «recuperar VAN_empresa de la base de datos interna» y esa base de datos no existía.
