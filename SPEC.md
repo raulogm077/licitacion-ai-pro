@@ -193,6 +193,7 @@ dos mundos habitamos, y ésta es la opción barata de las dos.
 
 ### 3.2. Entregables esperados
 
+0. **Dataset de expedientes reales** (prerrequisito, ver §3.4).
 1. Verificación de `evidence.quote` contra `analysis_job_document_texts`: cita ausente con
    oráculo `extracted` invalida su campo, que pasa a `no_encontrado` con motivo.
 2. Persistencia del PDF original en Storage — hoy no se persiste, y sin ella no se puede
@@ -207,9 +208,34 @@ dos mundos habitamos, y ésta es la opción barata de las dos.
 - Una cita ausente **con oráculo no concluyente** nunca invalida el campo: se declara
   «no verificable», no «fabricada». Es el test que no puede caerse.
 - `pnpm benchmark:pliegos` y `pnpm eval:pliegos:check` en verde; baseline de
-  `pnpm eval:pliegos:live` registrada antes y después.
+  `pnpm eval:pliegos:live` registrada antes y después **sobre el dataset de §3.4**, no sobre
+  el caso smoke.
 - Se acepta explícitamente que **el dashboard quede más vacío**: es la consecuencia buscada,
   no una regresión.
+
+### 3.4. El dataset es prerrequisito, no un detalle (2026-08-07)
+
+Al auditar el repo para fijar este rumbo se comprobó que **`evals/pliegos/cases.jsonl` tiene
+una sola línea**, y que su único documento es `memo_p2.pdf`: una página, 40 caracteres
+extraíbles, `"PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOF…"`. Es un fixture sintético. No existe
+ningún expediente real en el repositorio.
+
+Consecuencia, y es seria: **el gate que el contrato de release exige para promover modelo,
+prompt, retrieval u orquestación —`pnpm eval:pliegos:live`— se ratifica hoy contra un memo de
+55 caracteres.** `pnpm benchmark:pliegos` tampoco cubre el hueco: valida JSON ya generado y no
+llama al modelo. ADR-001 lo dejó anotado —«los umbrales se ratificarán con un dataset de 10–20
+expedientes representativos», «el primer caso es smoke, no evidencia estadística»— y nunca se
+cerró.
+
+Esto invalida una parte del razonamiento de §3.1. La dirección A **sigue siendo el arreglo
+correcto**, pero con el dataset actual **no mide nada**: un documento de 40 caracteres no puede
+alucinar de forma cuantificable, así que la baseline «antes y después» no diría cuántos campos
+se caen, que es justo el dato que decide si hay que acometer la dirección C.
+
+Por tanto el dataset entra como entregable 0 de esta iteración: entre 5 y 10 expedientes reales
+y variados —PCAP y PPT separados, expediente único, alguno escaneado sin capa de texto—, con
+sus hechos, ausencias y citas esperadas. Sin él, A se entrega a ciegas y C se decide por
+intuición, que es exactamente lo que ADR-001 prohíbe.
 
 ## 4. Diseño funcional y técnico de la iteración activa
 

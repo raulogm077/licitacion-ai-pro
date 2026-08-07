@@ -188,6 +188,19 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      literalmente vacía tras ese merge, así que estas cuatro tareas no compiten
      con nada: son la única cola de la que los agentes de cron pueden tirar. -->
 
+- [ ] [Tipo: AI] [Área: Analysis] Dataset de expedientes reales — prerrequisito de todo lo demás
+    - Objetivo: Que el gate que el contrato de release exige para promover modelo, prompt, retrieval u orquestación mida algo. Hoy no lo hace.
+    - Contexto (verificado el 2026-08-07): `evals/pliegos/cases.jsonl` tiene **una sola línea**, y su único documento es `memo_p2.pdf` — una página, 40 caracteres extraíbles, `"PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOF…"`. Es un fixture sintético; no hay ningún expediente real en el repo. `pnpm benchmark:pliegos` tampoco cubre el hueco: valida JSON ya generado y no llama al modelo. ADR-001 lo anotó («los umbrales se ratificarán con un dataset de 10–20 expedientes representativos»; «el primer caso es smoke, no evidencia estadística») y nunca se cerró.
+    - Por qué bloquea: la verificación de citas se entrega igual sin esto, pero **no mide nada** — un documento de 40 caracteres no puede alucinar de forma cuantificable. Y sin esa medida, la decisión de sacar o no el pipeline del techo de 150 s se toma por intuición.
+    - Alcance: Entre 5 y 10 expedientes reales y variados: PCAP y PPT separados, expediente único, alguno **escaneado sin capa de texto** (el caso que decide si `absenceIsConclusive()` puede acusar a alguien). Por cada uno: hechos esperados, ausencias que no deben alucinarse y citas verificables, en el formato que ya usa `cases.jsonl`.
+    - Criterios de aceptación:
+        - `evals/pliegos/cases.jsonl` con ≥5 casos reales; el caso smoke se conserva pero deja de ser el único.
+        - Al menos un caso con oráculo **no** `extracted`, para ejercitar la rama «no verificable».
+        - `pnpm eval:pliegos:check` en verde; baseline de `pnpm eval:pliegos:live` registrada sobre el dataset nuevo.
+        - Los documentos son públicos (Plataforma de Contratación del Sector Público) y su procedencia queda anotada.
+    - Archivos probables: `evals/pliegos/cases.jsonl`, `evals/pliegos/README.md`, fixtures
+    - Dependencias: Ninguna, pero es prerrequisito de las tres siguientes.
+
 - [ ] [Tipo: AI] [Área: Analysis] Verificación de citas — ADR-003 Fase 3
     - Objetivo: Que una `evidence.quote` que no aparece en el documento deje de acreditar nada. Es el fallo que se reporta como «se inventa datos», y la propia ADR-003 constata que esta comprobación sola habría cazado las seis alucinaciones del incidente en la primera ejecución.
     - Alcance: Capa post-extracción, **sin LLM**. Comparación de cadenas normalizada de cada `evidence.quote` contra `analysis_job_document_texts`, cuyo texto ya se extrae en ingesta (Fase 2, entregada). Cita ausente **con oráculo `extracted`** ⇒ el campo pasa a `no_encontrado` con motivo. Sin cambios en el schema canónico ni en el contrato de eventos: cambia el `status` de campos que ya existen.
