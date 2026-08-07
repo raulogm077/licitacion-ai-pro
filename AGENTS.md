@@ -15,6 +15,22 @@ fases que llamen al modelo.
 
 <!-- release-contract:end -->
 
+## Skills de ingeniería instaladas
+
+- Las skills de `addyosmani/agent-skills` están versionadas en
+  `.agents/skills/` y registradas en `skills-lock.json`. Al iniciar una tarea,
+  usar `using-agent-skills` para elegir únicamente las skills aplicables a la
+  fase actual; no cargar el catálogo completo en contexto.
+- Son una capa de proceso aditiva. Si una skill contradice este repositorio,
+  prevalecen `AGENTS.md`, `CLAUDE.md`, el contrato de release y los comandos de
+  `package.json`: pnpm, rama efímera, PR obligatorio y `pnpm verify:release`.
+- Reutilizar los artefactos vivos del proyecto: `SPEC.md` para especificación,
+  `BACKLOG.md` para tareas y `plans/` para planes detallados. No crear `tasks/`
+  ni documentación paralela solo porque aparezcan en ejemplos genéricos.
+- La instalación incluye workflows `SKILL.md` para Codex y enlaces de proyecto
+  para Claude Code. No activa hooks, slash commands, personas ni automatismos
+  del repositorio de origen.
+
 ## Frontend UI stack (rediseño «Iris»)
 
 - Las dependencias de UI del rediseño (`motion`, `sonner`, `recharts`,
