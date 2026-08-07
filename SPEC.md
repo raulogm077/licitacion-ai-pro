@@ -121,7 +121,6 @@ Decisiones vigentes:
 - **El cero que no es un cero**: `cifraNegocioAnualMinima` llega del schema canónico con `safeCoerceNumber(0)`, así que un requisito ausente aparece como `0`. Se trata como no declarado; leerlo literalmente daría un «cumples» a cualquiera.
 - **Una acreditación caducada es un no-cumple**, nunca un cumple: presentarla acreditaría algo que el órgano rechazaría.
 - Capa post-extracción: no altera el contrato de extracción, ni el schema canónico, ni el pipeline. Sin UI todavía.
-
 ## 2.11. Servicio de perfil del licitador (2026-08-07)
 
 - `src/services/perfil.service.ts` conecta las tablas `empresa_*` con el motor de Go/No-Go. Hasta aquí las tablas existían y el motor sabía decidir, pero nada las unía; los pasos 3 a 5 de ADR-002 pasan todos por este servicio.
@@ -152,39 +151,153 @@ Decisiones vigentes:
 - Sin valor no se escribe. Guardar `0` sería declarar «facturo cero», que no es «todavía no lo he puesto».
 - Con esto ADR-002 queda entregada salvo lo que la propia ADR dejó fuera (Win Themes, decisión 7.2).
 
+## 2.15. Rumbo de producto decidido (2026-08-07)
+
+Cuatro respuestas de producto que hasta ahora no estaban escritas en ninguna parte, y que
+reordenan la prioridad del backlog entero. Detalle y razonamiento en
+[`docs/ideas/rumbo-2026-08.md`](docs/ideas/rumbo-2026-08.md).
+
+| Pregunta       | Decisión                                                    |
+| -------------- | ----------------------------------------------------------- |
+| ¿Para quién?   | **Uso propio / interno.** No es un SaaS.                     |
+| ¿Qué es éxito? | **Confianza: cero datos inventados.**                        |
+| ¿Presupuesto?  | **Todo gratis.** Supabase Free; el techo de 150 s sigue en pie. |
+| ¿Orden?        | **A → B → (C sólo si A lo justifica)**, ver §3.               |
+
+La primera cierra una contradicción que el repo arrastraba: `README.md` decía «aplicación
+interna» y `CLAUDE.md` decía «SaaS app». Ambos quedan alineados con esta decisión.
+
+**Hallazgo que ordena el plan.** Los síntomas «los botones no responden» y «se inventa datos»
+son el mismo fallo visto desde dos sitios: una extracción que falla deja
+`qualityReport.bySection` en `VACIO`, el capítulo llega con `emptyMessage`, `PriceSimulator`
+dice «no simulable» y `AlertsPanel` queda vacío — de modo que pulsar una sección cambia la
+pantalla a nada. La navegación **está cableada** (`Sidebar` filtra por `vm.chapters`,
+`MainContent` monta los siete widgets, el export a Excel tiene handler); es la interfaz
+diciendo la verdad sobre datos que no existen. **No hay un problema de UX independiente del
+problema de extracción**, y por eso el rediseño del dashboard no puede ir primero.
+
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo
 
-Cobertura al 80%, i18n multi-idioma, Dependabot (Iteración D — mantenimiento y observabilidad).
+**Dirección A — «que no mienta»:** ADR-003 Fase 3, verificación determinista de citas, y el
+visor de evidencia que la convierte en la interacción principal del dashboard.
+
+Se elige primero no por ambición sino porque **es a la vez el arreglo y el instrumento de
+medida**. Si tras verificar la mayoría de campos sobrevive, el fallo era la acreditación y
+queda cerrado. Si la mayoría se cae, el fallo está en la recuperación (`file_search` no trae
+los fragmentos correctos) y sólo entonces la dirección C —sacar el pipeline del techo de
+150 s -- está justificada, con datos en lugar de con intuición. Hoy no sabemos cuál de los
+dos mundos habitamos, y ésta es la opción barata de las dos.
 
 ### 3.2. Entregables esperados
 
-1. Subir cobertura de tests al 80% statements / 70% branches.
-2. Implementar i18n multi-idioma (inglés).
-3. Configurar Dependabot para actualizaciones automáticas.
-4. Validar compatibilidad de OpenAI Agents SDK en Supabase Edge Functions mediante un spike aislado no productivo.
+0. **Dataset de expedientes reales** (prerrequisito, ver §3.4).
+1. Verificación de `evidence.quote` contra `analysis_job_document_texts`: cita ausente con
+   oráculo `extracted` invalida su campo, que pasa a `no_encontrado` con motivo.
+2. Persistencia del PDF original en Storage — hoy no se persiste, y sin ella no se puede
+   abrir el documento por la página de la cita.
+3. Visor de evidencia en el dashboard: clic en el dato → documento en la página exacta,
+   fragmento resaltado.
 
 ### 3.3. Criterios de aceptación globales
 
-- `pnpm exec vitest run --coverage` ≥80% statements, ≥70% branches.
-- La app puede cambiar entre ES y EN.
-- Dependabot crea PRs semanales.
+- La verificación es **determinista y testeable sin clave de OpenAI** (comparación de cadenas
+  normalizada), con test por cada uno de los cinco estados de `absenceIsConclusive()`.
+- Una cita ausente **con oráculo no concluyente** nunca invalida el campo: se declara
+  «no verificable», no «fabricada». Es el test que no puede caerse.
+- `pnpm benchmark:pliegos` y `pnpm eval:pliegos:check` en verde; baseline de
+  `pnpm eval:pliegos:live` registrada antes y después **sobre el dataset de §3.4**, no sobre
+  el caso smoke.
+- Se acepta explícitamente que **el dashboard quede más vacío**: es la consecuencia buscada,
+  no una regresión.
+
+### 3.4. El dataset es prerrequisito, no un detalle (2026-08-07)
+
+Al auditar el repo para fijar este rumbo se comprobó que **`evals/pliegos/cases.jsonl` tiene
+una sola línea**, y que su único documento es `memo_p2.pdf`: una página, 40 caracteres
+extraíbles, `"PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOF…"`. Es un fixture sintético. No existe
+ningún expediente real en el repositorio.
+
+Consecuencia, y es seria: **el gate que el contrato de release exige para promover modelo,
+prompt, retrieval u orquestación —`pnpm eval:pliegos:live`— se ratifica hoy contra un memo de
+55 caracteres.** `pnpm benchmark:pliegos` tampoco cubre el hueco: valida JSON ya generado y no
+llama al modelo. ADR-001 lo dejó anotado —«los umbrales se ratificarán con un dataset de 10–20
+expedientes representativos», «el primer caso es smoke, no evidencia estadística»— y nunca se
+cerró.
+
+`pnpm eval:pliegos:diff`, entregado el mismo día (PR #344), agudiza el diagnóstico en
+lugar de resolverlo: ya existe un comparador riguroso —se niega a comparar datasets distintos
+y sale con código distinto de cero ante cualquier regresión por caso— **y no hay nada real que
+comparar**. El instrumento está construido y el material no. Ese desequilibrio es exactamente
+lo que esta sección corrige.
+
+Esto invalida una parte del razonamiento de §3.1. La dirección A **sigue siendo el arreglo
+correcto**, pero con el dataset actual **no mide nada**: un documento de 40 caracteres no puede
+alucinar de forma cuantificable, así que la baseline «antes y después» no diría cuántos campos
+se caen, que es justo el dato que decide si hay que acometer la dirección C.
+
+Por tanto el dataset entra como entregable 0 de esta iteración: entre 5 y 10 expedientes reales
+y variados —PCAP y PPT separados, expediente único, alguno escaneado sin capa de texto—, con
+sus hechos, ausencias y citas esperadas. Sin él, A se entrega a ciegas y C se decide por
+intuición, que es exactamente lo que ADR-001 prohíbe.
 
 ## 4. Diseño funcional y técnico de la iteración activa
 
-**Iteración D (Mantenimiento y Observabilidad)**
-
-- **Testing (QA):** El test global de Vitest que bloqueaba la suite ha sido resuelto. El objetivo ahora es incrementar progresivamente la cobertura unitaria de componentes UI y hooks, comenzando con los widgets del Dashboard y los componentes core de UI (`src/components/`), hasta alcanzar el 80% global.
-- **i18n (UI/Infra):** Integrar `react-i18next` u otra librería estándar. Inicializar diccionarios básicos (`es`, `en`) e implementar un selector de idioma en la interfaz. Extraer progresivamente textos hardcodeados.
-- **Dependabot (Infra):** Añadir `.github/dependabot.yml` para gestionar actualizaciones semanales de paquetes npm y acciones de GitHub, reduciendo deuda técnica.
-- **Capa conversacional Agents SDK (AI/Infra):** Mantener operativa la Edge Function `chat-with-analysis-agent` para consultar análisis persistidos desde el dashboard sin alterar el pipeline batch principal.
+- **Verificación (AI/Backend):** capa post-extracción, sin LLM. El oráculo ya existe desde la
+  Fase 2 de ADR-003 (`analysis-worker` extrae el texto con `unpdf` de los bytes que acaban de
+  pasar el SHA-256; medido en 1,2 s para 250 páginas). No toca el schema canónico ni el
+  contrato de eventos: cambia el `status` de campos que ya existen.
+- **Persistencia del PDF (Backend):** el bucket privado ya recibe los bytes por upload
+  firmado; lo que falta es no borrarlos en el cleanup TTL y exponer una lectura firmada
+  owner-scoped. Revisar el orden de borrado OpenAI → Storage → filas.
+- **Visor de evidencia (UI):** sustituye a `EvidenceToggle`, que hoy sólo puede decir «sin
+  verificar» porque la verificación no existe (`EvidenceToggle.tsx:25`). Es el trabajo que
+  produce el efecto que la app no tiene: ver el párrafo del PCAP que justifica la cifra.
 
 ## 5. Próxima iteración
 
 ### 5.1. Objetivo
 
-Observabilidad y mejoras de producto: métricas de rendimiento, analytics avanzados, optimización de bundle.
+**Dirección B — «que decida»: entregada, y antes que A.** ADR-002 se cerró entera el
+2026-08-07 (§2.9 a §2.14, PRs #345 y #347): las cuatro tablas, el motor `evaluarGoNoGo` —hoy
+en `src/shared/go-no-go.ts`, movido desde `src/lib/` para que lo alcancen las Edge
+Functions—, el servicio de perfil, la captura incremental, el panel del dashboard y la tool
+read-only del copiloto. La `## To Do` del backlog quedó vacía tras ese merge.
+
+Este documento recomendaba lo contrario: que B fuese **detrás** de A. Se hizo antes. Conviene
+dejar escrito qué implica, porque no es una cuestión de orden de trabajo sino de riesgo vivo.
+
+**El riesgo que justificaba el orden ya no es hipotético: está en producción.** La app puede
+decir hoy «preséntate a este contrato» apoyándose en un presupuesto base, un CPV o una cifra
+de solvencia que **nadie ha comprobado contra el documento**. El motor distingue tres estados
+—`cumple`, `no_cumple`, `no_verificable`— y eso protege del **perfil** incompleto, que es la
+mitad de la comparación que sí se validó. Nadie protege de la otra mitad: el **pliego** mal
+leído entra en el veredicto como dato bueno. Un `no_cumple` calculado sobre una cifra
+alucinada descarta una licitación a la que el licitador podía presentarse, y un `cumple`
+hace lo contrario, que es peor.
+
+Eso **sube** la urgencia de la dirección A, no la baja. No hay nada que revertir —el panel es
+correcto y sus estados son los de la ADR—, pero hasta que las citas se verifiquen, el
+veredicto hereda la fiabilidad de la extracción, y la extracción es justamente lo que se
+reporta como poco fiable.
+
+### 5.1.b. Lo que sigue faltando de B
+
+Sigue pendiente lo que nunca fue un paso de ADR-002: el **rediseño del dashboard alrededor
+del veredicto** en vez de alrededor del schema, con las dos pasadas con que lee un licitador
+de verdad —**criba** (¿me presento?) y **preparación** (¿cómo gano?)—. El `GoNoGoPanel` es
+hoy un widget más dentro de `MainContent`, junto a los otros seis; convertirlo en la pantalla
+principal es trabajo de producto que ninguna de las dos PRs abordó.
+
+### 5.2. Fuera de alcance hasta tener la medida de A
+
+**Dirección C** (sacar el pipeline del techo de 150 s, ADR-003 Fases 4 y 5). Buena parte de
+la arquitectura durable —PGMQ, outbox, leases, DLQ, recovery `pg_cron`, slices de dos
+bloques— existe para sobrevivir a ese techo, que una herramienta interna podría dejar de
+tener. Pero no arregla nada de lo que hoy se siente, y promoverla sin el dato que produce A
+sería exactamente la clase de decisión sin gate que ADR-001 prohíbe.
 
 ## 6. Decisiones cerradas
 

@@ -177,10 +177,79 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      lleva por delante una sesión entera. Antes de añadir aquí, comprobar contra
      el repo. -->
 
-<!-- Pasos 1 y 2 entregados y mergeados el 2026-08-07, así que los tres
-     restantes entran aquí como estaba previsto. Win Themes sigue FUERA por
-     decisión 7.2. El orden importa: el paso 3 es el que decide si esto se usa
-     de verdad. -->
+<!-- Reordenado 2026-08-07 tras decidir el rumbo (SPEC.md §2.15,
+     docs/ideas/rumbo-2026-08.md). Esta cola queda ocupada por la dirección A
+     —verificación de citas—, y el orden dentro de ella no es negociable: el
+     dataset va primero porque sin él la verificación se entrega a ciegas.
+
+     El perfil de licitador ya NO está aquí. ADR-002 se entregó ENTERA el mismo
+     día (PRs #345 y #347: tablas, motor, servicio, captura, panel y tool del
+     copiloto) y sus cinco pasos viven en `## Ready for QA`. Esta sección quedó
+     literalmente vacía tras ese merge, así que estas cuatro tareas no compiten
+     con nada: son la única cola de la que los agentes de cron pueden tirar. -->
+
+- [ ] [Tipo: AI] [Área: Analysis] Dataset de expedientes reales — prerrequisito de todo lo demás
+    - Objetivo: Que el gate que el contrato de release exige para promover modelo, prompt, retrieval u orquestación mida algo. Hoy no lo hace.
+    - Contexto (verificado el 2026-08-07): `evals/pliegos/cases.jsonl` tiene **una sola línea**, y su único documento es `memo_p2.pdf` — una página, 40 caracteres extraíbles, `"PLIEGO TEST MEMO_P2 SUBASTA LICENCIA SOF…"`. Es un fixture sintético; no hay ningún expediente real en el repo. `pnpm benchmark:pliegos` tampoco cubre el hueco: valida JSON ya generado y no llama al modelo. ADR-001 lo anotó («los umbrales se ratificarán con un dataset de 10–20 expedientes representativos»; «el primer caso es smoke, no evidencia estadística») y nunca se cerró.
+    - Por qué bloquea: la verificación de citas se entrega igual sin esto, pero **no mide nada** — un documento de 40 caracteres no puede alucinar de forma cuantificable. Y sin esa medida, la decisión de sacar o no el pipeline del techo de 150 s se toma por intuición.
+    - Alcance: Entre 5 y 10 expedientes reales y variados: PCAP y PPT separados, expediente único, alguno **escaneado sin capa de texto** (el caso que decide si `absenceIsConclusive()` puede acusar a alguien). Por cada uno: hechos esperados, ausencias que no deben alucinarse y citas verificables, en el formato que ya usa `cases.jsonl`.
+    - Criterios de aceptación:
+        - `evals/pliegos/cases.jsonl` con ≥5 casos reales; el caso smoke se conserva pero deja de ser el único.
+        - Al menos un caso con oráculo **no** `extracted`, para ejercitar la rama «no verificable».
+        - `pnpm eval:pliegos:check` en verde; baseline de `pnpm eval:pliegos:live` registrada sobre el dataset nuevo y comparable con `pnpm eval:pliegos:diff` — que ya existe (PR #344) y hoy no tiene material real que comparar. El instrumento está construido; falta el material.
+        - Los documentos son públicos (Plataforma de Contratación del Sector Público) y su procedencia queda anotada.
+    - Archivos probables: `evals/pliegos/cases.jsonl`, `evals/pliegos/README.md`, fixtures
+    - Dependencias: Ninguna, pero es prerrequisito de las tres siguientes.
+
+- [ ] [Tipo: AI] [Área: Analysis] Verificación de citas — ADR-003 Fase 3
+    - Objetivo: Que una `evidence.quote` que no aparece en el documento deje de acreditar nada. Es el fallo que se reporta como «se inventa datos», y la propia ADR-003 constata que esta comprobación sola habría cazado las seis alucinaciones del incidente en la primera ejecución.
+    - Alcance: Capa post-extracción, **sin LLM**. Comparación de cadenas normalizada de cada `evidence.quote` contra `analysis_job_document_texts`, cuyo texto ya se extrae en ingesta (Fase 2, entregada). Cita ausente **con oráculo `extracted`** ⇒ el campo pasa a `no_encontrado` con motivo. Sin cambios en el schema canónico ni en el contrato de eventos: cambia el `status` de campos que ya existen.
+    - Criterios de aceptación:
+        - Determinista y ejecutable **sin `OPENAI_API_KEY`**; un test por cada uno de los cinco estados que distingue `absenceIsConclusive()`.
+        - **Una cita ausente con oráculo no concluyente nunca invalida el campo**: se declara «no verificable», no «fabricada». Es el equivalente exacto de la regla que ya rige el resto del producto y el test que no puede caerse.
+        - `pnpm benchmark:pliegos` y `pnpm eval:pliegos:check` en verde; baseline de `pnpm eval:pliegos:live` registrada antes y después para cuantificar cuántos campos se caen.
+        - Se acepta que el dashboard quede más vacío: es la consecuencia buscada, no una regresión.
+    - Archivos probables: `supabase/functions/_shared/document-text.ts`, `supabase/functions/analyze-with-agents/phases/validation.ts`, `supabase/functions/_shared/schemas/canonical.ts`
+    - Dependencias: Ninguna. ADR-003 Fase 2 entregada el 2026-08-05.
+
+- [ ] [Tipo: Backend] [Área: Upload] Persistir el PDF original para poder abrirlo por página
+    - Objetivo: Habilitar el visor de evidencia. Hoy `SPEC.md` dice que no existe el CTA «Ver Original» porque el PDF no se persiste; sin los bytes no se puede enseñar el párrafo que justifica una cifra.
+    - Alcance: Los bytes ya llegan al bucket privado por upload firmado. Falta que el cleanup TTL no los borre y una lectura firmada owner-scoped de vida corta. Revisar el orden de borrado OpenAI → Storage → filas de documentos para no dejar referencias colgando.
+    - Criterios de aceptación:
+        - El dueño obtiene una URL firmada de su propio documento; nadie más. Test de aislamiento entre dos usuarios.
+        - La retención es explícita y documentada; el cleanup sigue borrando lo de OpenAI.
+        - Ningún cambio en el pipeline de análisis.
+    - Archivos probables: `supabase/migrations/`, `supabase/functions/analysis-worker/`, `src/services/job.service.ts`
+    - Dependencias: Ninguna, pero sin ella la siguiente no se puede entregar entera.
+
+- [ ] [Tipo: UI] [Área: Analysis] Visor de evidencia: del dato al párrafo
+    - Objetivo: Convertir la verificación en la interacción principal del dashboard. Clic en un dato → el documento abierto por la página de la cita, con el fragmento resaltado. Es el trabajo que produce el efecto que la app hoy no tiene, y es el mismo que exige «cero datos inventados».
+    - Alcance: Sustituye a `EvidenceToggle`, que hoy sólo puede decir «sin verificar» porque la verificación no existía (`EvidenceToggle.tsx:25`). Tres estados visibles y distinguibles: verificada, no verificable, ausente en el documento.
+    - Criterios de aceptación:
+        - Los tres estados se distinguen sin depender del color (contraste y daltonismo, como la paleta de Analytics).
+        - Un campo «no verificable» nunca se presenta con la misma autoridad que uno verificado.
+        - `pnpm test:e2e` cubre el camino dato → documento → fragmento.
+    - Archivos probables: `src/features/dashboard/components/detail/`, `src/features/dashboard/model/pliego-vm.ts`
+    - Dependencias: las dos anteriores.
+
+<!-- Las tres tareas siguientes son la dirección B (SPEC.md §5). No se adelantan
+     a las de arriba, pero tampoco se aparcan: la Fase 3 deja el dashboard más
+     vacío, y el Go/No-Go es lo que hace útil un dashboard honesto. -->
+
+<!-- ADR-002 quedó entregada entera el 2026-08-07 (#345 y #347). Los cinco pasos
+     están en `## Ready for QA` y Win Themes sigue FUERA por decisión 7.2, así
+     que aquí no queda nada de perfil pendiente.
+
+     Merece anotarse porque el rumbo (SPEC.md §5) recomendaba lo contrario: que
+     el panel de Go/No-Go fuera DETRÁS de la verificación de citas, para no
+     emitir veredictos de negocio a partir de datos fabricados. Se entregó
+     antes. No es un error que haya que revertir —el panel es correcto y sus
+     tres estados son los de la ADR—, pero convierte un riesgo que era
+     hipotético en uno que está en producción: hoy la app puede decir
+     «preséntate a este contrato» apoyándose en un presupuesto o un CPV que
+     nadie ha comprobado contra el documento. El motor distingue
+     `no_verificable` sobre el PERFIL; nadie distingue nada sobre el PLIEGO.
+     Eso sube la urgencia de la dirección A, no la baja. -->
 
 ## Deuda Técnica / Refactorización
 
@@ -228,12 +297,35 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
         - Contrato de eventos y `pnpm benchmark:pliegos` en verde — ✅ es capa post-extracción, no toca el contrato.
     - Por qué seguía abierta: la entrada nunca se cerró al entregar. Es el fallo contra el que avisa el comentario de `## To Do`, y aquí llegó a costar una comprobación de sesión: antes de retomarla hubo que verificar contra el repo que ya estaba hecha.
 
+## Descartado por alcance (2026-08-07)
+
+Al decidir que el producto es de **uso interno y un solo usuario** (`SPEC.md` §2.15), estas
+líneas dejan de tener destinatario. No se listan para lamentarlas: se listan para que nadie
+las reabra sin reabrir antes la decisión de alcance.
+
+| Descartado                          | Por qué                                                                                       |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| i18n multi-idioma (inglés)          | Un usuario español analizando contratación pública española. Figuraba como entregable de `SPEC.md` §3.2. |
+| Modo presentación (378 líneas)      | ¿A quién se presenta? Artefacto de la hipótesis SaaS.                                          |
+| Landing de marca (80 líneas)        | No hay visitante no autenticado.                                                               |
+| Analytics (113 líneas)              | Evolución mensual sobre un histórico propio de decenas de análisis.                            |
+| Plantillas dinámicas (`/templates`) | Extracción configurable para quien siempre lee el mismo tipo de pliego.                        |
+| Multi-tenancy / organizaciones      | ADR-002 §7.1 ya decidió «por usuario»; con uso interno la duda ni se plantea. `perfil_id` se conserva porque es higiene gratuita. |
+| Más animación / confetti            | Ya existe y no produce el efecto buscado. El «wow» es la cita clicable, no la transición.      |
+
+Pendiente de decidir (§ Preguntas abiertas de `docs/ideas/rumbo-2026-08.md`): si estas
+superficies se retiran del repo o se dejan inertes. Retirarlas reduce mantenimiento; dejarlas
+cuesta poco y preserva la opción SaaS.
+
+**Model tiering** (`BLOCK_MODEL_OVERRIDES`, más abajo en Deuda Técnica) no se descarta, pero
+se congela: bajar de tier mientras el sistema alucina es optimizar el coste del error.
+Reevaluable cuando la dirección A tenga su medida.
+
 ## Ideas de Producto
 
-- Implementar i18n multi-idioma (inglés)
-- Configurar Dependabot para actualizaciones automáticas de dependencias
 - Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
 - Visual regression testing con Playwright screenshots
+- **Radar de licitaciones** — dejar de subir PDFs. La Plataforma de Contratación del Sector Público publica en formato abierto; con el perfil (CPV, solvencia, ámbito) la app pasaría de *analizador que espera un PDF* a *radar que avisa*: «tres licitaciones nuevas encajan con tu perfil, y en dos pasas el Go/No-Go». Es el techo del producto y la única idea que cambia su naturaleza. También la que más depende de todo lo demás: sin perfil y sin extracción fiable, un radar sólo genera ruido. No antes de completar las direcciones A y B.
 - **Perfil de empresa licitadora** — **desbloqueado el 2026-08-07**: las cuatro decisiones de producto de [`ADR-002`](docs/adr/ADR-002-perfil-de-empresa-licitadora.md) §7 están tomadas y la ADR pasa a Aceptada. Ya no es una idea: los dos primeros pasos del plan viven como tareas en `## To Do (Iteración Actual)`.
     - Lo decidido: perfil **por usuario** con `perfil_id` desde el día 1; **Win Themes fuera** de este alcance; el copiloto consulta el **veredicto calculado**, no el perfil crudo; con el perfil incompleto se muestra «no verificable» y el campo que falta, nunca un veredicto sobre un dato ausente.
     - Los pasos 3 a 5 (captura incremental, panel Go/No-Go, tool del copiloto) siguen en la ADR y entran al backlog cuando 1 y 2 estén entregados. El riesgo dominante no ha cambiado y no es técnico: un onboarding que nadie completa deja un Go/No-Go que responde «desconocido» a todo, y por eso el paso 3 es el que decide si esto se usa.

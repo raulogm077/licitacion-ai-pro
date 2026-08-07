@@ -2,6 +2,8 @@
 
 Aplicación interna para analizar pliegos de licitación en PDF, extraer información estructurada y presentar el resultado de forma navegable para acelerar la revisión funcional y técnica.
 
+**Alcance decidido el 2026-08-07** (`SPEC.md` §2.15): uso propio, un solo usuario, **no es un SaaS**. El criterio de éxito es *cero datos inventados* y el presupuesto es el plan Free de Supabase, así que el techo de 150 s sigue siendo una restricción dura. Quedan fuera de alcance multi-tenancy, onboarding, i18n y facturación. Razonamiento completo y superficies descartadas en [`docs/ideas/rumbo-2026-08.md`](docs/ideas/rumbo-2026-08.md).
+
 <!-- release-contract:start -->
 
 - No direct work or deploy from `main`.
@@ -67,6 +69,7 @@ Documentación viva del sistema:
 
 - `ARCHITECTURE.md`: arquitectura vigente y contratos técnicos
 - `SPEC.md`: iteración activa, criterios y decisiones
+- `docs/ideas/rumbo-2026-08.md`: rumbo de producto acordado, orden de las tres direcciones y lista de lo que no se hace
 - `BACKLOG.md`: cola operativa de trabajo nocturno
 - `AGENTS.md`: reglas de funcionamiento de la fábrica de agentes (incluye postura de auth)
 - `DEPLOYMENT.md`: proceso actual de despliegue

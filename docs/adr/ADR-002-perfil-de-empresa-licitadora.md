@@ -1,6 +1,23 @@
 # ADR-002 — Perfil de empresa licitadora
 
 - **Estado:** Aceptada — decisiones de producto tomadas el 2026-08-07 (ver §7)
+- **Matizada el 2026-08-07** por la decisión de alcance de `SPEC.md` §2.15 (uso interno, un
+  solo usuario): el riesgo dominante que esta ADR identifica —«un onboarding que nadie
+  completa deja un Go/No-Go que responde desconocido a todo»— **desaparece cuando el usuario
+  es quien conoce sus propias cifras**. El Paso 3 (captura incremental) deja de ser el paso
+  que decide si esto se usa; lo sustituye un formulario que se rellena una vez. El modelo de
+  datos, el motor determinista y las cuatro decisiones de §7 siguen vigentes sin cambios —
+  incluida la de `perfil_id` en las tablas hijas, que se conserva por higiene aunque hoy no
+  haya organizaciones.
+- **Entregada íntegra el 2026-08-07** (PRs #345 y #347), los cinco pasos. El rumbo la situaba
+  **detrás** de la Fase 3 de ADR-003 y se hizo antes; conviene dejar constancia de qué implica.
+  El veredicto es correcto en su mitad del problema —el motor distingue `no_verificable` sobre
+  el **perfil** y nombra el campo que falta— pero nadie distingue nada sobre la otra mitad: el
+  requisito extraído del **pliego** entra en el cálculo como dato bueno aunque nadie haya
+  comprobado su cita contra el documento. Hasta que la Fase 3 de ADR-003 esté cerrada, un
+  `no_cumple` puede descartar una licitación a la que sí se podía concurrir, y un `cumple`
+  puede animar a concurrir a una excluida. No hay nada que revertir; sí hay un riesgo vivo que
+  antes era hipotético, y que sube la prioridad de esa Fase 3.
 - **Fecha:** 2026-07-27 (propuesta) · 2026-08-07 (decidida)
 - **Ámbito:** modelo de datos del licitador, onboarding y capacidades de la Guía §3 y §5
 - **Depende de:** ADR-001 (arquitectura durable, grounded y evaluable)
