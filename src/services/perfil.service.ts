@@ -1,7 +1,7 @@
 import { supabase as defaultClient } from '../config/supabase';
 import { Result, ok, err } from '../lib/Result';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AcreditacionEmpresa, EjercicioEmpresa, PerfilEmpresa, ProyectoEmpresa } from '../lib/go-no-go';
+import type { AcreditacionEmpresa, EjercicioEmpresa, PerfilEmpresa, ProyectoEmpresa } from '../shared/go-no-go';
 
 /**
  * Lectura y escritura del perfil del licitador (ADR-002).

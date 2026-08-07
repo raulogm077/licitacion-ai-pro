@@ -130,6 +130,13 @@ Decisiones vigentes:
 - **Un perfil vacío es `ok`, no `err`.** Es el estado de quien acaba de registrarse. El motor lo traduce a «no verificable» nombrando el campo que falta; devolver error obligaría a la UI a distinguir «fallo» de «todavía no».
 - Sin UI todavía.
 
+## 2.12. Go/No-Go en el copiloto sin exponer el perfil (2026-08-07)
+
+- `get_go_no_go` en `chat-with-analysis-agent` responde «¿cumplo la solvencia?» calculando el veredicto **en nuestro lado**. El modelo recibe estado, chequeo, sección de la Guía y campos que faltan; nunca las cifras del licitador (decisión 7.3 de ADR-002).
+- `evaluarGoNoGo` pasa de `src/lib/` a `src/shared/`, que es donde el repo ya aloja el código que comparten frontend y Edge Functions (`analysis-contract.ts` sigue ese mismo patrón).
+- `Chequeo.detalle` queda **fuera** del payload al modelo: cita las cifras comparadas y una de ellas es del perfil. Un test lo fija comprobando por valor, no por nombre de campo.
+- El `SolvencyAgent` declara explícitamente que `no_verificable` es un dato ausente y no un incumplimiento, para que el copiloto no desaconseje una licitación a la que el usuario sí podía presentarse.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo

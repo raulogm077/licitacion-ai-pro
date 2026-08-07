@@ -5,6 +5,12 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limiter.ts';
 import { CHAT_MAX_REQUESTS_PER_HOUR, MAX_CHAT_PAYLOAD_BYTES } from '../_shared/config.ts';
 import { createAnalysisTools } from './tools.ts';
+import type {
+    AcreditacionEmpresa,
+    EjercicioEmpresa,
+    PerfilEmpresa,
+    ProyectoEmpresa,
+} from '../../../src/shared/go-no-go.ts';
 import { createChatAgents } from './agents.ts';
 import { getConversationHistory, replaceConversationHistory } from './session.ts';
 import { ChatRequestSchema, type ChatRequest, type StoredAnalysisEnvelope } from './types.ts';
@@ -94,6 +100,7 @@ serve(async (req: Request) => {
             analysisHash: body.analysisHash,
             loadAnalysis: async (analysisHash: string) => await loadAnalysisForUser(supabase, analysisHash),
             trackToolUse: (toolName: string) => usedTools.add(toolName),
+            loadPerfil: async () => await loadPerfilForUser(supabase, user.id),
         });
 
         const { manager } = createChatAgents(tools);
@@ -152,6 +159,61 @@ async function assertAnalysisExists(supabase: ReturnType<typeof createClient>, a
     if (!data) {
         throw new Error('Análisis no encontrado para el usuario autenticado');
     }
+}
+
+/**
+ * Perfil del licitador para el Go/No-Go del copiloto (ADR-002 Paso 5).
+ *
+ * Va explícitamente por `perfil_id` y no por `user_id` en las hijas: es la
+ * decisión 7.1 y la razón de que `empresa_perfil` tenga `id` propio. Y el
+ * resultado no se devuelve al modelo — lo consume `evaluarGoNoGo` dentro de la
+ * tool, que solo emite el veredicto (decisión 7.3).
+ *
+ * Un perfil inexistente devuelve listas vacías en vez de fallar: el motor lo
+ * traduce a «no verificable» nombrando el campo que falta, que es la respuesta
+ * correcta para quien todavía no ha rellenado nada.
+ */
+async function loadPerfilForUser(supabase: ReturnType<typeof createClient>, userId: string): Promise<PerfilEmpresa> {
+    const vacio: PerfilEmpresa = { ejercicios: [], proyectos: [], acreditaciones: [] };
+
+    const { data: perfil } = await supabase.from('empresa_perfil').select('id').eq('user_id', userId).maybeSingle();
+    if (!perfil) return vacio;
+
+    const perfilId = (perfil as { id: string }).id;
+    const [ejercicios, proyectos, acreditaciones] = await Promise.all([
+        supabase
+            .from('empresa_ejercicio')
+            .select('ejercicio, volumen_negocio, volumen_ambito')
+            .eq('perfil_id', perfilId),
+        supabase
+            .from('empresa_proyecto')
+            .select('cpv, importe, fecha_fin, certificado_buena_ejecucion')
+            .eq('perfil_id', perfilId),
+        supabase
+            .from('empresa_acreditacion')
+            .select('tipo, identificador, importe_cobertura, fecha_caducidad')
+            .eq('perfil_id', perfilId),
+    ]);
+
+    return {
+        ejercicios: (ejercicios.data ?? []).map((r: Record<string, unknown>): EjercicioEmpresa => ({
+            ejercicio: Number(r.ejercicio),
+            volumenNegocio: r.volumen_negocio as number | null,
+            volumenAmbito: r.volumen_ambito as number | null,
+        })),
+        proyectos: (proyectos.data ?? []).map((r: Record<string, unknown>): ProyectoEmpresa => ({
+            cpv: r.cpv as string[] | null,
+            importe: r.importe as number | null,
+            fechaFin: r.fecha_fin as string | null,
+            certificadoBuenaEjecucion: r.certificado_buena_ejecucion as boolean | null,
+        })),
+        acreditaciones: (acreditaciones.data ?? []).map((r: Record<string, unknown>): AcreditacionEmpresa => ({
+            tipo: r.tipo as AcreditacionEmpresa['tipo'],
+            identificador: r.identificador as string | null,
+            importeCobertura: r.importe_cobertura as number | null,
+            fechaCaducidad: r.fecha_caducidad as string | null,
+        })),
+    };
 }
 
 async function loadAnalysisForUser(

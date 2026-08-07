@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07h — El copiloto responde «¿cumplo?» sin ver las cifras
+
+- **`get_go_no_go`** en `chat-with-analysis-agent`: calcula el veredicto en nuestro lado y devuelve al modelo estado, chequeo, sección de la Guía y campos que faltan. Es la decisión 7.3 de ADR-002, que pedía tool read-only sobre el veredicto y no el perfil en el prompt.
+- **`evaluarGoNoGo` pasa a `src/shared/`**, que es donde el repo ya aloja el código compartido FE/BE. Las Edge Functions lo importan por ruta relativa igual que `analysis-contract.ts`; no hacía falta duplicarlo ni moverlo a `_shared/`.
+- **Fuga detectada por su propio test antes de entregar**: `Chequeo.detalle` cita las cifras comparadas —«VAN de 3.000.000 € frente a 1.500.000 € exigidos»— y la primera es del licitador. Excluido del payload. El test comprueba **por valor** y no por nombre de clave, para que renombrar un campo no baste para colar un dato.
+- **El prompt es parte del contrato**: el `SolvencyAgent` declara que `no_verificable` es un dato ausente, no un incumplimiento. Sin esa frase el copiloto desaconsejaría licitaciones viables.
+- 9 tests Deno en `tools_test.ts`, incluido el caso de despliegue sin perfil disponible, donde la tool lo dice en vez de inventar un veredicto.
+
 ## [Unreleased] - 2026-08-07g — El perfil y el motor, por fin conectados
 
 - **`src/services/perfil.service.ts`**: lectura y escritura del perfil del licitador, con la traducción a la forma que consume `evaluarGoNoGo`. Las tablas del Paso 1 y el motor del Paso 2 existían pero nada los unía.

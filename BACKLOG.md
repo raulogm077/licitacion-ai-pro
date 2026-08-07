@@ -119,6 +119,17 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Defecto corregido antes de entregar: `onConflict: 'perfil_id,ejercicio'` se aplicaba a las tres tablas, pero solo `empresa_ejercicio` tiene esa restricción única; en las otras dos Postgres habría rechazado la escritura. Hay test que fija cuál hace upsert y cuáles insertan.
     - Archivos: `src/services/perfil.service.ts` (nuevo), `src/services/__tests__/perfil.service.test.ts` (nuevo)
 
+- [x] [Tipo: AI] [Área: Analysis] Perfil de empresa licitadora — Paso 5: tool read-only del copiloto (entregado 2026-08-07)
+    - Objetivo: Que el copiloto responda «¿cumplo la solvencia?» sin que los datos del perfil salgan hacia OpenAI.
+    - Entregado: `get_go_no_go` en `chat-with-analysis-agent/tools.ts`, que calcula el veredicto en nuestro lado y devuelve solo estado, chequeo, sección de la Guía y campos que faltan. `evaluarGoNoGo` se movió a `src/shared/`, que es el sitio que el repo ya usa para código FE/BE compartido.
+    - Criterios de aceptación:
+        - Ningún campo del perfil aparece en el payload al modelo — ✅ test que lo comprueba **por valor** y no por nombre de clave, para que renombrar un campo no baste para colar un dato.
+        - Ownership del usuario de la sesión — ✅ `loadPerfilForUser` filtra por `user_id` y las hijas por `perfil_id`.
+        - `deno test` de la función en verde — ✅ 9 tests.
+    - Fuga encontrada por el propio test en su primera ejecución: `Chequeo.detalle` es la frase legible que cita las cifras comparadas, y una de ellas es del licitador. Se excluyó del payload; el modelo tiene estado y campos que faltan, que basta para responder, y las cifras las ve el usuario en el panel local.
+    - El prompt del `SolvencyAgent` declara que `no_verificable` es un dato ausente y no un incumplimiento. Sin esa frase el copiloto desaconsejaría licitaciones a las que el usuario sí podía presentarse.
+    - Archivos: `supabase/functions/chat-with-analysis-agent/{tools,index,agents}.ts`, `tools_test.ts`, `src/shared/go-no-go.ts` (movido desde `src/lib/`)
+
 ## In Progress
 
 <!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
@@ -168,16 +179,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
         - Accesibilidad: el estado no se transmite solo por color.
     - Archivos probables: `src/features/dashboard/components/widgets/`
     - Dependencias: Paso 3 (para el enlace de completar), aunque el panel se puede entregar antes en estado de solo lectura.
-
-- [ ] [Tipo: AI] [Área: Analysis] Perfil de empresa licitadora — Paso 5: tool read-only del copiloto
-    - Objetivo: Que el copiloto pueda responder «¿cumplo la solvencia?» sin que los datos del perfil salgan hacia OpenAI.
-    - Alcance: Tool read-only en `chat-with-analysis-agent` que devuelve **el veredicto ya calculado**, no el perfil crudo (decisión 7.3). El cálculo ocurre en nuestro lado; el modelo recibe el resultado.
-    - Criterios de aceptación:
-        - Ningún campo del perfil (VAN, NIF, importes, clientes) aparece en el payload enviado al modelo — test que lo fija sobre el argumento de la llamada.
-        - La tool respeta el ownership del usuario de la sesión.
-        - `deno test` de la función en verde.
-    - Archivos probables: `supabase/functions/chat-with-analysis-agent/tools.ts`
-    - Dependencias: Pasos 1 y 2 (entregados).
 
 ## Deuda Técnica / Refactorización
 

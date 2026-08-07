@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PerfilService } from '../perfil.service';
-import { evaluarGoNoGo } from '../../lib/go-no-go';
+import { evaluarGoNoGo } from '../../shared/go-no-go';
 
 const mockClient = {
     auth: { getSession: vi.fn() },
