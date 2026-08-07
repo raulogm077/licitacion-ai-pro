@@ -312,6 +312,13 @@ existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 > compatible con `@eslint/eslintrc@3.3.6`; no requiere `js-yaml` 5 ni una
 > excepción en `osv-scanner.toml`. Detalle en `DEPLOYMENT.md` §5.3.
 
+> Nota (2026-08-07b): un override que **cruza un major** no se valida con el
+> audit en verde. `GHSA-w5hq-g745-h8pq` no tiene parche en la línea 8.x de
+> `uuid` que arrastra `exceljs@4.4.0`, así que la salida fue `>=11.1.1` (resuelve
+> a 14.0.1) — un salto de seis majors por dentro del árbol. Antes de darlo por
+> bueno hay que ejercitar al consumidor: cargar el módulo que importa el paquete
+> y hacer un roundtrip real. Detalle en `DEPLOYMENT.md` §5.3.
+
 > Nota (2026-07-12b): las herramientas de CI se descargan con versión fija
 > (OSV Scanner `v2.4.0`, actionlint, supabase/vercel CLI); las interpolaciones
 > shell de esas versiones deben ir entre comillas (`"vercel@${VERCEL_CLI_VERSION}"`)
