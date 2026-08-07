@@ -29,8 +29,11 @@ import { RunContext } from '../../_shared/agents/sdk.ts';
 import { buildDocumentMapAgent } from '../agents/document-map.agent.ts';
 import { buildBlockAgent } from '../agents/block-extractor.agent.ts';
 import { buildCustomTemplateAgent } from '../agents/custom-template.agent.ts';
-import { BLOCK_MODEL_OVERRIDES, modelForBlock, OPENAI_MODEL } from '../../_shared/config.ts';
+import { BLOCK_MODEL_OVERRIDES, GUIDE_EXCERPT_LENGTH, modelForBlock, OPENAI_MODEL } from '../../_shared/config.ts';
 import { ANALYSIS_RUNTIME_VERSIONS } from '../../_shared/ai-runtime-version.ts';
+import { BLOCK_NAMES } from '../../_shared/schemas/blocks.ts';
+import { GUIDE_CONTENT } from '../guide-content.ts';
+import { methodologyForBlock, sectionsForBlock } from '../prompts/guide-methodology.ts';
 
 Deno.test('extractOutputText accepts plain string', () => {
     assertEquals(extractOutputText('hello'), 'hello');
@@ -285,4 +288,93 @@ Deno.test('runtime version no declara blockModels mientras no haya overrides', (
     // que este PR no altera el `runtime_version` que ya se persiste en jobs.
     assertEquals(ANALYSIS_RUNTIME_VERSIONS.model, OPENAI_MODEL);
     assertEquals('blockModels' in ANALYSIS_RUNTIME_VERSIONS, false);
+});
+
+// ─── Metodología por bloque en el prompt de la Fase C ────────────────────────
+//
+// Hasta 2026-08-07 los 9 bloques recibían el mismo prefijo de la guía (§1–§2.1)
+// y la metodología que cada uno necesitaba no llegaba nunca al prompt. Estos
+// tests fijan las tres propiedades que hacen que el cambio valga algo: que el
+// extracto sea distinto por bloque, que sea el pertinente, y que no cueste más
+// contexto que el prefijo genérico que sustituye.
+
+Deno.test('cada bloque recibe un extracto de metodología distinto y no vacío', () => {
+    const seen = new Map<string, string>();
+    for (const block of BLOCK_NAMES) {
+        const excerpt = methodologyForBlock(block);
+        assert(excerpt.length > 0, `${block}: el extracto de metodología no puede ser vacío`);
+        const duplicate = [...seen.entries()].find(([, text]) => text === excerpt);
+        assert(!duplicate, `${block}: repite el extracto de ${duplicate?.[0]}`);
+        seen.set(block, excerpt);
+    }
+});
+
+Deno.test('el extracto de cada bloque es texto literal de la guía', () => {
+    for (const block of BLOCK_NAMES) {
+        // El troceo no reescribe la guía: cada fragmento tiene que seguir
+        // apareciendo tal cual en ella. Si alguien resume o parafrasea, deja de
+        // ser «la guía» y pasa a ser una segunda fuente que nadie mantiene.
+        for (const fragment of methodologyForBlock(block).split('\n\n')) {
+            assert(
+                GUIDE_CONTENT.includes(fragment),
+                `${block}: el fragmento «${fragment.slice(0, 60)}...» no está literal en la guía`
+            );
+        }
+    }
+});
+
+Deno.test('la metodología por bloque no supera el presupuesto de contexto', () => {
+    for (const block of BLOCK_NAMES) {
+        const length = methodologyForBlock(block).length;
+        assert(
+            length <= GUIDE_EXCERPT_LENGTH,
+            `${block}: ${length} chars supera el techo de ${GUIDE_EXCERPT_LENGTH} (baseline del prefijo genérico)`
+        );
+    }
+});
+
+Deno.test('el mapeo bloque→sección es el pertinente, no uno genérico', () => {
+    // Un mapeo que degenerase en «todos los bloques ven la §1» volvería al
+    // punto de partida sin romper ningún otro test.
+    assertEquals(sectionsForBlock('criteriosAdjudicacion'), ['4.1', '4.1.1', '4.1.2', '4.2', '4.2.1']);
+    assertEquals(sectionsForBlock('requisitosSolvencia'), ['3.1', '3.1.1', '3.1.2', '3.2', '3.2.1', '3.2.2']);
+    assertEquals(sectionsForBlock('anexosYObservaciones'), ['2.3', '5.4']);
+
+    assert(
+        methodologyForBlock('criteriosAdjudicacion').includes('Baja Temeraria'),
+        'criteriosAdjudicacion necesita el método de baja temeraria (§4.1.2)'
+    );
+    assert(
+        methodologyForBlock('requisitosSolvencia').includes('Volumen Anual de Negocios'),
+        'requisitosSolvencia necesita la regla VAN ≥ 1,5 × VAM (§3.1.1)'
+    );
+    assert(
+        methodologyForBlock('restriccionesYRiesgos').includes('Exclusión Formal'),
+        'restriccionesYRiesgos necesita el checklist de exclusión (§7.2)'
+    );
+});
+
+Deno.test('el prompt de sistema del bloque embebe su metodología', async () => {
+    const documentMap = {
+        documentos: [{ nombre: 'PCAP', tipo: 'administrativo', descripcion: 'x' }],
+        lotes: { hayLotes: false, numeroLotes: 0 },
+    };
+
+    const economico =
+        (await buildBlockAgent('economico', 'vs_test').getSystemPrompt(new RunContext(makeContext({ documentMap })))) ??
+        '';
+    const criterios =
+        (await buildBlockAgent('criteriosAdjudicacion', 'vs_test').getSystemPrompt(
+            new RunContext(makeContext({ documentMap }))
+        )) ?? '';
+
+    assert(economico.includes(methodologyForBlock('economico')));
+    assert(criterios.includes(methodologyForBlock('criteriosAdjudicacion')));
+    assert(economico !== criterios, 'dos bloques distintos no pueden producir el mismo prompt de sistema');
+
+    // El extracto genérico del contexto ya no manda en el prompt del bloque.
+    assert(!economico.includes('extracto-guia-test'), 'el bloque no debe leer context.guideExcerpt');
+
+    // La guía sigue siendo método, no fuente: la etiqueta lo dice en el prompt.
+    assert(economico.includes('es MÉTODO, NO es fuente de datos'));
 });

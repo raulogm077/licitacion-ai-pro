@@ -31,9 +31,13 @@ pnpm verify:release    # Cierre obligatorio de sesión antes de push/PR
 ## Skills de ingeniería instaladas
 
 - Las skills de `addyosmani/agent-skills` están versionadas en
-  `.agents/skills/` y registradas en `skills-lock.json`. Al iniciar una tarea,
-  usar `using-agent-skills` para elegir únicamente las skills aplicables a la
-  fase actual; no cargar el catálogo completo en contexto.
+  `.agents/skills/` y registradas en `skills-lock.json`. **Son la forma de
+  trabajo por defecto, no una opción**: toda tarea empieza invocando
+  `using-agent-skills` para enrutar a las skills de la fase actual (spec, plan,
+  implementación, test, review, ship) y se siguen sus pasos, incluida la
+  verificación. No cargar el catálogo completo en contexto: solo lo aplicable.
+  Si una tarea es tan pequeña que ninguna skill aplica, decirlo explícitamente
+  en la respuesta en vez de saltarse el enrutado en silencio.
 - Son una capa de proceso aditiva. Si una skill contradice este repositorio,
   prevalecen `AGENTS.md`, `CLAUDE.md`, el contrato de release y los comandos de
   `package.json`: pnpm, rama efímera, PR obligatorio y `pnpm verify:release`.

@@ -41,7 +41,11 @@ export function buildBlockAgent(blockName: BlockName, vectorStoreId: string) {
             if (!context.documentMap) {
                 throw new Error(`blockExtractor:${blockName} requires PipelineContext.documentMap`);
             }
-            return buildBlockSystemPrompt(blockName, context.documentMap, context.guideExcerpt);
+            // El extracto de guía ya no viaja por el contexto: cada bloque
+            // resuelve su propia metodología por nombre (prompts/guide-methodology.ts),
+            // porque el contexto es compartido por los bloques concurrentes y no
+            // puede llevar un valor distinto por bloque.
+            return buildBlockSystemPrompt(blockName, context.documentMap);
         },
         tools: [
             // fileSearchTool(vectorStoreIds, options?) — the ids are the FIRST

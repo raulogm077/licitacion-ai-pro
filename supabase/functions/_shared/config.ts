@@ -212,7 +212,17 @@ export const DOCUMENT_TEXT_MAX_CHARS = 1_000_000;
  */
 export const DOCUMENT_TEXT_TIMEOUT_MS = 20_000;
 
-/** Guide excerpt length for system prompts (chars) */
+/**
+ * Techo de la metodología que se inyecta en el prompt de sistema de cada bloque
+ * de la Fase C (chars).
+ *
+ * Antes era la longitud del prefijo genérico de la guía que recibían los 9
+ * bloques por igual; desde `prompts/guide-methodology.ts` es el tope del
+ * extracto **por bloque**, elegido para que el presupuesto de contexto no suba
+ * respecto a ese baseline. Los extractos reales quedan holgadamente por debajo
+ * (1,1–3,1 KB), así que hoy no recorta ninguno: está para que un futuro cambio
+ * de mapeo no infle el prompt sin que nadie lo note.
+ */
 export const GUIDE_EXCERPT_LENGTH = 4000;
 
 /** Guide excerpt length for document map phase (chars) */

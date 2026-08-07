@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07 — Metodología por bloque en la extracción
+
+- **Extracción:** cada bloque de la Fase C recibe el extracto de la «Guía de lectura de pliegos» pertinente a su contenido (criterios → §4 fórmulas y baja temeraria, solvencia → §3 VAN/CPV/certificaciones, riesgos → §7, …) en lugar del mismo prefijo genérico que recibían los nueve.
+- **Runtime:** `guide-content.ts` pasa a inlinear la guía íntegra; antes se recortaba a ~4900 caracteres, así que las secciones con metodología aprovechable no llegaban a producción.
+- **Contexto:** el prompt por bloque ocupa entre 1,1 y 3,1 KB frente a los 4 KB anteriores; `GUIDE_EXCERPT_LENGTH` queda como techo por bloque.
+- **Tests:** el troceo se verifica literal contra la guía, con extractos distintos y no vacíos por bloque y el prompt de sistema comprobado por el mismo camino que usa el SDK.
+- **Sin cambios de contrato:** schema canónico, eventos de progreso y forma de salida de los bloques intactos.
+
 ## [Unreleased] - 2026-08-07 — Auditoría de artefactos sin uso
 
 - **Frontend:** retirados el resumen de dashboard pre-Iris y el modal JSON sin trigger, junto con su estado y test aislado.
