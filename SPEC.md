@@ -122,6 +122,14 @@ Decisiones vigentes:
 - **Una acreditación caducada es un no-cumple**, nunca un cumple: presentarla acreditaría algo que el órgano rechazaría.
 - Capa post-extracción: no altera el contrato de extracción, ni el schema canónico, ni el pipeline. Sin UI todavía.
 
+## 2.11. Servicio de perfil del licitador (2026-08-07)
+
+- `src/services/perfil.service.ts` conecta las tablas `empresa_*` con el motor de Go/No-Go. Hasta aquí las tablas existían y el motor sabía decidir, pero nada las unía; los pasos 3 a 5 de ADR-002 pasan todos por este servicio.
+- **Traduce en el servicio, no en el motor.** `snake_case` de Postgres a camelCase ocurre aquí para que `evaluarGoNoGo` pueda evaluar datos que no vengan de esta base —un formulario, una importación, un test— sin arrastrar el esquema de la tabla.
+- **`perfil_id` se resuelve en un solo sitio.** Toda escritura a una tabla hija pasa por un método privado que lo obtiene de la sesión. Si cada método lo hiciera por su cuenta, bastaría un olvido para colgar una fila de `user_id` y encarecer la migración a perfil de organización (decisión 7.1); un test comprueba que ninguna escritura lleva `user_id`.
+- **Un perfil vacío es `ok`, no `err`.** Es el estado de quien acaba de registrarse. El motor lo traduce a «no verificable» nombrando el campo que falta; devolver error obligaría a la UI a distinguir «fallo» de «todavía no».
+- Sin UI todavía.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo

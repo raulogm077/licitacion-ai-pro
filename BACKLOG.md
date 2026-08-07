@@ -109,6 +109,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Pendiente: los pasos 3 (captura incremental), 4 (panel) y 5 (tool del copiloto) siguen en ADR-002.
     - Archivos: `src/lib/go-no-go.ts` (nuevo), `src/lib/__tests__/go-no-go.test.ts` (nuevo)
 
+- [x] [Tipo: Backend] [Área: Analysis] Perfil de empresa licitadora — Servicio de acceso al perfil (entregado 2026-08-07)
+    - Objetivo: Conectar las tablas del Paso 1 con el motor del Paso 2. Existían los dos extremos y no el cable; los tres pasos restantes lo necesitan.
+    - Entregado: `src/services/perfil.service.ts` con `getPerfil`, `ensurePerfil`, `getPerfilParaEvaluacion` (traduce a la forma de `evaluarGoNoGo`) y las tres escrituras owner-scoped.
+    - Criterios de aceptación:
+        - Ninguna escritura a una tabla hija lleva `user_id` — ✅ test sobre las tres, con `perfil_id` resuelto en un único método privado.
+        - Un perfil vacío es `ok`, no `err` — ✅ y el test encadena hasta el motor para comprobar que produce «desconocido» y ningún `no_cumple`.
+        - Sin sesión no se lee ni se escribe — ✅.
+    - Defecto corregido antes de entregar: `onConflict: 'perfil_id,ejercicio'` se aplicaba a las tres tablas, pero solo `empresa_ejercicio` tiene esa restricción única; en las otras dos Postgres habría rechazado la escritura. Hay test que fija cuál hace upsert y cuáles insertan.
+    - Archivos: `src/services/perfil.service.ts` (nuevo), `src/services/__tests__/perfil.service.test.ts` (nuevo)
+
 ## In Progress
 
 <!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
@@ -134,12 +144,40 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      lleva por delante una sesión entera. Antes de añadir aquí, comprobar contra
      el repo. -->
 
-<!-- Los pasos 3 (captura incremental de perfil), 4 (panel Go/No-Go) y 5 (tool
-     read-only del copiloto sobre el veredicto ya calculado, decisión 7.3) se
-     añaden aquí cuando los pasos 1 y 2 estén entregados. No se adelantan: el
-     paso 3 es el que decide si esto se usa, y diseñarlo antes de tener el
-     motor sería diseñar contra un veredicto que aún no existe. Win Themes
-     queda FUERA de este alcance por decisión 7.2. -->
+<!-- Pasos 1 y 2 entregados y mergeados el 2026-08-07, así que los tres
+     restantes entran aquí como estaba previsto. Win Themes sigue FUERA por
+     decisión 7.2. El orden importa: el paso 3 es el que decide si esto se usa
+     de verdad. -->
+
+- [ ] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 3: captura incremental del perfil
+    - Objetivo: Que el usuario rellene el perfil sin un onboarding largo, que es el riesgo dominante de toda la ADR: si nadie lo completa, el Go/No-Go responde «desconocido» a todo y la funcionalidad no existe.
+    - Alcance: Pedir **el campo concreto que falta, en el contexto donde falta** — desde el veredicto «no verificable», con el `camposFaltantes` que el motor ya devuelve — en vez de un formulario de todo el perfil por adelantado. `perfilService` ya expone `upsertEjercicio`, `addProyecto` y `addAcreditacion`.
+    - Criterios de aceptación:
+        - Desde un chequeo `no_verificable` se puede rellenar su campo sin salir de la pantalla, y el veredicto se recalcula.
+        - El NIF no aparece en logs, trazas ni analytics.
+        - Tests de interacción del componente; sin bajar las puertas de cobertura.
+    - Archivos probables: `src/features/dashboard/`, `src/features/perfil/` (nuevo)
+    - Dependencias: Pasos 1 y 2 (entregados).
+
+- [ ] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 4: panel Go/No-Go en el dashboard
+    - Objetivo: Mostrar el veredicto con sus tres estados y la antigüedad del dato que lo sustenta.
+    - Alcance: Panel que consume `evaluarGoNoGo` sobre `perfilService.getPerfilParaEvaluacion()` y el análisis cargado. Los tres estados se distinguen visualmente; `no_verificable` enlaza a la captura del Paso 3.
+    - Criterios de aceptación:
+        - `no_verificable` nunca se presenta como incumplimiento: ni color de error ni lenguaje de rechazo.
+        - Cada chequeo cita su sección de la Guía, que es lo que hace auditable el veredicto.
+        - Accesibilidad: el estado no se transmite solo por color.
+    - Archivos probables: `src/features/dashboard/components/widgets/`
+    - Dependencias: Paso 3 (para el enlace de completar), aunque el panel se puede entregar antes en estado de solo lectura.
+
+- [ ] [Tipo: AI] [Área: Analysis] Perfil de empresa licitadora — Paso 5: tool read-only del copiloto
+    - Objetivo: Que el copiloto pueda responder «¿cumplo la solvencia?» sin que los datos del perfil salgan hacia OpenAI.
+    - Alcance: Tool read-only en `chat-with-analysis-agent` que devuelve **el veredicto ya calculado**, no el perfil crudo (decisión 7.3). El cálculo ocurre en nuestro lado; el modelo recibe el resultado.
+    - Criterios de aceptación:
+        - Ningún campo del perfil (VAN, NIF, importes, clientes) aparece en el payload enviado al modelo — test que lo fija sobre el argumento de la llamada.
+        - La tool respeta el ownership del usuario de la sesión.
+        - `deno test` de la función en verde.
+    - Archivos probables: `supabase/functions/chat-with-analysis-agent/tools.ts`
+    - Dependencias: Pasos 1 y 2 (entregados).
 
 ## Deuda Técnica / Refactorización
 

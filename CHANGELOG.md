@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07g — El perfil y el motor, por fin conectados
+
+- **`src/services/perfil.service.ts`**: lectura y escritura del perfil del licitador, con la traducción a la forma que consume `evaluarGoNoGo`. Las tablas del Paso 1 y el motor del Paso 2 existían pero nada los unía.
+- **Un solo camino de escritura a las hijas**, que resuelve `perfil_id` desde la sesión. Un test comprueba que ninguna escritura lleva `user_id` (decisión 7.1), porque ese error no da síntoma hasta el día de migrar a perfil de organización.
+- **Un perfil vacío devuelve `ok` con listas vacías**, no un error: el motor lo traduce a «no verificable» con el campo que falta (decisión 7.4).
+- **Corregido antes de entregar**: `onConflict: 'perfil_id,ejercicio'` solo aplica a `empresa_ejercicio`, que es la única con esa restricción única. Aplicarlo a proyectos o acreditaciones habría hecho fallar la escritura en Postgres; ahora las otras dos insertan y hay test que lo fija.
+- **Backlog**: con los pasos 1 y 2 entregados, los pasos 3 a 5 de ADR-002 entran en `## To Do` como estaba previsto.
+
 ## [Unreleased] - 2026-08-07f — Go/No-Go: la app responde «¿me presento?»
 
 - **`src/lib/go-no-go.ts`**: los cuatro chequeos deterministas de la Guía §3 —VAN, seguro de RC, similitud CPV a tres dígitos y certificaciones— comparando el pliego extraído con el perfil del licitador. Sin LLM, funciones puras, 29 tests.
