@@ -149,15 +149,14 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Archivos probables: `supabase/functions/_shared/schemas/canonical.ts`, `supabase/functions/_shared/schemas/canonical_test.ts`, `src/lib/tracked-field.ts`, `src/lib/schemas.ts`
     - Dependencias: Ninguna.
 
-- [ ] [Tipo: AI] [Área: Analysis] Motor de simulación de scoring (fórmula de precio + baja temeraria)
+- [x] [Tipo: AI] [Área: Analysis] Motor de simulación de scoring (fórmula de precio + baja temeraria) (entregado 2026-07-27; entrada saneada 2026-08-07)
     - Objetivo: Dar el primer salto de "extractor" a "analista": interpretar la fórmula de precio y el umbral de anormalidad para permitir simulaciones what-if (§4 de la Guía).
-    - Alcance: Parsear `criteriosAdjudicacion.objetivos[].formula` y `umbralAnormalidad` (hoy strings) a una representación evaluable; añadir cálculo de puntuación para un precio hipotético y detección de riesgo de baja temeraria. Capa post-extracción; no altera el contrato de extracción existente.
+    - Entregado en `src/lib/scoring.ts`: `parsePriceFormula` / `parseAnomalyThreshold` sobre los strings que ya extraía el pipeline, `scorePrice`, `anomalyLimit` y `simulateAgainstRivals`. Documentado en `SPEC.md` §11 y `ARCHITECTURE.md` §8.18.
     - Criterios de aceptación:
-        - Golden tests con fórmulas lineales y no lineales y con umbral fijo y dinámico.
-        - Manejo explícito de fórmulas no parseables (status/omisión, sin inventar).
-        - Contrato SSE y `pnpm benchmark:pliegos` en verde.
-    - Archivos probables: `supabase/functions/_shared/schemas/canonical.ts`, `supabase/functions/analyze-with-agents/phases/`, nuevo módulo de scoring + tests
-    - Dependencias: Recomendable tras "Extender TrackedField" para grounding de ponderaciones.
+        - Golden tests de fórmulas y umbrales — ✅ 22 tests en `src/lib/__tests__/scoring.test.ts`, con dos familias tomadas de fixtures reales del benchmark.
+        - Manejo explícito de fórmulas no parseables — ✅ `FormulaParse`/`ThresholdParse` devuelven `{ ok: false, reason }` y la UI dice «no simulable» en vez de inventar cifra.
+        - Contrato de eventos y `pnpm benchmark:pliegos` en verde — ✅ es capa post-extracción, no toca el contrato.
+    - Por qué seguía abierta: la entrada nunca se cerró al entregar. Es el fallo contra el que avisa el comentario de `## To Do`, y aquí llegó a costar una comprobación de sesión: antes de retomarla hubo que verificar contra el repo que ya estaba hecha.
 
 ## Ideas de Producto
 
