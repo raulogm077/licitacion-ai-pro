@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07c — ADR-002 decidida: el perfil de empresa deja de estar bloqueado
+
+- **ADR-002 pasa a Aceptada.** Las cuatro decisiones de producto de su §7 quedan tomadas y registradas junto a la alternativa que descartan, para que revisarlas más adelante no obligue a reconstruir el razonamiento.
+- **Lo decidido**: perfil **por usuario**, con `perfil_id` en las tablas hijas desde el día 1; **Win Themes fuera** del alcance; el copiloto consulta el **veredicto ya calculado** por tool read-only en vez de recibir el perfil crudo; con el perfil incompleto se muestra «no verificable» y el campo que falta.
+- **Backlog**: la entrada sale de «Ideas de Producto — bloqueado» y entra como dos tareas de una sesión cada una (migración + RLS; motor determinista de Go/No-Go). Los pasos 3 a 5 no se adelantan.
+- Solo documentación y backlog: no hay código, migraciones ni cambios de comportamiento en este bloque.
+
+## [Unreleased] - 2026-08-07b — Remediación de dos avisos con parche alcanzable
+
+- **`@babel/core` (LOW, `GHSA-4x5r-pxfx-6jf8`)**: override `>=7.29.7 <8`. Lectura arbitraria de fichero vía comentario `sourceMappingURL`; el parche está en la misma línea 7.x, así que la remediación es un backport, no un salto.
+- **`uuid` (MODERATE, `GHSA-w5hq-g745-h8pq`)**: override `>=11.1.1` (resuelve a 14.0.1) sobre el `uuid@8.3.2` que arrastra `exceljs@4.4.0`. El aviso no tiene corte en la línea 8.x, de modo que acotarlo habría reintroducido la vulnerabilidad.
+- **Verificación del salto de major**: el audit en verde no acredita compatibilidad. Se cargó `cf-rule-ext-xform.js` —el único módulo de `exceljs` que importa `uuid`— y se hizo roundtrip de un `.xlsx` con formato condicional.
+- **`react-router` (HIGH, `GHSA-qwww-vcr4-c8h2`)**: sin cambio. Ya estaba documentado en `osv-scanner.toml` con `ignoreUntil`; el aviso es exclusivo del modo RSC, ausente en esta SPA, y el parche exige react-router 8.3.0, que a su vez exige React ≥19.2.7.
+- Sin cambios de runtime, contrato ni comportamiento de producto.
+
 ## [Unreleased] - 2026-08-07 — Metodología por bloque en la extracción
 
 - **Extracción:** cada bloque de la Fase C recibe el extracto de la «Guía de lectura de pliegos» pertinente a su contenido (criterios → §4 fórmulas y baja temeraria, solvencia → §3 VAN/CPV/certificaciones, riesgos → §7, …) en lugar del mismo prefijo genérico que recibían los nueve.

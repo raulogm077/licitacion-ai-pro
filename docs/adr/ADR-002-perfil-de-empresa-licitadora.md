@@ -1,7 +1,7 @@
 # ADR-002 — Perfil de empresa licitadora
 
-- **Estado:** Propuesta — **requiere decisión de producto antes de implementar**
-- **Fecha:** 2026-07-27
+- **Estado:** Aceptada — decisiones de producto tomadas el 2026-08-07 (ver §7)
+- **Fecha:** 2026-07-27 (propuesta) · 2026-08-07 (decidida)
 - **Ámbito:** modelo de datos del licitador, onboarding y capacidades de la Guía §3 y §5
 - **Depende de:** ADR-001 (arquitectura durable, grounded y evaluable)
 
@@ -181,6 +181,29 @@ mostrar la antigüedad del dato junto al veredicto.
 ## Decisiones que corresponden a producto
 
 Ninguna de estas la puede tomar quien implementa.
+
+> **Decididas el 2026-08-07.** Las cuatro se resolvieron por la recomendación de esta ADR.
+> Que coincidan no las convierte en trámite: eran genuinamente abiertas, y hasta aquí
+> bloqueaban la implementación entera. Lo que sigue queda como registro de qué se decidió
+> y contra qué alternativa, para que revisarlo más adelante no obligue a reconstruir el
+> razonamiento.
+>
+> | Decisión              | Resuelto                                                                   | Alternativa descartada                    |
+> | --------------------- | -------------------------------------------------------------------------- | ----------------------------------------- |
+> | 7.1 Alcance           | Perfil **por usuario**, con `perfil_id` en las tablas hijas desde el día 1 | Organización desde el principio           |
+> | 7.2 Win Themes        | **Fuera** de este alcance; solo Go/No-Go                                   | Ambos a la vez                            |
+> | 7.3 Datos y OpenAI    | El copiloto consulta el **veredicto ya calculado** por tool read-only      | El perfil crudo en el contexto del prompt |
+> | 7.4 Perfil incompleto | «No verificable» + el campo que falta                                      | Asumir cumplimiento y avisar              |
+>
+> La 7.1 tiene una consecuencia que no puede perderse al implementar: `perfil_id` no es
+> cosmético. Es lo único que separa «añadir una columna» de «reescribir el modelo» el día
+> que el perfil pase a ser de organización. Colgar las tablas hijas de `user_id` directo,
+> aunque hoy sea equivalente, es la decisión que haría cara esa migración.
+>
+> La 7.3 y la 7.4 son la misma regla que ya rige el resto del producto: no dejar salir a
+> OpenAI lo que no necesita, y no emitir un veredicto sobre un dato que nadie introdujo.
+> `absenceIsConclusive()` (ADR-003) decide eso mismo sobre las citas; el Go/No-Go necesita
+> su equivalente sobre los campos del perfil.
 
 ### 7.1 ¿Perfil por usuario o por organización?
 
