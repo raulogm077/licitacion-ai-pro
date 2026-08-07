@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07c — ADR-002 decidida: el perfil de empresa deja de estar bloqueado
+
+- **ADR-002 pasa a Aceptada.** Las cuatro decisiones de producto de su §7 quedan tomadas y registradas junto a la alternativa que descartan, para que revisarlas más adelante no obligue a reconstruir el razonamiento.
+- **Lo decidido**: perfil **por usuario**, con `perfil_id` en las tablas hijas desde el día 1; **Win Themes fuera** del alcance; el copiloto consulta el **veredicto ya calculado** por tool read-only en vez de recibir el perfil crudo; con el perfil incompleto se muestra «no verificable» y el campo que falta.
+- **Backlog**: la entrada sale de «Ideas de Producto — bloqueado» y entra como dos tareas de una sesión cada una (migración + RLS; motor determinista de Go/No-Go). Los pasos 3 a 5 no se adelantan.
+- Solo documentación y backlog: no hay código, migraciones ni cambios de comportamiento en este bloque.
+
 ## [Unreleased] - 2026-08-07b — Remediación de dos avisos con parche alcanzable
 
 - **`@babel/core` (LOW, `GHSA-4x5r-pxfx-6jf8`)**: override `>=7.29.7 <8`. Lectura arbitraria de fichero vía comentario `sourceMappingURL`; el parche está en la misma línea 7.x, así que la remediación es un backport, no un salto.

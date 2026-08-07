@@ -111,7 +111,32 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      lleva por delante una sesión entera. Antes de añadir aquí, comprobar contra
      el repo. -->
 
-<!-- Vacía tras entregar la metodología por bloque (ver "## Ready for QA"). -->
+- [ ] [Tipo: Backend] [Área: Analysis] Perfil de empresa licitadora — Paso 1: migración + RLS
+    - Objetivo: Crear el modelo de datos del licitador que ADR-002 deja diseñado, sin nada visible todavía.
+    - Alcance: Las cuatro tablas de la ADR (`empresa_perfil`, `empresa_ejercicio`, `empresa_proyecto`, `empresa_acreditacion`) con RLS owner-scoped. **Las tablas hijas cuelgan de `perfil_id`, nunca de `user_id` directo**: es la decisión 7.1 y lo único que separa «añadir una columna» de «reescribir el modelo» el día que el perfil pase a ser de organización. Sin UI, sin motor.
+    - Criterios de aceptación:
+        - Migración aplicable y reversible; Security Advisor sin avisos nuevos.
+        - RLS: el dueño lee y escribe lo suyo; nadie más ve nada. Test de aislamiento entre dos usuarios.
+        - Ninguna tabla hija referencia `user_id` directamente.
+    - Archivos probables: `supabase/migrations/`, `src/lib/schemas.ts`
+    - Dependencias: Ninguna. ADR-002 §7 decidida el 2026-08-07.
+
+- [ ] [Tipo: AI] [Área: Analysis] Perfil de empresa licitadora — Paso 2: motor determinista de Go/No-Go
+    - Objetivo: Convertir los requisitos ya extraídos del pliego en un veredicto comparable contra el perfil, siguiendo la Guía §3.
+    - Alcance: Módulo puro en `src/lib/`, al lado de `scoring.ts` y con su mismo patrón: funciones que devuelven fallo explícito con motivo en vez de adivinar. Reglas de la Guía §3: VAN ≥ 1,5 × VAM, similitud CPV a 3 dígitos, seguro de RC, certificaciones bloqueantes. Sin UI.
+    - Criterios de aceptación:
+        - Un test por regla de la §3, con el caso «dato del perfil ausente» en cada una.
+        - **Nunca un veredicto sobre un dato que nadie introdujo** (decisión 7.4): falta el campo → «no verificable» + qué campo falta. Es el equivalente de `absenceIsConclusive()` (ADR-003) sobre el perfil, y el test que lo fija es el que no puede caerse.
+        - `pnpm verify:release` en verde; sin cambios en el contrato de extracción.
+    - Archivos probables: `src/lib/go-no-go.ts` (nuevo) + tests
+    - Dependencias: Paso 1.
+
+<!-- Los pasos 3 (captura incremental de perfil), 4 (panel Go/No-Go) y 5 (tool
+     read-only del copiloto sobre el veredicto ya calculado, decisión 7.3) se
+     añaden aquí cuando los pasos 1 y 2 estén entregados. No se adelantan: el
+     paso 3 es el que decide si esto se usa, y diseñarlo antes de tener el
+     motor sería diseñar contra un veredicto que aún no existe. Win Themes
+     queda FUERA de este alcance por decisión 7.2. -->
 
 ## Deuda Técnica / Refactorización
 
@@ -164,9 +189,9 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 - Configurar Dependabot para actualizaciones automáticas de dependencias
 - Métricas de rendimiento (Lighthouse, bundle size) automatizadas en CI
 - Visual regression testing con Playwright screenshots
-- **Perfil de empresa licitadora** — **diseñado en [`docs/adr/ADR-002`](docs/adr/ADR-002-perfil-de-empresa-licitadora.md) (2026-07-27), bloqueado a la espera de decisión de producto**: base de datos del licitador (VAN por ejercicio, CPVs de proyectos pasados, certificaciones ISO/ENS, seguros). Es el prerequisito que desbloquea las capacidades de la Guía §3 (Go/No-Go: solvencia VAN≥1.5×VAM, similitud CPV a 3 dígitos, sugerencia de UTE) y §5 (Win Themes desde la memoria justificativa). Sin este dato, la app queda como extractor y no como analista estratégico.
-    - La ADR deja el modelo de datos, el onboarding y el plan de implementación cerrados. Lo que falta son **cuatro decisiones de producto** (§7 de la ADR): perfil por usuario o por organización; si Win Themes entra en el mismo alcance; si los datos del perfil viajan a OpenAI; y qué se muestra con el perfil incompleto.
-    - No se implementa nada hasta que estén tomadas: el riesgo dominante no es técnico, es un onboarding que nadie completa y un Go/No-Go que responde «desconocido» a todo.
+- **Perfil de empresa licitadora** — **desbloqueado el 2026-08-07**: las cuatro decisiones de producto de [`ADR-002`](docs/adr/ADR-002-perfil-de-empresa-licitadora.md) §7 están tomadas y la ADR pasa a Aceptada. Ya no es una idea: los dos primeros pasos del plan viven como tareas en `## To Do (Iteración Actual)`.
+    - Lo decidido: perfil **por usuario** con `perfil_id` desde el día 1; **Win Themes fuera** de este alcance; el copiloto consulta el **veredicto calculado**, no el perfil crudo; con el perfil incompleto se muestra «no verificable» y el campo que falta, nunca un veredicto sobre un dato ausente.
+    - Los pasos 3 a 5 (captura incremental, panel Go/No-Go, tool del copiloto) siguen en la ADR y entran al backlog cuando 1 y 2 estén entregados. El riesgo dominante no ha cambiado y no es técnico: un onboarding que nadie completa deja un Go/No-Go que responde «desconocido» a todo, y por eso el paso 3 es el que decide si esto se usa.
 
 ## Done
 
