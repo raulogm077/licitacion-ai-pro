@@ -184,6 +184,14 @@ jobs:
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/consolidation_test.ts
                   deno test --node-modules-dir=auto supabase/functions/analyze-with-agents/phases/validation_test.ts
                   deno test --allow-env --node-modules-dir=auto supabase/functions/analyze-with-agents/__tests__/agents.test.ts
+            # Gates deterministas de la evaluación IA. Corrían solo en
+            # `verify-ci.sh`, es decir en el hook de pre-push, que `--no-verify`
+            # salta. Son lo que decide si una promoción de modelo se autoriza,
+            # así que también se comprueban aquí.
+            - name: Eval contracts (scoring + diff)
+              run: |
+                  deno test evals/pliegos/score_test.ts
+                  deno test --allow-read evals/pliegos/diff_test.ts
 
     # 2. Quality Checks (Lint, Unit, Build)
     quality-checks:

@@ -9,7 +9,7 @@ Aplicación interna para analizar pliegos de licitación en PDF, extraer informa
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
-- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion.
+- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion. The baseline is compared with `pnpm eval:pliegos:diff`, which refuses to compare runs from different datasets and exits non-zero on any per-case regression.
 
 <!-- release-contract:end -->
 
@@ -161,6 +161,7 @@ Notas:
 - `pnpm benchmark:pliegos` valida el caso principal de producto con fixtures versionados y es obligatorio cuando cambian contrato, pipeline o dashboard del análisis.
 - El benchmark también protege regresiones silenciosas de reconciliación canónica, por ejemplo presupuesto/plazo completados desde bloques económicos o diagnósticos por sección.
 - `pnpm eval:pliegos:check` valida en CI el contrato determinista de métricas. `pnpm eval:pliegos:live` ejecuta manualmente las cinco fases reales contra OpenAI y compara hechos, ausencias, grounding y calidad; consume API y no forma parte del CI.
+- `pnpm eval:pliegos:diff <baseline.json> [head.json]` compara dos informes live. Se niega a comparar ejecuciones de datasets o conjuntos de casos distintos (código 2) y sale con código 1 ante cualquier regresión por caso, incluida la que aún no rompe: una métrica que cae mientras el caso sigue en `passed`. Su lógica es pura y se testea sin clave.
 - Una tarea no está lista para QA si cambia comportamiento real y no actualiza la documentación correspondiente.
 - Dependabot agrupa los `minor`/`patch` de dev-dependencies, lo cual es seguro salvo en paquetes `0.x`, donde un minor puede ser breaking. Si un bump así rompe el CI: fijar la línea en `package.json` (`~0.4.26`, no `^`), añadir el `ignore` en `.github/dependabot.yml` con el motivo, y abrir la tarea en `BACKLOG.md` para retirarlo. Precedente cerrado: `eslint-plugin-react-refresh` estuvo atado a la 0.4 hasta la migración a ESLint 9 + flat config (2026-07-27); su `ignore` ya se retiró.
 - El job `security-audit` del CI escanea `pnpm-lock.yaml` con OSV Scanner y solo falla con HIGH/CRITICAL. Los findings con parche disponible se arreglan actualizando: `pnpm.overrides` si son transitivos, bump directo si son dependencias declaradas. Los que no tienen parche alcanzable van a `osv-scanner.toml`, donde `reason` e `ignoreUntil` son obligatorios para que la excepción caduque y se revise. Detalle en [`DEPLOYMENT.md`](./DEPLOYMENT.md).

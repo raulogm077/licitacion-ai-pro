@@ -27,6 +27,7 @@ node --import tsx benchmarks/pliegos/run.ts
 
 echo "→ Contrato de scoring IA..."
 deno test evals/pliegos/score_test.ts
+deno test --allow-read evals/pliegos/diff_test.ts
 
 echo "→ Build..."
 "$BIN_DIR/tsc"

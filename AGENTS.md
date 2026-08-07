@@ -11,7 +11,7 @@ fases que llamen al modelo.
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
-- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion.
+- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion. The baseline is compared with `pnpm eval:pliegos:diff`, which refuses to compare runs from different datasets and exits non-zero on any per-case regression.
 
 <!-- release-contract:end -->
 
@@ -238,6 +238,12 @@ modelo, así que seguiría verde con un modelo peor; la señal que lo detecta es
 promover modelo, prompt, retrieval u orquestación. El modelo elegido debe además
 soportar Responses API con `file_search`, o el bloque responde de memoria con la
 forma JSON correcta.
+
+El paso que faltaba para poder ejecutar esa comparación es `pnpm eval:pliegos:diff`
+(2026-08-07): contrasta la baseline con la segunda pasada respetando la dirección
+de cada métrica —`degradedBlockCount` es la única donde bajar es mejorar— y se
+niega a comparar informes de datasets distintos en vez de emitir un veredicto con
+la firma equivocada.
 
 En cuanto exista un override, `ANALYSIS_RUNTIME_VERSIONS` añade `blockModels` y
 el `runtime_version` del job registra qué modelo extrajo cada bloque; el `model`

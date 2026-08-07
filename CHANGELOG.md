@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07d — `eval:pliegos:diff`: comparar dos baselines deja de hacerse a ojo
+
+- **Nuevo `pnpm eval:pliegos:diff <baseline.json> [head.json]`**. El contrato de release exige una baseline live antes y después de promover modelo, prompt, retrieval u orquestación, pero comparar eran dos JSON abiertos en paralelo, con seis métricas por caso y dos direcciones de bondad distintas.
+- **Se niega a comparar lo que no es comparable** (código 2): dataset, `reportVersion` o conjunto de casos distintos. Una comparación inválida presentada como válida autoriza una promoción con la firma equivocada.
+- **Respeta la dirección de cada métrica**: `degradedBlockCount` es la única donde bajar es mejorar, y un test lo fija para que una métrica de daño nueva no herede la dirección contraria.
+- **Cuenta como regresión el deterioro que aún no rompe**: un caso que sigue en `passed` mientras su exactitud cae hacia el umbral. Sale con código 1.
+- **Avisa si el runtime no cambió**, que es el síntoma de haber evaluado sin desplegar lo que se quería promover — y se leería como «sin regresión», la conclusión opuesta.
+- 15 tests deterministas, sin clave de OpenAI, en `verify:release` y en el job `Edge Function Checks`. El mismo job pasa a correr también `score_test.ts`, que hasta ahora solo se comprobaba en el hook de pre-push y se saltaba con `--no-verify`.
+- **Corrección al override de `uuid`**: pasa de `>=11.1.1` a `>=11.1.1 <15`. `ci-security.md` avisa de que un rango abierto resuelve al máximo publicado y puede arrastrar un major sin querer; la resolución verificada funcionalmente fue 14.0.1, así que el techo la conserva y bloquea que un `install` futuro salte a 15 sin que nadie lo compruebe.
+
 ## [Unreleased] - 2026-08-07c — ADR-002 decidida: el perfil de empresa deja de estar bloqueado
 
 - **ADR-002 pasa a Aceptada.** Las cuatro decisiones de producto de su §7 quedan tomadas y registradas junto a la alternativa que descartan, para que revisarlas más adelante no obligue a reconstruir el razonamiento.
