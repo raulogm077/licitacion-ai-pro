@@ -287,6 +287,51 @@ function validateDocumentationCoverage(changedFiles: string[]): void {
     }
 }
 
+/**
+ * Invariantes del modelo de perfil del licitador (ADR-002 §7.1 y §7.4).
+ *
+ * Las dos que se comprueban aquí son estructurales y baratas de perder en una
+ * migración futura escrita con prisa:
+ *
+ *   · **RLS con política en las cuatro tablas.** Son datos de negocio del
+ *     licitador (facturación, clientes, seguros). Una tabla `empresa_*` sin RLS
+ *     los expone a cualquier usuario autenticado, y el fallo es silencioso: las
+ *     consultas siguen funcionando, solo que devolviendo de más.
+ *
+ *   · **Las hijas cuelgan de `perfil_id`, no de `user_id`.** Es la decisión 7.1
+ *     y lo único que separa «añadir una columna» de «reescribir el modelo» el
+ *     día que el perfil pase a ser de organización. Añadir `user_id` a una hija
+ *     «porque es más directo» funciona perfectamente hoy y sale caro después,
+ *     que es justo el tipo de error que ningún test de runtime detecta.
+ */
+function validateProfileOwnershipModel(): void {
+    const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
+    if (!existsSync(migrationsDir)) return;
+
+    const sql = readdirSync(migrationsDir)
+        .filter((file) => file.endsWith('.sql'))
+        .map((file) => readFileSync(path.join(migrationsDir, file), 'utf8'))
+        .join('\n');
+
+    const tables = [...sql.matchAll(/CREATE TABLE IF NOT EXISTS public\.(empresa_\w+)\s*\(([\s\S]*?)\n\);/g)];
+    if (tables.length === 0) return;
+
+    for (const [, table, body] of tables) {
+        if (!new RegExp(`ALTER TABLE public\\.${table} ENABLE ROW LEVEL SECURITY`).test(sql)) {
+            throw new Error(`ADR-002: la tabla ${table} no habilita RLS.`);
+        }
+        if (!new RegExp(`CREATE POLICY [^\\n]*ON public\\.${table}`).test(sql)) {
+            throw new Error(`ADR-002: la tabla ${table} tiene RLS sin ninguna política; nadie podría leer sus datos.`);
+        }
+        if (table !== 'empresa_perfil' && /^\s*user_id\s/m.test(body)) {
+            throw new Error(
+                `ADR-002 §7.1: ${table} declara user_id. Las tablas hijas del perfil cuelgan de perfil_id, ` +
+                    'para que pasar a perfil de organización sea añadir una columna y no reescribir el modelo.'
+            );
+        }
+    }
+}
+
 function validateBenchmarkFixtures(): void {
     const manifestPath = path.join(process.cwd(), 'benchmarks', 'pliegos', 'manifest.json');
     if (!existsSync(manifestPath)) return;
@@ -330,6 +375,7 @@ function main(): void {
     validateWorkflowSyntax();
     validateShellSyntax();
     validateBenchmarkFixtures();
+    validateProfileOwnershipModel();
     validateRemoteMigrationHistory();
     validateDocumentationCoverage(changedFiles);
 

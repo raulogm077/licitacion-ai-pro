@@ -105,6 +105,14 @@ Decisiones vigentes:
 - El contexto por bloque no crece: los extractos ocupan entre 1,1 y 3,1 KB frente a los 4 KB del prefijo anterior, con `GUIDE_EXCERPT_LENGTH` como techo por bloque.
 - Sin cambios en el schema canónico, el contrato de eventos ni la forma de la respuesta de los bloques.
 
+## 2.9. Modelo de datos del perfil del licitador (2026-08-07)
+
+- Cuatro tablas nuevas (`empresa_perfil`, `empresa_ejercicio`, `empresa_proyecto`, `empresa_acreditacion`) implementan el Paso 1 de ADR-002, ya decidida. Es el otro lado de la comparación: hasta ahora la app enseñaba el requisito del pliego y el licitador comprobaba a mano si lo cumplía.
+- **Owner-scoped de lectura y escritura**, a diferencia de las tablas de análisis: este dato lo introduce el usuario. Las hijas se validan atravesando `empresa_perfil`.
+- Las tablas hijas cuelgan de `perfil_id` y ninguna declara `user_id` (decisión 7.1). `pnpm verify:integrity` falla si una migración futura lo rompe.
+- Ninguna columna de datos lleva `DEFAULT` numérico ni `NOT NULL` con relleno: «no lo sé» debe seguir siendo distinguible de «cero» cuando llegue el motor de Go/No-Go, que responderá «no verificable» en vez de emitir veredicto sobre un dato ausente (decisión 7.4).
+- Sin UI, sin motor y sin cambios en el pipeline de análisis ni en el contrato de extracción.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo
