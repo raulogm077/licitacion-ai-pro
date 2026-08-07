@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07i — El panel que responde «¿me presento?»
+
+- **`GoNoGoPanel`** en el dashboard, en la columna derecha y **antes** de las alertas: es la pregunta que el licitador se hace antes que ninguna otra.
+- **`no_verificable` en gris, no en ámbar.** El ámbar se lee como advertencia y esto no lo es: es una pregunta sin responder. Icono de interrogación, etiqueta «Falta un dato tuyo» y el campo concreto que falta. Un test comprueba que con perfil vacío no aparece «No cumples» por ninguna parte.
+- **El estado no viaja solo por color**: etiqueta de texto en cada chequeo y `aria-label` con el estado en palabras.
+- **Cada chequeo cita su sección de la Guía.** Sin esa referencia el panel sería una opinión y no un veredicto auditable.
+- **`requisitosDesdeAnalisis` se unifica en `src/shared/go-no-go.ts`**: el panel y la tool del copiloto tienen que llegar al mismo veredicto sobre el mismo expediente, y dos extracciones separadas divergirían en cuanto una aprendiera algo que la otra no.
+
 ## [Unreleased] - 2026-08-07h — El copiloto responde «¿cumplo?» sin ver las cifras
 
 - **`get_go_no_go`** en `chat-with-analysis-agent`: calcula el veredicto en nuestro lado y devuelve al modelo estado, chequeo, sección de la Guía y campos que faltan. Es la decisión 7.3 de ADR-002, que pedía tool read-only sobre el veredicto y no el perfil en el prompt.

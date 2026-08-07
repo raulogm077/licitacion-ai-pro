@@ -372,3 +372,59 @@ export function evaluarGoNoGo(req: RequisitosPliego, perfil: PerfilEmpresa, hoy:
 
     return { veredicto, chequeos, camposFaltantes };
 }
+
+// ─── Puente desde el análisis persistido ─────────────────────────────────────
+
+/**
+ * Traduce el análisis guardado a los requisitos que el motor compara.
+ *
+ * Vive aquí, y no en el frontend ni en la Edge Function, porque **los dos lo
+ * necesitan**: el panel del dashboard y la tool del copiloto tienen que llegar
+ * al mismo veredicto sobre el mismo expediente. Dos extracciones separadas
+ * divergirían en cuanto una de ellas aprendiera algo que la otra no.
+ *
+ * Un campo ausente sale como `undefined` y nunca como `0`: el motor trata un
+ * mínimo de cero como requisito no declarado, y colapsarlos aquí destruiría esa
+ * distinción antes de que llegue a decidir.
+ */
+export function requisitosDesdeAnalisis(resultRoot: Record<string, unknown>): RequisitosPliego {
+    const solvencia = objeto(resultRoot.requisitosSolvencia);
+    const generales = objeto(resultRoot.datosGenerales);
+    const economico = objeto(resultRoot.economico);
+    const economica = objeto(solvencia.economica);
+
+    const importesMinimos = Array.isArray(solvencia.tecnica)
+        ? (solvencia.tecnica as Array<Record<string, unknown>>)
+              .map((t) => numero(t.importeMinimoProyecto))
+              .filter((n): n is number => typeof n === 'number')
+        : [];
+
+    return {
+        cifraNegocioAnualMinima: numero(economica.cifraNegocioAnualMinima),
+        presupuestoBaseLicitacion: numero(economico.presupuestoBaseLicitacion),
+        duracionMeses: numero(generales.plazoEjecucionMeses),
+        cpv: arrayDeTexto(generales.cpv),
+        // El pliego puede fijar el mínimo en varias entradas de solvencia
+        // técnica. Se toma el mayor: cumplir el más exigente implica cumplir
+        // los demás, y quedarse con el primero dejaría fuera al que decide.
+        importeMinimoProyectosSimilares: importesMinimos.length > 0 ? Math.max(...importesMinimos) : undefined,
+    };
+}
+
+function objeto(raw: unknown): Record<string, unknown> {
+    return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+}
+
+/** Desenvuelve `TrackedField` o pasa el valor plano. */
+function numero(raw: unknown): number | undefined {
+    const valor = raw && typeof raw === 'object' && 'value' in raw ? (raw as { value: unknown }).value : raw;
+    return typeof valor === 'number' && Number.isFinite(valor) ? valor : undefined;
+}
+
+function arrayDeTexto(raw: unknown): string[] {
+    const valor =
+        raw && typeof raw === 'object' && !Array.isArray(raw) && 'value' in raw
+            ? (raw as { value: unknown }).value
+            : raw;
+    return Array.isArray(valor) ? valor.filter((v): v is string => typeof v === 'string') : [];
+}

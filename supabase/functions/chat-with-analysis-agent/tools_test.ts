@@ -2,12 +2,12 @@ import { assertEquals, assertObjectMatch } from 'https://deno.land/std@0.224.0/a
 import { assert } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
     createAnalysisTools,
-    extraerRequisitos,
     extractEvidence,
     normalizeFieldValue,
     resolveFieldPath,
     searchInObject,
 } from './tools.ts';
+import { requisitosDesdeAnalisis } from '../../../src/shared/go-no-go.ts';
 
 Deno.test('resolveFieldPath reads nested values', () => {
     const data = {
@@ -182,8 +182,8 @@ Deno.test('sin perfil disponible la tool lo dice en vez de inventar un veredicto
     assertEquals(salida.veredicto, undefined);
 });
 
-Deno.test('extraerRequisitos desenvuelve TrackedField y toma el importe mínimo mayor', () => {
-    const req = extraerRequisitos(ANALISIS.data as Record<string, unknown>);
+Deno.test('requisitosDesdeAnalisis desenvuelve TrackedField y toma el importe mínimo mayor', () => {
+    const req = requisitosDesdeAnalisis(ANALISIS.data as Record<string, unknown>);
 
     assertEquals(req.cifraNegocioAnualMinima, 1_500_000);
     assertEquals(req.cpv, ['72212000-4']);
@@ -197,7 +197,7 @@ Deno.test('un campo ausente del pliego llega como undefined, no como 0', () => {
     // `0` y «no declarado» tienen que seguir siendo distinguibles: el motor
     // trata un mínimo de cero como requisito no declarado, y colapsarlos aquí
     // destruiría esa distinción antes de que llegue a decidir.
-    const req = extraerRequisitos({ datosGenerales: {} });
+    const req = requisitosDesdeAnalisis({ datosGenerales: {} });
     assertEquals(req.cifraNegocioAnualMinima, undefined);
     assertEquals(req.presupuestoBaseLicitacion, undefined);
 });

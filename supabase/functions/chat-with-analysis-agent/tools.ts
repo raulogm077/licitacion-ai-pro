@@ -1,7 +1,7 @@
 import { tool } from '../_shared/agents/sdk.ts';
 import { z } from 'npm:zod@3.25.76';
 import type { StoredAnalysisEnvelope, Citation } from './types.ts';
-import { evaluarGoNoGo, type PerfilEmpresa, type RequisitosPliego } from '../../../src/shared/go-no-go.ts';
+import { evaluarGoNoGo, requisitosDesdeAnalisis, type PerfilEmpresa } from '../../../src/shared/go-no-go.ts';
 
 type ToolDeps = {
     analysisHash: string;
@@ -140,7 +140,7 @@ export function createAnalysisTools(deps: ToolDeps) {
 
             const analysis = await deps.loadAnalysis(deps.analysisHash);
             const resultRoot = getResultRoot(analysis.data);
-            const requisitos = extraerRequisitos(resultRoot);
+            const requisitos = requisitosDesdeAnalisis(resultRoot);
             const perfil = await deps.loadPerfil();
             const veredicto = evaluarGoNoGo(requisitos, perfil);
 
@@ -170,53 +170,6 @@ export function createAnalysisTools(deps: ToolDeps) {
     });
 
     return [getAnalysisOverview, getFieldValue, getFieldEvidence, listQualityWarnings, searchAnalysisText, getGoNoGo];
-}
-
-/**
- * Extrae del análisis persistido lo que el motor necesita del PLIEGO.
- *
- * Los campos llegan como `TrackedField` o como valor plano según su antigüedad,
- * así que se desenvuelven igual que en el frontend. Un campo ausente se pasa
- * como `undefined` y no como `0`: el motor distingue «no declarado» de «cero»,
- * y colapsarlos aquí destruiría esa distinción antes de que llegue a decidir.
- */
-export function extraerRequisitos(resultRoot: Record<string, unknown>): RequisitosPliego {
-    const solvencia = pickObject(resultRoot, 'requisitosSolvencia');
-    const generales = pickObject(resultRoot, 'datosGenerales');
-    const economica = solvencia && typeof solvencia === 'object' ? (solvencia as Record<string, unknown>) : {};
-    const eco = economica.economica as Record<string, unknown> | undefined;
-
-    return {
-        cifraNegocioAnualMinima: desenvolverNumero(eco?.cifraNegocioAnualMinima),
-        presupuestoBaseLicitacion: desenvolverNumero(
-            (pickObject(resultRoot, 'economico') as Record<string, unknown> | null)?.presupuestoBaseLicitacion
-        ),
-        duracionMeses: desenvolverNumero(generales ? (generales as Record<string, unknown>).plazoEjecucionMeses : null),
-        cpv: desenvolverArray(generales ? (generales as Record<string, unknown>).cpv : null),
-        // El pliego puede fijar el importe mínimo en varias entradas de
-        // solvencia técnica. Se toma el mayor: cumplir el más exigente implica
-        // cumplir los demás, y quedarse con el primero dejaría fuera al que
-        // realmente decide.
-        importeMinimoProyectosSimilares: Array.isArray(economica.tecnica)
-            ? (economica.tecnica as Array<Record<string, unknown>>)
-                  .map((t) => desenvolverNumero(t.importeMinimoProyecto))
-                  .filter((n): n is number => typeof n === 'number')
-                  .reduce<number | undefined>((max, n) => (max === undefined || n > max ? n : max), undefined)
-            : undefined,
-    };
-}
-
-function desenvolverNumero(raw: unknown): number | undefined {
-    const valor = raw && typeof raw === 'object' && 'value' in raw ? (raw as { value: unknown }).value : raw;
-    return typeof valor === 'number' && Number.isFinite(valor) ? valor : undefined;
-}
-
-function desenvolverArray(raw: unknown): string[] {
-    const valor =
-        raw && typeof raw === 'object' && !Array.isArray(raw) && 'value' in raw
-            ? (raw as { value: unknown }).value
-            : raw;
-    return Array.isArray(valor) ? valor.filter((v): v is string => typeof v === 'string') : [];
 }
 
 export function getResultRoot(data: Record<string, unknown>): Record<string, unknown> {

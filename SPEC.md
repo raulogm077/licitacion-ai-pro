@@ -137,6 +137,14 @@ Decisiones vigentes:
 - `Chequeo.detalle` queda **fuera** del payload al modelo: cita las cifras comparadas y una de ellas es del perfil. Un test lo fija comprobando por valor, no por nombre de campo.
 - El `SolvencyAgent` declara explícitamente que `no_verificable` es un dato ausente y no un incumplimiento, para que el copiloto no desaconseje una licitación a la que el usuario sí podía presentarse.
 
+## 2.13. Panel Go/No-Go en el dashboard (2026-08-07)
+
+- `GoNoGoPanel` responde «¿me presento?» en la columna derecha, antes de las alertas del expediente.
+- **`no_verificable` se presenta en gris, no en ámbar**: el ámbar se lee como advertencia y esto no lo es. Un dato que el usuario no ha rellenado no es un requisito incumplido, y confundirlos haría que descartase una licitación a la que sí podía presentarse (decisión 7.4).
+- El estado no se transmite solo por color: etiqueta de texto por chequeo y `aria-label` con el estado en palabras.
+- Cada chequeo cita su sección de la Guía, que es lo que hace auditable el veredicto.
+- `requisitosDesdeAnalisis` vive en `src/shared/go-no-go.ts` para que el panel y la tool del copiloto lleguen al mismo veredicto sobre el mismo expediente.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo

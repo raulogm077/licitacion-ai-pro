@@ -130,6 +130,16 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - El prompt del `SolvencyAgent` declara que `no_verificable` es un dato ausente y no un incumplimiento. Sin esa frase el copiloto desaconsejaría licitaciones a las que el usuario sí podía presentarse.
     - Archivos: `supabase/functions/chat-with-analysis-agent/{tools,index,agents}.ts`, `tools_test.ts`, `src/shared/go-no-go.ts` (movido desde `src/lib/`)
 
+- [x] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 4: panel Go/No-Go en el dashboard (entregado 2026-08-07)
+    - Objetivo: Mostrar el veredicto con sus tres estados, sin que «falta un dato» se lea como «no cumples».
+    - Entregado: `GoNoGoPanel` en la columna derecha del dashboard, antes de las alertas: «¿me presento?» es la pregunta que se hace antes que ninguna otra.
+    - Criterios de aceptación:
+        - `no_verificable` nunca se presenta como incumplimiento — ✅ gris y no ámbar (el ámbar se lee como advertencia y esto no lo es), icono de interrogación, etiqueta «Falta un dato tuyo» y test que comprueba que no aparece «No cumples» con perfil vacío.
+        - Cada chequeo cita su sección de la Guía — ✅ test.
+        - El estado no se transmite solo por color — ✅ etiqueta de texto por chequeo y `aria-label` con el estado en palabras; test que lo recorre.
+    - Extra: sin perfil no se enseña un veredicto vacío, sino la invitación a completarlo. Un «desconocido» a secas parece una avería.
+    - Archivos: `src/features/dashboard/components/widgets/GoNoGoPanel.tsx` (nuevo), su test, `components/layout/MainContent.tsx`
+
 ## In Progress
 
 <!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
@@ -169,16 +179,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
         - Tests de interacción del componente; sin bajar las puertas de cobertura.
     - Archivos probables: `src/features/dashboard/`, `src/features/perfil/` (nuevo)
     - Dependencias: Pasos 1 y 2 (entregados).
-
-- [ ] [Tipo: UI] [Área: Analysis] Perfil de empresa licitadora — Paso 4: panel Go/No-Go en el dashboard
-    - Objetivo: Mostrar el veredicto con sus tres estados y la antigüedad del dato que lo sustenta.
-    - Alcance: Panel que consume `evaluarGoNoGo` sobre `perfilService.getPerfilParaEvaluacion()` y el análisis cargado. Los tres estados se distinguen visualmente; `no_verificable` enlaza a la captura del Paso 3.
-    - Criterios de aceptación:
-        - `no_verificable` nunca se presenta como incumplimiento: ni color de error ni lenguaje de rechazo.
-        - Cada chequeo cita su sección de la Guía, que es lo que hace auditable el veredicto.
-        - Accesibilidad: el estado no se transmite solo por color.
-    - Archivos probables: `src/features/dashboard/components/widgets/`
-    - Dependencias: Paso 3 (para el enlace de completar), aunque el panel se puede entregar antes en estado de solo lectura.
 
 ## Deuda Técnica / Refactorización
 
