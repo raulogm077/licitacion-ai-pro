@@ -1,7 +1,7 @@
 # ADR-002 — Perfil de empresa licitadora
 
 - **Estado:** Aceptada — decisiones de producto tomadas el 2026-08-07 (ver §7)
-- **Matizada el 2026-08-07** por la decisión de alcance de `SPEC.md` §2.9 (uso interno, un
+- **Matizada el 2026-08-07** por la decisión de alcance de `SPEC.md` §2.11 (uso interno, un
   solo usuario): el riesgo dominante que esta ADR identifica —«un onboarding que nadie
   completa deja un Go/No-Go que responde desconocido a todo»— **desaparece cuando el usuario
   es quien conoce sus propias cifras**. El Paso 3 (captura incremental) deja de ser el paso

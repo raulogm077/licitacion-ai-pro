@@ -227,6 +227,12 @@ llama al modelo. ADR-001 lo dejó anotado —«los umbrales se ratificarán con 
 expedientes representativos», «el primer caso es smoke, no evidencia estadística»— y nunca se
 cerró.
 
+`pnpm eval:pliegos:diff`, entregado el mismo día (PR #344), agudiza el diagnóstico en
+lugar de resolverlo: ya existe un comparador riguroso —se niega a comparar datasets distintos
+y sale con código distinto de cero ante cualquier regresión por caso— **y no hay nada real que
+comparar**. El instrumento está construido y el material no. Ese desequilibrio es exactamente
+lo que esta sección corrige.
+
 Esto invalida una parte del razonamiento de §3.1. La dirección A **sigue siendo el arreglo
 correcto**, pero con el dataset actual **no mide nada**: un documento de 40 caracteres no puede
 alucinar de forma cuantificable, así que la baseline «antes y después» no diría cuántos campos

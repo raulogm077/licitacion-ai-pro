@@ -196,7 +196,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Criterios de aceptación:
         - `evals/pliegos/cases.jsonl` con ≥5 casos reales; el caso smoke se conserva pero deja de ser el único.
         - Al menos un caso con oráculo **no** `extracted`, para ejercitar la rama «no verificable».
-        - `pnpm eval:pliegos:check` en verde; baseline de `pnpm eval:pliegos:live` registrada sobre el dataset nuevo.
+        - `pnpm eval:pliegos:check` en verde; baseline de `pnpm eval:pliegos:live` registrada sobre el dataset nuevo y comparable con `pnpm eval:pliegos:diff` — que ya existe (PR #344) y hoy no tiene material real que comparar. El instrumento está construido; falta el material.
         - Los documentos son públicos (Plataforma de Contratación del Sector Público) y su procedencia queda anotada.
     - Archivos probables: `evals/pliegos/cases.jsonl`, `evals/pliegos/README.md`, fixtures
     - Dependencias: Ninguna, pero es prerrequisito de las tres siguientes.
@@ -299,7 +299,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 ## Descartado por alcance (2026-08-07)
 
-Al decidir que el producto es de **uso interno y un solo usuario** (`SPEC.md` §2.9), estas
+Al decidir que el producto es de **uso interno y un solo usuario** (`SPEC.md` §2.11), estas
 líneas dejan de tener destinatario. No se listan para lamentarlas: se listan para que nadie
 las reabra sin reabrir antes la decisión de alcance.
 
