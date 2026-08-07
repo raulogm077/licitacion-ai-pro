@@ -612,6 +612,14 @@ Esa última frase es la regla entera de la fase, y vive en una sola función, `a
 
 **Fecha:** 2026-08-05
 
+### 8.27 Auditoría estructural y retirada de artefactos huérfanos (Implementado 2026-08-07)
+
+El grafo AST del repositorio y una segunda resolución estática de imports aislaron los módulos sin camino desde entradas de producto, tests o tooling. Se retiraron el resumen de dashboard anterior a Iris, un modal JSON sin ninguna transición que pudiera abrirlo y tres módulos de schemas alcanzables únicamente entre sí. No cambia el contrato de análisis: `canonical.ts`, los schemas por bloque y `phases/validation.ts` permanecen como superficies efectivas.
+
+La misma auditoría eliminó dos prompts exploratorios ya ignorados por Git, un plan operativo incompleto sustituido por el contrato de release actual y el enlace raíz `skills/` anterior a la instalación canónica. La comprobación incluyó rutas dinámicas, scripts de `package.json`, workflows, hooks, fixtures, migraciones, symlinks de agente y referencias documentales antes de borrar.
+
+**Fecha:** 2026-08-07
+
 ## 9. Responsabilidades técnicas por rol
 
 ### PM
@@ -655,12 +663,9 @@ Documentos operativos vigentes:
 
 No existen documentos históricos no operativos en el repo. El historial de migraciones cerradas se conserva como entradas fechadas dentro de `SPEC.md` (§2.x, §10.x), `ARCHITECTURE.md` (§8.x) y `CHANGELOG.md`.
 
-## Agent Skill Modular Pattern (Infraestructura AI)
+## 12. Patrón modular de Agent Skills
 
-Para asegurar que la integración de _skills_ en Jules siga principios de arquitectura limpia y evite la contaminación del proyecto raíz, el sistema adopta un modelo estricto de carpetas:
-
-1. **Directorio `.agents`:** Contiene configuraciones, plugins o recursos centrales que Jules u otros agentes core requieran a nivel de proyecto base, actuando como espacio aislado oculto.
-2. **Directorio `.jules`:** Espacio estricto de configuración exclusiva para la instancia actual de Jules, donde residen referencias propias, reglas y personalizaciones.
-3. **Directorio `skills`:** Todas las habilidades extendidas que actúan como plugins independientes quedan centralizadas aquí.
-
-> _Importante:_ El repositorio no admite la proliferación de carpetas punto (`.`) por cada modelo/herramienta (ej. `.claude`, `.roo`, `.qoder`) para evitar desorden arquitectónico. Todo _skill_ se inyecta o referencia bajo el entorno modularizado provisto por Jules.
+- `.agents/skills/` es la ubicación canónica y versionada de las skills compartidas; `skills-lock.json` fija su procedencia e integridad.
+- `.claude/skills/` contiene enlaces relativos versionados para el descubrimiento de Claude Code. No duplica el contenido.
+- El directorio raíz `/skills/` está ignorado y no forma parte de la arquitectura compartida; el último enlace legacy que quedaba allí se retiró en la auditoría de 2026-08-07.
+- `.jules/` y `.claude/` conservan únicamente configuración específica de sus consumidores. Las reglas comunes y el contrato de release permanecen en `AGENTS.md`, `CLAUDE.md` y los documentos operativos.

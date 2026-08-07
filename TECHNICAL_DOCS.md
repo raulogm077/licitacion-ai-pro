@@ -506,3 +506,9 @@ extractDocumentText(bytes, fileName, mimeType?, { maxChars?, timeoutMs? })
 **Dónde se invoca.** `persistDocumentText`, en `analysis-worker`, dentro de `downloadAndVerifyDocuments` y después de la comprobación SHA-256. El `upsert` va sobre `document_id`, así que un reintento de la slice reescribe en vez de duplicar. Un error de guardado se registra y se continúa: la ausencia de fila y un estado de fallo significan lo mismo para la Fase 3.
 
 **Coste medido.** 250 páginas densas → 1,3 MB de texto en ~1,2 s. Frente al presupuesto de slice (150 s) no compite con nada; el tope de 20 s existe solo para que un PDF degenerado no se lo coma.
+
+### 7.13. Superficie efectiva de schemas tras la auditoría
+
+La auditoría de 2026-08-07 confirmó que `_shared/schemas/index.ts`, `job.ts` y `validation.ts` no tenían consumidores de runtime, tests, scripts ni workflows. El barrel solo enlazaba los dos schemas huérfanos con módulos que ya se importaban directamente; mantenerlo producía una segunda representación del job y del informe de validación sin validación efectiva.
+
+La superficie vigente se importa por fichero: `canonical.ts`, `blocks.ts`, `document-map.ts` y `block-expectations.ts`. El estado durable se valida en los límites de servicio/RPC y la calidad final la calcula `analyze-with-agents/phases/validation.ts`; no debe recrearse un barrel genérico salvo que exista un consumidor real y comprobado.
