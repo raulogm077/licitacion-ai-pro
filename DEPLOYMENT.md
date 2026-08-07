@@ -9,7 +9,7 @@ Este documento describe el proceso vigente de despliegue del control plane, work
 - Every session that changes code, runtime, workflows, hooks, or deploy surfaces must end with `pnpm verify:release`.
 - If a change touches workflows, hooks, release process, migrations, SSE, `JobService`, `analyze-with-agents`, or other user-visible behavior, the matching docs and instruction files must be updated in the same branch.
 - Release-facing changes in the analysis runtime or contract must also keep `pnpm benchmark:pliegos` green before push/PR.
-- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion.
+- AI runtime changes must keep `pnpm eval:pliegos:check` green and record a manual `pnpm eval:pliegos:live` baseline before model, prompt, retrieval, or orchestration promotion. The baseline is compared with `pnpm eval:pliegos:diff`, which refuses to compare runs from different datasets and exits non-zero on any per-case regression.
 
 <!-- release-contract:end -->
 
@@ -44,6 +44,7 @@ Antes de desplegar una tarea, QA debe verificar:
     - compatibilidad con schema/Zod
     - `pnpm eval:pliegos:check` en verde
     - baseline de `pnpm eval:pliegos:live` si cambia modelo, prompt, retrieval u orquestación
+    - `pnpm eval:pliegos:diff <baseline.json>` contra esa baseline, sin regresiones
 5. documentación mínima actualizada
 
 > `verify:release` es repetible desde 2026-08-05. Antes lo era solo la primera vez: los pasos Deno dejan `node_modules/.deno` y repuntan los enlaces de `node_modules/.bin`, así que la siguiente ejecución —o cualquier `deno test` suelto lanzado entre medias— moría en el paso de Playwright con «two different versions of @playwright/test», mucho antes de llegar a los pasos Deno que lo causaron. El script ahora limpia ese residuo antes del E2E. En CI no aplica: `edge-checks` y `e2e-tests` son jobs distintos con su propio `node_modules`.
@@ -177,7 +178,7 @@ Las tres públicas deben responder `401` desde el gateway. El worker también de
 
 **Cuando el parche solo existe cruzando un major.** El 2026-08-07 `GHSA-w5hq-g745-h8pq` afectó a `uuid@8.3.2`, que introduce `exceljs@4.4.0` declarando `^8.3.2`. El aviso no tiene corte en la línea 8.x: las versiones corregidas empiezan en 11.1.1. Acotar el override a la línea antigua habría reintroducido la vulnerabilidad, así que se fijó `uuid: ">=11.1.1"`, que resuelve a 14.0.1 — seis majors por encima de lo que el consumidor declara, y `exceljs` está sin mantenimiento, así que no habrá una versión suya que lo acompañe.
 
-Ahí el `pnpm audit` en verde **no es la verificación**: solo dice que la versión instalada ya no está en la lista del aviso, no que el consumidor siga funcionando con ella. La comprobación que sí vale es ejercitar al consumidor. En este caso: localizar el único módulo de `exceljs` que importa `uuid` (`lib/xlsx/xform/sheet/cf-ext/cf-rule-ext-xform.js`), cargarlo explícitamente para que un cambio de exports o un paquete vuelto ESM-only falle ahí, y hacer un roundtrip real —escribir un `.xlsx` con formato condicional y releerlo— antes de dar el override por bueno. El mismo día, `GHSA-4x5r-pxfx-6jf8` (`@babel/core`) se cerró por el camino barato: `>=7.29.7 <8`, dentro de la misma línea, sin verificación funcional adicional más allá del build y la suite.
+Ahí el `pnpm audit` en verde **no es la verificación**: solo dice que la versión instalada ya no está en la lista del aviso, no que el consumidor siga funcionando con ella. La comprobación que sí vale es ejercitar al consumidor. En este caso: localizar el único módulo de `exceljs` que importa `uuid` (`lib/xlsx/xform/sheet/cf-ext/cf-rule-ext-xform.js`), cargarlo explícitamente para que un cambio de exports o un paquete vuelto ESM-only falle ahí, y hacer un roundtrip real —escribir un `.xlsx` con formato condicional y releerlo— antes de dar el override por bueno. El rango se acota por arriba (`>=11.1.1 <15`) aunque el corte inferior sea el del aviso: un `>=X` abierto resuelve siempre al máximo publicado, así que el día que salga `uuid` 15 entraría sola, sin la verificación funcional que justificó el salto. El techo conserva la resolución que sí se ejercitó. El mismo día, `GHSA-4x5r-pxfx-6jf8` (`@babel/core`) se cerró por el camino barato: `>=7.29.7 <8`, dentro de la misma línea, sin verificación funcional adicional más allá del build y la suite.
 
 Lo operativo: cuando el `security-audit` señala un paquete que **ya tiene override**, no se asume que el override esté roto ni que el finding sea un falso positivo. Se consulta el aviso por su ID (`https://api.osv.dev/v1/vulns/<GHSA>`), se leen sus cortes por línea y se sube al que corresponda. Que el CI lo detecte es el mecanismo funcionando: es la única alarma que existe para un aviso que aparece después de la mitigación.
 
@@ -273,6 +274,7 @@ Cualquier script bajo `scripts/` debe ser invocado desde `package.json`, `.githu
 - `verify-ci.sh` → invocado por `pnpm verify:release` (entry point del cierre obligatorio antes de push/PR).
 - `verify-integrity.ts` → invocado por `pnpm verify:integrity` y por el job `Repo Integrity` del workflow.
 - `evals/pliegos/run.ts` → invocado manualmente por `pnpm eval:pliegos:live`; el scoring determinista se ejecuta desde `verify-ci.sh`.
+- `evals/pliegos/diff.ts` → invocado por `pnpm eval:pliegos:diff`; su contrato (`diff_test.ts`) corre en `verify-ci.sh` y en el job `Edge Function Checks`.
 
 Si un script futuro deja de usarse desde alguno de esos sitios, debe eliminarse en lugar de mantenerse "por si acaso". El repo no conserva scripts de conveniencia muertos.
 

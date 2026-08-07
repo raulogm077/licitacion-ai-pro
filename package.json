@@ -20,6 +20,7 @@
         "benchmark:pliegos": "node --import tsx benchmarks/pliegos/run.ts",
         "eval:pliegos:check": "deno test evals/pliegos/score_test.ts",
         "eval:pliegos:live": "deno run --env-file=.env.local --allow-env --allow-read --allow-write=evals/results --allow-net=api.openai.com --node-modules-dir=auto evals/pliegos/run.ts",
+        "eval:pliegos:diff": "deno run --allow-read evals/pliegos/diff.ts",
         "verify:integrity": "node --import tsx scripts/verify-integrity.ts",
         "verify:release": "bash ./scripts/verify-ci.sh",
         "prepare": "husky",
@@ -88,7 +89,7 @@
             "js-yaml": ">=4.3.0 <5.0.0",
             "picomatch": ">=4.0.4",
             "tmp": ">=0.2.7",
-            "uuid": ">=11.1.1",
+            "uuid": ">=11.1.1 <15",
             "ws": ">=8.21.0",
             "@eslint/config-array": "^0.23.5"
         }
