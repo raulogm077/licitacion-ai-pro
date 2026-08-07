@@ -318,6 +318,13 @@ existente) en [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 > compatible con `@eslint/eslintrc@3.3.6`; no requiere `js-yaml` 5 ni una
 > excepción en `osv-scanner.toml`. Detalle en `DEPLOYMENT.md` §5.3.
 
+> Nota (2026-08-07c): el perfil del licitador (`empresa_*`, ADR-002 Paso 1) es la
+> excepción a «mutaciones backend-only»: lo escribe el usuario, con políticas
+> owner-scoped de lectura y escritura. Dos invariantes que `verify:integrity`
+> comprueba sobre el SQL porque romperlas **no da síntoma en runtime**: las
+> cuatro tablas necesitan RLS con al menos una política, y ninguna hija puede
+> declarar `user_id` en lugar de `perfil_id`. Detalle en `TECHNICAL_DOCS.md` §7.15.
+
 > Nota (2026-08-07b): un override que **cruza un major** no se valida con el
 > audit en verde. `GHSA-w5hq-g745-h8pq` no tiene parche en la línea 8.x de
 > `uuid` que arrastra `exceljs@4.4.0`, así que la salida fue `>=11.1.1` (resuelve

@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07f — Go/No-Go: la app responde «¿me presento?»
+
+- **`src/lib/go-no-go.ts`**: los cuatro chequeos deterministas de la Guía §3 —VAN, seguro de RC, similitud CPV a tres dígitos y certificaciones— comparando el pliego extraído con el perfil del licitador. Sin LLM, funciones puras, 29 tests.
+- **Tres estados por chequeo**: `cumple`, `no_cumple` y `no_verificable`. El tercero nombra siempre el campo que falta, para poder pedirlo en vez de solo no responder.
+- **Nunca `go` sobre datos incompletos**. Un `no_cumple` sí manda sobre un `no_verificable`: saber que estás excluido es información aunque el resto falte.
+- **El cero que no es un cero**: un requisito ausente llega del schema canónico como `0` por `safeCoerceNumber`. Tratarlo literalmente daría un «cumples» a cualquiera, así que cuenta como no declarado.
+- **Detalles de dominio que cambian el veredicto**: el mejor de los tres últimos ejercicios (no el más reciente), el volumen «en el ámbito» por encima del total, la familia CPV a tres dígitos y no el código completo, y una acreditación caducada como no-cumple.
+- Capa post-extracción: sin cambios en el contrato de extracción, el schema canónico ni el pipeline. Sin UI todavía.
+
+## [Unreleased] - 2026-08-07e — El otro lado de la comparación: modelo de datos del licitador
+
+- **Cuatro tablas nuevas** (`empresa_perfil`, `empresa_ejercicio`, `empresa_proyecto`, `empresa_acreditacion`): el Paso 1 de ADR-002, ya decidida. Hasta ahora la app enseñaba el requisito del pliego y el licitador comprobaba a mano si lo cumplía; la Guía §3.1.1 pide «recuperar VAN_empresa de la base de datos interna» y esa base de datos no existía.
+- **Owner-scoped de lectura y escritura**, a diferencia del resto del modelo: este dato lo introduce el usuario, no el backend. Las hijas se validan atravesando `empresa_perfil`.
+- **`perfil_id`, nunca `user_id`, en las tablas hijas** (decisión 7.1). Es lo único que separa «añadir una columna» de «reescribir el modelo» el día que el perfil pase a ser de organización.
+- **Dos invariantes verificados estáticamente**: `verify:integrity` falla si una tabla `empresa_*` pierde RLS o su política, o si una hija declara `user_id`. Ambos fallos son silenciosos en runtime, que es justo por lo que necesitan un guard sobre el SQL. Comprobado que el guard detecta las dos violaciones y no pasa por vacuidad.
+- **Ninguna columna de datos con `DEFAULT` numérico**: «no lo sé» tiene que llegar distinguible de «cero» al motor de Go/No-Go, que responderá «no verificable» y nombrará el campo que falta (decisión 7.4).
+- Sin UI, sin motor, sin schemas Zod y sin cambios en el pipeline de análisis ni en el contrato de extracción.
+
 ## [Unreleased] - 2026-08-07d — `eval:pliegos:diff`: comparar dos baselines deja de hacerse a ojo
 
 - **Nuevo `pnpm eval:pliegos:diff <baseline.json> [head.json]`**. El contrato de release exige una baseline live antes y después de promover modelo, prompt, retrieval u orquestación, pero comparar eran dos JSON abiertos en paralelo, con seis métricas por caso y dos direcciones de bondad distintas.

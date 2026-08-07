@@ -532,3 +532,22 @@ La Fase C materializa nueve extractores distintos, pero hasta 2026-08-07 los nue
 **Coste de contexto.** Ninguna llamada nueva y menos tokens: 1,1–3,1 KB por bloque frente a los 4 KB del prefijo genérico. `GUIDE_EXCERPT_LENGTH` pasa a ser el techo por bloque para que un mapeo futuro más goloso no infle el prompt sin que nadie lo note.
 
 **Lo que no cambia.** La guía sigue siendo metodología: las citas se verifican contra el texto local del expediente (§7.12), nunca contra ella. Ni el schema canónico, ni el contrato de eventos, ni la forma de salida de los bloques se tocan.
+
+### 7.15. Modelo de datos del perfil del licitador
+
+`ADR-002` Paso 1. El pipeline extrae con evidencia lo que el órgano de contratación **exige**; lo que no existía es contra qué compararlo. La Guía §3.1.1 lo pide literalmente —«recuperar VAN_empresa de la base de datos interna»— y esas cuatro tablas son esa base de datos.
+
+| Tabla                  | Contenido                                                | Detalle que no es obvio                                                                               |
+| ---------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `empresa_perfil`       | Una fila por usuario: razón social, NIF, nº de empleados | Tiene `id` propio **además** de `user_id` único; las hijas cuelgan de ese `id`                        |
+| `empresa_ejercicio`    | VAN por ejercicio                                        | `volumen_ambito` ≠ `volumen_negocio`: muchos pliegos exigen el del ámbito del contrato, no el total   |
+| `empresa_proyecto`     | Past performance (Guía §3.2.1)                           | `cpv` se guarda **completo**; el truncado a 3 dígitos ocurre en consulta. Índice GIN                  |
+| `empresa_acreditacion` | ISO / ENS / seguros de RC                                | `fecha_caducidad` nullable distingue «sin fecha declarada» de «vigente»; una caducada es un no-cumple |
+
+**Owner-scoped de lectura y escritura, no backend-only.** Es la diferencia con las tablas de análisis: este dato lo introduce el usuario. El perfil se comprueba contra `auth.uid()` directo; las hijas atraviesan `empresa_perfil` con un `EXISTS`. Esa indirección es el coste de la decisión 7.1 y es deliberada: el día que el dueño sea una organización, solo cambia el `EXISTS`.
+
+**`perfil_id` no es cosmético.** Colgar una hija de `user_id` funciona perfectamente hoy y hace cara la migración a organización después — el tipo de error que ningún test de runtime detecta porque no produce ningún síntoma. `validateProfileOwnershipModel()` en `scripts/verify-integrity.ts` lo comprueba estáticamente sobre el SQL, junto con que las cuatro tablas tengan RLS **y** al menos una política: una tabla con RLS y sin política no filtra datos, pero deja al dueño sin poder leer los suyos, y ambos fallos son silenciosos.
+
+**Ninguna columna de datos lleva `DEFAULT` numérico.** La diferencia entre «cero» y «no lo he rellenado» tiene que sobrevivir hasta el motor de Go/No-Go, que responderá «no verificable» y nombrará el campo que falta (decisión 7.4). Un `DEFAULT 0` aquí produciría exactamente el veredicto sobre un dato ausente que esa decisión prohíbe — el mismo error que `absenceIsConclusive()` evita sobre las citas (§7.12).
+
+**Lo que este paso NO trae**: ni UI, ni motor de evaluación, ni schemas Zod. Los schemas llegan con su primer consumidor real; añadirlos ahora sería código sin uso, que este repo no conserva.

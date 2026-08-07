@@ -86,6 +86,29 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
     - Pendiente de QA: el efecto en calidad de extracción solo lo mide `pnpm eval:pliegos:live` (manual, requiere `OPENAI_API_KEY`). Es un cambio de prompt, así que el contrato de release pide baseline live antes de promoverlo.
     - Archivos: `supabase/functions/analyze-with-agents/prompts/guide-methodology.ts` (nuevo), `prompts/index.ts`, `agents/block-extractor.agent.ts`, `phases/block-extraction.ts`, `guide-content.ts`, `_shared/config.ts`, `__tests__/agents.test.ts`
 
+- [x] [Tipo: Backend] [Área: Analysis] Perfil de empresa licitadora — Paso 1: migración + RLS (entregado 2026-08-07)
+    - Objetivo: Crear el modelo de datos del licitador que ADR-002 deja diseñado, sin nada visible todavía.
+    - Entregado: `20260807120000_empresa_perfil_licitador.sql` con las cuatro tablas, políticas owner-scoped de lectura y escritura, índice GIN sobre `cpv`, índices sobre las FK y trigger de `updated_at`.
+    - Criterios de aceptación:
+        - Migración aplicable y reversible; sin avisos nuevos del Security Advisor — ✅ RLS con política en las cuatro tablas e índices sobre todas las FK, que es lo que el advisor reclama.
+        - RLS owner-scoped, con las hijas validadas atravesando `empresa_perfil` — ✅.
+        - Ninguna tabla hija referencia `user_id` directamente — ✅ y además **verificado estáticamente**: `validateProfileOwnershipModel()` en `verify-integrity.ts` falla si alguien lo rompe. Se comprobó que el guard detecta las dos violaciones (hija con `user_id`, tabla sin RLS) y no pasa por vacuidad.
+    - Fuera de alcance por decisión, no por olvido: sin schemas Zod. Llegan con su primer consumidor real; añadirlos ahora sería código sin uso, que este repo no conserva.
+    - Pendiente de QA: el aislamiento entre dos usuarios solo se puede ejercitar contra una base real. La rama de preview de Supabase aplica la migración en cada PR; validarlo ahí antes de merge a `main`.
+    - Archivos: `supabase/migrations/20260807120000_empresa_perfil_licitador.sql` (nuevo), `scripts/verify-integrity.ts`
+
+- [x] [Tipo: AI] [Área: Analysis] Perfil de empresa licitadora — Paso 2: motor determinista de Go/No-Go (entregado 2026-08-07)
+    - Objetivo: Convertir los requisitos ya extraídos del pliego en un veredicto comparable contra el perfil, siguiendo la Guía §3.
+    - Entregado: `src/lib/go-no-go.ts` con los cuatro chequeos (VAN §3.1.1, seguro RC §3.1.2, similitud CPV §3.2.1, certificaciones §3.2.2), `evaluarGoNoGo` y las utilidades expuestas para test (`vanExigido`, `mejorVanEmpresa`, `proyectosSimilares`, `familiaCpv`).
+    - No dependía del Paso 1 para escribirse: es un módulo puro que recibe TypeScript plano. La dependencia del backlog era de secuencia, no técnica.
+    - Criterios de aceptación:
+        - Un test por regla de la §3, con el caso «dato del perfil ausente» en cada una — ✅ 29 tests.
+        - Nunca un veredicto sobre un dato que nadie introdujo — ✅ es el primer bloque de tests: perfil vacío no produce ningún `no_cumple`, todo `no_verificable` nombra su campo, y no hay `go` con nada sin verificar.
+        - `pnpm verify:release` en verde; sin cambios en el contrato de extracción — ✅.
+    - Decisión de dominio a revisar en QA: sin umbral de importe en el pliego, la similitud CPV acredita experiencia en vez de aplicar el 70 % habitual del VAM. Ese 70 % es costumbre, no regla del pliego, y aplicarlo sería inventar un requisito que nadie exigió.
+    - Pendiente: los pasos 3 (captura incremental), 4 (panel) y 5 (tool del copiloto) siguen en ADR-002.
+    - Archivos: `src/lib/go-no-go.ts` (nuevo), `src/lib/__tests__/go-no-go.test.ts` (nuevo)
+
 ## In Progress
 
 <!-- Los agentes Tech/IA mueven aquí la tarea que reclaman (claim) con formato:
@@ -110,26 +133,6 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
      primera entrada elegible de esta sección, así que una entrada muerta se
      lleva por delante una sesión entera. Antes de añadir aquí, comprobar contra
      el repo. -->
-
-- [ ] [Tipo: Backend] [Área: Analysis] Perfil de empresa licitadora — Paso 1: migración + RLS
-    - Objetivo: Crear el modelo de datos del licitador que ADR-002 deja diseñado, sin nada visible todavía.
-    - Alcance: Las cuatro tablas de la ADR (`empresa_perfil`, `empresa_ejercicio`, `empresa_proyecto`, `empresa_acreditacion`) con RLS owner-scoped. **Las tablas hijas cuelgan de `perfil_id`, nunca de `user_id` directo**: es la decisión 7.1 y lo único que separa «añadir una columna» de «reescribir el modelo» el día que el perfil pase a ser de organización. Sin UI, sin motor.
-    - Criterios de aceptación:
-        - Migración aplicable y reversible; Security Advisor sin avisos nuevos.
-        - RLS: el dueño lee y escribe lo suyo; nadie más ve nada. Test de aislamiento entre dos usuarios.
-        - Ninguna tabla hija referencia `user_id` directamente.
-    - Archivos probables: `supabase/migrations/`, `src/lib/schemas.ts`
-    - Dependencias: Ninguna. ADR-002 §7 decidida el 2026-08-07.
-
-- [ ] [Tipo: AI] [Área: Analysis] Perfil de empresa licitadora — Paso 2: motor determinista de Go/No-Go
-    - Objetivo: Convertir los requisitos ya extraídos del pliego en un veredicto comparable contra el perfil, siguiendo la Guía §3.
-    - Alcance: Módulo puro en `src/lib/`, al lado de `scoring.ts` y con su mismo patrón: funciones que devuelven fallo explícito con motivo en vez de adivinar. Reglas de la Guía §3: VAN ≥ 1,5 × VAM, similitud CPV a 3 dígitos, seguro de RC, certificaciones bloqueantes. Sin UI.
-    - Criterios de aceptación:
-        - Un test por regla de la §3, con el caso «dato del perfil ausente» en cada una.
-        - **Nunca un veredicto sobre un dato que nadie introdujo** (decisión 7.4): falta el campo → «no verificable» + qué campo falta. Es el equivalente de `absenceIsConclusive()` (ADR-003) sobre el perfil, y el test que lo fija es el que no puede caerse.
-        - `pnpm verify:release` en verde; sin cambios en el contrato de extracción.
-    - Archivos probables: `src/lib/go-no-go.ts` (nuevo) + tests
-    - Dependencias: Paso 1.
 
 <!-- Los pasos 3 (captura incremental de perfil), 4 (panel Go/No-Go) y 5 (tool
      read-only del copiloto sobre el veredicto ya calculado, decisión 7.3) se
