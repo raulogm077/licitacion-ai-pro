@@ -10,8 +10,6 @@ import { Sidebar, Header, MainContent } from './components/layout';
 // Data-driven chapter rendering
 import { ChapterRenderer } from './components/detail/ChapterRenderer';
 import { chapterConfigs } from './components/detail/chapter-config';
-// TechnicalJsonModal is a utility modal, kept separately
-import { TechnicalJsonModal } from './components/detail/ChapterComponentsPart2';
 import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
 import { FileText } from 'lucide-react';
 
@@ -23,7 +21,6 @@ interface DashboardProps {
 
 export function Dashboard({ data, isLoading }: DashboardProps) {
     const [activeSection, setActiveSection] = useState('resumen');
-    const [isJsonOpen, setIsJsonOpen] = useState(false);
     const analysisHash = useLicitacionStore((state) => state.hash);
 
     // Build View Model
@@ -92,19 +89,13 @@ export function Dashboard({ data, isLoading }: DashboardProps) {
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 alertCount={alertCount}
-                availableSections={[
-                    ...vm.chapters.map((chapter) => chapter.id),
-                    ...(analysisHash ? ['chat'] : []),
-                ]}
+                availableSections={[...vm.chapters.map((chapter) => chapter.id), ...(analysisHash ? ['chat'] : [])]}
             />
 
             <div className="flex flex-col flex-1 overflow-hidden">
                 <Header vm={vm} />
                 {renderActiveSection()}
             </div>
-
-            {/* Kept modal available if needed via other triggers */}
-            <TechnicalJsonModal vm={vm} isOpen={isJsonOpen} onClose={() => setIsJsonOpen(false)} />
         </div>
     );
 }

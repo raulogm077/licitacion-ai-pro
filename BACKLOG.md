@@ -185,7 +185,7 @@ La migración a análisis en tiempo real con **OpenAI Agents SDK + SSE** está c
 
 - [x] [Tipo: UI] [Área: Analysis] Refactorizar ChapterComponents en data-driven rendering
     - Archivos creados: `src/features/dashboard/components/detail/chapter-config.ts`, `ChapterRenderer.tsx`
-    - ChapterComponents.tsx limpiado (265→80 líneas), ChapterComponentsPart2.tsx (261→50 líneas)
+    - El renderer data-driven y `SummarySection.tsx` son las superficies vigentes; los componentes transitorios `ChapterComponents*.tsx` se retiraron en la auditoría de 2026-08-07 al confirmar que el resumen antiguo no tenía consumidores y el modal JSON no tenía trigger de apertura.
 
 - [x] [Tipo: UI] [Área: Analysis] Implementar estrategia de caching
     - Archivos creados: `src/lib/cache.ts` (SimpleCache + CACHE_KEYS + TTL)

@@ -91,6 +91,12 @@ Decisiones vigentes:
 - `phases/block-extraction.ts` queda como camino único: lee de `BlockExtractionInput.context` (ahora obligatorio) y llama directamente a `buildBlockAgent(...)` + `run()`.
 - Si en el futuro hay que revertir la migración, el path correcto es `git revert` del PR responsable; **no** reanimar `block-extraction.legacy.ts` ni reintroducir el flag inline.
 
+## 2.7. Auditoría de artefactos sin uso (2026-08-07)
+
+- El dashboard ya no conserva componentes de resumen anteriores al layout Iris ni el modal JSON que permanecía montado y siempre cerrado; el resumen vigente vive en `components/widgets/SummarySection.tsx`.
+- `_shared/schemas/` expone módulos concretos. Se retiraron el barrel sin consumidores y dos schemas huérfanos (`job.ts` y `validation.ts`); el contrato canónico sigue en `canonical.ts` y la validación efectiva en `analyze-with-agents/phases/validation.ts`.
+- Los prompts exploratorios de 2025, el plan de integridad de abril ya superado y el enlace raíz legacy de skills se eliminaron. Las fuentes vigentes siguen siendo los documentos enumerados en `ARCHITECTURE.md` y las skills canónicas viven en `.agents/skills/`.
+
 ## 3. Iteración activa
 
 ### 3.1. Objetivo

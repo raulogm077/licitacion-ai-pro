@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - 2026-08-07 — Auditoría de artefactos sin uso
+
+- **Frontend:** retirados el resumen de dashboard pre-Iris y el modal JSON sin trigger, junto con su estado y test aislado.
+- **Backend:** eliminados el barrel y dos schemas huérfanos de `_shared/schemas/`; las superficies canónicas continúan importándose de forma explícita.
+- **Repositorio:** eliminados dos prompts exploratorios obsoletos, un plan de integridad ya sustituido por el contrato de release y el enlace raíz legacy de `skills/`.
+- **Método:** candidatos obtenidos con Graphify y confirmados con una segunda resolución de imports, búsquedas de referencias, rutas dinámicas, scripts, CI, fixtures, symlinks e historial Git.
+
 ## [Unreleased] - 2026-07-16 — Fase 1B de ejecución asíncrona
 
 - **Upload firmado**: `analysis-jobs:init` crea el job primero y devuelve tokens temporales; el navegador sube bytes directamente a Storage sin base64 y `submit` encola con HTTP 202.
